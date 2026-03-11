@@ -271,12 +271,10 @@ For in-depth guides on specific components:
 
 | Topic | Location |
 |-------|----------|
-| Agent Configuration | [docs/agents.md](docs/agents.md) |
-| Provider Setup | [docs/providers.md](docs/providers.md) |
+| Configuration | [docs/configs.md](docs/configs.md) |
 | Plugin Development | [docs/plugins.md](docs/plugins.md) |
 | Skill Authoring | [docs/skills.md](docs/skills.md) |
 | Wisdom System | [docs/wisdom.md](docs/wisdom.md) |
-| Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
 
 ---
 
