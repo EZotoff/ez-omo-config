@@ -1,0 +1,4 @@
+.sisyphus/
+test-results/
+*.log
+.env*

@@ -1,0 +1,134 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "google_auth": false,
+  "browser_automation_engine": {
+    "provider": "playwright-cli"
+  },
+  "runtime_fallback": { "enabled": true, "retry_on_errors": [404, 429, 500, 502, 503, 504] },
+  "agents": {
+    "atlas": {
+      "model": "github-copilot/gpt-5.4",
+      "fallback_models": ["zai-coding-plan/glm-5"],
+      "skills": ["wisdom"],
+      "prompt_append": "## Wisdom Injection Protocol\n\nBefore delegating EVERY task via task(), you MUST:\n1. Call wisdom_search to retrieve relevant system-level wisdom:\n   `~/.sisyphus/scripts/wisdom-search.sh \"TASK_KEYWORDS\" --scope system --limit 10 --json`\n2. Also check project-scoped wisdom if a project_id is known\n3. Include results in the '## 6. CONTEXT' section under '### Inherited Wisdom from System'\n4. After each task completes, check if new learnings should be written via wisdom-write.sh\n5. After each task() call completes, run `~/.sisyphus/scripts/wisdom-sync.sh` to sync new notepad learnings"
+    },
+    "prometheus": {
+      "model": "github-copilot/claude-opus-4.6",
+      "fallback_models": ["zai-coding-plan/glm-5"]
+    },
+    "sisyphus": {
+      "model": "github-copilot/gpt-5.4",
+      "variant": "high",
+      "fallback_models": ["zai-coding-plan/glm-5"]
+    },
+    "librarian": {
+      "model": "github-copilot/gemini-3-flash-preview",
+      "fallback_models": ["google/antigravity-gemini-3-flash"],
+      "variant": "high"
+    },
+    "explore": {
+      "model": "github-copilot/grok-code-fast-1"
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "github-copilot/gemini-3.1-pro-preview",
+      "fallback_models": ["zai-coding-plan/glm-5"],
+      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3 Pro for deeper reasoning. Use ui-quick for simple tasks instead."
+    },
+    "document-writer": {
+      "model": "moonshot/kimi-k2.5",
+      "fallback_models": ["zai-coding-plan/glm-5"]
+    },
+    "multimodal-looker": {
+      "model": "moonshot/kimi-k2.5"
+    },
+    "oracle": {
+      "model": "github-copilot/gpt-5.4",
+      "variant": "high",
+      "fallback_models": ["github-copilot/claude-opus-4.6"]
+    },
+    "metis": {
+      "model": "github-copilot/gpt-5.4",
+      "variant": "xhigh"
+    },
+    "momus": {
+      "model": "github-copilot/gpt-5.4",
+      "variant": "high",
+      "fallback_models": ["github-copilot/claude-opus-4.6"]
+    },
+    "hephaestus": {
+      "model": "github-copilot/gpt-5.3-codex",
+      "variant": "xhigh"
+    }
+  },
+  "categories": {
+    "visual-engineering": {
+      "model": "github-copilot/gemini-3.1-pro-preview",
+      "fallback_models": ["zai-coding-plan/glm-5"],
+      "prompt_append": "Use shadcn/ui components and Tailwind CSS."
+    },
+    "artistry": {
+      "model": "github-copilot/gemini-3.1-pro-preview",
+      "fallback_models": ["zai-coding-plan/glm-5"]
+    },
+    "writing": {
+      "model": "moonshot/kimi-k2.5",
+      "fallback_models": ["zai-coding-plan/glm-5"]
+    },
+    "ultrabrain": {
+      "model": "github-copilot/gpt-5.4",
+      "fallback_models": ["zai-coding-plan/glm-5"]
+    },
+    "quick": {
+      "model": "github-copilot/claude-haiku-4.5"
+    },
+    "unspecified-low": {
+      "model": "deepseek/deepseek-chat"
+    },
+    "unspecified-high": {
+      "model": "github-copilot/gpt-5.4"
+    },
+    "deep": {
+      "model": "github-copilot/gpt-5.4",
+      "fallback_models": ["zai-coding-plan/glm-5"]
+    }
+  },
+  "git_master": {
+    "commit_footer": false,
+    "include_co_authored_by": false
+  }
+  ,"experimental": {
+    "preemptive_compaction": false,
+    "aggressive_truncation": true,
+    "truncate_all_tool_outputs": true,
+    "dynamic_context_pruning": {
+      "enabled": true,
+      "notification": "minimal",
+      "turn_protection": {
+        "enabled": true,
+        "turns": 3
+      },
+      "protected_tools": [
+        "task",
+        "todowrite",
+        "todoread",
+        "lsp_rename",
+        "session_read",
+        "session_write",
+        "session_search"
+      ],
+      "strategies": {
+        "deduplication": {
+          "enabled": true
+        },
+        "supersede_writes": {
+          "enabled": true,
+          "aggressive": false
+        },
+        "purge_errors": {
+          "enabled": true,
+          "turns": 5
+        }
+      }
+    }
+  }
+}

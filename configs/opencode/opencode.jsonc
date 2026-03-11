@@ -1,0 +1,11 @@
+{
+	"$schema": "https://opencode.ai/config.json",
+	"permission": {
+		"bash": {
+			"mkfs*": "deny",
+			"shred *": "deny",
+			"wipefs *": "deny",
+			"truncate *": "deny"
+		}
+	}
+}
