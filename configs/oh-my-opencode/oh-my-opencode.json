@@ -1,8 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
   "google_auth": false,
+  "auto_update": false,
   "browser_automation_engine": {
-    "provider": "playwright-cli"
+    "provider": "agent-browser"
   },
   "runtime_fallback": { "enabled": true, "retry_on_errors": [404, 429, 500, 502, 503, 504] },
   "agents": {
@@ -39,7 +40,7 @@
       "fallback_models": ["zai-coding-plan/glm-5"]
     },
     "multimodal-looker": {
-      "model": "moonshot/kimi-k2.5"
+      "model": "github-copilot/gpt-5.4"
     },
     "oracle": {
       "model": "github-copilot/gpt-5.4",
