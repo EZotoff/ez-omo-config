@@ -9,6 +9,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `worktree/terminal.ts` — cross-platform terminal spawning and tmux helpers used by `worktree.ts`.
 - `git-safety.ts` — blocks destructive shell and git commands and reports working tree safety before risky operations.
 - `review-enforcer.ts` — injects review workflow instructions after task completion so plan execution gets reviewed consistently.
+- `auto-checkpoint.ts` — automatically creates git checkpoint commits when sessions become idle or tasks complete, with quiescence-based safety guards.
 - `kdco-primitives/` — shared helpers used by the plugin bundle, including project ID lookup, shell escaping, tmux detection, temp paths, logging, timeout helpers, and shared types.
 
 ## Dependency notes
