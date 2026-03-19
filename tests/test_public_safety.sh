@@ -14,7 +14,7 @@ trap 'rm -f "$scan_file" "$env_file"' EXIT
 (
     cd "$REPO_ROOT" || exit 1
 
-    for path in configs plugins skills scripts extras install.sh README.md MANIFEST.md LICENSE; do
+    for path in commands configs plugins skills scripts extras install.sh README.md MANIFEST.md LICENSE; do
         if [[ -d "$path" ]]; then
             find "$path" -type f -print
         elif [[ -f "$path" ]]; then
@@ -27,12 +27,14 @@ assert_file_exists "$REPO_ROOT/install.sh"
 assert_file_exists "$REPO_ROOT/README.md"
 assert_file_exists "$REPO_ROOT/MANIFEST.md"
 assert_file_exists "$REPO_ROOT/LICENSE"
+assert_dir_exists "$REPO_ROOT/commands"
 assert_dir_exists "$REPO_ROOT/configs"
 assert_dir_exists "$REPO_ROOT/plugins"
 assert_dir_exists "$REPO_ROOT/skills"
 assert_dir_exists "$REPO_ROOT/scripts"
 assert_dir_exists "$REPO_ROOT/extras"
 
+assert_grep '^commands/' "$scan_file"
 assert_grep '^configs/' "$scan_file"
 assert_grep '^plugins/' "$scan_file"
 assert_grep '^skills/' "$scan_file"

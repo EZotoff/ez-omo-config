@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Personal OpenCode configuration with Oh-My-OpenCode presets. 26 curated artifacts including configs, plugins, skills, and scripts for enhanced AI-assisted development.
+Personal OpenCode configuration with Oh-My-OpenCode presets. 27 curated artifacts including commands, configs, plugins, skills, and scripts for enhanced AI-assisted development.
 
 ---
 
@@ -32,46 +32,48 @@ ls -la ~/.opencode/plugin/
 
 ## What's Included
 
-This repository contains 26 artifacts organized into 5 categories:
+This repository contains 27 artifacts organized into 6 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
-| 1-4 | **Configs** | 4 files | Core OpenCode and OMO configuration files |
-| 5-10 | **Plugins** | 5 files + library | TypeScript plugins for worktrees, git safety, and review enforcement |
-| 11-16 | **Skills** | 6 directories | Specialized agent skills for testing, deployment, and UX |
-| 17-25 | **Scripts** | 9 shell scripts | Wisdom propagation system scripts |
-| 26 | **Extras** | 1 file | Additional registry configuration |
+| 1 | **Commands** | 1 file | Slash commands for OpenCode workflows |
+| 2-5 | **Configs** | 4 files | Core OpenCode and OMO configuration files |
+| 6-11 | **Plugins** | 5 files + library | TypeScript plugins for worktrees, git safety, and review enforcement |
+| 12-17 | **Skills** | 6 directories | Specialized agent skills for testing, deployment, and UX |
+| 18-26 | **Scripts** | 9 shell scripts | Wisdom propagation system scripts |
+| 27 | **Extras** | 1 file | Additional registry configuration |
 
 ### Complete Artifact Inventory
 
 | # | Artifact | Path | Purpose |
 |---|----------|------|---------|
-| 1 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
-| 2 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
-| 3 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections |
-| 4 | `oh-my-opencode.json` | `configs/oh-my-opencode/` | Agent model assignments and experimental features |
-| 5 | `worktree.ts` | `plugins/` | Git worktree management plugin |
-| 6 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |
-| 7 | `worktree/terminal.ts` | `plugins/worktree/` | Terminal integration for worktrees |
-| 8 | `git-safety.ts` | `plugins/` | Git safety protocol enforcement |
-| 9 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
-| 10 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
-| 11 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management |
-| 12 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
-| 13 | `review-protocol/` | `skills/` | Code review protocol implementation |
-| 14 | `playwright/` | `skills/` | Browser automation testing |
-| 15 | `deployment/` | `skills/` | Infrastructure deployment helpers |
-| 16 | `frontend-ui-ux/` | `skills/` | Frontend and UX design assistance |
-| 17 | `wisdom-common.sh` | `scripts/wisdom/` | Shared wisdom utilities |
-| 18 | `wisdom-search.sh` | `scripts/wisdom/` | Search wisdom database |
-| 19 | `wisdom-write.sh` | `scripts/wisdom/` | Write new learnings |
-| 20 | `wisdom-sync.sh` | `scripts/wisdom/` | Sync wisdom across notepads |
-| 21 | `wisdom-archive.sh` | `scripts/wisdom/` | Archive old wisdom entries |
-| 22 | `wisdom-delete.sh` | `scripts/wisdom/` | Delete wisdom entries |
-| 23 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
-| 24 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
-| 25 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
-| 26 | `ocx.jsonc` | `extras/` | Additional registry configuration |
+| 1 | `models-preset.md` | `commands/` | Slash command for showing current OMO model assignments |
+| 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
+| 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
+| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections |
+| 5 | `oh-my-opencode.json` | `configs/oh-my-opencode/` | Agent model assignments and experimental features |
+| 6 | `worktree.ts` | `plugins/` | Git worktree management plugin |
+| 7 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |
+| 8 | `worktree/terminal.ts` | `plugins/worktree/` | Terminal integration for worktrees |
+| 9 | `git-safety.ts` | `plugins/` | Git safety protocol enforcement |
+| 10 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
+| 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
+| 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management |
+| 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
+| 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
+| 15 | `playwright/` | `skills/` | Browser automation testing |
+| 16 | `deployment/` | `skills/` | Infrastructure deployment helpers |
+| 17 | `frontend-ui-ux/` | `skills/` | Frontend and UX design assistance |
+| 18 | `wisdom-common.sh` | `scripts/wisdom/` | Shared wisdom utilities |
+| 19 | `wisdom-search.sh` | `scripts/wisdom/` | Search wisdom database |
+| 20 | `wisdom-write.sh` | `scripts/wisdom/` | Write new learnings |
+| 21 | `wisdom-sync.sh` | `scripts/wisdom/` | Sync wisdom across notepads |
+| 22 | `wisdom-archive.sh` | `scripts/wisdom/` | Archive old wisdom entries |
+| 23 | `wisdom-delete.sh` | `scripts/wisdom/` | Delete wisdom entries |
+| 24 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
+| 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
+| 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
+| 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 
 ---
 
@@ -118,6 +120,7 @@ This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenCode** (
 
 ### Category Descriptions
 
+- **Commands**: Slash command prompts for repeatable OpenCode workflows
 - **Configs**: Provider definitions, model configurations, and retry logic
 - **Plugins**: TypeScript extensions that add worktree management, git safety checks, and review enforcement
 - **Skills**: Specialized agent capabilities for browser testing, deployment, and UI/UX design
@@ -145,10 +148,13 @@ The `install.sh` script supports several modes and flags:
 Install only specific artifact types:
 ```bash
 ./install.sh --configs    # Install only config files
+./install.sh --commands   # Install only slash commands
 ./install.sh --plugins    # Install only plugins
 ./install.sh --skills     # Install only skills
 ./install.sh --scripts    # Install only wisdom scripts
 ```
+
+The `commands` category installs slash-command prompts into `~/.config/opencode/command/`, including `/models-preset` at `~/.config/opencode/command/models-preset.md`.
 
 Combine flags as needed:
 ```bash

@@ -34,12 +34,14 @@ trap 'rm -f "$inventory_file"' EXIT
 ) > "$inventory_file"
 
 assert_file_exists "$REPO_ROOT/MANIFEST.md"
+assert_dir_exists "$REPO_ROOT/commands"
 assert_dir_exists "$REPO_ROOT/configs"
 assert_dir_exists "$REPO_ROOT/configs/opencode"
 assert_dir_exists "$REPO_ROOT/configs/oh-my-opencode"
 assert_dir_exists "$REPO_ROOT/plugins"
 assert_dir_exists "$REPO_ROOT/extras"
 
+assert_manifest_row 'models-preset.md.*commands/'
 assert_manifest_row 'opencode.json.*configs/opencode/'
 assert_manifest_row 'opencode.jsonc.*configs/opencode/'
 assert_manifest_row 'provider-connect-retry.mjs.*configs/opencode/'
@@ -50,6 +52,7 @@ assert_manifest_row 'review-enforcer.ts.*plugins/'
 assert_manifest_row 'kdco-primitives/.*plugins/kdco-primitives/'
 assert_manifest_row 'ocx.jsonc.*extras/'
 
+assert_file_exists "$REPO_ROOT/commands/models-preset.md"
 assert_file_exists "$REPO_ROOT/configs/opencode/opencode.json"
 assert_file_exists "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_file_exists "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
@@ -62,31 +65,38 @@ assert_grep '\$HOME/.opencode/opencode.jsonc' "$REPO_ROOT/configs/opencode/READM
 assert_grep '\$HOME/.config/opencode/provider-connect-retry.mjs' "$REPO_ROOT/configs/opencode/README.md"
 assert_grep '\$HOME/.opencode/ocx.jsonc' "$REPO_ROOT/configs/opencode/README.md"
 
+assert_no_grep '/home/ezotoff' "$REPO_ROOT/commands/models-preset.md"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/extras/ocx.jsonc"
 
+assert_no_grep 'sk-' "$REPO_ROOT/commands/models-preset.md"
 assert_no_grep 'sk-' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep 'sk-' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep 'sk-' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep 'sk-' "$REPO_ROOT/extras/ocx.jsonc"
+assert_no_grep 'OPENAI_API' "$REPO_ROOT/commands/models-preset.md"
 assert_no_grep 'OPENAI_API' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep 'OPENAI_API' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep 'OPENAI_API' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep 'OPENAI_API' "$REPO_ROOT/extras/ocx.jsonc"
+assert_no_grep 'ghp_' "$REPO_ROOT/commands/models-preset.md"
 assert_no_grep 'ghp_' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep 'ghp_' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep 'ghp_' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep 'ghp_' "$REPO_ROOT/extras/ocx.jsonc"
+assert_no_grep 'AIza' "$REPO_ROOT/commands/models-preset.md"
 assert_no_grep 'AIza' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep 'AIza' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep 'AIza' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep 'AIza' "$REPO_ROOT/extras/ocx.jsonc"
+assert_no_grep 'BEGIN RSA PRIVATE KEY' "$REPO_ROOT/commands/models-preset.md"
 assert_no_grep 'BEGIN RSA PRIVATE KEY' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep 'BEGIN RSA PRIVATE KEY' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep 'BEGIN RSA PRIVATE KEY' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep 'BEGIN RSA PRIVATE KEY' "$REPO_ROOT/extras/ocx.jsonc"
+assert_no_grep 'BEGIN OPENSSH PRIVATE KEY' "$REPO_ROOT/commands/models-preset.md"
 assert_no_grep 'BEGIN OPENSSH PRIVATE KEY' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep 'BEGIN OPENSSH PRIVATE KEY' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep 'BEGIN OPENSSH PRIVATE KEY' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"

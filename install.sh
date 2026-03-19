@@ -7,6 +7,7 @@ REPO_ROOT="$SCRIPT_DIR"
 DRY_RUN=0
 MODE="symlink"
 SELECTION_SPECIFIED=0
+INSTALL_COMMANDS=0
 INSTALL_CONFIGS=0
 INSTALL_PLUGINS=0
 INSTALL_SKILLS=0
@@ -23,6 +24,7 @@ ITEMS_SKIPPED=0
 ITEMS_BACKED_UP=0
 
 ITEMS=(
+    "commands|commands/models-preset.md|$HOME/.config/opencode/command/models-preset.md"
     "configs|configs/opencode/opencode.json|$HOME/.config/opencode/opencode.json"
     "configs|configs/opencode/opencode.jsonc|$HOME/.opencode/opencode.jsonc"
     "configs|configs/opencode/provider-connect-retry.mjs|$HOME/.config/opencode/provider-connect-retry.mjs"
@@ -32,6 +34,7 @@ ITEMS=(
     "plugins|plugins/worktree|$HOME/.opencode/plugin/worktree"
     "plugins|plugins/git-safety.ts|$HOME/.opencode/plugin/git-safety.ts"
     "plugins|plugins/review-enforcer.ts|$HOME/.opencode/plugin/review-enforcer.ts"
+    "plugins|plugins/auto-checkpoint.ts|$HOME/.opencode/plugin/auto-checkpoint.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
     "skills|skills/atlas-review-handler|$HOME/.config/opencode/skills/atlas-review-handler"
@@ -60,6 +63,7 @@ Modes:
   --copy      Copy repo files to install targets
 
 Selective install flags:
+  --commands  Install slash commands only
   --configs   Install configuration files only
   --plugins   Install plugins only
   --skills    Install skills only
@@ -207,6 +211,7 @@ category_selected() {
     local category="$1"
 
     case "$category" in
+        commands) [[ "$INSTALL_COMMANDS" -eq 1 ]] ;;
         configs) [[ "$INSTALL_CONFIGS" -eq 1 ]] ;;
         plugins) [[ "$INSTALL_PLUGINS" -eq 1 ]] ;;
         skills) [[ "$INSTALL_SKILLS" -eq 1 ]] ;;
@@ -296,6 +301,10 @@ parse_args() {
                 INSTALL_CONFIGS=1
                 SELECTION_SPECIFIED=1
                 ;;
+            --commands)
+                INSTALL_COMMANDS=1
+                SELECTION_SPECIFIED=1
+                ;;
             --plugins)
                 INSTALL_PLUGINS=1
                 SELECTION_SPECIFIED=1
@@ -309,6 +318,7 @@ parse_args() {
                 SELECTION_SPECIFIED=1
                 ;;
             --all)
+                INSTALL_COMMANDS=1
                 INSTALL_CONFIGS=1
                 INSTALL_PLUGINS=1
                 INSTALL_SKILLS=1
@@ -328,6 +338,7 @@ parse_args() {
     done
 
     if [[ "$SELECTION_SPECIFIED" -eq 0 ]]; then
+        INSTALL_COMMANDS=1
         INSTALL_CONFIGS=1
         INSTALL_PLUGINS=1
         INSTALL_SKILLS=1
@@ -338,6 +349,7 @@ parse_args() {
 selected_groups() {
     local groups=()
 
+    [[ "$INSTALL_COMMANDS" -eq 1 ]] && groups+=("commands")
     [[ "$INSTALL_CONFIGS" -eq 1 ]] && groups+=("configs")
     [[ "$INSTALL_PLUGINS" -eq 1 ]] && groups+=("plugins")
     [[ "$INSTALL_SKILLS" -eq 1 ]] && groups+=("skills")

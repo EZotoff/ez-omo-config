@@ -7,6 +7,7 @@
 source tests/helpers.sh
 
 # Test for expected directories
+assert_dir_exists "commands/"
 assert_dir_exists "configs/"
 assert_dir_exists "plugins/"
 assert_dir_exists "skills/"
@@ -18,6 +19,7 @@ assert_dir_exists "tests/"
 # Test for expected files
 assert_file_exists "MANIFEST.md"
 assert_file_exists "LICENSE"
+assert_file_exists "commands/models-preset.md"
 
 # Report results
 echo ""
