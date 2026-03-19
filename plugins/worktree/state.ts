@@ -1,26 +1,14 @@
-/**
- * SQLite State Module for Worktree Plugin
- *
- * Provides atomic, crash-safe persistence for worktree sessions and pending operations.
- * Uses bun:sqlite for zero external dependencies.
- *
- * Database location: ~/.local/share/opencode/plugins/worktree/{project-id}.sqlite
- * Project ID is the first git root commit SHA (40-char hex), with SHA-256 path hash fallback (16-char).
- */
-
-import { Database } from "bun:sqlite"
-import { mkdirSync } from "node:fs"
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
-import { z } from "zod"
+import { z } from "../../../.opencode/node_modules/zod/index.js"
 import type { OpencodeClient } from "../kdco-primitives"
 import { getProjectId, logWarn } from "../kdco-primitives"
 
-// =============================================================================
-// TYPES
-// =============================================================================
+export interface Database {
+	filePath: string
+}
 
-/** Represents an active worktree session */
 export interface Session {
 	id: string
 	branch: string
@@ -28,22 +16,23 @@ export interface Session {
 	createdAt: string
 }
 
-/** Pending spawn operation to be processed on session.idle */
 export interface PendingSpawn {
 	branch: string
 	path: string
 	sessionId: string
 }
 
-/** Pending delete operation to be processed on session.idle */
 export interface PendingDelete {
 	branch: string
 	path: string
 }
 
-// =============================================================================
-// SCHEMAS (Boundary Validation)
-// =============================================================================
+export interface PendingStart {
+	branch: string
+	path: string
+	planName: string
+	sessionId: string | null
+}
 
 const sessionSchema = z.object({
 	id: z.string().min(1),
@@ -63,17 +52,36 @@ const pendingDeleteSchema = z.object({
 	path: z.string().min(1),
 })
 
-// =============================================================================
-// DATABASE UTILITIES
-// =============================================================================
+const pendingStartSchema = z.object({
+	branch: z.string().min(1),
+	path: z.string().min(1),
+	planName: z.string().min(1),
+	sessionId: z.string().min(1).nullable(),
+})
 
-/**
- * Get the worktree path for a given project and branch.
- *
- * @param projectRoot - Absolute path to the project root
- * @param branch - Branch name for the worktree
- * @returns Absolute path to the worktree directory
- */
+const stateFileSchema = z.object({
+	sessions: z.array(sessionSchema),
+	pendingOperation: z
+		.object({
+			type: z.enum(["spawn", "delete"]),
+			branch: z.string().min(1),
+			path: z.string().min(1),
+			sessionId: z.string().min(1).nullable().optional(),
+		})
+		.nullable(),
+	pendingStarts: z.array(pendingStartSchema),
+})
+
+type StateFile = z.infer<typeof stateFileSchema>
+
+function createEmptyState(): StateFile {
+	return {
+		sessions: [],
+		pendingOperation: null,
+		pendingStarts: [],
+	}
+}
+
 export async function getWorktreePath(projectRoot: string, branch: string): Promise<string> {
 	if (!branch || typeof branch !== "string") {
 		throw new Error("branch is required")
@@ -82,331 +90,199 @@ export async function getWorktreePath(projectRoot: string, branch: string): Prom
 	return path.join(os.homedir(), ".local", "share", "opencode", "worktree", projectId, branch)
 }
 
-/**
- * Get the database directory path.
- * Location: ~/.local/share/opencode/plugins/worktree/
- */
-function getDbDirectory(): string {
-	const home = os.homedir()
-	return path.join(home, ".local", "share", "opencode", "plugins", "worktree")
+function getStateDirectory(): string {
+	return path.join(os.homedir(), ".local", "share", "opencode", "plugins", "worktree")
 }
 
-/**
- * Get the full database file path for a project.
- * @param projectRoot - Absolute path to the project root
- */
-async function getDbPath(projectRoot: string): Promise<string> {
+async function getStatePath(projectRoot: string): Promise<string> {
 	const projectId = await getProjectId(projectRoot)
-	return path.join(getDbDirectory(), `${projectId}.sqlite`)
+	return path.join(getStateDirectory(), `${projectId}.json`)
 }
 
-/**
- * Initialize the SQLite database for worktree state.
- * Creates the database file and schema if they don't exist.
- *
- * @param projectRoot - Absolute path to the project root
- * @returns Configured Database instance
- *
- * @example
- * ```ts
- * const db = await initStateDb("/home/user/my-project")
- * const sessions = getAllSessions(db)
- * db.close()
- * ```
- */
+function readState(db: Database): StateFile {
+	try {
+		const content = readFileSync(db.filePath, "utf-8")
+		const parsed = JSON.parse(content)
+		return stateFileSchema.parse(parsed)
+	} catch {
+		return createEmptyState()
+	}
+}
+
+function writeState(db: Database, state: StateFile): void {
+	const validated = stateFileSchema.parse(state)
+	const dir = path.dirname(db.filePath)
+	mkdirSync(dir, { recursive: true })
+	const tmpPath = `${db.filePath}.tmp`
+	writeFileSync(tmpPath, `${JSON.stringify(validated, null, 2)}\n`, "utf-8")
+	renameSync(tmpPath, db.filePath)
+}
+
 export async function initStateDb(projectRoot: string): Promise<Database> {
-	// Guard: validate project root
 	if (!projectRoot || typeof projectRoot !== "string") {
 		throw new Error("initStateDb requires a valid project root path")
 	}
-
-	const dbPath = await getDbPath(projectRoot)
-	const dbDir = path.dirname(dbPath)
-
-	// Create directory synchronously (required before opening DB)
-	mkdirSync(dbDir, { recursive: true })
-
-	// Open database (creates if doesn't exist)
-	const db = new Database(dbPath)
-
-	// Configure SQLite for concurrent access
-	db.exec("PRAGMA journal_mode=WAL")
-	db.exec("PRAGMA busy_timeout=5000")
-
-	// Create tables with schema
-	db.exec(`
-		CREATE TABLE IF NOT EXISTS sessions (
-			id TEXT PRIMARY KEY,
-			branch TEXT NOT NULL,
-			path TEXT NOT NULL,
-			created_at TEXT NOT NULL
-		)
-	`)
-
-	db.exec(`
-		CREATE TABLE IF NOT EXISTS pending_operations (
-			id INTEGER PRIMARY KEY CHECK (id = 1),
-			type TEXT NOT NULL,
-			branch TEXT NOT NULL,
-			path TEXT NOT NULL,
-			session_id TEXT
-		)
-	`)
-
-	return db
+	const filePath = await getStatePath(projectRoot)
+	mkdirSync(path.dirname(filePath), { recursive: true })
+	if (!safeExists(filePath)) {
+		writeFileSync(filePath, `${JSON.stringify(createEmptyState(), null, 2)}\n`, "utf-8")
+	}
+	return { filePath }
 }
 
-// =============================================================================
-// SESSION CRUD
-// =============================================================================
-
-/**
- * Add a new session to the database.
- * Uses atomic INSERT OR REPLACE for idempotency.
- *
- * @param db - Database instance from initStateDb
- * @param session - Session data to persist
- */
-export function addSession(db: Database, session: Session): void {
-	// Parse at boundary for type safety
-	const parsed = sessionSchema.parse(session)
-
-	const stmt = db.prepare(`
-		INSERT OR REPLACE INTO sessions (id, branch, path, created_at)
-		VALUES ($id, $branch, $path, $createdAt)
-	`)
-
-	stmt.run({
-		$id: parsed.id,
-		$branch: parsed.branch,
-		$path: parsed.path,
-		$createdAt: parsed.createdAt,
-	})
-}
-
-/**
- * Get a session by ID.
- *
- * @param db - Database instance from initStateDb
- * @param sessionId - Session ID to look up
- * @returns Session if found, null otherwise
- */
-export function getSession(db: Database, sessionId: string): Session | null {
-	// Guard: empty session ID
-	if (!sessionId) return null
-
-	const stmt = db.prepare(`
-		SELECT id, branch, path, created_at as createdAt
-		FROM sessions
-		WHERE id = $id
-	`)
-
-	const row = stmt.get({ $id: sessionId }) as Record<string, string> | null
-	if (!row) return null
-
-	return {
-		id: row.id,
-		branch: row.branch,
-		path: row.path,
-		createdAt: row.createdAt,
+function safeExists(filePath: string): boolean {
+	try {
+		readFileSync(filePath, "utf-8")
+		return true
+	} catch {
+		return false
 	}
 }
 
-/**
- * Remove a session by branch name.
- * Deletes all sessions matching the branch.
- *
- * @param db - Database instance from initStateDb
- * @param branch - Branch name to remove
- */
+export function addSession(db: Database, session: Session): void {
+	const parsed = sessionSchema.parse(session)
+	const state = readState(db)
+	state.sessions = [
+		...state.sessions.filter((item) => item.id !== parsed.id),
+		parsed,
+	]
+	writeState(db, state)
+}
+
+export function getSession(db: Database, sessionId: string): Session | null {
+	if (!sessionId) return null
+	const state = readState(db)
+	return state.sessions.find((session) => session.id === sessionId) ?? null
+}
+
 export function removeSession(db: Database, branch: string): void {
-	// Guard: empty branch
 	if (!branch) return
-
-	const stmt = db.prepare(`DELETE FROM sessions WHERE branch = $branch`)
-	stmt.run({ $branch: branch })
+	const state = readState(db)
+	state.sessions = state.sessions.filter((session) => session.branch !== branch)
+	writeState(db, state)
 }
 
-/**
- * Get all active sessions.
- *
- * @param db - Database instance from initStateDb
- * @returns Array of all sessions, empty if none
- */
 export function getAllSessions(db: Database): Session[] {
-	const stmt = db.prepare(`
-		SELECT id, branch, path, created_at as createdAt
-		FROM sessions
-		ORDER BY created_at ASC
-	`)
-
-	const rows = stmt.all() as Array<Record<string, string>>
-	return rows.map((row) => ({
-		id: row.id,
-		branch: row.branch,
-		path: row.path,
-		createdAt: row.createdAt,
-	}))
+	return readState(db).sessions
 }
 
-// =============================================================================
-// PENDING SPAWN OPERATIONS
-// =============================================================================
-
-/**
- * Set a pending spawn operation. Uses singleton pattern (last-write-wins).
- *
- * If a pending spawn already exists, it will be REPLACED and a warning logged.
- * This is intentional: only the most recent spawn request should be processed.
- *
- * @param db - Database instance from initStateDb
- * @param spawn - Spawn operation data
- */
 export function setPendingSpawn(db: Database, spawn: PendingSpawn, client?: OpencodeClient): void {
-	// Parse at boundary for type safety
 	const parsed = pendingSpawnSchema.parse(spawn)
-
-	// Check for existing operations and warn about replacement
+	const state = readState(db)
 	const existingSpawn = getPendingSpawn(db)
 	const existingDelete = getPendingDelete(db)
 
 	if (existingSpawn) {
-		logWarn(
-			client,
-			"worktree",
-			`Replacing pending spawn: "${existingSpawn.branch}" → "${parsed.branch}"`,
-		)
+		logWarn(client, "worktree", `Replacing pending spawn: "${existingSpawn.branch}" → "${parsed.branch}"`)
 	} else if (existingDelete) {
-		logWarn(
-			client,
-			"worktree",
-			`Pending spawn replacing pending delete for: "${existingDelete.branch}"`,
-		)
+		logWarn(client, "worktree", `Pending spawn replacing pending delete for: "${existingDelete.branch}"`)
 	}
 
-	// Atomic: replace any existing pending operation
-	const stmt = db.prepare(`
-		INSERT OR REPLACE INTO pending_operations (id, type, branch, path, session_id)
-		VALUES (1, 'spawn', $branch, $path, $sessionId)
-	`)
-
-	stmt.run({
-		$branch: parsed.branch,
-		$path: parsed.path,
-		$sessionId: parsed.sessionId,
-	})
+	state.pendingOperation = {
+		type: "spawn",
+		branch: parsed.branch,
+		path: parsed.path,
+		sessionId: parsed.sessionId,
+	}
+	writeState(db, state)
 }
 
-/**
- * Get the pending spawn operation if one exists.
- *
- * @param db - Database instance from initStateDb
- * @returns PendingSpawn if exists and type is 'spawn', null otherwise
- */
 export function getPendingSpawn(db: Database): PendingSpawn | null {
-	const stmt = db.prepare(`
-		SELECT type, branch, path, session_id as sessionId
-		FROM pending_operations
-		WHERE id = 1 AND type = 'spawn'
-	`)
-
-	const row = stmt.get() as Record<string, string> | null
-	if (!row) return null
-
+	const pendingOperation = readState(db).pendingOperation
+	if (!pendingOperation || pendingOperation.type !== "spawn" || !pendingOperation.sessionId) {
+		return null
+	}
 	return {
-		branch: row.branch,
-		path: row.path,
-		sessionId: row.sessionId,
+		branch: pendingOperation.branch,
+		path: pendingOperation.path,
+		sessionId: pendingOperation.sessionId,
 	}
 }
 
-/**
- * Clear any pending spawn operation.
- * Removes the row if it's a spawn type, leaves deletes untouched.
- *
- * @param db - Database instance from initStateDb
- */
 export function clearPendingSpawn(db: Database): void {
-	const stmt = db.prepare(`DELETE FROM pending_operations WHERE id = 1 AND type = 'spawn'`)
-	stmt.run()
+	const state = readState(db)
+	if (state.pendingOperation?.type === "spawn") {
+		state.pendingOperation = null
+		writeState(db, state)
+	}
 }
 
-// =============================================================================
-// PENDING DELETE OPERATIONS
-// =============================================================================
-
-/**
- * Set a pending delete operation. Uses singleton pattern (last-write-wins).
- *
- * If a pending delete already exists, it will be REPLACED and a warning logged.
- * This is intentional: only the most recent delete request should be processed.
- *
- * @param db - Database instance from initStateDb
- * @param del - Delete operation data
- */
 export function setPendingDelete(db: Database, del: PendingDelete, client?: OpencodeClient): void {
-	// Parse at boundary for type safety
 	const parsed = pendingDeleteSchema.parse(del)
-
-	// Check for existing operations and warn about replacement
+	const state = readState(db)
 	const existingDelete = getPendingDelete(db)
 	const existingSpawn = getPendingSpawn(db)
 
 	if (existingDelete) {
-		logWarn(
-			client,
-			"worktree",
-			`Replacing pending delete: "${existingDelete.branch}" → "${parsed.branch}"`,
-		)
+		logWarn(client, "worktree", `Replacing pending delete: "${existingDelete.branch}" → "${parsed.branch}"`)
 	} else if (existingSpawn) {
-		logWarn(
-			client,
-			"worktree",
-			`Pending delete replacing pending spawn for: "${existingSpawn.branch}"`,
-		)
+		logWarn(client, "worktree", `Pending delete replacing pending spawn for: "${existingSpawn.branch}"`)
 	}
 
-	// Atomic: replace any existing pending operation
-	const stmt = db.prepare(`
-		INSERT OR REPLACE INTO pending_operations (id, type, branch, path, session_id)
-		VALUES (1, 'delete', $branch, $path, NULL)
-	`)
-
-	stmt.run({
-		$branch: parsed.branch,
-		$path: parsed.path,
-	})
+	state.pendingOperation = {
+		type: "delete",
+		branch: parsed.branch,
+		path: parsed.path,
+		sessionId: null,
+	}
+	writeState(db, state)
 }
 
-/**
- * Get the pending delete operation if one exists.
- *
- * @param db - Database instance from initStateDb
- * @returns PendingDelete if exists and type is 'delete', null otherwise
- */
 export function getPendingDelete(db: Database): PendingDelete | null {
-	const stmt = db.prepare(`
-		SELECT type, branch, path
-		FROM pending_operations
-		WHERE id = 1 AND type = 'delete'
-	`)
-
-	const row = stmt.get() as Record<string, string> | null
-	if (!row) return null
-
+	const pendingOperation = readState(db).pendingOperation
+	if (!pendingOperation || pendingOperation.type !== "delete") return null
 	return {
-		branch: row.branch,
-		path: row.path,
+		branch: pendingOperation.branch,
+		path: pendingOperation.path,
 	}
 }
 
-/**
- * Clear any pending delete operation.
- * Removes the row if it's a delete type, leaves spawns untouched.
- *
- * @param db - Database instance from initStateDb
- */
 export function clearPendingDelete(db: Database): void {
-	const stmt = db.prepare(`DELETE FROM pending_operations WHERE id = 1 AND type = 'delete'`)
-	stmt.run()
+	const state = readState(db)
+	if (state.pendingOperation?.type === "delete") {
+		state.pendingOperation = null
+		writeState(db, state)
+	}
+}
+
+export function setPendingStart(db: Database, pendingStart: PendingStart): void {
+	const parsed = pendingStartSchema.parse(pendingStart)
+	const state = readState(db)
+	state.pendingStarts = [
+		...state.pendingStarts.filter((item) => item.path !== parsed.path),
+		parsed,
+	]
+	writeState(db, state)
+}
+
+export function getPendingStartByPath(db: Database, worktreePath: string): PendingStart | null {
+	if (!worktreePath) return null
+	const state = readState(db)
+	return state.pendingStarts.find((item) => item.path === worktreePath) ?? null
+}
+
+export function attachPendingStartSession(db: Database, worktreePath: string, sessionId: string): void {
+	const state = readState(db)
+	state.pendingStarts = state.pendingStarts.map((item) =>
+		item.path === worktreePath ? { ...item, sessionId } : item,
+	)
+	writeState(db, state)
+}
+
+export function getPendingStartBySession(db: Database, sessionId: string): PendingStart | null {
+	if (!sessionId) return null
+	const state = readState(db)
+	return state.pendingStarts.find((item) => item.sessionId === sessionId) ?? null
+}
+
+export function clearPendingStartByPath(db: Database, worktreePath: string): void {
+	const state = readState(db)
+	state.pendingStarts = state.pendingStarts.filter((item) => item.path !== worktreePath)
+	writeState(db, state)
+}
+
+export function clearPendingStartBySession(db: Database, sessionId: string): void {
+	const state = readState(db)
+	state.pendingStarts = state.pendingStarts.filter((item) => item.sessionId !== sessionId)
+	writeState(db, state)
 }

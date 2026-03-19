@@ -11,12 +11,11 @@
  * Rewritten for OCX with production-proven patterns.
  */
 
-import type { Database } from "bun:sqlite"
-import { access, copyFile, cp, mkdir, rm, stat, symlink } from "node:fs/promises"
+import { access, copyFile, cp, mkdir, readdir, rm, stat, symlink } from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
-import { type Plugin, tool } from "@opencode-ai/plugin"
-import type { Event } from "@opencode-ai/sdk"
+import { type Plugin, tool } from "../../.opencode/node_modules/@opencode-ai/plugin/dist/index.js"
+import type { Event } from "../../.opencode/node_modules/@opencode-ai/sdk/dist/index.js"
 import type { OpencodeClient } from "./kdco-primitives/types"
 
 /** Logger interface for structured logging */
@@ -27,13 +26,14 @@ interface Logger {
 	error: (msg: string) => void
 }
 
-import { parse as parseJsonc } from "jsonc-parser"
-import { z } from "zod"
+import { parse as parseJsonc } from "../../.opencode/node_modules/jsonc-parser/lib/esm/main.js"
+import { z } from "../../.opencode/node_modules/zod/index.js"
 
 import { getProjectId } from "./kdco-primitives/get-project-id"
 import {
 	addSession,
 	clearPendingDelete,
+	type Database,
 	getPendingDelete,
 	getSession,
 	getWorktreePath,
@@ -42,12 +42,6 @@ import {
 	setPendingDelete,
 } from "./worktree/state"
 import { openTerminal } from "./worktree/terminal"
-
-/** Maximum retries for database initialization */
-const DB_MAX_RETRIES = 3
-
-/** Delay between retry attempts in milliseconds */
-const DB_RETRY_DELAY_MS = 100
 
 /** Maximum depth to traverse session parent chain */
 const MAX_SESSION_CHAIN_DEPTH = 10
@@ -321,85 +315,11 @@ async function forkWithContext(
 // MODULE-LEVEL STATE
 // =============================================================================
 
-/** Database instance - initialized once per plugin lifecycle */
 let db: Database | null = null
-
-/** Project root path - stored on first initialization */
-let projectRoot: string | null = null
-
-/** Flag to prevent duplicate cleanup handler registration */
-let cleanupRegistered = false
-
-/**
- * Register process cleanup handlers for graceful database shutdown.
- * Ensures WAL checkpoint and proper close on process termination.
- *
- * NOTE: process.once() is an EventEmitter method that never throws.
- * The boolean guard is defense-in-depth for idempotency, not error recovery.
- *
- * @param database - The database instance to clean up
- */
-function registerCleanupHandlers(database: Database): void {
-	if (cleanupRegistered) return // Early exit guard
-	cleanupRegistered = true
-
-	const cleanup = () => {
-		try {
-			database.exec("PRAGMA wal_checkpoint(TRUNCATE)")
-			database.close()
-		} catch {
-			// Best effort cleanup - process is exiting anyway
-		}
-	}
-
-	process.once("SIGTERM", cleanup)
-	process.once("SIGINT", cleanup)
-	process.once("beforeExit", cleanup)
-}
-
-/**
- * Get the database instance, initializing if needed.
- * Includes retry logic for transient initialization failures.
- *
- * @returns Database instance
- * @throws {Error} if initialization fails after all retries
- */
-async function getDb(log: Logger): Promise<Database> {
+async function initDb(root: string): Promise<Database> {
 	if (db) return db
-
-	if (!projectRoot) {
-		throw new Error("Database not initialized: projectRoot not set. Call initDb() first.")
-	}
-
-	let lastError: Error | null = null
-
-	for (let attempt = 1; attempt <= DB_MAX_RETRIES; attempt++) {
-		try {
-			db = await initStateDb(projectRoot)
-			registerCleanupHandlers(db)
-			return db
-		} catch (error) {
-			lastError = error instanceof Error ? error : new Error(String(error))
-			log.warn(`Database init attempt ${attempt}/${DB_MAX_RETRIES} failed: ${lastError.message}`)
-
-			if (attempt < DB_MAX_RETRIES) {
-				Bun.sleepSync(DB_RETRY_DELAY_MS)
-			}
-		}
-	}
-
-	throw new Error(
-		`Failed to initialize database after ${DB_MAX_RETRIES} attempts: ${lastError?.message}`,
-	)
-}
-
-/**
- * Initialize the database with the project root path.
- * Must be called once before any getDb() calls.
- */
-async function initDb(root: string, log: Logger): Promise<Database> {
-	projectRoot = root
-	return getDb(log)
+	db = await initStateDb(root)
+	return db
 }
 
 // =============================================================================
@@ -643,7 +563,7 @@ async function loadWorktreeConfig(directory: string, log: Logger): Promise<Workt
     "preDelete": []
   }
 }
-`
+			`
 			// Ensure .opencode directory exists
 			await mkdir(path.join(directory, ".opencode"), { recursive: true })
 			await Bun.write(configPath, defaultConfig)
@@ -665,12 +585,103 @@ async function loadWorktreeConfig(directory: string, log: Logger): Promise<Workt
 	}
 }
 
+type SessionMessage = {
+	info?: {
+		role?: string
+	}
+	parts?: Array<{
+		type?: string
+		text?: string
+	}>
+}
+
+function normalizeMessages(response: unknown): SessionMessage[] {
+	if (Array.isArray(response)) return response as SessionMessage[]
+	if (response && typeof response === "object" && "data" in response) {
+		const data = (response as { data?: unknown }).data
+		if (Array.isArray(data)) return data as SessionMessage[]
+	}
+	return []
+}
+
+function getMessageText(message: SessionMessage): string {
+	return (message.parts ?? [])
+		.filter((part) => part.type === "text" && typeof part.text === "string")
+		.map((part) => part.text ?? "")
+		.join("\n")
+		.trim()
+}
+
+async function listPlanNames(repoRoot: string): Promise<string[]> {
+	const plansDir = path.join(repoRoot, ".sisyphus", "plans")
+	try {
+		const entries = await readdir(plansDir, { withFileTypes: true })
+		return entries
+			.filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+			.map((entry) => entry.name.slice(0, -3))
+			.sort((a, b) => a.localeCompare(b))
+	} catch {
+		return []
+	}
+}
+
+function matchPlanName(requested: string, planNames: string[]): string | null {
+	const lowerName = requested.trim().toLowerCase()
+	if (!lowerName) return null
+	const exactMatch = planNames.find((plan) => plan.toLowerCase() === lowerName)
+	if (exactMatch) return exactMatch
+	return planNames.find((plan) => plan.toLowerCase().includes(lowerName)) ?? null
+}
+
+function findPlanNameInText(text: string, planNames: string[]): string | null {
+	const lowerText = text.toLowerCase()
+	const sortedPlans = [...planNames].sort((a, b) => b.length - a.length)
+	for (const planName of sortedPlans) {
+		if (lowerText.includes(planName.toLowerCase())) return planName
+	}
+	return null
+}
+
+async function resolvePlanName(
+	client: OpencodeClient,
+	repoRoot: string,
+	sessionId: string,
+	explicitPlanName?: string,
+): Promise<string | null> {
+	const planNames = await listPlanNames(repoRoot)
+	if (planNames.length === 0) return null
+	if (explicitPlanName) return matchPlanName(explicitPlanName, planNames)
+
+	const response = await client.session.messages({ path: { id: sessionId }, query: { limit: 50 } })
+	const messages = normalizeMessages(response)
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const message = messages[i]
+		if (message.info?.role !== "user") continue
+		const text = getMessageText(message)
+		if (!text) continue
+		const matchedPlan = findPlanNameInText(text, planNames)
+		if (matchedPlan) return matchedPlan
+	}
+
+	return null
+}
+
+function deriveBranchName(planName: string): string {
+	const slug = planName
+		.toLowerCase()
+		.replace(/[^a-z0-9/-]+/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^[-/]+|[-/]+$/g, "")
+		.slice(0, 200)
+	return `plan/${slug || "worktree"}`
+}
+
 // =============================================================================
 // PLUGIN ENTRY
 // =============================================================================
 
 export const WorktreePlugin: Plugin = async (ctx) => {
-	const { directory, client } = ctx
+	const { directory, client, serverUrl } = ctx
 
 	const log = {
 		debug: (msg: string) =>
@@ -692,10 +703,130 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 	}
 
 	// Initialize SQLite database
-	const database = await initDb(directory, log)
+	const database = await initDb(directory)
 
 	return {
 		tool: {
+			worktree_start: tool({
+				description:
+					"Create a worktree, open a new OpenCode session in the current TUI, and auto-run /start-work there.",
+				args: {
+					planName: tool.schema
+						.string()
+						.optional()
+						.describe("Plan name to start. If omitted, infer from recent user messages."),
+					branch: tool.schema
+						.string()
+						.optional()
+						.describe("Branch name for the worktree. Defaults to a slug from the plan name."),
+					baseBranch: tool.schema
+						.string()
+						.optional()
+						.describe("Base branch to create from (defaults to HEAD)"),
+				},
+				async execute(args, toolCtx) {
+					const resolvedPlanName = await resolvePlanName(
+						client,
+						directory,
+						toolCtx.sessionID,
+						args.planName,
+					)
+
+					if (!resolvedPlanName) {
+						return "Could not resolve a plan name. Pass a plan name explicitly or mention the plan in the previous message before retrying."
+					}
+
+					const branchName = args.branch ?? deriveBranchName(resolvedPlanName)
+					const branchResult = branchNameSchema.safeParse(branchName)
+					if (!branchResult.success) {
+						return `❌ Invalid branch name: ${branchResult.error.issues[0]?.message}`
+					}
+
+					if (args.baseBranch) {
+						const baseResult = branchNameSchema.safeParse(args.baseBranch)
+						if (!baseResult.success) {
+							return `❌ Invalid base branch name: ${baseResult.error.issues[0]?.message}`
+						}
+					}
+
+					const result = await createWorktree(directory, branchName, args.baseBranch)
+					if (!result.ok) {
+						return `Failed to create worktree: ${result.error}`
+					}
+
+					const worktreePath = result.value
+					const worktreeConfig = await loadWorktreeConfig(directory, log)
+					const mainWorktreePath = directory
+
+					if (worktreeConfig.sync.copyFiles.length > 0) {
+						await copyFiles(mainWorktreePath, worktreePath, worktreeConfig.sync.copyFiles, log)
+					}
+
+					if (worktreeConfig.sync.symlinkDirs.length > 0) {
+						await symlinkDirs(mainWorktreePath, worktreePath, worktreeConfig.sync.symlinkDirs, log)
+					}
+
+					if (worktreeConfig.hooks.postCreate.length > 0) {
+						await runHooks(worktreePath, worktreeConfig.hooks.postCreate, log)
+					}
+
+					// Step 1: Create a new session rooted in the worktree
+					let createdSession: { id: string }
+					try {
+						const created = await client.session.create({
+							body: {
+								title: resolvedPlanName,
+							},
+							query: { directory: worktreePath },
+						})
+						createdSession = created.data ?? created
+					} catch (error) {
+						const msg = error instanceof Error ? error.message : String(error)
+						log.warn(`[worktree] session.create failed: ${msg}`)
+						return `Worktree created at ${worktreePath}\n\nFailed to create session: ${msg}`
+					}
+
+					addSession(database, {
+						id: createdSession.id,
+						branch: branchName,
+						path: worktreePath,
+						createdAt: new Date().toISOString(),
+					})
+
+					// Step 2: Navigate the TUI to the new session
+					try {
+						await new Promise((resolve) => setTimeout(resolve, 500))
+						const transport = (client as unknown as Record<string, unknown>)
+						const sessionNs = transport.session as Record<string, unknown> | undefined
+						const innerClient = sessionNs?._client as Record<string, unknown> | undefined
+						const post = innerClient?.post as ((opts: Record<string, unknown>) => Promise<unknown>) | undefined
+						if (!post) throw new Error("Could not access SDK transport")
+						await post({ url: "/tui/select-session", body: { sessionID: createdSession.id } })
+					} catch (error) {
+						const msg = error instanceof Error ? error.message : String(error)
+						log.warn(`[worktree] tui.selectSession failed: ${msg}`)
+						return `Worktree created at ${worktreePath}\nSession ${createdSession.id} created.\n\nFailed to switch TUI: ${msg}`
+					}
+
+					// Step 3: Inject the /start-work command into the TUI prompt
+					try {
+						await new Promise((resolve) => setTimeout(resolve, 1000))
+						const promptText = `/start-work ${resolvedPlanName} --worktree ${worktreePath}`
+						const innerClient = (client as unknown as Record<string, Record<string, unknown>>).session?._client as Record<string, unknown> | undefined
+						const post = innerClient?.post as ((opts: Record<string, unknown>) => Promise<unknown>) | undefined
+						if (!post) throw new Error("Could not access SDK transport")
+						await post({ url: "/tui/append-prompt", body: { text: promptText } })
+						await post({ url: "/tui/submit-prompt", body: {} })
+					} catch (error) {
+						const msg = error instanceof Error ? error.message : String(error)
+						log.warn(`[worktree] session.promptAsync failed: ${msg}`)
+						return `Worktree created at ${worktreePath}\nSession ${createdSession.id} created and TUI switched.\n\nFailed to send prompt: ${msg}`
+					}
+
+					return `Worktree created at ${worktreePath}\n\nA new OpenCode session has been requested and will start ${resolvedPlanName} automatically.`
+				},
+			}),
+
 			worktree_create: tool({
 				description:
 					"Create a new git worktree for isolated development. A new terminal will open with OpenCode in the worktree.",

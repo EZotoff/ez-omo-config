@@ -11,7 +11,7 @@
 import * as fs from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
-import { z } from "zod"
+import { z } from "../../../.opencode/node_modules/zod/index.js"
 import type { OpencodeClient } from "../kdco-primitives"
 import {
 	escapeAppleScript,
