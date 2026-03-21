@@ -1,6 +1,7 @@
 # ez-omo-config
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 
 Personal OpenCode configuration with Oh-My-OpenCode presets. 27 curated artifacts including commands, configs, plugins, skills, and scripts for enhanced AI-assisted development.
 
@@ -32,16 +33,18 @@ ls -la ~/.opencode/plugin/
 
 ## What's Included
 
-This repository contains 27 artifacts organized into 6 categories:
+This repository contains 36 artifacts organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 1 file | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 4 files | Core OpenCode and OMO configuration files |
+| 2-5 | **Configs** | 5 files | Core OpenCode and OMO configuration files |
 | 6-11 | **Plugins** | 5 files + library | TypeScript plugins for worktrees, git safety, and review enforcement |
-| 12-17 | **Skills** | 6 directories | Specialized agent skills for testing, deployment, and UX |
-| 18-26 | **Scripts** | 9 shell scripts | Wisdom propagation system scripts |
-| 27 | **Extras** | 1 file | Additional registry configuration |
+| 12-20 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
+| 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
+| 31 | **Extras** | 1 file | Additional registry configuration |
+| 32-33 | **Docker** | 2 files | Worktree container templates |
+| 34-36 | **Docs** | 3 files | Configuration, plugin, and worktree state documentation |
 
 ### Complete Artifact Inventory
 
@@ -74,6 +77,15 @@ This repository contains 27 artifacts organized into 6 categories:
 | 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
 | 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
+| 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
+| 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
+| 30 | `worktree-coordinator/` | `skills/` | Worktree parallel development guide |
+| 31 | `worktree-post-create.sh` | `scripts/worktree/` | State creation, port allocation, Docker start |
+| 32 | `worktree-pre-delete.sh` | `scripts/worktree/` | Container stop, port free, state cleanup |
+| 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration |
+| 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
+| 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
+| 36 | `worktree-state-schema.md` | `docs/` | Runtime state file formats and locations |
 
 ---
 
