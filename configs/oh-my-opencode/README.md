@@ -21,7 +21,7 @@ The configuration overrides the default model assignments for the following agen
 | **prometheus** | `github-copilot/claude-opus-4.6` | default | `zai-coding-plan/glm-5` |
 | **sisyphus** | `github-copilot/gpt-5.4` | `high` | `zai-coding-plan/glm-5` |
 | **librarian** | `github-copilot/gemini-3-flash-preview` | `high` | `google/antigravity-gemini-3-flash` |
-| **explore** | `github-copilot/grok-code-fast-1` | default | (none) |
+| **explore** | `opencode-go/minimax-m2.7` | default | `github-copilot/grok-code-fast-1` |
 | **frontend-ui-ux-engineer** | `github-copilot/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5` |
 | **document-writer** | `moonshot/kimi-k2.5` | default | `zai-coding-plan/glm-5` |
 | **multimodal-looker** | `moonshot/kimi-k2.5` | default | (none) |
@@ -36,7 +36,7 @@ The configuration overrides the default model assignments for the following agen
 - **prometheus** (Planner): Claude Opus 4.6 for deep reasoning and planning
 - **sisyphus** (Executor): High-variant GPT-5.4 for focused task execution
 - **librarian** (Search/Docs): Gemini 3 Flash Preview with high reasoning for documentation retrieval
-- **explore** (Discovery): Grok Code Fast 1 for rapid exploration
+- **explore** (Discovery): MiniMax M2.7 for deep exploration, Grok Code Fast 1 fallback
 - **frontend-ui-ux-engineer** (Designer): Gemini 3.1 Pro for complex frontend/UX work
 - **document-writer** (Writing): Kimi K2.5 for document generation and writing tasks
 - **multimodal-looker** (Media Analysis): Kimi K2.5 for image/PDF analysis

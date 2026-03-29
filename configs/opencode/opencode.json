@@ -3,7 +3,7 @@
   "plugin": [
     "oh-my-opencode",
     "file://$HOME/.config/opencode/provider-connect-retry.mjs",
-    "@tarquinen/opencode-dcp@2.1.8",
+    "@tarquinen/opencode-dcp@latest",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
@@ -16,7 +16,8 @@
     }
   },
   "compaction": {
-    "reserved": 30000
+    "auto": false,
+    "reserved": 0
   },
   "provider": {
     "google": {

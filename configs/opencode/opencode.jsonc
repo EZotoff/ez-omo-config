@@ -5,7 +5,9 @@
 			"mkfs*": "deny",
 			"shred *": "deny",
 			"wipefs *": "deny",
-			"truncate *": "deny"
+			"truncate *": "deny",
+			"*kill*-f*bun*": "deny",
+			"*grep*-f*bun*": "deny"
 		}
 	}
 }

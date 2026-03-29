@@ -1,0 +1,12 @@
+{
+  "$schema": "https://registry.kdco.dev/schemas/worktree.json",
+  "sync": {
+    "copyFiles": [".env", ".env.local"],
+    "symlinkDirs": ["node_modules"],
+    "exclude": [".sisyphus/", "dist/", ".next/"]
+  },
+  "hooks": {
+    "postCreate": ["bash .opencode/scripts/worktree-post-create.sh"],
+    "preDelete": ["bash .opencode/scripts/worktree-pre-delete.sh"]
+  }
+}

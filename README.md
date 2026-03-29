@@ -207,7 +207,7 @@ cd ez-omo-config
 | **prometheus** | `github-copilot/claude-opus-4.6` | default | `zai-coding-plan/glm-5` | Planner, deep reasoning |
 | **sisyphus** | `github-copilot/gpt-5.4` | high | `zai-coding-plan/glm-5` | Executor, focused tasks |
 | **librarian** | `github-copilot/gemini-3-flash-preview` | high | `google/antigravity-gemini-3-flash` | Search, documentation |
-| **explore** | `github-copilot/grok-code-fast-1` | default | (none) | Discovery, exploration |
+| **explore** | `opencode-go/minimax-m2.7` | default | `github-copilot/grok-code-fast-1` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `github-copilot/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5` | Complex frontend work |
 | **document-writer** | `moonshot/kimi-k2.5` | default | `zai-coding-plan/glm-5` | Writing, documentation |
 | **multimodal-looker** | `moonshot/kimi-k2.5` | default | (none) | Image/PDF analysis |

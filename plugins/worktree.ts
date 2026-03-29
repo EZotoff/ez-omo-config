@@ -770,14 +770,16 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						await runHooks(worktreePath, worktreeConfig.hooks.postCreate, log)
 					}
 
-					// Step 1: Create a new session rooted in the worktree
+					// Step 1: Create a new session associated with the main project
+					// Use mainWorktreePath so the session is visible in the main project's TUI session list.
+					// The worktree path is passed to /start-work via --worktree flag instead.
 					let createdSession: { id: string }
 					try {
 						const created = await client.session.create({
 							body: {
 								title: resolvedPlanName,
 							},
-							query: { directory: worktreePath },
+							query: { directory: mainWorktreePath },
 						})
 						createdSession = created.data ?? created
 					} catch (error) {

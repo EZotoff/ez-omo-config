@@ -8,7 +8,7 @@
   "runtime_fallback": { "enabled": true, "retry_on_errors": [404, 429, 500, 502, 503, 504] },
   "agents": {
     "atlas": {
-      "model": "kimi-code/kimi-k2.5",
+      "model": "kimi-code/k2p5",
       "fallback_models": ["github-copilot/claude-sonnet-4.6", "github-copilot/gpt-5.4"],
       "skills": ["wisdom"],
       "prompt_append": "## Wisdom Injection Protocol\n\nBefore delegating EVERY task via task(), you MUST:\n1. Call wisdom_search to retrieve relevant system-level wisdom:\n   `~/.sisyphus/scripts/wisdom-search.sh \"TASK_KEYWORDS\" --scope system --limit 10 --json`\n2. Also check project-scoped wisdom if a project_id is known\n3. Include results in the '## 6. CONTEXT' section under '### Inherited Wisdom from System'\n4. After each task completes, check if new learnings should be written via wisdom-write.sh\n5. After each task() call completes, run `~/.sisyphus/scripts/wisdom-sync.sh` to sync new notepad learnings"
@@ -19,14 +19,14 @@
     },
     "sisyphus": {
       "model": "github-copilot/claude-opus-4.6",
-      "fallback_models": ["kimi-code/kimi-k2.5", "opencode-go/kimi-k2.5"]
+      "fallback_models": ["kimi-code/k2p5", "opencode-go/kimi-k2.5"]
     },
     "librarian": {
       "model": "opencode-go/minimax-m2.7"
     },
     "explore": {
-      "model": "github-copilot/grok-code-fast-1",
-      "fallback_models": ["opencode-go/minimax-m2.7"]
+      "model": "opencode-go/minimax-m2.7",
+      "fallback_models": ["github-copilot/grok-code-fast-1"]
     },
     "frontend-ui-ux-engineer": {
       "model": "github-copilot/gemini-3.1-pro-preview",
@@ -34,7 +34,7 @@
       "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3 Pro for deeper reasoning. Use ui-quick for simple tasks instead."
     },
     "document-writer": {
-      "model": "kimi-code/kimi-k2.5",
+      "model": "kimi-code/k2p5",
       "fallback_models": ["zai-coding-plan/glm-5"]
     },
     "multimodal-looker": {
@@ -70,7 +70,7 @@
       "fallback_models": ["github-copilot/claude-opus-4.6"]
     },
     "writing": {
-      "model": "kimi-code/kimi-k2.5",
+      "model": "kimi-code/k2p5",
       "fallback_models": ["opencode-go/kimi-k2.5"]
     },
     "ultrabrain": {
@@ -78,11 +78,10 @@
       "fallback_models": ["zai-coding-plan/glm-5"]
     },
     "quick": {
-      "model": "github-copilot/gpt-5.4-mini",
-      "fallback_models": ["github-copilot/claude-haiku-4.5"]
+      "model": "deepseek/deepseek-chat"
     },
     "unspecified-low": {
-      "model": "deepseek/deepseek-chat"
+      "model": "github-copilot/claude-sonnet-4.6"
     },
     "unspecified-high": {
       "model": "github-copilot/claude-opus-4.6",
@@ -91,6 +90,12 @@
     "deep": {
       "model": "github-copilot/gpt-5.3-codex",
       "fallback_models": ["github-copilot/claude-opus-4.6"]
+    },
+    "mephistopheles": {
+      "model": "github-copilot/gpt-5.4",
+      "variant": "xhigh",
+      "fallback_models": ["github-copilot/claude-opus-4.6"],
+      "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless — you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly."
     }
   },
   "git_master": {

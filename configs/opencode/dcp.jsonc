@@ -1,0 +1,91 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json",
+  "enabled": true,
+  "debug": false,
+  "pruneNotification": "minimal",
+  "pruneNotificationType": "chat",
+
+  // DCP slash commands: /dcp context, /dcp stats, /dcp sweep, /dcp compress, etc.
+  "commands": {
+    "enabled": true,
+    "protectedTools": ["task", "todowrite", "todoread", "skill"]
+  },
+
+  // Manual mode OFF = DCP manages context automatically + agents can use tools
+  "manualMode": {
+    "enabled": false,
+    "automaticStrategies": true
+  },
+
+  // Protect the last 3 turns from any pruning
+  "turnProtection": {
+    "enabled": true,
+    "turns": 3
+  },
+
+  // Protect config files and agent instructions from being pruned
+  "protectedFilePatterns": [
+    "AGENTS.md",
+    "*.config.*",
+    "*.jsonc",
+    "oh-my-opencode.json"
+  ],
+
+  "compress": {
+    // Allow agents to use compress tool freely
+    "permission": "allow",
+
+    // Show compression details in chat
+    "showCompression": false,
+
+    // 55% of model context window
+    // 128K model → 70.4K (below OpenCode isOverflow at 80K with reserved=0)
+    // 200K model → 110K
+    // 1M model   → 576K
+    "maxContextLimit": "55%",
+
+    // 30% of model context window — below this, no nudges
+    // 128K model → 38.4K
+    // 200K model → 60K
+    // 1M model   → 314K
+    "minContextLimit": "30%",
+
+    // Nudge every 10 iterations when above maxContextLimit
+    // Analysis of 1250 Gemini Flash requests showed nudgeFrequency=5 was too aggressive
+    // Each nudge → agent compresses → 2-6 model calls per round × sub-sessions = massive multiplier
+    "nudgeFrequency": 10,
+
+    // After 15 messages without compression, send iteration reminder
+    "iterationNudgeThreshold": 15,
+
+    // Strong nudges — DCP is the primary defense layer
+    "nudgeForce": "strong",
+
+    // Never lose user messages during compression
+    "protectUserMessages": true,
+
+    // Preserve outputs from these tools in compression summaries
+    "protectedTools": ["task", "todowrite", "todoread", "skill", "lsp_diagnostics"]
+  },
+
+  "strategies": {
+    "deduplication": {
+      "enabled": true,
+      "protectedTools": ["task", "skill"]
+    },
+    "supersedeWrites": {
+      "enabled": true
+    },
+    "purgeErrors": {
+      "enabled": true,
+      "turns": 5,
+      "protectedTools": ["task"]
+    }
+  },
+
+  "experimental": {
+    // Allow DCP to work in subagent sessions
+    "allowSubAgents": true,
+    "customPrompts": false
+  }
+}
