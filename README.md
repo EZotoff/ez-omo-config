@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
 Personal OpenCode configuration with Oh-My-OpenCode presets. 27 curated artifacts including commands, configs, plugins, skills, and scripts for enhanced AI-assisted development.
 
@@ -33,13 +34,13 @@ ls -la ~/.opencode/plugin/
 
 ## What's Included
 
-This repository contains 36 artifacts organized into 8 categories:
+This repository contains 38 artifacts organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
-| 1 | **Commands** | 1 file | Slash commands for OpenCode workflows |
+| 1 | **Commands** | 2 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 5 files | Core OpenCode and OMO configuration files |
-| 6-11 | **Plugins** | 5 files + library | TypeScript plugins for worktrees, git safety, and review enforcement |
+| 6-11 | **Plugins** | 6 files + library | TypeScript plugins for worktrees, git safety, review enforcement, and VS Code launcher |
 | 12-20 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
@@ -51,6 +52,7 @@ This repository contains 36 artifacts organized into 8 categories:
 | # | Artifact | Path | Purpose |
 |---|----------|------|---------|
 | 1 | `models-preset.md` | `commands/` | Slash command for showing current OMO model assignments |
+| 1b | `vscode.md` | `commands/` | VS Code launcher command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections |
@@ -61,6 +63,7 @@ This repository contains 36 artifacts organized into 8 categories:
 | 9 | `git-safety.ts` | `plugins/` | Git safety protocol enforcement |
 | 10 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
 | 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
+| 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
 | 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
