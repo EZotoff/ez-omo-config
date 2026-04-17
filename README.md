@@ -4,7 +4,9 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-Personal OpenCode configuration with Oh-My-OpenCode presets. 27 curated artifacts including commands, configs, plugins, skills, and scripts for enhanced AI-assisted development.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 7 AI providers, 12 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **38 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 ---
 
@@ -32,6 +34,19 @@ ls -la ~/.opencode/plugin/
 
 ---
 
+## What Changes After Installing
+
+After running `./install.sh`, your OpenCode CLI gains:
+
+- **`/models-preset`** — view all 12 agent model assignments at a glance
+- **Git safety guardrails** — automatic prevention of destructive git operations
+- **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
+- **Runtime fallback** — automatic model switching across 7 providers when APIs fail or rate-limit
+- **Wisdom system** — learning management that captures and reuses development knowledge
+- **Review enforcement** — automated code review triggers after completing implementation work
+
+---
+
 ## What's Included
 
 This repository contains 38 artifacts organized into 8 categories:
@@ -56,7 +71,7 @@ This repository contains 38 artifacts organized into 8 categories:
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections |
-| 5 | `oh-my-opencode.json` | `configs/oh-my-opencode/` | Agent model assignments and experimental features |
+| 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
 | 6 | `worktree.ts` | `plugins/` | Git worktree management plugin |
 | 7 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |
 | 8 | `worktree/terminal.ts` | `plugins/worktree/` | Terminal integration for worktrees |
@@ -94,7 +109,7 @@ This repository contains 38 artifacts organized into 8 categories:
 
 ## Architecture Overview
 
-This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenCode** (enhancement layer).
+This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenAgent** (enhancement layer).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -115,8 +130,9 @@ This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenCode** (
          └───────────┬───────────┘
                      │
          ┌───────────▼───────────┐
-│   Oh-My-OpenCode Layer        │
-│   (oh-my-opencode.json)       │
+│   Oh-My-OpenAgent Layer        │
+│   (oh-my-openagent.json)       │
+│   (oh-my-openagent.json)       │
 │   - Agent assignments         │
 │   - Category overrides        │
 │   - Experimental features     │
@@ -232,7 +248,7 @@ cd ez-omo-config
 
 ## Related Projects
 
-- **[OMO Pulse](https://github.com/EZotoff/omo-pulse)** - Dashboard for monitoring Oh-My-OpenCode activity and agent performance
+- **[OMO Pulse](https://github.com/EZotoff/omo-pulse)** - Dashboard for monitoring Oh-My-OpenAgent activity and agent performance
 
 ---
 
@@ -241,7 +257,7 @@ cd ez-omo-config
 Before using this configuration, ensure you have:
 
 1. **OpenCode CLI** - The core AI coding assistant ([installation guide](https://opencode.ai))
-2. **Oh-My-OpenCode** - Enhancement layer for OpenCode
+2. **Oh-My-OpenAgent** - Enhancement layer for OpenCode
 
 The installer handles placing configuration files in the correct locations. It does not install OpenCode or OMO themselves.
 
@@ -257,7 +273,7 @@ The installer automatically backs up your existing configuration before making c
 ~/.ez-omo-backup/
 ├── 2024-01-15_143022/     # Timestamped backup directory
 │   ├── opencode.json
-│   ├── oh-my-opencode.json
+│   ├── oh-my-openagent.json
 │   └── plugins/
 ├── 2024-01-14_090511/
 │   └── ...
@@ -276,7 +292,7 @@ cp -r ~/.ez-omo-backup/2024-01-15_143022/* ~/.config/opencode/
 
 # Or restore just the configs
 cp ~/.ez-omo-backup/2024-01-15_143022/opencode.json ~/.config/opencode/
-cp ~/.ez-omo-backup/2024-01-15_143022/oh-my-opencode.json ~/.config/opencode/
+cp ~/.ez-omo-backup/2024-01-15_143022/oh-my-openagent.json ~/.config/opencode/
 ```
 
 Backups are retained indefinitely. Clean up old backups periodically:
@@ -316,4 +332,4 @@ This is a personal configuration repository. Your mileage may vary. These settin
 
 ---
 
-<p align="center">Made with OpenCode + Oh-My-OpenCode</p>
+<p align="center">Made with OpenCode + Oh-My-OpenAgent</p>
