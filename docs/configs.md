@@ -60,21 +60,49 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 ## provider-connect-retry.mjs
 
-**Purpose**: Plugin that retries failed provider connections with bounded backoff.
+**Purpose**: First-party JavaScript plugin loaded by `opencode.json` that handles provider connection retries and empty-response recovery.
 
 **What it Configures**:
 
-- Connection retry logic
-- Exponential backoff parameters
-- Maximum retry attempts
-- Provider failure handling
+- Error-triggered retry logic with bounded backoff
+- Empty-response detection and nudge-based recovery
+- Per-rule retry limits, backoff schedules, and fallback models
+- Session-scoped attempt tracking with duplicate suppression
 
-**Key Features**:
+**How it Works**:
 
-- Automatic retry on transient failures
-- Bounded exponential backoff
-- Per-provider retry policies
-- Failure logging and reporting
+The plugin registers an `event` handler that watches three event types:
+
+1. **`session.error`** and **`message.updated` (with error)** — When a provider returns an error, the plugin loads `retry-errors.json` at runtime, matches the error message against compiled regex patterns, and dispatches a retry if a rule matches. It aborts the failed turn, waits for the configured backoff, then re-prompts the session with the last user message (or an agent-specific nudge). Retries are capped by `max_retries` and deduplicated per failed assistant message ID.
+
+2. **`session.idle`** — When a session goes idle, the plugin checks whether the most recent assistant message is empty (no text parts, no tool calls). If the `retry-errors.json` registry contains a rule with `detect_empty_response: true`, the plugin treats the empty response like an error and triggers the same retry / nudge / fallback flow. This catches stalls where the provider returns HTTP 200 with zero content.
+
+**Key Fields**:
+
+- `max_retries` — Hard ceiling on attempts per rule per session
+- `backoff_ms` — Array of millisecond delays, indexed by attempt number
+- `fallback_model` — `providerID/modelID` string used after retries are exhausted
+- `retry_after_tool_execution` — If `false`, skips retry when tool calls were made since the last user message (avoids replaying side effects)
+- `nudge_prompts` — Agent-specific escalating prompts; keyed by agent name or `default`
+- `detect_empty_response` — Enables idle-time empty-response detection for this rule
+
+**Nudge Prompts**:
+
+When a rule defines `nudge_prompts`, the plugin sends a short agent-specific text prompt instead of replaying the original user message. This breaks the model out of repetitive failure loops. The prompt is chosen by attempt index (capped at the last entry). If no agent-specific key exists, it falls back to `default`.
+
+**Fallback Behavior**:
+
+After exhausting `max_retries`, if `fallback_model` is set, the plugin aborts the session and re-prompts using the fallback provider and model, preserving the original message parts, agent, system prompt, tools, and variant. If no fallback is configured, it logs a warning and stops.
+
+**State Tracking**:
+
+- `attemptsBySession` — Tracks retry count, fingerprint of dispatched parts, original user message ID, and rule ID per session
+- `handledErrorsBySession` — Prevents retrying the same failed assistant message or empty response twice
+- `inFlightSessions` — Guards against concurrent retries in the same session
+
+**Runtime Loading**:
+
+The plugin reads `~/.config/opencode/retry-errors.json` fresh on every event. Changes to the registry take effect immediately without restarting OpenCode.
 
 **Install Target**: `$HOME/.config/opencode/provider-connect-retry.mjs`
 
@@ -82,9 +110,53 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 ---
 
-## oh-my-opencode.json
+## retry-errors.json
 
-**Purpose**: OMO (Oh-My-OpenCode) agent and category overrides.
+**Purpose**: Runtime registry of retryable error patterns consumed by `provider-connect-retry.mjs`.
+
+**What it Configures**:
+
+- Regex patterns that identify retryable provider errors
+- Backoff schedules and retry limits per error class
+- Optional fallback model assignments
+- Empty-response detection flags and nudge prompt libraries
+
+**Schema**:
+
+The top-level object contains an `errors` array. Each entry is an object with these fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Stable identifier for the rule |
+| `pattern` | string | Yes | Regex pattern (case-insensitive match) |
+| `match_type` | string | Yes | Always `"regex"` |
+| `max_retries` | integer | Yes | Maximum retry attempts |
+| `backoff_ms` | integer[] | Yes | Millisecond delays per attempt |
+| `retry_after_tool_execution` | boolean | Yes | Whether to retry after tools were invoked |
+| `fallback_model` | string | No | `providerID/modelID` to use after exhaustion |
+| `detect_empty_response` | boolean | No | Enables idle-time empty-response detection |
+| `nudge_prompts` | object | No | Agent-specific prompt arrays (`agentName` or `default`) |
+| `description` | string | No | Human-readable explanation |
+| `added_by` | string | No | Who created the rule |
+| `added_at` | string | No | ISO date of creation |
+
+**Extending the Registry**:
+
+Use the `register-retry-error` skill to add new rules safely. It validates the JSON schema, checks for duplicate IDs, compiles the regex, and appends the entry. Manual edits are also possible because the file is reloaded at runtime, but the skill ensures structural correctness.
+
+**Live Symlink**:
+
+The installed path `~/.config/opencode/retry-errors.json` is a symlink to `configs/retry-errors.json` in this repo. Editing either path edits the same file. OpenCode sees changes immediately.
+
+**Install Target**: `$HOME/.config/opencode/retry-errors.json`
+
+**Status**: Required
+
+---
+
+## oh-my-openagent.json
+
+**Purpose**: OMO (Oh-My-OpenAgent) agent and category overrides.
 
 **What it Configures**:
 
@@ -100,7 +172,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 - OMO workflow integrations
 - Extension point configurations
 
-**Install Target**: `$HOME/.config/opencode/oh-my-opencode.json`
+**Install Target**: `$HOME/.config/opencode/oh-my-openagent.json`
 
 **Status**: Required
 
@@ -128,8 +200,9 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 |------|------------------|----------------|--------|
 | `opencode.json` | Main config: 7 providers, 8 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
-| `provider-connect-retry.mjs` | Provider connection retry handling with backoff | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
-| `oh-my-opencode.json` | OMO agent/category overrides and skill loading | `$HOME/.config/opencode/oh-my-opencode.json` | Required |
+| `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
+| `retry-errors.json` | Retryable error pattern registry with backoff and fallback rules | `$HOME/.config/opencode/retry-errors.json` | Required |
+| `oh-my-openagent.json` | OMO agent/category overrides and skill loading | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
 | `extras/ocx.jsonc` | OCX registry configuration pointer | `$HOME/.opencode/ocx.jsonc` | Optional |
 
 ---

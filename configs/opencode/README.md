@@ -6,7 +6,8 @@ This directory contains the portable OpenCode config bundle copied from the loca
 |---|---|---|
 | `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, and runtime defaults | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
-| `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff | `$HOME/.config/opencode/provider-connect-retry.mjs` |
+| `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response detection, and registry-driven error matching | `$HOME/.config/opencode/provider-connect-retry.mjs` |
+| `retry-errors.json` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models consumed by the retry plugin | `$HOME/.config/opencode/retry-errors.json` |
 | `extras/ocx.jsonc` | OCX registry configuration pointer used by the OCX CLI | `$HOME/.opencode/ocx.jsonc` |
 
 ## Portability notes

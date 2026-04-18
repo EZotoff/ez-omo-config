@@ -16,6 +16,12 @@ Plugins in this bundle are copied from the local OpenCode plugin registry and pa
 
 ---
 
+## Config-Layer Plugins
+
+This document covers TypeScript plugins under `plugins/`. The repository also includes `provider-connect-retry.mjs`, a config-layer JavaScript plugin that lives in `configs/opencode/` and is documented in [Configuration Documentation](configs.md). It consumes the `retry-errors.json` registry for error pattern matching, backoff scheduling, nudge prompts, and fallback model selection.
+
+---
+
 ## worktree.ts
 
 **Purpose**: Creates isolated git worktrees for AI sessions and coordinates session state plus terminal spawning.
