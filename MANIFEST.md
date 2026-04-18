@@ -1,22 +1,25 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 27 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 28 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
 | # | Artifact Name | Source Path | Repo Path | Install Target | Dependency Cluster | Status |
 |---|---|---|---|---|---|---|
 | 1 | models-preset.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
+| 1b | vscode.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
 | 2 | opencode.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 3 | opencode.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
 | 4 | provider-connect-retry.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
-| 5 | oh-my-opencode.json | `~/.config/opencode/` | `configs/oh-my-opencode/` | `$HOME/.config/opencode/` | OMO Config | Required |
+| 4b | retry-errors.json | `~/.config/opencode/` | `configs/` | `$HOME/.config/opencode/` | Core Config | Required |
+| 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
 | 6 | worktree.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Worktree Plugin | Required |
 | 7 | worktree/state.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
 | 8 | worktree/terminal.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
 | 9 | git-safety.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Git Safety | Required |
 | 10 | review-enforcer.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Review Protocol | Required |
 | 11 | kdco-primitives/ | `~/.opencode/plugin/kdco-primitives/` | `plugins/kdco-primitives/` | `$HOME/.opencode/plugin/kdco-primitives/` | KDCO Library | Required |
+| 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
 | 14 | review-protocol/ | `~/.config/opencode/skills/review-protocol/` | `skills/review-protocol/` | `$HOME/.config/opencode/skills/` | Review Protocol | Required |
@@ -40,13 +43,16 @@ Complete inventory of 27 core artifacts for ez-omo-config repository scaffold.
 ez-omo-config/
 ├── commands/
 │   └── models-preset.md    # Slash command prompt for model tables
+│   └── vscode.md           # VS Code launcher (handled by plugin, no LLM)
 ├── configs/
 │   ├── opencode/           # Main OpenCode configuration (3 files)
-│   └── oh-my-opencode/     # Oh-My-OpenCode configuration (1 file)
+│   ├── oh-my-openagent/     # Oh-My-OpenAgent configuration (1 file)
+│   └── retry-errors.json    # Retry registry for provider-connect-retry plugin
 ├── plugins/
 │   ├── worktree.ts         # Worktree plugin core
 │   ├── git-safety.ts       # Git safety protocol plugin
 │   ├── review-enforcer.ts  # Review enforcer plugin
+│   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
 ├── skills/
@@ -69,10 +75,10 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 27 (commands: 1, configs: 4, plugins: 5 + kdco-primitives dir, skills: 6 dirs, scripts: 9, extras: 1)
-- **Commands**: 1 slash command prompt (`models-preset.md`)
-- **Core Configs**: 4 files (opencode.json, opencode.jsonc, provider-connect-retry.mjs, oh-my-opencode.json)
-- **Plugins**: 3 main files + worktree/ (2 files) + kdco-primitives/ directory
+- **Total Artifacts**: 28 (commands: 1, configs: 5, plugins: 5 + kdco-primitives dir, skills: 6 dirs, scripts: 9, extras: 1)
+- **Commands**: 2 slash command prompts (`models-preset.md`, `vscode.md`)
+- **Core Configs**: 5 files (opencode.json, opencode.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json)
+- **Plugins**: 3 main files + vscode.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 6 directories
 - **Scripts**: 9 wisdom shell scripts
 - **Extras**: 1 file (ocx.jsonc)

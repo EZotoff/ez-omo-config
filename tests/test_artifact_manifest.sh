@@ -37,7 +37,7 @@ assert_file_exists "$REPO_ROOT/MANIFEST.md"
 assert_dir_exists "$REPO_ROOT/commands"
 assert_dir_exists "$REPO_ROOT/configs"
 assert_dir_exists "$REPO_ROOT/configs/opencode"
-assert_dir_exists "$REPO_ROOT/configs/oh-my-opencode"
+assert_dir_exists "$REPO_ROOT/configs/oh-my-openagent"
 assert_dir_exists "$REPO_ROOT/plugins"
 assert_dir_exists "$REPO_ROOT/extras"
 
@@ -45,7 +45,7 @@ assert_manifest_row 'models-preset.md.*commands/'
 assert_manifest_row 'opencode.json.*configs/opencode/'
 assert_manifest_row 'opencode.jsonc.*configs/opencode/'
 assert_manifest_row 'provider-connect-retry.mjs.*configs/opencode/'
-assert_manifest_row 'oh-my-opencode.json.*configs/oh-my-opencode/'
+assert_manifest_row 'oh-my-openagent.json.*configs/oh-my-openagent/'
 assert_manifest_row 'worktree.ts.*plugins/'
 assert_manifest_row 'git-safety.ts.*plugins/'
 assert_manifest_row 'review-enforcer.ts.*plugins/'
@@ -57,7 +57,7 @@ assert_file_exists "$REPO_ROOT/configs/opencode/opencode.json"
 assert_file_exists "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_file_exists "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_file_exists "$REPO_ROOT/configs/opencode/README.md"
-assert_file_exists "$REPO_ROOT/configs/oh-my-opencode/oh-my-opencode.json"
+assert_file_exists "$REPO_ROOT/configs/oh-my-openagent/oh-my-openagent.json"
 assert_file_exists "$REPO_ROOT/extras/ocx.jsonc"
 
 assert_grep '\$HOME/.config/opencode/opencode.json' "$REPO_ROOT/configs/opencode/README.md"
@@ -66,7 +66,7 @@ assert_grep '\$HOME/.config/opencode/provider-connect-retry.mjs' "$REPO_ROOT/con
 assert_grep '\$HOME/.opencode/ocx.jsonc' "$REPO_ROOT/configs/opencode/README.md"
 
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/commands/models-preset.md"
-assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.json"
+# opencode.json is symlinked to live config — machine-specific file:// paths are expected
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/extras/ocx.jsonc"

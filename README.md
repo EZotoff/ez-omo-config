@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 7 AI providers, 12 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **38 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **39 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 ---
 
@@ -49,12 +49,12 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 38 artifacts organized into 8 categories:
+This repository contains 39 artifacts organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 2 files | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 5 files | Core OpenCode and OMO configuration files |
+| 2-5 | **Configs** | 6 files | Core OpenCode and OMO configuration files |
 | 6-11 | **Plugins** | 6 files + library | TypeScript plugins for worktrees, git safety, review enforcement, and VS Code launcher |
 | 12-20 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
@@ -70,7 +70,8 @@ This repository contains 38 artifacts organized into 8 categories:
 | 1b | `vscode.md` | `commands/` | VS Code launcher command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
-| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections |
+| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection and registry-driven error matching |
+| 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models for the retry plugin |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
 | 6 | `worktree.ts` | `plugins/` | Git worktree management plugin |
 | 7 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |
@@ -131,7 +132,6 @@ This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenAgent** 
                      │
          ┌───────────▼───────────┐
 │   Oh-My-OpenAgent Layer        │
-│   (oh-my-openagent.json)       │
 │   (oh-my-openagent.json)       │
 │   - Agent assignments         │
 │   - Category overrides        │
