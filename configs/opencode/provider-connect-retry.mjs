@@ -15,11 +15,6 @@ function log(level, msg) {
   else console.info(`[retry-plugin] ${msg}`);
 }
 
-function logDebug(msg) {
-  const ts = new Date().toISOString();
-  const line = `[${ts}] [debug] ${msg}\n`;
-  try { fs.appendFileSync(LOG_PATH, line); } catch {}
-}
 
 function loadRegistry() {
   try {
@@ -300,7 +295,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
 
   globalThis.__providerConnectRetryInFlight = inFlightSessions;
 
-  log("info", `Plugin loaded — logging to ${LOG_PATH}`);
+
 
   return {
     event: async ({ event }) => {
@@ -425,15 +420,6 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           const tokens = info.tokens ?? {};
           const msgID = typeof info.id === "string" && info.id.length > 0 ? info.id : undefined;
 
-          // Debug: dump all fields on assistant message.updated
-          const debugFields = {};
-          for (const key of Object.keys(info)) {
-            if (key !== "parts" && key !== "role") debugFields[key] = info[key];
-          }
-          if (Object.keys(debugFields).length > 0) {
-            logDebug(`message.updated assistant: finish=${finish ?? "n/a"}, output=${tokens.output ?? "n/a"}, msgID=${msgID ?? "n/a"}`);
-          }
-
           if (finish) {
             // This is a COMPLETION event (model finished generating)
             if (finish === "other" && (tokens.output ?? 0) === 0) {
@@ -456,9 +442,6 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
             } else {
               // Normal completion (tool-calls, stop, etc.) — clear any stale tracking
               const tracked = attemptsBySession.get(sessionID);
-              if (tracked?.emptyCompletionDetected) {
-                logDebug(`Session ${sessionID}: normal completion (finish="${finish}") — clearing stall flag`);
-              }
               attemptsBySession.set(sessionID, {
                 ...(tracked ?? {}),
                 emptyCompletionDetected: false,
