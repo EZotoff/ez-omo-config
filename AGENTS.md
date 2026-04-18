@@ -2,46 +2,60 @@
 
 ## What This Is
 
-This project is the **versioned config store** for OpenCode and Oh-My-OpenCode (OMO).
-It is NOT the active config that OpenCode reads at runtime.
+This project is the **versioned config store** for OpenCode and Oh-My-OpenAgent (OMO).
+The active configs are **symlinked** to this repo — editing a file here IS editing the live config.
 
 ## Config Locations
 
-| Purpose | Path | Notes |
-|---------|------|-------|
-| **Active config** (OpenCode reads this) | `~/.config/opencode/opencode.json` | Machine-local, not git-tracked |
-| **Active OMO config** | `~/.config/opencode/oh-my-opencode.json` | Machine-local, not git-tracked |
-| **Versioned config store** | `projects/ez-omo-config/configs/opencode/opencode.json` | Git-tracked, portable |
-| **Versioned OMO config store** | `projects/ez-omo-config/configs/oh-my-opencode/oh-my-opencode.json` | Git-tracked, portable |
-| **Auth / API keys** | `~/.local/share/opencode/auth.json` | Machine-local, NEVER committed |
+| Purpose | Store path (git-tracked) | Live symlink (OpenCode reads this) |
+|---------|--------------------------|-------------------------------------|
+| **OpenCode config** | `configs/opencode/opencode.json` | `~/.config/opencode/opencode.json` → store |
+| **OMO config** | `configs/oh-my-openagent/oh-my-openagent.json` | `~/.config/opencode/oh-my-openagent.json` → store |
+| **Provider retry plugin** | `configs/opencode/provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` → store |
+| **Retry error registry** | `configs/retry-errors.json` | `~/.config/opencode/retry-errors.json` → store |
+| **Auth / API keys** | — | `~/.local/share/opencode/auth.json` (NEVER committed) |
 
-## Critical Rule: Propagation
+## How It Works
 
-**Any change to the active local configs (`~/.config/opencode/`) MUST be propagated to the corresponding file in `projects/ez-omo-config/configs/`.**
+Live configs are symlinks pointing into this repo:
+```
+~/.config/opencode/opencode.json        →  ~/ez-omo-config/configs/opencode/opencode.json
+~/.config/opencode/oh-my-openagent.json →  ~/ez-omo-config/configs/oh-my-openagent/oh-my-openagent.json
+```
 
-The store is the source of truth for what the intended configuration looks like. If you edit only the local config, the change is invisible to version control and will be lost or forgotten.
+**There is ONE file, not two.** Editing either path modifies the same file. Changes are immediately visible to OpenCode AND tracked by git.
 
-## Critical Rule: Adaptation (Do NOT Blindly Copy)
+## Rules for Agents
 
-When propagating local config changes to the store, you MUST adapt machine-specific values to their portable equivalents. **Never copy local configs to the store verbatim.**
+1. **Edit the store path** (files in this repo). The symlinks ensure OpenCode sees the change.
+2. **No propagation needed.** The old copy-and-adapt workflow is dead. There is no second file to sync.
+3. **Never commit auth/API keys.** `~/.local/share/opencode/auth.json` is machine-local.
+4. **Machine-specific values are acceptable.** The store contains `file://` paths with absolute paths (e.g. `file:///home/ezotoff/...`). This is expected — new machines adapt these via `install.sh`.
+5. **Validate JSON after editing.** Run `python3 -c "import json; json.load(open('path'))"` on changed files.
 
-Common machine-specific patterns to watch for:
+## Documentation Sync Requirements
 
-| Local (machine-specific) | Store (portable) | Example |
-|--------------------------|------------------|---------|
-| `file:///home/username/omo-hub/some-plugin/index.mjs` | npm package name (e.g. `some-plugin`) | `file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs` → `browser-lifecycle-plugin` |
-| Absolute paths with `/home/username/...` | `$HOME`-relative or package names | Depends on context |
-| Experimental/temporary provider entries | Omit or mark as experimental | Local testing providers |
+Because this repo IS the live configuration, any change to config files, plugins, skills, scripts, or install targets must keep all repo documentation accurate. Agents making changes must:
 
-### How to Propagate Correctly
+1. **Update MANIFEST.md** if artifact counts, paths, or categories change.
+2. **Update README.md** if the artifact inventory, installation options, provider list, agent assignments, or feature descriptions change.
+3. **Update relevant docs/*.md** files (docs/configs.md, docs/plugins.md, docs/skills.md, docs/wisdom.md, docs/worktree-state-schema.md) when the corresponding component changes.
+4. **Update per-directory READMEs** (configs/opencode/README.md, docker/README.md, or any other directory README) when files in that directory are added, removed, or renamed.
+5. **Update install.sh** when new files need symlinking, old files are removed, or install targets change. The ITEMS array must stay in sync with the actual repo contents.
 
-1. Make your change in the **active local config** (so OpenCode picks it up immediately)
-2. Open the corresponding file in `projects/ez-omo-config/configs/`
-3. Apply the same logical change, but **replace any machine-specific values** with portable equivalents
-4. Validate both files are valid JSON after editing
+**Do not leave docs stale.** A config change without a doc update is an incomplete change. Verify all references, counts, and paths before finishing.
 
 ## Provider Setup
 
 - **Built-in providers** (e.g. `google`, `github-copilot`, `opencode-go`): Only need an entry in `enabled_providers` array + API key in `auth.json`. No `npm` or `options.baseURL` needed.
 - **Custom/OpenAI-compatible providers** (e.g. `moonshot`, `kimi-code`, `deepseek`): Need full provider block with `npm: "@ai-sdk/openai-compatible"`, `options.baseURL`, and model definitions.
 - **Auth keys**: Stored in `~/.local/share/opencode/auth.json` under the provider ID. Format: `{ "type": "api", "key": "sk-..." }`. Never commit this file.
+
+## New Machine Setup
+
+```bash
+git clone https://github.com/EZotoff/ez-omo-config.git
+cd ez-omo-config
+./install.sh --symlink
+# Then update any machine-specific file:// paths in configs/opencode/opencode.json
+```
