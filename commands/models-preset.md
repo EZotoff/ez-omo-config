@@ -4,14 +4,14 @@ description: Show current OMO model assignments in markdown tables
 
 Read these files and do not modify them:
 
-1. `~/.config/opencode/oh-my-opencode.json`
+1. `~/.config/opencode/oh-my-openagent.json`
 2. `~/.config/opencode/opencode.json`
 
 If both files and required keys are present, output exactly three markdown tables, in this order:
 
 ## Agents
 
-Read the `agents` object from `~/.config/opencode/oh-my-opencode.json`.
+Read the `agents` object from `~/.config/opencode/oh-my-openagent.json`.
 
 Use columns:
 
@@ -27,7 +27,7 @@ Use columns:
 
 ## Categories
 
-Read the `categories` object from `~/.config/opencode/oh-my-opencode.json`.
+Read the `categories` object from `~/.config/opencode/oh-my-openagent.json`.
 
 Use columns:
 
