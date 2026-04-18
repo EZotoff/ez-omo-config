@@ -3,8 +3,23 @@ import os from "node:os";
 import path from "node:path";
 
 const REGISTRY_PATH = path.join(os.homedir(), ".config", "opencode", "retry-errors.json");
+const LOG_PATH = path.join(os.homedir(), ".config", "opencode", "retry-plugin.log");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function log(level, msg) {
+  const ts = new Date().toISOString();
+  const line = `[${ts}] [${level}] ${msg}\n`;
+  try { fs.appendFileSync(LOG_PATH, line); } catch {}
+  if (level === "warn" || level === "error") console.warn(`[retry-plugin] ${msg}`);
+  else console.info(`[retry-plugin] ${msg}`);
+}
+
+function logDebug(msg) {
+  const ts = new Date().toISOString();
+  const line = `[${ts}] [debug] ${msg}\n`;
+  try { fs.appendFileSync(LOG_PATH, line); } catch {}
+}
 
 function loadRegistry() {
   try {
@@ -21,12 +36,12 @@ function loadRegistry() {
           compiledPattern: new RegExp(entry.pattern, "i"),
         }];
       } catch (error) {
-        console.warn(`[retry-plugin] Skipping invalid registry rule "${entry?.id ?? "unknown"}": ${error?.message ?? error}`);
+        log("warn", `Skipping invalid registry rule "${entry?.id ?? "unknown"}": ${error?.message ?? error}`);
         return [];
       }
     });
   } catch (error) {
-    console.warn(`[retry-plugin] Failed to load registry: ${error?.message ?? error}`);
+    log("warn", `Failed to load registry: ${error?.message ?? error}`);
     return [];
   }
 }
@@ -263,15 +278,15 @@ function isEmptyAssistantMessage(message) {
   if (info?.error) return false;
 
   const parts = info?.parts ?? message?.parts;
+  // If the model never produced ANY parts at all, that's a true stall (zero tokens).
+  // An interrupted (user Ctrl+C) response will have parts — possibly empty strings
+  // from the partial stream, but the array itself exists and is non-empty.
   if (!Array.isArray(parts) || parts.length === 0) return true;
 
-  for (const part of parts) {
-    if (!part || typeof part !== "object") continue;
-    if (part.type === "text" && typeof part.text === "string" && part.text.trim().length > 0) return false;
-    if (part.type === "tool-invocation" || part.type === "tool-call" || part.type === "tool_use") return false;
-  }
-
-  return true;
+  // If parts exist but all are empty/whitespace text with no tool calls,
+  // this is likely a user interrupt (model started streaming but produced nothing useful).
+  // Skip — only retry when the model produced literally nothing (empty parts array).
+  return false;
 }
 
 function findEmptyResponseRule(registry) {
@@ -285,6 +300,8 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
 
   globalThis.__providerConnectRetryInFlight = inFlightSessions;
 
+  log("info", `Plugin loaded — logging to ${LOG_PATH}`);
+
   return {
     event: async ({ event }) => {
       const sessionID = getEventSessionID(event);
@@ -293,157 +310,162 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
       if (event?.type === "session.idle") {
         if (inFlightSessions.has(sessionID)) return;
 
-        const registry = loadRegistry();
-        const emptyRule = findEmptyResponseRule(registry);
-
-        if (!emptyRule) {
-          clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
-          return;
-        }
-
-        const messagesResponse = await ctx.client.session.messages({
-          path: { id: sessionID },
-          ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
-        }).catch(() => null);
-
-        const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
-        if (messages.length === 0) {
-          clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
-          return;
-        }
-
-        const lastMessage = messages[messages.length - 1];
-        if (!isEmptyAssistantMessage(lastMessage)) {
-          clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
-          return;
-        }
-
-        const emptyMessageID = getMessageID(lastMessage);
-        if (handledErrorsBySession.get(sessionID) === emptyMessageID) {
-          clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
-          return;
-        }
-
-        const sessionResponse = await ctx.client.session.get({
-          path: { id: sessionID },
-          ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
-        }).catch(() => null);
-        const parentID = sessionResponse?.data?.parentID;
-        if (typeof parentID === "string" && parentID.length > 0) return;
-
-        console.info(`[retry-plugin] Empty assistant response detected in session ${sessionID}`);
-        inFlightSessions.add(sessionID);
-        const originalAttemptState = attemptsBySession.get(sessionID);
-        let previousAttemptState = originalAttemptState;
-
-        try {
-          const lastUserMessageIndex = getLastUserMessageIndex(messages);
-          const lastUserMessage = lastUserMessageIndex >= 0 ? messages[lastUserMessageIndex] : undefined;
-          const retryParts = sanitizePromptParts(lastUserMessage?.parts ?? lastUserMessage?.info?.parts);
-          if (retryParts.length === 0) return;
-          const retryMessageID = getMessageID(lastUserMessage);
-
-          const fingerprint = fingerprintParts(retryParts);
-          const current = attemptsBySession.get(sessionID);
-          const nextAttempt = current
-            && current.ruleID === emptyRule.id
-            && (current.fingerprint === fingerprint || current.originalFingerprint === fingerprint)
-            ? current.attempts + 1
-            : 1;
-          const attemptIndex = nextAttempt - 1;
-
-          const agent = getEventAgent(event, messages) ?? lastUserMessage?.info?.agent;
-          const model = getEventModel(event, messages) ?? lastUserMessage?.info?.model;
-          const system = typeof lastUserMessage?.info?.system === "string" ? lastUserMessage.info.system : undefined;
-          const tools = lastUserMessage?.info?.tools && typeof lastUserMessage.info.tools === "object" ? lastUserMessage.info.tools : undefined;
-          const variant = typeof lastUserMessage?.info?.variant === "string" ? lastUserMessage.info.variant : undefined;
-
-          if (nextAttempt > emptyRule.max_retries || attemptIndex >= emptyRule.backoff_ms.length) {
-            attemptsBySession.set(sessionID, {
-              fingerprint,
-              attempts: Math.min(nextAttempt, emptyRule.max_retries),
-              ruleID: emptyRule.id,
-              userMessageID: retryMessageID,
-            });
-            handledErrorsBySession.set(sessionID, emptyMessageID);
-
-            const fallback = parseFallbackModel(emptyRule.fallback_model);
-            if (fallback) {
-              const fallbackParts = current?.originalParts ?? retryParts;
-              const fallbackMessageID = current?.originalMessageID ?? retryMessageID;
-              console.info(`[retry-plugin] Exhausted empty-response retries for "${emptyRule.id}" — falling back to ${emptyRule.fallback_model}`);
-              await sleep(1000);
-              await ctx.client.session.promptAsync({
+        const tracked = attemptsBySession.get(sessionID);
+        // Only dispatch empty-response retry if message.updated flagged a
+        // clean empty completion (not a user Ctrl+C abort).
+        if (tracked?.emptyCompletionDetected) {
+          const registry = loadRegistry();
+          const emptyRule = findEmptyResponseRule(registry);
+          if (emptyRule) {
+            inFlightSessions.add(sessionID);
+            try {
+              const messagesResponse = await ctx.client.session.messages({
                 path: { id: sessionID },
                 ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
-                body: {
-                  ...(fallbackMessageID ? { messageID: fallbackMessageID } : {}),
-                  ...(agent ? { agent } : {}),
-                  model: fallback,
-                  ...(system ? { system } : {}),
-                  ...(tools ? { tools } : {}),
-                  parts: fallbackParts,
-                },
-              });
-            } else {
-              console.warn(`[retry-plugin] Exhausted empty-response retries for "${emptyRule.id}" (${emptyRule.max_retries}/${emptyRule.max_retries})`);
+              }).catch(() => null);
+              const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
+
+              const lastUserMessageIndex = getLastUserMessageIndex(messages);
+              const lastUserMessage = lastUserMessageIndex >= 0 ? messages[lastUserMessageIndex] : undefined;
+              const retryParts = sanitizePromptParts(lastUserMessage?.parts ?? lastUserMessage?.info?.parts);
+              const retryMessageID = getMessageID(lastUserMessage);
+
+              if (retryParts.length > 0) {
+                const fingerprint = fingerprintParts(retryParts);
+                const nextAttempt = (tracked.ruleID === emptyRule.id && (tracked.fingerprint === fingerprint || tracked.originalFingerprint === fingerprint))
+                  ? (tracked.attempts ?? 0) + 1 : 1;
+                const attemptIndex = nextAttempt - 1;
+
+                const agent = getEventAgent(event, messages) ?? lastUserMessage?.info?.agent;
+                const model = getEventModel(event, messages) ?? lastUserMessage?.info?.model;
+                const system = typeof lastUserMessage?.info?.system === "string" ? lastUserMessage.info.system : undefined;
+                const tools = lastUserMessage?.info?.tools && typeof lastUserMessage.info.tools === "object" ? lastUserMessage.info.tools : undefined;
+                const variant = typeof lastUserMessage?.info?.variant === "string" ? lastUserMessage.info.variant : undefined;
+
+                if (nextAttempt > emptyRule.max_retries || attemptIndex >= emptyRule.backoff_ms.length) {
+                  const fallback = parseFallbackModel(emptyRule.fallback_model);
+                  if (fallback) {
+                    const fallbackParts = tracked.originalParts ?? retryParts;
+                    const fallbackMessageID = tracked.originalMessageID ?? retryMessageID;
+                    log("info", `Exhausted empty-response retries for "${emptyRule.id}" — falling back to ${emptyRule.fallback_model}`);
+                    await sleep(1000);
+                    await ctx.client.session.promptAsync({
+                      path: { id: sessionID },
+                      ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
+                      body: {
+                        ...(fallbackMessageID ? { messageID: fallbackMessageID } : {}),
+                        ...(agent ? { agent } : {}),
+                        model: fallback,
+                        ...(system ? { system } : {}),
+                        ...(tools ? { tools } : {}),
+                        parts: fallbackParts,
+                      },
+                    });
+                  } else {
+                    log("warn", `Exhausted empty-response retries for "${emptyRule.id}"`);
+                  }
+                } else {
+                  const delayMs = emptyRule.backoff_ms[attemptIndex];
+                  const nudgeParts = getNudgePromptParts(emptyRule, agent, attemptIndex);
+                  const useNudge = Boolean(nudgeParts);
+                  const dispatchParts = useNudge ? nudgeParts : retryParts;
+
+                  log("info", `Empty-response retry ${nextAttempt}/${emptyRule.max_retries} for "${emptyRule.id}" in ${delayMs}ms`);
+                  if (useNudge) {
+                    log("info", `Sending nudge prompt (attempt ${nextAttempt}): "${nudgeParts[0].text.substring(0, 60)}..."`);
+                  }
+
+                  await sleep(delayMs);
+                  await ctx.client.session.promptAsync({
+                    path: { id: sessionID },
+                    ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
+                    body: {
+                      ...(!useNudge && retryMessageID ? { messageID: retryMessageID } : {}),
+                      ...(agent ? { agent } : {}),
+                      ...(model ? { model } : {}),
+                      ...(system ? { system } : {}),
+                      ...(tools ? { tools } : {}),
+                      ...(variant ? { variant } : {}),
+                      parts: dispatchParts,
+                    },
+                  });
+                  attemptsBySession.set(sessionID, {
+                    fingerprint: useNudge ? fingerprintParts(nudgeParts) : fingerprint,
+                    originalFingerprint: tracked.originalFingerprint ?? fingerprint,
+                    originalParts: tracked.originalParts ?? retryParts,
+                    originalMessageID: tracked.originalMessageID ?? retryMessageID,
+                    attempts: nextAttempt,
+                    ruleID: emptyRule.id,
+                    userMessageID: useNudge ? undefined : retryMessageID,
+                  });
+                }
+              }
+            } catch (dispatchError) {
+              log("warn", `Failed to dispatch empty-response retry: ${dispatchError?.message ?? dispatchError}`);
+            } finally {
+              inFlightSessions.delete(sessionID);
             }
             return;
           }
-
-          previousAttemptState = current;
-
-          const delayMs = emptyRule.backoff_ms[attemptIndex];
-          const nudgeParts = getNudgePromptParts(emptyRule, agent, attemptIndex);
-          const useNudge = Boolean(nudgeParts);
-          const dispatchParts = useNudge ? nudgeParts : retryParts;
-
-          console.info(`[retry-plugin] Empty-response retry ${nextAttempt}/${emptyRule.max_retries} for "${emptyRule.id}" in ${delayMs}ms`);
-          if (useNudge) {
-            console.info(`[retry-plugin] Sending nudge prompt (attempt ${nextAttempt}): "${nudgeParts[0].text.substring(0, 60)}..."`);
-          }
-
-          await sleep(delayMs);
-          await ctx.client.session.promptAsync({
-            path: { id: sessionID },
-            ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
-            body: {
-              ...(!useNudge && retryMessageID ? { messageID: retryMessageID } : {}),
-              ...(agent ? { agent } : {}),
-              ...(model ? { model } : {}),
-              ...(system ? { system } : {}),
-              ...(tools ? { tools } : {}),
-              ...(variant ? { variant } : {}),
-              parts: dispatchParts,
-            },
-          });
-          attemptsBySession.set(sessionID, {
-            fingerprint: useNudge ? fingerprintParts(nudgeParts) : fingerprint,
-            originalFingerprint: current?.originalFingerprint ?? fingerprint,
-            originalParts: current?.originalParts ?? retryParts,
-            originalMessageID: current?.originalMessageID ?? retryMessageID,
-            attempts: nextAttempt,
-            ruleID: emptyRule.id,
-            userMessageID: useNudge ? undefined : retryMessageID,
-          });
-          handledErrorsBySession.set(sessionID, emptyMessageID);
-        } catch (dispatchError) {
-          if (previousAttemptState) {
-            attemptsBySession.set(sessionID, previousAttemptState);
-          } else {
-            attemptsBySession.delete(sessionID);
-          }
-          console.warn(`[retry-plugin] Failed to dispatch empty-response retry for "${emptyRule.id}": ${dispatchError?.message ?? dispatchError}`);
-        } finally {
-          inFlightSessions.delete(sessionID);
         }
+        clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
         return;
       }
 
       if (event?.type === "message.updated") {
         const info = event.properties?.info ?? {};
 
+        // Detect GLM stalls via finish-reason on assistant message.updated.
+        // OpenCode exposes `finish` field on completion events:
+        //   - "tool-calls" or "stop" → normal completion
+        //   - "other" + tokens.output === 0 → model stalled (zero tokens)
+        //   - no `finish` → intermediate streaming update, ignore
         if (info.role === "assistant" && !info.error) {
+          const finish = info.finish;
+          const tokens = info.tokens ?? {};
+          const msgID = typeof info.id === "string" && info.id.length > 0 ? info.id : undefined;
+
+          // Debug: dump all fields on assistant message.updated
+          const debugFields = {};
+          for (const key of Object.keys(info)) {
+            if (key !== "parts" && key !== "role") debugFields[key] = info[key];
+          }
+          if (Object.keys(debugFields).length > 0) {
+            logDebug(`message.updated assistant: finish=${finish ?? "n/a"}, output=${tokens.output ?? "n/a"}, msgID=${msgID ?? "n/a"}`);
+          }
+
+          if (finish) {
+            // This is a COMPLETION event (model finished generating)
+            if (finish === "other" && (tokens.output ?? 0) === 0) {
+              // Model returned finish_reason "other" with zero output tokens → STALL
+              const registry = loadRegistry();
+              const emptyRule = findEmptyResponseRule(registry);
+              if (emptyRule && !inFlightSessions.has(sessionID)) {
+                const alreadyHandled = msgID && handledErrorsBySession.get(sessionID) === msgID;
+                if (!alreadyHandled) {
+                  log("info", `Session ${sessionID}: detected empty completion (finish="${finish}", output=${tokens.output}) — flagging for retry`);
+                  const tracked = attemptsBySession.get(sessionID);
+                  attemptsBySession.set(sessionID, {
+                    ...(tracked ?? {}),
+                    emptyCompletionDetected: true,
+                    emptyMessageID: msgID,
+                  });
+                  handledErrorsBySession.set(sessionID, msgID ?? "__empty__");
+                }
+              }
+            } else {
+              // Normal completion (tool-calls, stop, etc.) — clear any stale tracking
+              const tracked = attemptsBySession.get(sessionID);
+              if (tracked?.emptyCompletionDetected) {
+                logDebug(`Session ${sessionID}: normal completion (finish="${finish}") — clearing stall flag`);
+              }
+              attemptsBySession.set(sessionID, {
+                ...(tracked ?? {}),
+                emptyCompletionDetected: false,
+              });
+            }
+          }
+          // If no `finish` field → intermediate update, ignore entirely
           return;
         }
 
@@ -469,7 +491,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
       const registry = loadRegistry();
       const matchedRule = findMatchingRule(errorMessage, registry);
       if (!matchedRule) return;
-      console.info(`[retry-plugin] Error matched rule "${matchedRule.id}": ${errorMessage.substring(0, 100)}`);
+      log("info", `Error matched rule "${matchedRule.id}": ${errorMessage.substring(0, 100)}`);
       if (inFlightSessions.has(sessionID)) return;
       const originalAttemptState = attemptsBySession.get(sessionID);
       inFlightSessions.add(sessionID);
@@ -483,7 +505,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
 
         const parentID = getEventParentID(event) ?? sessionResponse?.data?.parentID;
         if (typeof parentID === "string" && parentID.length > 0) {
-          console.info(`[retry-plugin] Skipping retry for child session ${sessionID}`);
+          log("info", `Skipping retry for child session ${sessionID}`);
           return;
         }
 
@@ -495,7 +517,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
         const failedAssistantMessageID = getFailedAssistantMessageID(event, messages);
         if (!failedAssistantMessageID) {
-          console.warn(`[retry-plugin] Skipping retry for "${matchedRule.id}" — no failed assistant message ID available`);
+          log("warn", `Skipping retry for "${matchedRule.id}" — no failed assistant message ID available`);
           return;
         }
         if (handledErrorsBySession.get(sessionID) === failedAssistantMessageID) return;
@@ -508,7 +530,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
 
         if (!matchedRule.retry_after_tool_execution && hasToolExecutionSinceLastUser(messages, lastUserMessageIndex)) {
           handledErrorsBySession.set(sessionID, failedAssistantMessageID);
-          console.warn(`[retry-plugin] Skipping retry for "${matchedRule.id}" — tool execution detected in session`);
+          log("warn", `Skipping retry for "${matchedRule.id}" — tool execution detected in session`);
           return;
         }
 
@@ -541,7 +563,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           if (fallback) {
             const fallbackParts = current?.originalParts ?? retryParts;
             const fallbackMessageID = current?.originalMessageID ?? retryMessageID;
-            console.info(`[retry-plugin] Exhausted retries for "${matchedRule.id}" — falling back to ${matchedRule.fallback_model}`);
+            log("info", `Exhausted retries for "${matchedRule.id}" — falling back to ${matchedRule.fallback_model}`);
             await ctx.client.session.abort({
               path: { id: sessionID },
               ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
@@ -560,7 +582,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
               },
             });
           } else {
-            console.warn(`[retry-plugin] Exhausted retries for "${matchedRule.id}" (${matchedRule.max_retries}/${matchedRule.max_retries})`);
+            log("warn", `Exhausted retries for "${matchedRule.id}" (${matchedRule.max_retries}/${matchedRule.max_retries})`);
           }
           return;
         }
@@ -568,7 +590,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         previousAttemptState = current;
 
         const delayMs = matchedRule.backoff_ms[attemptIndex];
-        console.info(`[retry-plugin] Retry ${nextAttempt}/${matchedRule.max_retries} for "${matchedRule.id}" in ${delayMs}ms`);
+        log("info", `Retry ${nextAttempt}/${matchedRule.max_retries} for "${matchedRule.id}" in ${delayMs}ms`);
 
         const nudgeParts = getNudgePromptParts(matchedRule, agent, attemptIndex);
         const useNudge = Boolean(nudgeParts);
@@ -581,7 +603,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         await sleep(delayMs);
 
         if (useNudge) {
-          console.info(`[retry-plugin] Sending nudge prompt (attempt ${nextAttempt}): "${nudgeParts[0].text.substring(0, 60)}..."`);
+          log("info", `Sending nudge prompt (attempt ${nextAttempt}): "${nudgeParts[0].text.substring(0, 60)}..."`);
         }
 
         await ctx.client.session.promptAsync({
@@ -614,7 +636,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           attemptsBySession.delete(sessionID);
         }
 
-        console.warn(`[retry-plugin] Failed to dispatch retry for "${matchedRule.id}": ${dispatchError?.message ?? dispatchError}`);
+        log("warn", `Failed to dispatch retry for "${matchedRule.id}": ${dispatchError?.message ?? dispatchError}`);
       } finally {
         inFlightSessions.delete(sessionID);
       }
