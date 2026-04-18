@@ -19,6 +19,8 @@ LIMIT=10
 JSON_OUTPUT=false
 MIN_SCORE=""
 PROJECT_ID=""
+AUTHORITY_FILTER=""
+SORT_AUTHORITY=0
 
 # --------------------------------------------------------------------------
 # Usage
@@ -38,6 +40,8 @@ Options:
   --json                 Output as JSON array
   --min-score N          Filter by quality_score >= N
   --project-id ID        Limit to specific project (with --scope project or plan)
+  --authority LEVEL      Filter by authority level: wisdom|verified|manifest
+  --sort-authority       Sort by authority rank (manifest > verified > wisdom)
   --help, -h             Show this help
 
 Exit codes:
@@ -73,6 +77,11 @@ while [[ $# -gt 0 ]]; do
         --project-id)
             [[ $# -lt 2 ]] && { wisdom_log ERROR "--project-id requires a value"; usage; }
             PROJECT_ID="$2"; shift 2 ;;
+        --authority)
+            [[ $# -lt 2 ]] && { wisdom_log ERROR "--authority requires a value"; usage; }
+            AUTHORITY_FILTER="$2"; shift 2 ;;
+        --sort-authority)
+            SORT_AUTHORITY=1; shift ;;
         --help|-h)
             usage ;;
         -*)
@@ -89,11 +98,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# QUERY is required
-if [[ -z "$QUERY" ]]; then
-    wisdom_log ERROR "QUERY is required"
-    usage
-fi
+# QUERY is optional - if empty, show all entries
+# No error if QUERY is empty
 
 # Validate --scope
 case "$SCOPE" in
@@ -191,7 +197,12 @@ fi
 # Build jq filter for matching entries
 # --------------------------------------------------------------------------
 # Build jq select filter using safe --arg for query (literal substring matching)
-JQ_FILTER="select(.body | ascii_downcase | contains(\$q | ascii_downcase))"
+# If query is empty, select all entries
+if [[ -n "$QUERY" ]]; then
+    JQ_FILTER="select(.body | ascii_downcase | contains(\$q | ascii_downcase))"
+else
+    JQ_FILTER="."
+fi
 
 # Add type filter
 if [[ -n "$TYPE" ]]; then
@@ -210,6 +221,11 @@ if [[ -n "$TAGS" ]]; then
     JQ_FILTER="${JQ_FILTER} | select((\$tags | map(ascii_downcase)) - (.tags // [] | map(ascii_downcase)) | length == 0)"
 fi
 
+# Add authority filter
+if [[ -n "$AUTHORITY_FILTER" ]]; then
+    JQ_FILTER="${JQ_FILTER} | select(.authority == \$authority_filter)"
+fi
+
 # --------------------------------------------------------------------------
 # Search all store files and collect results
 # --------------------------------------------------------------------------
@@ -222,6 +238,7 @@ for store_file in "${STORE_FILES[@]}"; do
     jq_args=(-c --arg q "$QUERY")
     [[ -n "$TYPE" ]] && jq_args+=(--arg type_filter "$TYPE")
     [[ -n "$TAGS" ]] && jq_args+=(--argjson tags "$TAGS_JSON")
+    [[ -n "$AUTHORITY_FILTER" ]] && jq_args+=(--arg authority_filter "$AUTHORITY_FILTER")
     results=$(jq "${jq_args[@]}" "${JQ_FILTER} | . + {\"_store_path\": ${store_escaped}}" "$store_file" 2>/dev/null || true)
     if [[ -n "$results" ]]; then
         ALL_RESULTS+="${results}"$'\n'
@@ -242,11 +259,28 @@ fi
 
 # --------------------------------------------------------------------------
 # Sort by quality_score desc, then accessed desc; apply limit
+# If --sort-authority is set, sort by authority rank first
 # --------------------------------------------------------------------------
-SORTED_LIMITED=$(printf '%s\n' "$ALL_RESULTS" | jq -s '
-    sort_by(-(.quality_score // 0), -(.accessed // 0))
-    | .[0:'"$LIMIT"']
-')
+if [[ "$SORT_AUTHORITY" -eq 1 ]]; then
+    # Sort by authority rank (manifest=3, verified=2, wisdom=1, unknown=0)
+    SORTED_LIMITED=$(printf '%s\n' "$ALL_RESULTS" | jq -s '
+        sort_by(
+            -((.authority // "wisdom") as $a |
+                if $a == "manifest" then 3
+                elif $a == "verified" then 2
+                elif $a == "wisdom" then 1
+                else 0 end),
+            -(.quality_score // 0),
+            -(.accessed // 0)
+        )
+        | .[0:'"$LIMIT"']
+    ')
+else
+    SORTED_LIMITED=$(printf '%s\n' "$ALL_RESULTS" | jq -s '
+        sort_by(-(.quality_score // 0), -(.accessed // 0))
+        | .[0:'"$LIMIT"']
+    ')
+fi
 
 # Get count of results
 RESULT_COUNT=$(printf '%s' "$SORTED_LIMITED" | jq 'length')

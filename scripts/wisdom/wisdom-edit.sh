@@ -29,6 +29,10 @@ Edit flags (at least one required):
   --set-tags "tag1,tag2"    Replace all tags (comma-separated)
   --add-tags "tag3,tag4"    Append tags to existing (comma-separated)
   --set-score N             Set quality_score (integer)
+  --set-authority LEVEL     Set authority level: wisdom|verified|manifest
+  --set-superseded-by ID    Mark entry as superseded by another entry ID
+  --set-verified-at ISO     Set verification timestamp (ISO-8601)
+  --set-review-due ISO      Set review due timestamp (ISO-8601)
 
 Options:
   --dry-run                 Show before/after changes without writing
@@ -108,6 +112,10 @@ main() {
     local set_tags=""
     local add_tags=""
     local set_score=""
+    local set_authority=""
+    local set_superseded_by=""
+    local set_verified_at=""
+    local set_review_due=""
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -147,6 +155,22 @@ main() {
                 set_score="$2"
                 shift 2
                 ;;
+            --set-authority)
+                set_authority="$2"
+                shift 2
+                ;;
+            --set-superseded-by)
+                set_superseded_by="$2"
+                shift 2
+                ;;
+            --set-verified-at)
+                set_verified_at="$2"
+                shift 2
+                ;;
+            --set-review-due)
+                set_review_due="$2"
+                shift 2
+                ;;
             --dry-run)
                 dry_run=true
                 shift
@@ -178,7 +202,8 @@ main() {
     fi
     
     # Validate at least one edit flag is provided
-    if [[ -z "$set_body" && -z "$set_type" && -z "$set_tags" && -z "$add_tags" && -z "$set_score" ]]; then
+    if [[ -z "$set_body" && -z "$set_type" && -z "$set_tags" && -z "$add_tags" && -z "$set_score" && \
+          -z "$set_authority" && -z "$set_superseded_by" && -z "$set_verified_at" && -z "$set_review_due" ]]; then
         echo "Error: at least one edit flag must be provided" >&2
         usage >&2
         return 2
@@ -248,6 +273,26 @@ main() {
     # Apply --set-score
     if [[ -n "$set_score" ]]; then
         updated_json=$(echo "$updated_json" | jq --argjson score "$set_score" '.quality_score = $score')
+    fi
+    
+    # Apply --set-authority
+    if [[ -n "$set_authority" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg authority "$set_authority" '.authority = $authority')
+    fi
+    
+    # Apply --set-superseded-by
+    if [[ -n "$set_superseded_by" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg superseded_by "$set_superseded_by" '.superseded_by = $superseded_by')
+    fi
+    
+    # Apply --set-verified-at
+    if [[ -n "$set_verified_at" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg verified_at "$set_verified_at" '.verified_at = $verified_at')
+    fi
+    
+    # Apply --set-review-due
+    if [[ -n "$set_review_due" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg review_due "$set_review_due" '.review_due = $review_due')
     fi
     
     # For dry-run, show before/after and exit

@@ -11,30 +11,45 @@ CONTENT=""
 SOURCE=""
 PROJECT_ID=""
 SCORE=0
+AUTHORITY=""
+PROVENANCE=""
+ORIGIN_SESSION=""
+VERIFIED_AT=""
+REVIEW_DUE=""
 
 usage() {
     cat >&2 <<'EOF'
 Usage: wisdom-write.sh [OPTIONS]
-  --scope       system|project|plan       (default: system)
-  --type        gotcha|pattern|fact|decision|warning (auto-classified if omitted)
-  --tags        comma-separated tags      (required)
-  --content     "content string"          (reads stdin if omitted)
-  --source      source identifier         (optional)
-  --project-id  project/plan identifier   (required for project/plan scope)
-  --score       quality score integer     (default: 0)
+  --scope          system|project|plan       (default: system)
+  --type           gotcha|pattern|fact|decision|warning (auto-classified if omitted)
+  --tags           comma-separated tags      (optional, default: empty)
+  --content        "content string"          (reads stdin if omitted)
+  --source         source identifier         (optional)
+  --project-id     project/plan identifier   (required for project/plan scope)
+  --score          quality score integer     (default: 0)
+  --authority      candidate|verified|stale|superseded (default: candidate)
+  --provenance     provenance string         (default: agent-session)
+  --origin-session session ID                (optional)
+  --verified-at    ISO8601 date              (optional)
+  --review-due     ISO8601 date              (optional)
 EOF
     exit 2
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --scope)      SCOPE="$2";      shift 2 ;;
-        --type)       TYPE="$2";       shift 2 ;;
-        --tags)       TAGS="$2";       shift 2 ;;
-        --content)    CONTENT="$2";    shift 2 ;;
-        --source)     SOURCE="$2";     shift 2 ;;
-        --project-id) PROJECT_ID="$2"; shift 2 ;;
-        --score)      SCORE="$2";      shift 2 ;;
+        --scope)          SCOPE="$2";          shift 2 ;;
+        --type)           TYPE="$2";           shift 2 ;;
+        --tags)           TAGS="$2";           shift 2 ;;
+        --content)        CONTENT="$2";        shift 2 ;;
+        --source)         SOURCE="$2";         shift 2 ;;
+        --project-id)     PROJECT_ID="$2";     shift 2 ;;
+        --score)          SCORE="$2";          shift 2 ;;
+        --authority)      AUTHORITY="$2";      shift 2 ;;
+        --provenance)     PROVENANCE="$2";     shift 2 ;;
+        --origin-session) ORIGIN_SESSION="$2"; shift 2 ;;
+        --verified-at)    VERIFIED_AT="$2";    shift 2 ;;
+        --review-due)     REVIEW_DUE="$2";     shift 2 ;;
         *)
             wisdom_log ERROR "Unknown option: $1"
             usage
@@ -44,11 +59,6 @@ done
 
 if [[ -z "$CONTENT" ]]; then
     CONTENT=$(cat)
-fi
-
-if [[ -z "$TAGS" ]]; then
-    wisdom_log ERROR "--tags is required"
-    exit 2
 fi
 
 if [[ -z "$CONTENT" || -z "${CONTENT// /}" ]]; then

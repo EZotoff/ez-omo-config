@@ -12,6 +12,14 @@ WISDOM_VALID_SCOPES=("system" "project" "plan")
 # Global error flag for wisdom_log ERROR
 _WISDOM_ERROR=0
 
+# Knowledge Capture Extension Fields (optional, additive)
+# authority: Source authority level - "wisdom" (default, agent observation), "manifest" (promoted from manifest), "verified" (human-verified)
+# provenance: How this entry was created - "closeout" (closeout gate), "nomination" (hook-nominated), "promotion" (promoted from manifest), "manual" (direct write)
+# origin_session: OpenCode session ID where this was captured
+# verified_at: ISO-8601 timestamp of last verification (null if unverified)
+# review_due: ISO-8601 timestamp for scheduled review (null if none)
+# superseded_by: ID of the entry that replaces this one (null if active)
+
 # --------------------------------------------------------------------------
 # 1. wisdom_generate_id — Generate a unique entry ID
 #    Format: YYYYMMDD-HHMMSS-XXXX (4 random lowercase alphanumeric)
@@ -105,19 +113,9 @@ wisdom_append_entry() {
         return 1
     fi
 
-    # Atomic write: cat existing + new line -> tmp, then mv
-    local tmp
-    tmp=$(mktemp "${store_path}.tmp.XXXXXX") || { echo "Error: mktemp failed" >&2; return 2; }
-
-    if ! { cat "$store_path" 2>/dev/null; printf '%s\n' "$json_line"; } > "$tmp"; then
-        rm -f "$tmp"
-        echo "Error: write to temp file failed" >&2
-        return 2
-    fi
-
-    if ! mv -f "$tmp" "$store_path"; then
-        rm -f "$tmp"
-        echo "Error: mv to store failed" >&2
+    # Use atomic append with flock-based locking
+    if ! wisdom_atomic_append "$store_path" "$json_line"; then
+        echo "Error: atomic append failed" >&2
         return 2
     fi
 
@@ -347,4 +345,83 @@ wisdom_log() {
     if [[ "$level" == "ERROR" ]]; then
         _WISDOM_ERROR=1
     fi
+}
+
+# --------------------------------------------------------------------------
+# 14. wisdom_field_with_default — Extract field from JSONL with default
+#     Args: $1=field_name, $2=json_line, $3=default_value
+#     Outputs: field value or default if missing/null
+# --------------------------------------------------------------------------
+wisdom_field_with_default() {
+  local field="$1"
+  local json_line="$2"
+  local default="$3"
+  local value
+  value=$(echo "$json_line" | jq -r ".$field // empty" 2>/dev/null)
+  if [[ -z "$value" || "$value" == "null" ]]; then
+    echo "$default"
+  else
+    echo "$value"
+  fi
+}
+
+# --------------------------------------------------------------------------
+# 15. wisdom_authority_rank — Convert authority string to numeric rank
+#     Args: $1=authority_string
+#     Outputs: numeric rank: manifest=3, verified=2, wisdom=1, unknown=0
+# --------------------------------------------------------------------------
+wisdom_authority_rank() {
+  local authority="$1"
+  case "$authority" in
+    manifest)  echo 3 ;;
+    verified)  echo 2 ;;
+    wisdom)    echo 1 ;;
+    *)         echo 0 ;;
+  esac
+}
+
+# --------------------------------------------------------------------------
+# 16. wisdom_atomic_append — Atomic append with flock-based file locking
+#     Args: $1=file_path, $2=content
+#     Returns: 0 on success, 1 on lock failure
+# --------------------------------------------------------------------------
+wisdom_atomic_append() {
+    local file="$1"
+    local content="$2"
+    local lockfile="${file}.lock"
+    
+    # Check if flock is available
+    if ! command -v flock >/dev/null 2>&1; then
+        echo "WARNING: flock not available, falling back to non-atomic append" >&2
+        echo "$content" >> "$file"
+        return 0
+    fi
+    
+    (
+        flock -w 10 200 || { echo "ERROR: Could not acquire lock on $file" >&2; return 1; }
+        echo "$content" >> "$file"
+    ) 200>"$lockfile"
+}
+
+# --------------------------------------------------------------------------
+# 17. knowledge_atomic_write — Atomic write with flock-based file locking
+#     Args: $1=file_path, $2=content
+#     Returns: 0 on success, 1 on lock failure
+# --------------------------------------------------------------------------
+knowledge_atomic_write() {
+    local file="$1"
+    local content="$2"
+    local lockfile="${file}.lock"
+    
+    # Check if flock is available
+    if ! command -v flock >/dev/null 2>&1; then
+        echo "WARNING: flock not available, falling back to non-atomic write" >&2
+        echo "$content" > "$file"
+        return 0
+    fi
+    
+    (
+        flock -w 10 200 || { echo "ERROR: Could not acquire lock on $file" >&2; return 1; }
+        echo "$content" > "$file"
+    ) 200>"$lockfile"
 }
