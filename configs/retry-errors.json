@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": 1,
+  "description": "Registry of retryable error patterns for provider-connect-retry plugin",
+  "errors": [
+    {
+      "id": "sse-read-timeout",
+      "pattern": "SSE read timed out",
+      "match_type": "regex",
+      "max_retries": 3,
+      "backoff_ms": [1000, 6000, 36000],
+      "retry_after_tool_execution": false,
+      "description": "LLM SSE stream read timeout — transient network/provider issue",
+      "added_by": "seed",
+      "added_at": "2026-03-16"
+    },
+    {
+      "id": "provider-connect-error",
+      "pattern": "unable to connect\\..*access the url",
+      "match_type": "regex",
+      "max_retries": 3,
+      "backoff_ms": [2000, 4000, 8000],
+      "retry_after_tool_execution": false,
+      "description": "Provider connection failure — original hardcoded error from provider-connect-retry.mjs",
+      "added_by": "seed",
+      "added_at": "2026-03-16"
+    },
+    {
+      "id": "rate-limit-no-endpoints",
+      "pattern": "no model endpoints available",
+      "match_type": "regex",
+      "max_retries": 3,
+      "backoff_ms": [5000, 15000, 45000],
+      "retry_after_tool_execution": false,
+      "description": "GitHub Copilot backend rate throttle — transient capacity issue, not a Google API error",
+      "added_by": "sisyphus",
+      "added_at": "2026-04-08"
+    },
+    {
+      "id": "glm-invalid-api-parameter",
+      "pattern": "invalid api parameter",
+      "match_type": "regex",
+      "max_retries": 5,
+      "backoff_ms": [5000, 10000, 20000, 40000, 60000],
+      "retry_after_tool_execution": false,
+      "fallback_model": "kimi-code/k2p5",
+      "description": "GLM API parameter validation error — transient Z.AI API issue, retry before falling back to Kimi",
+      "added_by": "sisyphus",
+      "added_at": "2026-04-09"
+    },
+    {
+      "id": "glm-check-documentation",
+      "pattern": "please check the documentation",
+      "match_type": "regex",
+      "max_retries": 5,
+      "backoff_ms": [5000, 10000, 20000, 40000, 60000],
+      "retry_after_tool_execution": false,
+      "fallback_model": "kimi-code/k2p5",
+      "description": "GLM documentation-check error variant — transient Z.AI API issue, retry before falling back to Kimi",
+      "added_by": "sisyphus",
+      "added_at": "2026-04-09"
+    },
+    {
+      "id": "glm-server-error",
+      "pattern": "(?:internal.?server.?error|bad.?gateway|service.?(?:temporarily.?)?unavailable|gateway.?timeout)(?!.*(?:anthropic|openai|claude|copilot))",
+      "match_type": "regex",
+      "max_retries": 5,
+      "backoff_ms": [5000, 10000, 20000, 40000, 60000],
+      "retry_after_tool_execution": false,
+      "fallback_model": "kimi-code/k2p5",
+      "description": "Generic server errors from any provider — retry with backoff before falling back to Kimi",
+      "added_by": "sisyphus",
+      "added_at": "2026-04-09"
+    },
+    {
+      "id": "glm-unknown-api-rejection",
+      "pattern": "(?:reason.*other|finish.*other|zai-coding|glm).*(?:zero.*token|0.*token|no.*response|api.*reject)|unknownerror.*(?:glm|zai-coding)",
+      "match_type": "regex",
+      "max_retries": 5,
+      "backoff_ms": [2000, 4000, 8000, 15000, 30000],
+      "retry_after_tool_execution": true,
+      "fallback_model": "kimi-code/k2p5",
+      "detect_empty_response": true,
+      "nudge_prompts": {
+        "sisyphus": [
+          "Proceed with the execution of the plan NOW. Give me response.",
+          "Continue working on the current task. Follow your todos and produce output.",
+          "You were in the middle of work. Resume immediately — check your todo list and act on the next item.",
+          "RESPOND NOW. Review the conversation above, find where you left off, and continue from there.",
+          "This is your final retry. Execute the next step of your plan immediately. Do not output an empty response."
+        ],
+        "atlas": [
+          "Continue with the execution of the plan please, following the last executed steps, todos or plans.",
+          "Proceed with your work. Check what was done so far and move to the next step.",
+          "Resume the task. Look at the todos, find the next incomplete item, and execute it now.",
+          "You must respond with actual content. Review the plan and continue working on the next pending task.",
+          "FINAL ATTEMPT — respond immediately. Check your todos and plans, then execute the next action step."
+        ],
+        "default": [
+          "Continue. Produce your response now.",
+          "Proceed with the task. Review the conversation and respond.",
+          "Resume working. Check what needs to be done next and do it.",
+          "You need to respond with content. Review the context above and continue.",
+          "FINAL RETRY — you must produce a response now. Review everything and act."
+        ]
+      },
+      "description": "Empty response / zero tokens / finish reason 'other' — sends escalating nudge prompts to break the model out of stall before falling back",
+      "added_by": "sisyphus",
+      "added_at": "2026-04-17"
+    }
+  ]
+}
