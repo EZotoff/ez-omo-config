@@ -1,14 +1,23 @@
 {
-  "enabled_providers": ["google", "opencode-go", "github-copilot", "moonshot", "kimi-code", "zai-coding-plan", "deepseek", "inception"],
+  "enabled_providers": [
+    "google",
+    "opencode-go",
+    "github-copilot",
+    "moonshot",
+    "kimi-code",
+    "zai-coding-plan",
+    "deepseek",
+    "inception"
+  ],
   "plugin": [
-    "oh-my-opencode",
-    "file://$HOME/.config/opencode/provider-connect-retry.mjs",
+    "file:///home/ezotoff/.config/opencode/provider-connect-retry.mjs",
     "@tarquinen/opencode-dcp@latest",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
     "@franlol/opencode-md-table-formatter@latest",
-    "browser-lifecycle-plugin"
+    "file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs",
+    "oh-my-openagent"
   ],
   "agent": {
     "compaction": {
@@ -20,11 +29,140 @@
     "reserved": 0
   },
   "provider": {
+    "github-copilot": {
+      "name": "GitHub Copilot",
+      "models": {
+        "claude-opus-4.6": {
+          "name": "Claude Opus 4.6",
+          "limit": {
+            "context": 128000,
+            "input": 80000,
+            "output": 32000
+          },
+          "variants": {
+            "high": {
+              "thinking_budget": 7000
+            },
+            "low": {
+              "thinking_budget": 2000
+            }
+          }
+        },
+        "claude-sonnet-4.6": {
+          "name": "Claude Sonnet 4.6",
+          "limit": {
+            "context": 128000,
+            "input": 80000,
+            "output": 32000
+          },
+          "variants": {
+            "high": {
+              "thinking_budget": 7000
+            },
+            "low": {
+              "thinking_budget": 2000
+            }
+          }
+        },
+        "claude-haiku-4.5": {
+          "name": "Claude Haiku 4.5",
+          "limit": {
+            "context": 128000,
+            "input": 80000,
+            "output": 32000
+          }
+        },
+        "grok-code-fast-1": {
+          "name": "Grok Code Fast 1",
+          "limit": {
+            "context": 128000,
+            "input": 80000,
+            "output": 32000
+          }
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4",
+          "limit": {
+            "context": 400000,
+            "input": 400000,
+            "output": 32000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "options": {
+            "reasoningEffort": "high"
+          },
+          "variants": {
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          }
+        },
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex",
+          "limit": {
+            "context": 128000,
+            "input": 80000,
+            "output": 32000
+          },
+          "variants": {
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          }
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini",
+          "limit": {
+            "context": 400000,
+            "input": 400000,
+            "output": 128000
+          },
+          "variants": {
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            }
+          }
+        }
+      }
+    },
     "google": {
       "name": "Google",
       "models": {
         "antigravity-gemini-3-pro": {
-          "name": "Gemini 3 Pro (Antigravity)",
+          "name": "Gemini 3 Pro",
           "limit": {
             "context": 1048576,
             "output": 65535
@@ -48,9 +186,8 @@
             }
           }
         },
-
         "antigravity-gemini-3-flash": {
-          "name": "Gemini 3 Flash (Antigravity)",
+          "name": "Gemini 3 Flash",
           "limit": {
             "context": 1048576,
             "output": 65536
@@ -80,9 +217,8 @@
             }
           }
         },
-
         "antigravity-claude-sonnet-4-5": {
-          "name": "Claude Sonnet 4.5 (Antigravity)",
+          "name": "Claude Sonnet 4.5",
           "limit": {
             "context": 200000,
             "output": 64000
@@ -99,7 +235,7 @@
           }
         },
         "antigravity-claude-sonnet-4-5-thinking": {
-          "name": "Claude Sonnet 4.5 Thinking (Antigravity)",
+          "name": "Claude Sonnet 4.5 Thinking",
           "limit": {
             "context": 200000,
             "output": 64000
@@ -118,17 +254,12 @@
             "low": {
               "thinkingConfig": {
                 "thinkingBudget": 8192
-              }
-            },
-            "max": {
-              "thinkingConfig": {
-                "thinkingBudget": 32768
               }
             }
           }
         },
         "antigravity-claude-opus-4-5-thinking": {
-          "name": "Claude Opus 4.5 Thinking (Antigravity)",
+          "name": "Claude Opus 4.5 Thinking",
           "limit": {
             "context": 200000,
             "output": 64000
@@ -147,17 +278,12 @@
             "low": {
               "thinkingConfig": {
                 "thinkingBudget": 8192
-              }
-            },
-            "max": {
-              "thinkingConfig": {
-                "thinkingBudget": 32768
               }
             }
           }
         },
         "antigravity-claude-opus-4-6-thinking": {
-          "name": "Claude Opus 4.6 Thinking (Antigravity)",
+          "name": "Claude Opus 4.6 Thinking",
           "limit": {
             "context": 200000,
             "output": 64000
@@ -177,140 +303,7 @@
               "thinkingConfig": {
                 "thinkingBudget": 8192
               }
-            },
-            "max": {
-              "thinkingConfig": {
-                "thinkingBudget": 32768
-              }
             }
-          }
-        }
-      }
-    },
-    "github-copilot": {
-      "name": "GitHub Copilot",
-      "models": {
-        "claude-opus-4.6": {
-          "name": "Claude Opus 4.6 (GitHub Copilot)",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 32000
-          },
-          "variants": {
-            "max": {
-              "thinking_budget": 10000
-            },
-            "high": {
-              "thinking_budget": 7000
-            },
-            "low": {
-              "thinking_budget": 2000
-            }
-          }
-        },
-        "claude-sonnet-4.6": {
-          "name": "Claude Sonnet 4.6 (GitHub Copilot)",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 32000
-          },
-          "variants": {
-            "max": {
-              "thinking_budget": 10000
-            },
-            "low": {
-              "thinking_budget": 2000
-            }
-          }
-        },
-        "claude-haiku-4.5": {
-          "name": "Claude Haiku 4.5 (GitHub Copilot)",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 32000
-          }
-        },
-        "grok-code-fast-1": {
-          "name": "Grok Code Fast 1 (GitHub Copilot)",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 32000
-          }
-        },
-        "gpt-5.4": {
-          "name": "GPT 5.4 (GitHub Copilot)",
-          "limit": {
-            "context": 400000,
-            "input": 400000,
-            "output": 32000
-          },
-          "options": {
-            "reasoningEffort": "high"
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "gpt-5.3-codex": {
-          "name": "GPT 5.3 Codex (GitHub Copilot)",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 32000
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        }
-      }
-    },
-    "moonshot": {
-      "name": "Moonshot AI",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "https://api.moonshot.ai/v1"
-      },
-      "models": {
-        "kimi-k2.5": {
-          "name": "Kimi K2.5 (Moonshot)",
-          "limit": {
-            "context": 262144,
-            "output": 16384
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
           }
         }
       }
@@ -323,7 +316,7 @@
       },
       "models": {
         "k2p5": {
-          "name": "Kimi K2.5 (Kimi Code)",
+          "name": "Kimi K2.5",
           "reasoning": true,
           "attachment": false,
           "limit": {
@@ -331,8 +324,14 @@
             "output": 32768
           },
           "modalities": {
-            "input": ["text", "image", "video"],
-            "output": ["text"]
+            "input": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
           },
           "options": {
             "interleaved": {
@@ -346,15 +345,43 @@
       "name": "Z.AI Coding Plan",
       "models": {
         "glm-5": {
-          "name": "GLM 5 (Z.AI Coding Plan)",
+          "name": "GLM 5",
           "limit": {
             "context": 128000,
             "output": 16384
           },
           "modalities": {
             "input": [
-              "text",
-              "image"
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "thinking_budget": 4096
+            },
+            "medium": {
+              "thinking_budget": 8192
+            },
+            "high": {
+              "thinking_budget": 16384
+            },
+            "max": {
+              "thinking_budget": 32768
+            }
+          }
+        },
+        "glm-5.1": {
+          "name": "GLM 5.1",
+          "limit": {
+            "context": 200000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text"
             ],
             "output": [
               "text"
@@ -391,8 +418,12 @@
             "output": 8192
           },
           "modalities": {
-            "input": ["text"],
-            "output": ["text"]
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           }
         },
         "deepseek-reasoner": {
@@ -402,8 +433,12 @@
             "output": 8192
           },
           "modalities": {
-            "input": ["text"],
-            "output": ["text"]
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           }
         }
       }
@@ -416,14 +451,18 @@
       },
       "models": {
         "mercury-2": {
-          "name": "Mercury 2 (Inception Labs)",
+          "name": "Mercury 2",
           "limit": {
             "context": 131072,
             "output": 50000
           },
           "modalities": {
-            "input": ["text"],
-            "output": ["text"]
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           }
         }
       }
@@ -432,5 +471,7 @@
       "name": "Anthropic (Claude Pro)"
     }
   },
-  "$schema": "https://opencode.ai/config.json"
+  "autoupdate": false,
+  "$schema": "https://opencode.ai/config.json",
+  "small_model": "github-copilot/claude-sonnet-4.6"
 }

@@ -8,6 +8,10 @@
 			"truncate *": "deny",
 			"*kill*-f*bun*": "deny",
 			"*grep*-f*bun*": "deny"
+		},
+		"read": {
+			"*.env": "allow",
+			"*.env.*": "allow"
 		}
 	}
 }
