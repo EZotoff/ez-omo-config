@@ -1,5 +1,7 @@
 # Wisdom System
 
+> **Note**: For operational knowledge queries (deployment, config, infrastructure), use the `knowledge` skill instead. This wisdom skill remains for general wisdom write/search operations.
+
 You have access to a shared knowledge store called **Wisdom** — institutional memory that accumulates patterns, gotchas, and decisions across sessions. Use it to avoid repeating mistakes and to leverage proven approaches.
 
 ## When to Use Wisdom
