@@ -14,8 +14,8 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 **What it Configures**:
 
-- **Providers**: 7 provider configurations for different AI services
-- **Plugins**: 8 plugin registrations and their settings
+- **Providers**: 8 provider configurations for different AI services
+- **Plugins**: 9 plugin registrations and their settings
 - **Model Settings**: Default models, limits, timeouts
 - **Runtime Defaults**: Agent behavior, output preferences
 - **Feature Flags**: Experimental features and toggles
@@ -198,7 +198,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
-| `opencode.json` | Main config: 7 providers, 8 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
+| `opencode.json` | Main config: 8 providers, 9 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
 | `retry-errors.json` | Retryable error pattern registry with backoff and fallback rules | `$HOME/.config/opencode/retry-errors.json` | Required |

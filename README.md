@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 7 AI providers, 12 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **39 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
@@ -206,7 +206,7 @@ cd ez-omo-config
 
 ## Configuration Highlights
 
-### 7 Configured Providers
+### 8 Configured Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
@@ -214,6 +214,7 @@ cd ez-omo-config
 | **OpenAI** | GPT models via OAuth | GPT 5.4, GPT 5.3 Codex, GPT 5.2 |
 | **GitHub Copilot** | Claude and GPT via Copilot | Claude Opus 4.6, Claude Sonnet 4.6, GPT 5.4 |
 | **Moonshot** | Kimi models | Kimi K2.5 |
+| **Kimi For Coding (OAuth)** | Kimi K2.6 via device-flow OAuth | Kimi K2.6 (kimi-for-coding) |
 | **Z.AI** | GLM models via Coding Plan | GLM 5 |
 | **DeepSeek** | DeepSeek V3.2 | DeepSeek Chat, DeepSeek Reasoner |
 | **Inception** | Mercury models | Mercury 2 |
