@@ -5,6 +5,7 @@
     "github-copilot",
     "moonshot",
     "kimi-code",
+    "kimi-for-coding-oauth",
     "zai-coding-plan",
     "deepseek",
     "inception"
@@ -16,6 +17,7 @@
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
     "@franlol/opencode-md-table-formatter@latest",
+    "opencode-kimi-full",
     "file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs",
     "oh-my-openagent"
   ],
@@ -321,7 +323,7 @@
           "attachment": false,
           "limit": {
             "context": 262144,
-            "output": 32768
+            "output": 32768,
           },
           "modalities": {
             "input": [
@@ -336,6 +338,41 @@
           "options": {
             "interleaved": {
               "field": "reasoning_content"
+            }
+          }
+        }
+      }
+    },
+    "kimi-for-coding-oauth": {
+      "name": "Kimi For Coding (OAuth)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://api.kimi.com/coding/v1"
+      },
+      "models": {
+        "kimi-for-coding": {
+          "name": "Kimi K2.6",
+          "reasoning": true,
+          "options": {},
+          "limit": {
+            "context": 262144,
+            "output": 32768,
+          },
+          "variants": {
+            "off": {
+              "reasoning_effort": "off"
+            },
+            "auto": {
+              "reasoning_effort": "auto"
+            },
+            "low": {
+              "reasoning_effort": "low"
+            },
+            "medium": {
+              "reasoning_effort": "medium"
+            },
+            "high": {
+              "reasoning_effort": "high"
             }
           }
         }
@@ -441,6 +478,11 @@
             ]
           }
         }
+      }
+    },
+    "opencode-go": {
+      "options": {
+        "chunkTimeout": 30000
       }
     },
     "inception": {

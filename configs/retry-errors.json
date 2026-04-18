@@ -43,7 +43,7 @@
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],
       "retry_after_tool_execution": false,
-      "fallback_model": "kimi-code/k2p5",
+      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
       "description": "GLM API parameter validation error — transient Z.AI API issue, retry before falling back to Kimi",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
@@ -55,7 +55,7 @@
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],
       "retry_after_tool_execution": false,
-      "fallback_model": "kimi-code/k2p5",
+      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
       "description": "GLM documentation-check error variant — transient Z.AI API issue, retry before falling back to Kimi",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
@@ -67,7 +67,7 @@
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],
       "retry_after_tool_execution": false,
-      "fallback_model": "kimi-code/k2p5",
+      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
       "description": "Generic server errors from any provider — retry with backoff before falling back to Kimi",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
@@ -79,7 +79,7 @@
       "max_retries": 5,
       "backoff_ms": [2000, 4000, 8000, 15000, 30000],
       "retry_after_tool_execution": true,
-      "fallback_model": "kimi-code/k2p5",
+      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
       "detect_empty_response": true,
       "nudge_prompts": {
         "sisyphus": [
