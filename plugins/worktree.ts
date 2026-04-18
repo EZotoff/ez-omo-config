@@ -14,8 +14,8 @@
 import { access, copyFile, cp, mkdir, readdir, rm, stat, symlink } from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
-import { type Plugin, tool } from "../../.opencode/node_modules/@opencode-ai/plugin/dist/index.js"
-import type { Event } from "../../.opencode/node_modules/@opencode-ai/sdk/dist/index.js"
+import { type Plugin, tool } from "@opencode-ai/plugin"
+import type { Event } from "@opencode-ai/sdk"
 import type { OpencodeClient } from "./kdco-primitives/types"
 
 /** Logger interface for structured logging */
@@ -26,8 +26,8 @@ interface Logger {
 	error: (msg: string) => void
 }
 
-import { parse as parseJsonc } from "../../.opencode/node_modules/jsonc-parser/lib/esm/main.js"
-import { z } from "../../.opencode/node_modules/zod/index.js"
+import { parse as parseJsonc } from "jsonc-parser"
+import { z } from "zod"
 
 import { getProjectId } from "./kdco-primitives/get-project-id"
 import {
