@@ -98,7 +98,7 @@
         ],
         "default": [
           "Continue. Produce your response now.",
-          "Proceed with the task. Review the conversation and respond.",
+          "Proceed now. Use the current context and respond directly.",
           "Resume working. Check what needs to be done next and do it.",
           "You need to respond with content. Review the context above and continue.",
           "FINAL RETRY — you must produce a response now. Review everything and act."

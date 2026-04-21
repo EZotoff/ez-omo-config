@@ -128,6 +128,29 @@ function getNudgePromptParts(rule, agentName, attemptIndex) {
   return [{ type: "text", text }];
 }
 
+function buildAttemptState({
+  tracked,
+  fingerprint,
+  retryParts,
+  retryMessageID,
+  attempts,
+  ruleID,
+  nudgeParts,
+}) {
+  const nudgeFingerprint = Array.isArray(nudgeParts) ? fingerprintParts(nudgeParts) : undefined;
+  return {
+    fingerprint: nudgeFingerprint ?? fingerprint,
+    originalFingerprint: tracked?.originalFingerprint ?? fingerprint,
+    originalParts: tracked?.originalParts ?? retryParts,
+    originalMessageID: tracked?.originalMessageID ?? retryMessageID,
+    attempts,
+    ruleID,
+    userMessageID: nudgeFingerprint ? undefined : retryMessageID,
+    pendingNudge: Boolean(nudgeFingerprint),
+    pendingNudgeFingerprint: nudgeFingerprint,
+  };
+}
+
 function getEventSessionID(event) {
   const props = event?.properties ?? {};
   return props.sessionID ?? props.info?.sessionID;
@@ -384,15 +407,15 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                       parts: dispatchParts,
                     },
                   });
-                  attemptsBySession.set(sessionID, {
-                    fingerprint: useNudge ? fingerprintParts(nudgeParts) : fingerprint,
-                    originalFingerprint: tracked.originalFingerprint ?? fingerprint,
-                    originalParts: tracked.originalParts ?? retryParts,
-                    originalMessageID: tracked.originalMessageID ?? retryMessageID,
+                  attemptsBySession.set(sessionID, buildAttemptState({
+                    tracked,
+                    fingerprint,
+                    retryParts,
+                    retryMessageID,
                     attempts: nextAttempt,
                     ruleID: emptyRule.id,
-                    userMessageID: useNudge ? undefined : retryMessageID,
-                  });
+                    nudgeParts: useNudge ? nudgeParts : undefined,
+                  }));
                 }
               }
             } catch (dispatchError) {
@@ -458,6 +481,18 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
             const nextFingerprint = fingerprintParts(currentParts);
             const nextMessageID = typeof info.id === "string" && info.id.length > 0 ? info.id : undefined;
             const existing = attemptsBySession.get(sessionID);
+            const isPendingNudge = existing?.pendingNudge === true && existing?.pendingNudgeFingerprint === nextFingerprint;
+            if (isPendingNudge) {
+              attemptsBySession.set(sessionID, {
+                ...existing,
+                fingerprint: nextFingerprint,
+                userMessageID: nextMessageID,
+                pendingNudge: false,
+                pendingNudgeFingerprint: undefined,
+                emptyCompletionDetected: false,
+              });
+              return;
+            }
             if (!existing || existing.fingerprint !== nextFingerprint || existing.userMessageID !== nextMessageID) {
               attemptsBySession.set(sessionID, { fingerprint: nextFingerprint, attempts: 0, userMessageID: nextMessageID });
               handledErrorsBySession.delete(sessionID);
@@ -602,15 +637,15 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
             parts: dispatchParts,
           },
         });
-        attemptsBySession.set(sessionID, {
-          fingerprint: useNudge ? fingerprintParts(nudgeParts) : fingerprint,
-          originalFingerprint: current?.originalFingerprint ?? fingerprint,
-          originalParts: current?.originalParts ?? retryParts,
-          originalMessageID: current?.originalMessageID ?? retryMessageID,
+        attemptsBySession.set(sessionID, buildAttemptState({
+          tracked: current,
+          fingerprint,
+          retryParts,
+          retryMessageID,
           attempts: nextAttempt,
           ruleID: matchedRule.id,
-          userMessageID: useNudge ? undefined : retryMessageID,
-        });
+          nudgeParts: useNudge ? nudgeParts : undefined,
+        }));
         handledErrorsBySession.set(sessionID, failedAssistantMessageID);
       } catch (dispatchError) {
         if (previousAttemptState) {
