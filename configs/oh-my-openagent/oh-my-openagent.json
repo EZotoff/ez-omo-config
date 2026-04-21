@@ -2,14 +2,15 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-openagent.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "zai-coding-plan/glm-5.1",
-      "variant": "high",
+      "model": "kimi-for-coding-oauth/kimi-for-coding",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "zai-coding-plan/glm-5.1"
       ],
       "skills": [
-        "wisdom"
-      ]
+        "wisdom",
+        "knowledge"
+      ],
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `knowledge` skill. It provides authority-first lookup via manifests and wisdom.\nDo NOT infer operational facts from code — consult documented knowledge first."
     },
     "hephaestus": {
       "model": "github-copilot/gpt-5.3-codex",
@@ -22,8 +23,10 @@
         "github-copilot/gemini-3.1-pro-preview"
       ],
       "skills": [
-        "wisdom"
-      ]
+        "wisdom",
+        "knowledge"
+      ],
+      "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `knowledge` skill to check documented knowledge first.\nPrefer verified manifests over candidate wisdom. Flag when design assumptions conflict with implementation reality."
     },
     "librarian": {
       "model": "opencode-go/minimax-m2.7"
@@ -38,20 +41,22 @@
       "model": "google/gemini-3.1-pro-preview"
     },
     "prometheus": {
-      "model": "github-copilot/claude-opus-4.6",
+      "model": "github-copilot/gpt-5.4",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
       ],
       "skills": [
-        "wisdom"
-      ]
+        "wisdom",
+        "knowledge"
+      ],
+      "prompt_append": "When creating plans, consult the `knowledge` skill for documented constraints, design decisions, and implementation patterns.\nUse knowledge-lookup.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as knowledge entries."
     },
     "metis": {
-      "model": "github-copilot/claude-opus-4.6",
+      "model": "github-copilot/gpt-5.4",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/gpt-5.4"
+        "github-copilot/claude-sonnet-4.6"
       ],
       "skills": [
         "wisdom"
@@ -61,7 +66,7 @@
       "model": "github-copilot/gpt-5.4",
       "variant": "xhigh",
       "fallback_models": [
-        "github-copilot/claude-opus-4.6"
+        "github-copilot/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
@@ -77,13 +82,18 @@
         "wisdom",
         "knowledge"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `knowledge` skill. It provides authority-first lookup via manifests and wisdom.\nDo NOT infer operational facts from code — consult documented knowledge first."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `knowledge` skill. It provides authority-first lookup via manifests and wisdom.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions."
     },
     "sisyphus-junior": {
-      "model": "github-copilot/claude-sonnet-4.6",
+      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "fallback_models": [
+        "github-copilot/claude-sonnet-4.6"
+      ],
       "skills": [
-        "wisdom"
-      ]
+        "wisdom",
+        "knowledge"
+      ],
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `knowledge` skill. It provides authority-first lookup via manifests and wisdom.\nDo NOT infer operational facts from code — consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
       "model": "github-copilot/gemini-3.1-pro-preview",
@@ -119,7 +129,8 @@
       "model": "github-copilot/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/claude-opus-4.6"
+        "kimi-for-coding-oauth/kimi-for-coding",
+        "github-copilot/gpt-5.4"
       ]
     },
     "quick": {
@@ -129,8 +140,7 @@
       "model": "github-copilot/claude-sonnet-4.6"
     },
     "unspecified-high": {
-      "model": "github-copilot/claude-opus-4.6",
-      "variant": "high",
+      "model": "kimi-for-coding-oauth/kimi-for-coding",
       "fallback_models": [
         "github-copilot/gpt-5.4"
       ]
@@ -145,14 +155,15 @@
       "model": "github-copilot/gpt-5.3-codex",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/claude-opus-4.6"
+        "kimi-for-coding-oauth/kimi-for-coding",
+        "github-copilot/gpt-5.4"
       ]
     },
     "mephistopheles": {
-      "model": "github-copilot/gpt-5.4",
-      "variant": "xhigh",
+      "model": "kimi-for-coding-oauth/kimi-for-coding",
       "fallback_models": [
-        "github-copilot/claude-opus-4.6"
+        "github-copilot/gpt-5.4",
+        "github-copilot/claude-sonnet-4.6"
       ],
       "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless — you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly."
     }
