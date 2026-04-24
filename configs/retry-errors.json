@@ -50,13 +50,13 @@
     },
     {
       "id": "glm-check-documentation",
-      "pattern": "please check the documentation",
+      "pattern": "^(?!.*messages parameter is illegal).*please check the documentation",
       "match_type": "regex",
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],
       "retry_after_tool_execution": false,
       "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
-      "description": "GLM documentation-check error variant — transient Z.AI API issue, retry before falling back to Kimi",
+      "description": "GLM documentation-check error variant — retries generic doc-check failures but explicitly excludes deterministic 'messages parameter is illegal' request errors",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
     },

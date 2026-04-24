@@ -148,6 +148,8 @@ function buildAttemptState({
     userMessageID: nudgeFingerprint ? undefined : retryMessageID,
     pendingNudge: Boolean(nudgeFingerprint),
     pendingNudgeFingerprint: nudgeFingerprint,
+    emptyCompletionDetected: false,
+    emptyMessageID: undefined,
   };
 }
 
@@ -231,6 +233,15 @@ function getLastUserMessageIndex(messages) {
   }
 
   return -1;
+}
+
+function getLastAssistantMessage(messages) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const role = messages[i]?.info?.role ?? messages[i]?.role;
+    if (role === "assistant") return messages[i];
+  }
+
+  return undefined;
 }
 
 function messageHasToolExecution(message) {
@@ -342,6 +353,18 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                 ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
               }).catch(() => null);
               const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
+              const lastAssistantMessage = getLastAssistantMessage(messages);
+              const lastAssistantMessageID = getMessageID(lastAssistantMessage);
+
+              if (tracked.emptyMessageID && tracked.emptyMessageID !== lastAssistantMessageID) {
+                clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
+                return;
+              }
+
+              if (!isEmptyAssistantMessage(lastAssistantMessage)) {
+                clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
+                return;
+              }
 
               const lastUserMessageIndex = getLastUserMessageIndex(messages);
               const lastUserMessage = lastUserMessageIndex >= 0 ? messages[lastUserMessageIndex] : undefined;
@@ -393,6 +416,10 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                     log("info", `Sending nudge prompt (attempt ${nextAttempt}): "${nudgeParts[0].text.substring(0, 60)}..."`);
                   }
 
+                  await ctx.client.session.abort({
+                    path: { id: sessionID },
+                    ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
+                  }).catch(() => {});
                   await sleep(delayMs);
                   await ctx.client.session.promptAsync({
                     path: { id: sessionID },
@@ -407,6 +434,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                       parts: dispatchParts,
                     },
                   });
+                  log("info", `Dispatched empty-response retry ${nextAttempt}/${emptyRule.max_retries} for "${emptyRule.id}"`);
                   attemptsBySession.set(sessionID, buildAttemptState({
                     tracked,
                     fingerprint,
@@ -456,6 +484,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                   const tracked = attemptsBySession.get(sessionID);
                   attemptsBySession.set(sessionID, {
                     ...(tracked ?? {}),
+                    ruleID: emptyRule.id,
                     emptyCompletionDetected: true,
                     emptyMessageID: msgID,
                   });
