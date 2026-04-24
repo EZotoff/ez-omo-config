@@ -48,6 +48,12 @@
     "nudgeFrequency": 5,
     "iterationNudgeThreshold": 15,
     "nudgeForce": "soft",
+    "modelMaxLimits": {
+      "zai-coding-plan/glm-5.1": 75000
+    },
+    "modelMinLimits": {
+      "zai-coding-plan/glm-5.1": 50000
+    },
     "protectedTools": [],
     "protectUserMessages": false
   },

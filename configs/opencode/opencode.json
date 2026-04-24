@@ -27,7 +27,7 @@
     }
   },
   "compaction": {
-    "auto": false,
+    "auto": true,
     "reserved": 0
   },
   "provider": {
@@ -323,7 +323,7 @@
           "attachment": false,
           "limit": {
             "context": 262144,
-            "output": 32768,
+            "output": 32768
           },
           "modalities": {
             "input": [
@@ -356,7 +356,7 @@
           "options": {},
           "limit": {
             "context": 262144,
-            "output": 32768,
+            "output": 32768
           },
           "variants": {
             "off": {
@@ -413,7 +413,7 @@
         "glm-5.1": {
           "name": "GLM 5.1",
           "limit": {
-            "context": 200000,
+            "context": 128000,
             "output": 131072
           },
           "modalities": {
