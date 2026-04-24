@@ -170,6 +170,7 @@
   },
   "google_auth": false,
   "auto_update": false,
+  "disabled_hooks": ["auto-update-checker"],
   "browser_automation_engine": {
     "provider": "agent-browser"
   },
@@ -183,6 +184,30 @@
       503,
       504
     ]
+  },
+  "aspectDynamics": {
+    "activeSets": ["emotions-v1"],
+    "heuristicPreFilter": true,
+    "contextWindowTurns": 10,
+    "scoringModel": {
+      "providerID": "inception",
+      "modelID": "mercury-2"
+    },
+    "polishingModel": {
+      "providerID": "inception",
+      "modelID": "mercury-2"
+    },
+    "dreamAgent": {
+      "enabled": false,
+      "timeThresholdHours": 24,
+      "minEventCount": 50,
+      "scanThrottleMinutes": 10,
+      "lockStaleHours": 1,
+      "model": {
+        "providerID": "github-copilot",
+        "modelID": "gpt-5.4"
+      }
+    }
   },
   "git_master": {
     "commit_footer": false,
