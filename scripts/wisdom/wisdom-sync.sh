@@ -247,7 +247,9 @@ process_section() {
          --type "$entry_type" \
          --tags "$tags" \
          --source "sync:${notepad_path}" \
-         --score "$score" 2>&1) || write_rc=$?
+         --score "$score" \
+         --authority candidate \
+         --provenance sync 2>&1) || write_rc=$?
 
     if (( write_rc == 0 )); then
         # --- Stage 8: Update state ---
