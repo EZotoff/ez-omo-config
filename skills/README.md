@@ -33,3 +33,10 @@ Infrastructure and deployment helper for setting up servers, configuring ports, 
 Designer-turned-developer UI/UX specialist that crafts stunning UI/UX with multi-dimensional analysis for deep design work. Provides UI/UX expertise even without design mockups.
 - **Dependencies**: None
 - **Use Case**: Visual engineering, UI design improvements, UX enhancements
+
+### vera/ (External)
+Semantic code search and discovery using hybrid BM25+vector retrieval with cross-encoder reranking. Local-first Rust binary with ONNX embeddings — no API keys needed. Provides 70%+ token reduction during codebase discovery compared to brute-force grep.
+- **Dependencies**: `vera` binary (install: `bunx @vera-ai/cli install`)
+- **Use Case**: Codebase discovery, semantic search, finding logic by concept
+- **Install**: `vera agent install --client opencode`
+- **Note**: Not stored in this repo — installed externally via Vera's CLI

@@ -154,6 +154,33 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
+### vera/
+
+**Purpose**: Semantic code search and discovery for efficient codebase navigation.
+
+**Features**:
+
+- Hybrid retrieval: BM25 + vector search + cross-encoder reranking
+- Local-first: single Rust binary, ONNX embeddings, no API keys needed
+- Fast indexing: ~8 seconds for multi-MB codebases
+- Token-efficient Markdown output (40% smaller than JSON)
+- Background watcher for automatic index freshness
+- Dead code detection and symbol reference tracing
+
+**Dependencies**: None (self-contained binary)
+
+**Use Case**: Codebase discovery, finding logic by concept, semantic search, avoiding token-wasting grep for discovery
+
+**Status**: Optional (Recommended)
+
+**Install Target**: `$HOME/.config/opencode/skills/vera/` (installed via `vera agent install --client opencode`)
+
+**Agents Using This Skill**: `explore`, `sisyphus`, `librarian`
+
+**Note**: Vera is installed externally via its own CLI. It is NOT managed by `install.sh`. See [Vera Implementation Plan](../docs/vera-implementation-plan.md) for details.
+
+---
+
 ## Dependency Clusters
 
 ```
@@ -169,14 +196,15 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 
 ## Installation Summary
 
-| Skill | Status | Install Target |
-|-------|--------|----------------|
-| wisdom/ | Required | `$HOME/.config/opencode/skills/wisdom/` |
-| atlas-review-handler/ | Required | `$HOME/.config/opencode/skills/atlas-review-handler/` |
-| review-protocol/ | Required | `$HOME/.config/opencode/skills/review-protocol/` |
-| playwright/ | Optional | `$HOME/.config/opencode/skills/playwright/` |
-| deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` |
-| frontend-ui-ux/ | Optional | `$HOME/.config/opencode/skills/frontend-ui-ux/` |
+| Skill | Status | Install Target | Install Method |
+|-------|--------|----------------|----------------|
+| wisdom/ | Required | `$HOME/.config/opencode/skills/wisdom/` | `install.sh` |
+| atlas-review-handler/ | Required | `$HOME/.config/opencode/skills/atlas-review-handler/` | `install.sh` |
+| review-protocol/ | Required | `$HOME/.config/opencode/skills/review-protocol/` | `install.sh` |
+| playwright/ | Optional | `$HOME/.config/opencode/skills/playwright/` | `install.sh` |
+| deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
+| frontend-ui-ux/ | Optional | `$HOME/.config/opencode/skills/frontend-ui-ux/` | `install.sh` |
+| vera/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera/` | `vera agent install --client opencode` |
 
 ---
 

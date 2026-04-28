@@ -4,9 +4,11 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **41 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+
+> **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
 ---
 
@@ -45,12 +47,13 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Runtime fallback** — automatic model switching across 7 providers when APIs fail or rate-limit
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work
+- **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
 
 ---
 
 ## What's Included
 
-This repository contains 41 artifacts organized into 8 categories:
+This repository contains 41 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -62,6 +65,7 @@ This repository contains 41 artifacts organized into 8 categories:
 | 31 | **Extras** | 1 file | Additional registry configuration |
 | 32-33 | **Docker** | 2 files | Worktree container templates |
 | 34-36 | **Docs** | 3 files | Configuration, plugin, and worktree state documentation |
+| 37 | **External** | 1 skill | [Vera](https://github.com/lemon07r/Vera) semantic code search (installed separately) |
 
 ### Complete Artifact Inventory
 
@@ -108,6 +112,7 @@ This repository contains 41 artifacts organized into 8 categories:
 | 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
 | 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
 | 36 | `worktree-state-schema.md` | `docs/` | Runtime state file formats and locations |
+| 37 | `vera/` (external) | `~/.config/opencode/skills/vera/` | Semantic code search (install: `vera agent install --client opencode`) |
 
 ---
 
@@ -316,6 +321,7 @@ For in-depth guides on specific components:
 | Plugin Development | [docs/plugins.md](docs/plugins.md) |
 | Skill Authoring | [docs/skills.md](docs/skills.md) |
 | Wisdom System | [docs/wisdom.md](docs/wisdom.md) |
+| Vera Integration | [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md) |
 
 ---
 
