@@ -308,14 +308,23 @@ function isEmptyAssistantMessage(message) {
 
   const parts = info?.parts ?? message?.parts;
   // If the model never produced ANY parts at all, that's a true stall (zero tokens).
-  // An interrupted (user Ctrl+C) response will have parts — possibly empty strings
-  // from the partial stream, but the array itself exists and is non-empty.
   if (!Array.isArray(parts) || parts.length === 0) return true;
 
-  // If parts exist but all are empty/whitespace text with no tool calls,
-  // this is likely a user interrupt (model started streaming but produced nothing useful).
-  // Skip — only retry when the model produced literally nothing (empty parts array).
-  return false;
+  // If parts exist, check whether any part has actual content.
+  // A genuine empty completion (finish="other", output=0) may still have an
+  // empty text placeholder from OpenCode, but no tool calls and no non-empty text.
+  // A user Ctrl+C interrupt that produced partial tokens would have output > 0
+  // and was already excluded by the detection check (finish === "other" && output === 0).
+  const hasContent = parts.some((part) => {
+    if (!part || typeof part !== "object") return false;
+    const type = typeof part.type === "string" ? part.type.toLowerCase() : "";
+    if (type === "text" && typeof part.text === "string" && part.text.trim().length > 0) return true;
+    if (type.includes("tool")) return true;
+    if (typeof part.tool === "string" || typeof part.toolName === "string") return true;
+    return false;
+  });
+
+  return !hasContent;
 }
 
 function findEmptyResponseRule(registry) {
@@ -357,11 +366,14 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
               const lastAssistantMessageID = getMessageID(lastAssistantMessage);
 
               if (tracked.emptyMessageID && tracked.emptyMessageID !== lastAssistantMessageID) {
+                log("warn", `Empty-response guard: message ID mismatch (tracked=${tracked.emptyMessageID}, last=${lastAssistantMessageID}) — clearing state`);
                 clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
                 return;
               }
 
               if (!isEmptyAssistantMessage(lastAssistantMessage)) {
+                const parts = lastAssistantMessage?.info?.parts ?? lastAssistantMessage?.parts;
+                log("warn", `Empty-response guard: last assistant message has content (parts=${JSON.stringify(parts)?.substring(0, 200)}) — clearing state`);
                 clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
                 return;
               }
