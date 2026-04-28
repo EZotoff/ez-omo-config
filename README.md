@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **39 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **41 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 ---
 
@@ -39,6 +39,7 @@ ls -la ~/.opencode/plugin/
 After running `./install.sh`, your OpenCode CLI gains:
 
 - **`/models-preset`** — view all 12 agent model assignments at a glance
+- **`/session-info`** — copy project path and session title to clipboard (no LLM round-trip)
 - **Git safety guardrails** — automatic prevention of destructive git operations
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Runtime fallback** — automatic model switching across 7 providers when APIs fail or rate-limit
@@ -49,13 +50,13 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 39 artifacts organized into 8 categories:
+This repository contains 41 artifacts organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
-| 1 | **Commands** | 2 files | Slash commands for OpenCode workflows |
+| 1 | **Commands** | 3 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 6 files | Core OpenCode and OMO configuration files |
-| 6-11 | **Plugins** | 6 files + library | TypeScript plugins for worktrees, git safety, review enforcement, and VS Code launcher |
+| 6-11 | **Plugins** | 7 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, and session info clipboard |
 | 12-20 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
@@ -68,6 +69,7 @@ This repository contains 39 artifacts organized into 8 categories:
 |---|----------|------|---------|
 | 1 | `models-preset.md` | `commands/` | Slash command for showing current OMO model assignments |
 | 1b | `vscode.md` | `commands/` | VS Code launcher command stub (handled by plugin) |
+| 1c | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection and registry-driven error matching |
@@ -80,6 +82,7 @@ This repository contains 39 artifacts organized into 8 categories:
 | 10 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
 | 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
 | 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
+| 11c | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
 | 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
