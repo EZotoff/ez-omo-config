@@ -19,11 +19,11 @@
     "@franlol/opencode-md-table-formatter@latest",
     "opencode-kimi-full",
     "file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs",
-    "oh-my-openagent"
+    "file:///home/ezotoff/omo-hub/projects/oh-my-openagent"
   ],
   "agent": {
     "compaction": {
-      "model": "google/antigravity-gemini-3-flash"
+      "model": "opencode-go/deepseek-v4-flash"
     }
   },
   "compaction": {
@@ -468,6 +468,21 @@
           "limit": {
             "context": 65536,
             "output": 8192
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "deepseek-v4-flash": {
+          "name": "DeepSeek V4 Flash",
+          "limit": {
+            "context": 1048576,
+            "output": 393216
           },
           "modalities": {
             "input": [
