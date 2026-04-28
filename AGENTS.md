@@ -32,6 +32,7 @@ Live configs are symlinks pointing into this repo:
 3. **Never commit auth/API keys.** `~/.local/share/opencode/auth.json` is machine-local.
 4. **Machine-specific values are acceptable.** The store contains `file://` paths with absolute paths (e.g. `file:///home/ezotoff/...`). This is expected — new machines adapt these via `install.sh`.
 5. **Validate JSON after editing.** Run `python3 -c "import json; json.load(open('path'))"` on changed files.
+6. **Never commit without explicit user direction.** The base system instruction "Only create commits when requested by the user" takes precedence over any skill advice (including git-master). If unclear whether to commit, ask first.
 
 ## Code Search Tool Selection
 
