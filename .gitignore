@@ -1,4 +1,5 @@
-.sisyphus/
+.sisyphus/*
+!.sisyphus/patches/
 test-results/
 *.log
 .env*
