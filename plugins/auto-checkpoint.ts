@@ -1,5 +1,5 @@
-import { appendFileSync, mkdirSync } from "node:fs"
-import { dirname } from "node:path"
+import { appendFileSync, existsSync, mkdirSync } from "node:fs"
+import { dirname, resolve } from "node:path"
 import type { Plugin } from "@opencode-ai/plugin"
 import { Mutex } from "./kdco-primitives/mutex"
 
@@ -76,7 +76,16 @@ interface GitStatus {
 
 type EventInput = {
 	event: { type: string; properties?: Record<string, unknown> }
-	sessionID: string
+}
+
+function extractSessionId(event: { type: string; properties?: Record<string, unknown> }): string {
+	const props = event.properties ?? {}
+	return (
+		(props.session_id as string) ??
+		(props.sessionId as string) ??
+		(props.id as string) ??
+		""
+	)
 }
 
 // =============================================================================
@@ -154,7 +163,14 @@ async function isGitOperationInProgress(cwd: string): Promise<boolean> {
 		git(["rev-parse", "--git-path", "CHERRY_PICK_HEAD"], cwd),
 	])
 
-	return checks.some((r) => r.ok && r.value.length > 0)
+	// git rev-parse --git-path resolves paths but does NOT check existence.
+	// Without the existsSync check, this guard fires on every evaluation
+	// because the resolved path is always non-empty even when no operation
+	// is in progress.
+	return checks.some((r) => {
+		if (!r.ok || !r.value) return false
+		return existsSync(resolve(cwd, r.value))
+	})
 }
 
 async function createCheckpointCommit(
@@ -367,10 +383,10 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 		// HOOK: event — session lifecycle events
 		// =================================================================
 		event: async (input: EventInput) => {
-			const { event, sessionID } = input
+			const { event } = input
+			const sessionID = extractSessionId(event)
 
 			try {
-				// session.created — register session
 				if (event.type === "session.created") {
 					const props = event.properties || {}
 					const parentId = props.parentSessionId as string | undefined
@@ -379,7 +395,6 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 					const state = getSession(sessionID, cwd)
 					state.parentId = parentId
 
-					// Link to parent if this is a subagent
 					if (parentId) {
 						const parent = sessions.get(parentId)
 						if (parent) {
@@ -392,18 +407,15 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 					return
 				}
 
-				// session.deleted — cleanup session
 				if (event.type === "session.deleted") {
 					const state = sessions.get(sessionID)
 					if (state) {
-						// Remove from parent's child set
 						if (state.parentId) {
 							const parent = sessions.get(state.parentId)
 							if (parent) {
 								parent.childIds.delete(sessionID)
 							}
 						}
-						// Clear any pending timer
 						if (state.timer) {
 							clearTimeout(state.timer)
 						}
@@ -413,11 +425,9 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 					return
 				}
 
-				// session.idle / session.status — schedule checkpoint evaluation
 				if (event.type === "session.idle" || event.type === "session.status") {
 					const state = sessions.get(sessionID)
 					if (!state) {
-						// Auto-register with default directory if not seen before
 						getSession(sessionID, directory)
 					}
 
@@ -425,12 +435,10 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 					if (sessionState) {
 						sessionState.lastIdleAt = Date.now()
 
-						// Clear existing timer
 						if (sessionState.timer) {
 							clearTimeout(sessionState.timer)
 						}
 
-						// Schedule debounced evaluation
 						sessionState.timer = setTimeout(() => {
 							const props = event.properties || {}
 							const title = (props.title as string) || ""
