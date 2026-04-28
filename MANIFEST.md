@@ -79,13 +79,19 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 30 (commands: 2, configs: 5, plugins: 6 + kdco-primitives dir, skills: 6 dirs, scripts: 9, extras: 1)
+- **Total Artifacts**: 30 core + 1 external (commands: 3, configs: 5, plugins: 6 + kdco-primitives dir, skills: 6 dirs + 1 external, scripts: 9, extras: 1)
 - **Commands**: 3 slash command prompts (`models-preset.md`, `vscode.md`, `session-info.md`)
 - **Core Configs**: 5 files (opencode.json, opencode.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json)
 - **Plugins**: 3 main files + vscode.ts + session-info.ts + worktree/ (2 files) + kdco-primitives/ directory
-- **Skills**: 6 directories
+- **Skills**: 6 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
 - **Scripts**: 9 wisdom shell scripts
 - **Extras**: 1 file (ocx.jsonc)
+
+### External Artifacts (Not in install.sh)
+
+| # | Artifact | Path | Purpose | Install Command |
+|---|----------|------|---------|-----------------|
+| 31 | vera/ | `~/.config/opencode/skills/vera/` | Semantic code search skill | `vera agent install --client opencode` |
 
 ## Dependency Clusters
 
