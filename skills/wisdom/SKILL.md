@@ -30,6 +30,8 @@ You have access to a shared knowledge store called **Wisdom** — institutional 
 - `--limit`: Default 10
 - `--json`: Machine-readable output
 
+> **Deprecation**: For operational knowledge queries (deployment paths, config values, infrastructure facts), prefer `~/.sisyphus/scripts/knowledge-lookup.sh` which searches authoritative manifests first, then wisdom candidates.
+
 ### Write
 ```bash
 echo "CONTENT" | ~/.sisyphus/scripts/wisdom-write.sh --type TYPE --tags "tag1,tag2" [--scope system|project|plan]

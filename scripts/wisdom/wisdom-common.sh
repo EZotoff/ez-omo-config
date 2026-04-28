@@ -404,11 +404,11 @@ wisdom_atomic_append() {
 }
 
 # --------------------------------------------------------------------------
-# 17. knowledge_atomic_write — Atomic write with flock-based file locking
+# 17. wisdom_atomic_write — Atomic write with flock-based file locking
 #     Args: $1=file_path, $2=content
 #     Returns: 0 on success, 1 on lock failure
 # --------------------------------------------------------------------------
-knowledge_atomic_write() {
+wisdom_atomic_write() {
     local file="$1"
     local content="$2"
     local lockfile="${file}.lock"
@@ -425,3 +425,6 @@ knowledge_atomic_write() {
         echo "$content" > "$file"
     ) 200>"$lockfile"
 }
+
+# Backward-compatible alias for knowledge subsystem
+knowledge_atomic_write() { wisdom_atomic_write "$@"; }
