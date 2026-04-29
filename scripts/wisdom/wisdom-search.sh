@@ -468,7 +468,7 @@ if [[ "$TOUCH" == true ]]; then
         store_path=$(printf '%s' "$entry_json" | jq -r '._store_path')
 
         updated_json=$(printf '%s' "$entry_json" | jq -c --arg now "$NOW_ISO" '
-            del(._store_path)
+            del(._store_path, ._relevance, ._rank)
             | .accessed = ((.accessed // 0) + 1)
             | .last_accessed = $now
         ')

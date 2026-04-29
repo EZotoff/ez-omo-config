@@ -29,7 +29,10 @@ Edit flags (at least one required):
   --set-tags "tag1,tag2"    Replace all tags (comma-separated)
   --add-tags "tag3,tag4"    Append tags to existing (comma-separated)
   --set-score N             Set quality_score (integer)
-  --set-authority LEVEL     Set authority level: wisdom|verified|manifest
+  --set-authority LEVEL     Set authority level: candidate|verified|published
+  --set-status STATUS       Set status: active|stale|superseded|retracted
+  --set-provenance VALUE    Set provenance: closeout|nomination|manual|manifest-import|migration|publish-export|compat-shim
+  --set-origin-session ID   Set origin session ID string
   --set-superseded-by ID    Mark entry as superseded by another entry ID
   --set-verified-at ISO     Set verification timestamp (ISO-8601)
   --set-review-due ISO      Set review due timestamp (ISO-8601)
@@ -83,6 +86,29 @@ validate_type() {
     return 0
 }
 
+validate_enum_from_array() {
+    local value="$1"
+    local field_name="$2"
+    local valid_values_name="$3"
+    local -n valid_values_ref="$valid_values_name"
+    local valid=false
+    local candidate
+
+    for candidate in "${valid_values_ref[@]}"; do
+        if [[ "$value" == "$candidate" ]]; then
+            valid=true
+            break
+        fi
+    done
+
+    if [[ "$valid" == false ]]; then
+        echo "Error: invalid ${field_name} '$value' (valid: ${valid_values_ref[*]})" >&2
+        return 1
+    fi
+
+    return 0
+}
+
 # Validate score is a number
 validate_score() {
     local score="$1"
@@ -113,6 +139,9 @@ main() {
     local add_tags=""
     local set_score=""
     local set_authority=""
+    local set_status=""
+    local set_provenance=""
+    local set_origin_session=""
     local set_superseded_by=""
     local set_verified_at=""
     local set_review_due=""
@@ -159,6 +188,18 @@ main() {
                 set_authority="$2"
                 shift 2
                 ;;
+            --set-status)
+                set_status="$2"
+                shift 2
+                ;;
+            --set-provenance)
+                set_provenance="$2"
+                shift 2
+                ;;
+            --set-origin-session)
+                set_origin_session="$2"
+                shift 2
+                ;;
             --set-superseded-by)
                 set_superseded_by="$2"
                 shift 2
@@ -203,7 +244,8 @@ main() {
     
     # Validate at least one edit flag is provided
     if [[ -z "$set_body" && -z "$set_type" && -z "$set_tags" && -z "$add_tags" && -z "$set_score" && \
-          -z "$set_authority" && -z "$set_superseded_by" && -z "$set_verified_at" && -z "$set_review_due" ]]; then
+          -z "$set_authority" && -z "$set_status" && -z "$set_provenance" && -z "$set_origin_session" && \
+          -z "$set_superseded_by" && -z "$set_verified_at" && -z "$set_review_due" ]]; then
         echo "Error: at least one edit flag must be provided" >&2
         usage >&2
         return 2
@@ -217,6 +259,18 @@ main() {
     # Validate score if provided
     if [[ -n "$set_score" ]]; then
         validate_score "$set_score" || return 2
+    fi
+
+    if [[ -n "$set_authority" ]]; then
+        validate_enum_from_array "$set_authority" "authority" "WISDOM_VALID_AUTHORITIES" || return 2
+    fi
+
+    if [[ -n "$set_status" ]]; then
+        validate_enum_from_array "$set_status" "status" "WISDOM_VALID_STATUSES" || return 2
+    fi
+
+    if [[ -n "$set_provenance" ]]; then
+        validate_enum_from_array "$set_provenance" "provenance" "WISDOM_VALID_PROVENANCES" || return 2
     fi
     
     # Check for secrets in new body if provided
@@ -279,6 +333,21 @@ main() {
     if [[ -n "$set_authority" ]]; then
         updated_json=$(echo "$updated_json" | jq --arg authority "$set_authority" '.authority = $authority')
     fi
+
+    # Apply --set-status
+    if [[ -n "$set_status" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg status "$set_status" '.status = $status')
+    fi
+
+    # Apply --set-provenance
+    if [[ -n "$set_provenance" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg provenance "$set_provenance" '.provenance = $provenance')
+    fi
+
+    # Apply --set-origin-session
+    if [[ -n "$set_origin_session" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg origin_session "$set_origin_session" '.origin_session = $origin_session')
+    fi
     
     # Apply --set-superseded-by
     if [[ -n "$set_superseded_by" ]]; then
@@ -293,6 +362,12 @@ main() {
     # Apply --set-review-due
     if [[ -n "$set_review_due" ]]; then
         updated_json=$(echo "$updated_json" | jq --arg review_due "$set_review_due" '.review_due = $review_due')
+    fi
+
+    updated_json=$(printf '%s' "$updated_json" | jq -c '.')
+
+    if ! wisdom_validate_jsonl_line "$updated_json"; then
+        return 2
     fi
     
     # For dry-run, show before/after and exit

@@ -526,10 +526,21 @@ async function runNoNetworkCalls() {
 }
 
 async function runBelowThreshold() {
+  // Inject a test set with a single phrase that scores below 0.75
+  await setTestSets([
+    {
+      id: "test",
+      defaultThreshold: 0.75,
+      aspects: [
+        { id: "greeting", heuristicPhrases: ["hello"], nudgeInstruction: "Say hello back" },
+      ],
+    },
+  ]);
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
 
-  // Messages with weak phrase hits (won't reach 0.75 threshold)
+  // "hello" = 1 hit, weightedHits = 1.0, score = 0.5 (below 0.75)
   const messages = [
     { id: "msg-1", info: { role: "user", text: "hello" } },
     { id: "msg-2", info: { role: "assistant", text: "hi there" } },
@@ -547,6 +558,8 @@ async function runBelowThreshold() {
   });
   logCapture.restore();
 
+  await clearTestSets();
+
   if (logCapture.logs.some(l => l.msg.includes("nudge"))) {
     fail("Below-threshold scenario should NOT dispatch a nudge");
   }
@@ -555,12 +568,23 @@ async function runBelowThreshold() {
 }
 
 async function runThresholdCrossed() {
+  // Inject a test set where 2 phrase hits cross the 0.75 threshold
+  await setTestSets([
+    {
+      id: "test",
+      defaultThreshold: 0.75,
+      aspects: [
+        { id: "frustration", heuristicPhrases: ["this is frustrating", "I'm stuck"], nudgeInstruction: "Acknowledge frustration" },
+      ],
+    },
+  ]);
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
 
-  // Message with strong frustration phrase hit
+  // 2 hits in most recent user message => weightedHits = 2.0, score = 1.0
   const messages = [
-    { id: "msg-1", info: { role: "user", text: "this is frustrating" } },
+    { id: "msg-1", info: { role: "user", text: "this is frustrating I'm stuck" } },
     { id: "msg-2", info: { role: "assistant", text: "I understand" } },
   ];
 
@@ -586,6 +610,8 @@ async function runThresholdCrossed() {
   });
   logCapture.restore();
 
+  await clearTestSets();
+
   if (!promptAsyncCalled) {
     fail("Threshold-crossed scenario should dispatch a nudge via promptAsync");
   }
@@ -594,10 +620,22 @@ async function runThresholdCrossed() {
 }
 
 async function runTieBreak() {
+  // Inject a test set with two aspects that can tie on the same message
+  await setTestSets([
+    {
+      id: "test",
+      defaultThreshold: 0.75,
+      aspects: [
+        { id: "frustration", heuristicPhrases: ["this is", "frustrating"], nudgeInstruction: "Acknowledge frustration" },
+        { id: "urgency", heuristicPhrases: ["this is", "urgent"], nudgeInstruction: "Prioritize speed" },
+      ],
+    },
+  ]);
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
 
-  // Message that could match multiple aspects
+  // Both aspects get 2 hits => score 1.0 each; tie-break resolves to first in array (frustration)
   const messages = [
     { id: "msg-1", info: { role: "user", text: "this is frustrating and urgent" } },
     { id: "msg-2", info: { role: "assistant", text: "I understand" } },
@@ -614,6 +652,8 @@ async function runTieBreak() {
     },
   });
   logCapture.restore();
+
+  await clearTestSets();
 
   // Should have dispatched exactly one nudge
   const nudgeLogs = logCapture.logs.filter(l => l.msg.includes("nudge"));
