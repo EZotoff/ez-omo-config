@@ -12,6 +12,8 @@ export function getSessionState(sessionID) {
       failureCount: 0,
       circuitBroken: false,
       createdAt: Date.now(),
+      scores: new Map(),
+      aspects: [],
     });
   }
   return stateBySession.get(sessionID);
