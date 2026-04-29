@@ -335,6 +335,7 @@ For in-depth guides on specific components:
 | Skill Authoring | [docs/skills.md](docs/skills.md) |
 | Wisdom System | [docs/wisdom.md](docs/wisdom.md) |
 | Vera Integration | [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md) |
+| Compatibility Debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
 
 ---
 

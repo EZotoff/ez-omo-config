@@ -35,6 +35,7 @@ BANNED_FOUND=0
 for pattern in "${BANNED_PATTERNS[@]}"; do
   matches=$(grep -ri "$pattern" \
     --exclude="audit-wisdom-first.sh" \
+    --exclude="COMPATIBILITY-DEBT.md" \
     --exclude-dir=".git" \
     --exclude-dir=".sisyphus" \
     "$REPO_ROOT/docs/" \
