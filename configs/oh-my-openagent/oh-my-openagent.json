@@ -2,9 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-openagent.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "zai-coding-plan/glm-5.1",
       "fallback_models": [
-        "zai-coding-plan/glm-5.1"
+        "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "skills": [
         "wisdom",

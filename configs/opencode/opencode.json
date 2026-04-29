@@ -324,7 +324,7 @@
           "attachment": false,
           "limit": {
             "context": 262144,
-            "output": 32768
+            "output": 262144
           },
           "modalities": {
             "input": [
@@ -357,7 +357,7 @@
           "options": {},
           "limit": {
             "context": 262144,
-            "output": 32768
+            "output": 262144
           },
           "variants": {
             "off": {
