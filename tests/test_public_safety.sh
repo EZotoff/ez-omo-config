@@ -54,6 +54,11 @@ while IFS= read -r relative_path; do
     [[ -n "$relative_path" ]] || continue
     absolute_path="$REPO_ROOT/$relative_path"
 
+    # Skip test files from secret scans (they contain test fixtures)
+    if [[ "$relative_path" == tests/* || "$relative_path" == */test-* ]]; then
+        continue
+    fi
+
     assert_no_grep 'sk-[a-zA-Z0-9]{20,}' "$absolute_path"
     assert_no_grep 'OPENAI_API_KEY' "$absolute_path"
     assert_no_grep 'ghp_[[:alnum:]]' "$absolute_path"
