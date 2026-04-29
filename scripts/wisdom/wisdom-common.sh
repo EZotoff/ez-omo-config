@@ -4,7 +4,7 @@
 _WISDOM_COMMON_LOADED=1
 
 # Constants
-WISDOM_ROOT="${HOME}/.sisyphus/wisdom"
+WISDOM_ROOT="${WISDOM_ROOT:-${HOME}/.sisyphus/wisdom}"
 WISDOM_SCRIPTS="${HOME}/.sisyphus/scripts"
 WISDOM_VALID_TYPES=("gotcha" "pattern" "fact" "decision" "warning")
 WISDOM_VALID_SCOPES=("system" "project" "plan")
