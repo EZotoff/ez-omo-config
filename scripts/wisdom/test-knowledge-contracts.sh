@@ -26,7 +26,7 @@ cleanup_test_data() {
         local ids
         ids=$(jq -r "select(.tags[]? | contains(\"${TEST_TAG}\")) | .id" "$HOME/.sisyphus/wisdom/system.jsonl" 2>/dev/null || true)
         for id in $ids; do
-            [[ -n "$id" ]] && "$SCRIPT_DIR/wisdom-delete.sh" --id "$id" --scope system --force >/dev/null 2>&1 || true
+            [[ -n "$id" ]] && "${SCRIPT_DIR}/wisdom-delete.sh" --id "$id" --scope system --force >/dev/null 2>&1 || true
         done
     fi
 }
@@ -79,7 +79,7 @@ PROMOTE_WISDOM_ID=$("$SCRIPT_DIR/wisdom-write.sh" --scope system --type pattern 
     --authority verified --verified-at "2025-01-01T00:00:00Z" 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
 
 if [[ -n "$PROMOTE_WISDOM_ID" ]]; then
-    PROMOTE_OUTPUT=$("$SCRIPT_DIR/knowledge-promote.sh" --wisdom-id "$PROMOTE_WISDOM_ID" --type deployment --reason "test promotion" 2>&1)
+    PROMOTE_OUTPUT=$("${SCRIPT_DIR}/../knowledge-promote.sh" --wisdom-id "$PROMOTE_WISDOM_ID" --type deployment --reason "test promotion" 2>&1)
     echo "$PROMOTE_OUTPUT" >> "$EVIDENCE_FILE"
     if echo "$PROMOTE_OUTPUT" | grep -qi "WARNING.*deprecated\|deprecated.*wisdom-publish" && \
        echo "$PROMOTE_OUTPUT" | grep -q "Publish Complete"; then
@@ -112,7 +112,7 @@ echo "=== AC5 Test ===" >> "$EVIDENCE_FILE"
 
 LOOKUP_DEPRECATION=$("$SCRIPT_DIR/knowledge-lookup.sh" "test" 2>&1 || true)
 SNAPSHOT_DEPRECATION=$("$SCRIPT_DIR/knowledge-snapshot.sh" 2>&1 || true)
-PROMOTE_DEPRECATION=$("$SCRIPT_DIR/knowledge-promote.sh" --wisdom-id "fake" --type "fake" --reason "test" 2>&1 || true)
+PROMOTE_DEPRECATION=$("${SCRIPT_DIR}/../knowledge-promote.sh" --wisdom-id "fake" --type "fake" --reason "test" 2>&1 || true)
 
 DEPRECATION_COUNT=0
 if echo "$LOOKUP_DEPRECATION" | grep -qi "deprecat"; then DEPRECATION_COUNT=$((DEPRECATION_COUNT + 1)); fi
