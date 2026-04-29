@@ -18,4 +18,4 @@
 - `knowledge-snapshot.sh` — **DEPRECATED compatibility shim**. Generates session orientation snapshot from canonical Wisdom store only.
 - `knowledge-promote.sh` — **DEPRECATED compatibility shim**. Delegates to `wisdom-publish.sh` while preserving legacy CLI interface (`--wisdom-id`, `--type`, `--reason`, `--scope`).
 
-All non-common scripts source `./wisdom-common.sh` via `$(dirname "$0")/wisdom-common.sh`, so the bundle must keep these filenames together in the same directory.
+Most non-common scripts source `./wisdom-common.sh` via `$(dirname "$0")/wisdom-common.sh` (notably `wisdom-migrate.sh` and runtime CRUD/search handlers). Keep the bundle co-located in the same directory.
