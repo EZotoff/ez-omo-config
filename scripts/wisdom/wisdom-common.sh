@@ -627,7 +627,7 @@ wisdom_normalize_record() {
                 ""|null|wisdom|stale|superseded)
                     normalized_provenance="migration"
                     ;;
-                verified)
+                verified|candidate|published)
                     if [[ "$has_canonical_shape" == "true" ]]; then
                         normalized_provenance="manual"
                     else

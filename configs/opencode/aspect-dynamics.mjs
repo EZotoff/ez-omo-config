@@ -26,6 +26,14 @@ export default async function aspectDynamicsPlugin(ctx) {
 
   logInfo("Plugin loaded");
 
+  // Deferred-field safeguard: scoringModel, polishingModel, dreamAgent are
+  // accepted from config but deliberately unused in MVP. Zero network calls
+  // are made based on these fields. They are reserved for future use.
+  // See config.mjs loadConfig() for deferred-field startup logging.
+  if (config.scoringModel || config.polishingModel || config.dreamAgent) {
+    logInfo("Deferred fields present (scoringModel/polishingModel/dreamAgent) — inert in MVP, zero network calls");
+  }
+
   return {
     event: async ({ event }) => {
       const sessionID = getEventSessionID(event);
