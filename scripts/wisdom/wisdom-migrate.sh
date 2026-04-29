@@ -203,7 +203,25 @@ map_manifest_status() {
 }
 
 choose_primary_wisdom_root() {
-    if [[ -d "$CANONICAL_WISDOM_ROOT" || -f "$CANONICAL_WISDOM_ROOT/system.jsonl" ]]; then
+    local canonical_has_data=0
+    local legacy_has_data=0
+
+    if [[ -d "$CANONICAL_WISDOM_ROOT" ]]; then
+        if find "$CANONICAL_WISDOM_ROOT" -type f -name '*.jsonl' -print -quit | grep -q .; then
+            canonical_has_data=1
+        fi
+    fi
+    if [[ -d "$LEGACY_WISDOM_ROOT" ]]; then
+        if find "$LEGACY_WISDOM_ROOT" -type f -name '*.jsonl' -print -quit | grep -q .; then
+            legacy_has_data=1
+        fi
+    fi
+
+    if [[ "$canonical_has_data" -eq 1 ]]; then
+        PRIMARY_WISDOM_ROOT="$CANONICAL_WISDOM_ROOT"
+    elif [[ "$legacy_has_data" -eq 1 ]]; then
+        PRIMARY_WISDOM_ROOT="$LEGACY_WISDOM_ROOT"
+    elif [[ -d "$CANONICAL_WISDOM_ROOT" || -f "$CANONICAL_WISDOM_ROOT/system.jsonl" ]]; then
         PRIMARY_WISDOM_ROOT="$CANONICAL_WISDOM_ROOT"
     elif [[ -d "$LEGACY_WISDOM_ROOT" || -f "$LEGACY_WISDOM_ROOT/system.jsonl" ]]; then
         PRIMARY_WISDOM_ROOT="$LEGACY_WISDOM_ROOT"
