@@ -22,6 +22,13 @@ import { loadSets } from "./aspect-dynamics/sets.mjs";
 
 export default async function aspectDynamicsPlugin(ctx) {
   const config = await loadConfig();
+  if (!config) {
+    logWarn("No aspectDynamics config loaded; plugin running in no-op mode");
+    return {
+      event: async () => {},
+    };
+  }
+
   const sets = await loadSets();
 
   logInfo("Plugin loaded");
@@ -137,7 +144,7 @@ export default async function aspectDynamicsPlugin(ctx) {
 
             // Mark success and update dedup tracker
             recordSuccess(sessionID);
-            if (latestAssistantId && !ctx?.client?.session?.promptAsync) {
+            if (latestAssistantId) {
               setLastHandledAssistantMessageId(sessionID, latestAssistantId);
             }
           } catch (err) {

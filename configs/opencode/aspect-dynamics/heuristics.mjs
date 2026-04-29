@@ -33,8 +33,9 @@ export function scoreAspects(context, activeSets) {
         evidenceSummary = `Aspect "${aspect.id}" scored ${normalizedScore.toFixed(2)} with ${weightedHits} weighted hits`;
       } else if (normalizedScore === topScore && topAspectId) {
         const currentTop = allScores.get(topAspectId);
-        const currentTopAspectObj = set.aspects.find(a => a.id === currentTop.aspectId);
-        const tieBreak = resolveTie(aspect, currentTopAspectObj, context, set.aspects);
+        const currentTopSet = activeSets.find((s) => s.id === currentTop.setId);
+        const currentTopAspectObj = currentTopSet?.aspects.find((a) => a.id === currentTop.aspectId);
+        const tieBreak = resolveTie(aspect, currentTopAspectObj, context, currentTopSet?.aspects ?? []);
         if (tieBreak === aspect.id) {
           topAspectId = key;
           evidenceSummary = `Aspect "${aspect.id}" scored ${normalizedScore.toFixed(2)} (tie-break winner)`;
