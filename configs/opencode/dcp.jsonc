@@ -39,7 +39,12 @@
   },
   "protectedFilePatterns": [],
   "compress": {
+    // Bounded archival retention is a local patch that archives old raw
+    // turns out of the default prompt path, preventing unbounded growth.
+    // See .sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md
     "mode": "range",
+    "retentionMode": "bounded",
+    "maxArchivedSummaryTokens": 1200,
     "permission": "allow",
     "showCompression": false,
     "summaryBuffer": true,
