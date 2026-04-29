@@ -256,7 +256,7 @@ if [[ -n "$ENTRY_STORE" ]]; then
 fi
 
 mkdir -p "${HOME}/.sisyphus/knowledge"
-LOG_ENTRY=$(jq -n \
+LOG_ENTRY=$(jq -n -c \
   --arg ts "$NOW" \
   --arg wid "$WISDOM_ID" \
   --arg mid "$MANIFEST_ID" \
@@ -275,7 +275,7 @@ LOG_ENTRY=$(jq -n \
     action: "publish"
   }')
 
-echo "$LOG_ENTRY" >> "${HOME}/.sisyphus/knowledge/promotion-log.jsonl"
+printf '%s\n' "$LOG_ENTRY" >> "${HOME}/.sisyphus/knowledge/promotion-log.jsonl"
 
 echo "=== Publish Complete ==="
 echo "Wisdom: $WISDOM_ID"

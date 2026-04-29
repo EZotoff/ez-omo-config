@@ -223,14 +223,22 @@ fi
 new_id=$("$WRITE_SCRIPT" "${write_args[@]}")
 
 if [[ "$action" == "replace" && -n "$matched_id" ]]; then
-    if ! "$EDIT_SCRIPT" "$matched_id" --scope "$SCOPE" ${PROJECT_ID:+--project-id "$PROJECT_ID"} --set-status superseded --set-superseded-by "$new_id" >/dev/null; then
+    edit_args=("$matched_id" --scope "$SCOPE" --set-status superseded --set-superseded-by "$new_id")
+    if [[ -n "$PROJECT_ID" ]]; then
+        edit_args+=(--project-id "$PROJECT_ID")
+    fi
+    if ! "$EDIT_SCRIPT" "${edit_args[@]}" >/dev/null; then
         wisdom_log ERROR "Closeout write succeeded but supersession failed for $matched_id"
         exit 4
     fi
 fi
 
 if [[ "$action" == "conflict" && -n "$matched_id" ]]; then
-    if ! "$EDIT_SCRIPT" "$new_id" --scope "$SCOPE" ${PROJECT_ID:+--project-id "$PROJECT_ID"} --set-contradicts "$matched_id" >/dev/null; then
+    edit_args=("$new_id" --scope "$SCOPE" --set-contradicts "$matched_id")
+    if [[ -n "$PROJECT_ID" ]]; then
+        edit_args+=(--project-id "$PROJECT_ID")
+    fi
+    if ! "$EDIT_SCRIPT" "${edit_args[@]}" >/dev/null; then
         wisdom_log ERROR "Closeout write succeeded but contradicts update failed for $new_id"
         exit 4
     fi

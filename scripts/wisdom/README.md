@@ -3,6 +3,7 @@
 - `wisdom-common.sh` — shared library used by the other wisdom scripts.
 - `wisdom-search.sh` — searches wisdom stores with filters and optional JSON output.
 - `wisdom-write.sh` — validates and writes new wisdom entries.
+- `wisdom-closeout.sh` — closeout capture handler that writes canonical records with `provenance=closeout` and applies supersede/contradict lifecycle updates.
 - `wisdom-nominate.sh` — passive infra-only nomination handler that writes canonical candidate records.
 - `wisdom-sync.sh` — scans notepad learnings and syncs accepted entries into wisdom stores.
 - `wisdom-archive.sh` — moves a wisdom entry from the active store to the archive store.
