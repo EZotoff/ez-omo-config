@@ -492,7 +492,7 @@ async function runNoNetworkCalls() {
     directory: "/tmp/fake-project",
     client: {
       session: {
-        async messages({ path }) {
+        async messages() {
           callLog.push("session.messages");
           return {
             data: [
@@ -501,7 +501,7 @@ async function runNoNetworkCalls() {
             ],
           };
         },
-        async promptAsync({ path, body }) {
+        async promptAsync({ path }) {
           callLog.push("session.promptAsync");
           return { data: { id: path.id, status: "ok" } };
         },
