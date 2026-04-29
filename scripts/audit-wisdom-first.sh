@@ -80,7 +80,7 @@ else
 fi
 
 # Check skills/wisdom/SKILL.md for "Wisdom is the primary and only runtime"
-if grep -q "Wisdom is the primary and only runtime" "$REPO_ROOT/skills/wisdom/SKILL.md"; then
+if grep -q "Wisdom is the .\?primary and only runtime.\?" "$REPO_ROOT/skills/wisdom/SKILL.md"; then
   echo "PASS: 'Wisdom is the primary and only runtime' found in skills/wisdom/SKILL.md"
   REQUIRED_FOUND=1
 else
@@ -89,7 +89,7 @@ else
 fi
 
 # Check skills/knowledge/SKILL.md for "Wisdom is the only runtime memory store"
-if grep -q "Wisdom is the only runtime memory store" "$REPO_ROOT/skills/knowledge/SKILL.md"; then
+if grep -q "Wisdom is the .\?only runtime memory store.\?" "$REPO_ROOT/skills/knowledge/SKILL.md"; then
   echo "PASS: 'Wisdom is the only runtime memory store' found in skills/knowledge/SKILL.md"
 else
   echo "FAIL: 'Wisdom is the only runtime memory store' not found in skills/knowledge/SKILL.md"

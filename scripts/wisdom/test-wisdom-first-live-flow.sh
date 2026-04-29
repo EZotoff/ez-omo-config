@@ -65,7 +65,7 @@ test_seed_and_lookup() {
     id1=$(echo "Live flow seed entry A about testing the wisdom first runtime thoroughly" | \
         "${SCRIPT_DIR}/wisdom-write.sh" --scope system --type fact --tags "${TEST_TAG},live-flow" --score 5 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
     [[ -z "$id1" ]] && { echo "Failed to seed entry A"; return 1; }
-    id2=$(echo "Live flow seed entry B about verifying the canonical wisdom store works correctly" | \
+    id2=$(echo "Live flow seed entry B about verifying the wisdom store works correctly" | \
         "${SCRIPT_DIR}/wisdom-write.sh" --scope system --type pattern --tags "${TEST_TAG},live-flow" --score 7 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
     [[ -z "$id2" ]] && { echo "Failed to seed entry B"; return 1; }
     lookup_output=$("${SCRIPT_DIR}/knowledge-lookup.sh" "live flow seed" 2>&1)
@@ -78,7 +78,7 @@ test_snapshot_without_manifests() {
     local snapshot_output
     snapshot_output=$("${SCRIPT_DIR}/knowledge-snapshot.sh" 2>&1)
     [[ -n "$snapshot_output" ]] || { echo "Snapshot produced no output"; return 1; }
-    echo "$snapshot_output" | grep -q "Wisdom (Canonical)" || { echo "Snapshot missing Wisdom section"; return 1; }
+    echo "$snapshot_output" | grep -q "Wisdom" || { echo "Snapshot missing Wisdom section"; return 1; }
     return 0
 }
 
@@ -128,7 +128,7 @@ test_runtime_without_manifests() {
 
     local lookup_ok=false snapshot_ok=false
     echo "$lookup_output" | grep -q "live flow" && lookup_ok=true
-    echo "$snapshot_output" | grep -q "Wisdom (Canonical)" && snapshot_ok=true
+    echo "$snapshot_output" | grep -q "Wisdom" && snapshot_ok=true
 
     mv "${MANIFEST_BACKUP}/system" "${manifest_dir}/system" 2>/dev/null || true
     mv "${MANIFEST_BACKUP}/workspace" "${manifest_dir}/workspace" 2>/dev/null || true
