@@ -11,6 +11,7 @@ const PLUGIN_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-d
 const CONFIG_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "config.mjs");
 const SESSION_STATE_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "session-state.mjs");
 const CONTEXT_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "context.mjs");
+const SETS_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "sets.mjs");
 
 function makeFakeCtx(opts = {}) {
   const messagesStore = opts.messages ?? [
@@ -369,6 +370,16 @@ async function setTestConfig(overrides) {
 async function clearTestConfig() {
   const configMod = await import(CONFIG_PATH);
   configMod.__testConfigOverride.value = null;
+}
+
+async function setTestSets(sets) {
+  const setsMod = await import(SETS_PATH);
+  setsMod.__testSetsOverride.value = sets;
+}
+
+async function clearTestSets() {
+  const setsMod = await import(SETS_PATH);
+  setsMod.__testSetsOverride.value = null;
 }
 
 async function runReservedFieldsIdle() {

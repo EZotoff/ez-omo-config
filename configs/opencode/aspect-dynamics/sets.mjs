@@ -6,7 +6,13 @@ const DEFAULT_SETS = [
   { id: "security", aspects: ["input-validation", "secrets-handling", "injection-guard"] },
 ];
 
+// Test override — set by harness to inject custom sets
+export const __testSetsOverride = { value: null };
+
 export async function loadSets() {
+  if (__testSetsOverride.value) {
+    return [...__testSetsOverride.value];
+  }
   return [...DEFAULT_SETS];
 }
 
