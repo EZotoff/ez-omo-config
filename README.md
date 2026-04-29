@@ -54,7 +54,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 49 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 51 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
