@@ -118,6 +118,9 @@ export default async function aspectDynamicsPlugin(ctx) {
                 const topEntry = scoring.allScores.get(scoring.topAspectId);
                 const nudge = buildNudge(ranked, topEntry);
                 if (nudge && ctx?.client?.session?.promptAsync) {
+                  if (latestAssistantId) {
+                    setLastHandledAssistantMessageId(sessionID, latestAssistantId);
+                  }
                   await ctx.client.session.promptAsync({
                     path: { id: sessionID },
                     body: nudge,
@@ -134,7 +137,7 @@ export default async function aspectDynamicsPlugin(ctx) {
 
             // Mark success and update dedup tracker
             recordSuccess(sessionID);
-            if (latestAssistantId) {
+            if (latestAssistantId && !ctx?.client?.session?.promptAsync) {
               setLastHandledAssistantMessageId(sessionID, latestAssistantId);
             }
           } catch (err) {

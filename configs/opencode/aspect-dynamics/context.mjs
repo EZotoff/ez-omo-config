@@ -33,9 +33,10 @@ export async function extractContext(ctx, sessionID, config = {}) {
       return role === "user" || role === "assistant";
     });
 
-    // Slice to last N messages (default 10)
+    // Slice to last N user/assistant pairs (default 10 => 20 messages)
     const limit = config.contextWindowTurns ?? DEFAULT_CONTEXT_WINDOW_TURNS;
-    const slicedMessages = relevantMessages.slice(-limit);
+    const messageLimit = Math.max(1, Math.floor(limit)) * 2;
+    const slicedMessages = relevantMessages.slice(-messageLimit);
 
     // Build result with truncated text
     const messages = slicedMessages.map((msg) => {
