@@ -66,5 +66,5 @@ All results come from the Wisdom store and carry the canonical contract:
 
 ## Rules
 - This skill is **compatibility-only**. Prefer `wisdom` for all new work.
-- Do NOT rely on manifest-first lookup. That pattern has been retired.
+- Do NOT rely on the retired lookup pattern that prioritized manifests. Use Wisdom directly.
 - Wisdom is the single source of truth for runtime knowledge.
