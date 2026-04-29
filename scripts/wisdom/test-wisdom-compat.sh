@@ -148,7 +148,7 @@ test_contradiction_unknown() {
     local entry1 entry2
     entry1=$(jq -c --arg id "$id1" 'select(.id == $id)' "${WISDOM_SYSTEM_DIR}")
     entry2=$(jq -c --arg id "$id2" 'select(.id == $id)' "${WISDOM_SYSTEM_DIR}")
-    result=$(wisdom_check_contradiction "$entry1" "$entry2" 2>/dev/null || true)
+    result=$(wisdom_check_contradiction "$entry1" "$entry2")
     [[ "$result" == "UNKNOWN" ]] || { echo "Expected UNKNOWN, got: $result"; return 1; }
     return 0
 }
