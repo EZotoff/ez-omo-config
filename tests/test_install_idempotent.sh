@@ -18,7 +18,7 @@ HOME="$TEST_HOME" bash "$REPO_ROOT/install.sh" --plugins --skills >"$SECOND_OUTP
 
 assert_grep 'Mode: symlink' "$SECOND_OUTPUT"
 assert_grep 'Installed/updated: 0' "$SECOND_OUTPUT"
-assert_grep 'Skipped unchanged: 11' "$SECOND_OUTPUT"
+assert_grep 'Skipped unchanged: 16' "$SECOND_OUTPUT"
 
 if [[ -L "$TEST_HOME/.opencode/plugin/worktree.ts" ]] && [[ -L "$TEST_HOME/.config/opencode/skills/wisdom" ]]; then
     TESTS_PASSED=$((TESTS_PASSED + 1))
