@@ -8,8 +8,8 @@ set -euo pipefail
 #                          [--manifest-scope SCOPE] [--emit-manifest] [--dry-run]
 
 SCRIPT_DIR="$(dirname "$0")"
-source "${SCRIPT_DIR}/knowledge-constants.sh"
-source "${SCRIPT_DIR}/wisdom-common.sh"
+source "${HOME}/.sisyphus/scripts/knowledge-constants.sh" 2>/dev/null || source "${SCRIPT_DIR}/knowledge-constants.sh" || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
+source "${SCRIPT_DIR}/wisdom-common.sh" || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
 
 usage() {
   cat >&2 <<'EOF'
