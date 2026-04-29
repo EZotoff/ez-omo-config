@@ -85,7 +85,7 @@ test_snapshot_without_manifests() {
 test_closeout_flow() {
     local closeout_id entry_json
     closeout_id=$(echo "Live flow closeout entry testing the closeout handler in end to end flow" | \
-        "${SCRIPT_DIR}/wisdom-closeout.sh" --scope system --tags "${TEST_TAG},live-flow,closeout" 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
+        "${SCRIPT_DIR}/wisdom-closeout.sh" --scope system --tags "${TEST_TAG},live-flow,closeout" 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}' | tail -1)
     [[ -z "$closeout_id" ]] && { echo "Failed to create closeout entry"; return 1; }
     entry_json=$(jq -c --arg id "$closeout_id" 'select(.id == $id)' "${WISDOM_SYSTEM_DIR}")
     [[ $(echo "$entry_json" | jq -r '.provenance') == "closeout" ]] || { echo "closeout provenance mismatch"; return 1; }
