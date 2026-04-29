@@ -9,6 +9,7 @@ const __dirname = dirname(__filename);
 
 const PLUGIN_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics.mjs");
 const SESSION_STATE_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "session-state.mjs");
+const CONTEXT_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "context.mjs");
 
 function makeFakeCtx(opts = {}) {
   const messagesStore = opts.messages ?? [
