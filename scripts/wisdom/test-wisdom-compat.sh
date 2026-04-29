@@ -145,6 +145,13 @@ test_contradiction_unknown() {
         "${SCRIPT_DIR}/wisdom-write.sh" --scope system --type decision --tags "${TEST_TAG},contradict-test" --score 5 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
     [[ -z "$id2" ]] && { echo "Failed to create entry B"; return 1; }
     "${SCRIPT_DIR}/wisdom-edit.sh" --id "$id1" --scope system --set-contradicts "$id2" >/dev/null 2>&1
+    local tmp
+    tmp=$(mktemp)
+    jq --arg id "$id1" 'if .id == $id then .title = "Approach X for contradictions" else . end' "${WISDOM_SYSTEM_DIR}" > "$tmp"
+    mv "$tmp" "${WISDOM_SYSTEM_DIR}"
+    tmp=$(mktemp)
+    jq --arg id "$id2" 'if .id == $id then .title = "Approach X for contradictions" else . end' "${WISDOM_SYSTEM_DIR}" > "$tmp"
+    mv "$tmp" "${WISDOM_SYSTEM_DIR}"
     local entry1 entry2
     entry1=$(jq -c --arg id "$id1" 'select(.id == $id)' "${WISDOM_SYSTEM_DIR}")
     entry2=$(jq -c --arg id "$id2" 'select(.id == $id)' "${WISDOM_SYSTEM_DIR}")
