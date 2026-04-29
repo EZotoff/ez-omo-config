@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **42 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **44 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -53,7 +53,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 42 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 44 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -103,8 +103,10 @@ This repository contains 42 core artifacts + 1 external integration organized in
 | 24 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
 | 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
 | 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
-| 26a | `knowledge-lookup.sh` | `scripts/wisdom/` | Deprecated shim: delegates knowledge queries to wisdom-search.sh |
-| 26b | `knowledge-snapshot.sh` | `scripts/wisdom/` | Deprecated shim: generates Wisdom-only session snapshot |
+| 26a | `wisdom-publish.sh` | `scripts/wisdom/` | Publish Wisdom entry as derivative artifact; tracks artifacts with staleness detection |
+| 26b | `knowledge-lookup.sh` | `scripts/wisdom/` | Deprecated shim: delegates knowledge queries to wisdom-search.sh |
+| 26c | `knowledge-snapshot.sh` | `scripts/wisdom/` | Deprecated shim: generates Wisdom-only session snapshot |
+| 26d | `knowledge-promote.sh` | `scripts/` | Deprecated shim: delegates to wisdom-publish.sh with legacy CLI interface |
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |

@@ -11,7 +11,9 @@
 - `wisdom-edit.sh` — updates fields on an existing wisdom entry.
 - `wisdom-gc.sh` — reports, archives, or deletes stale / low-quality wisdom entries.
 - `wisdom-merge.sh` — combines multiple wisdom entries into a single merged entry.
+- `wisdom-publish.sh` — publishes a Wisdom entry as a derivative artifact. Updates canonical record (authority=published, verified_at=now) but NEVER supersedes the source. Tracks emitted artifacts in metadata.published_artifacts with source digests for staleness detection.
 - `knowledge-lookup.sh` — **DEPRECATED compatibility shim**. Delegates to `wisdom-search.sh` for backward-compatible knowledge queries.
 - `knowledge-snapshot.sh` — **DEPRECATED compatibility shim**. Generates session orientation snapshot from canonical Wisdom store only.
+- `knowledge-promote.sh` — **DEPRECATED compatibility shim**. Delegates to `wisdom-publish.sh` while preserving legacy CLI interface (`--wisdom-id`, `--type`, `--reason`, `--scope`).
 
 All non-common scripts source `./wisdom-common.sh` via `$(dirname "$0")/wisdom-common.sh`, so the bundle must keep these filenames together in the same directory.
