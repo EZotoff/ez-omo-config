@@ -277,6 +277,8 @@ main() {
     log_info "=== Wisdom Canonical Contract Test Suite ==="
     log_info "Wisdom-first runtime — no manifest dependency"
 
+    cleanup_test_data
+
     run_test "Metadata round-trip" test_metadata_roundtrip
     run_test "Search excludes superseded/retracted" test_search_excludes_inactive
     run_test "Status-aware ranking" test_status_aware_ranking
