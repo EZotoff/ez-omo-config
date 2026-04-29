@@ -95,7 +95,11 @@ wisdom_init_store "$store_path"
 id=$(wisdom_generate_id)
 created=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-tags_json=$(printf '%s' "$TAGS" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
+if [[ -z "$TAGS" ]]; then
+    tags_json='[]'
+else
+    tags_json=$(printf '%s' "$TAGS" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
+fi
 
 entry=$(jq -nc \
     --arg id "$id" \
