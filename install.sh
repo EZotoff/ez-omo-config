@@ -45,11 +45,12 @@ ITEMS=(
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
     "skills|skills/knowledge|$HOME/.config/opencode/skills/knowledge"
-    "skills|skills/atlas-review-handler|$HOME/.config/opencode/skills/atlas-review-handler"
-    "skills|skills/review-protocol|$HOME/.config/opencode/skills/review-protocol"
-    "skills|skills/playwright|$HOME/.config/opencode/skills/playwright"
+    "skills|skills/debate|$HOME/.config/opencode/skills/debate"
     "skills|skills/deployment|$HOME/.config/opencode/skills/deployment"
-    "skills|skills/frontend-ui-ux|$HOME/.config/opencode/skills/frontend-ui-ux"
+    "skills|skills/github-triage|$HOME/.config/opencode/skills/github-triage"
+    "skills|skills/merge-agent|$HOME/.config/opencode/skills/merge-agent"
+    "skills|skills/parallel-dev|$HOME/.config/opencode/skills/parallel-dev"
+    "skills|skills/worktree-coordinator|$HOME/.config/opencode/skills/worktree-coordinator"
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"
     "scripts|scripts/wisdom/wisdom-search.sh|$HOME/.sisyphus/scripts/wisdom-search.sh"
     "scripts|scripts/wisdom/wisdom-write.sh|$HOME/.sisyphus/scripts/wisdom-write.sh"
@@ -65,6 +66,8 @@ ITEMS=(
     "scripts|scripts/wisdom/wisdom-restore.sh|$HOME/.sisyphus/scripts/wisdom-restore.sh"
     "scripts|scripts/wisdom/knowledge-lookup.sh|$HOME/.sisyphus/scripts/knowledge-lookup.sh"
     "scripts|scripts/wisdom/knowledge-snapshot.sh|$HOME/.sisyphus/scripts/knowledge-snapshot.sh"
+    "scripts|scripts/knowledge-promote.sh|$HOME/.sisyphus/scripts/knowledge-promote.sh"
+    "scripts|scripts/wisdom/wisdom-publish.sh|$HOME/.sisyphus/scripts/wisdom-publish.sh"
 )
 
 usage() {

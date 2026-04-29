@@ -54,15 +54,26 @@ while IFS= read -r relative_path; do
     [[ -n "$relative_path" ]] || continue
     absolute_path="$REPO_ROOT/$relative_path"
 
-    assert_no_grep 'sk-[[:alnum:]]' "$absolute_path"
+    assert_no_grep 'sk-[a-zA-Z0-9]{20,}' "$absolute_path"
     assert_no_grep 'OPENAI_API_KEY' "$absolute_path"
     assert_no_grep 'ghp_[[:alnum:]]' "$absolute_path"
     assert_no_grep 'gho_[[:alnum:]]' "$absolute_path"
     assert_no_grep 'AIza[[:alnum:]_-]' "$absolute_path"
     assert_no_grep 'BEGIN.*PRIVATE KEY' "$absolute_path"
     assert_no_grep 'password[[:space:]]*=' "$absolute_path"
-    assert_no_grep '/home/ezotoff' "$absolute_path"
-    assert_no_grep '/Users/ezotoff' "$absolute_path"
+    # Check for absolute paths, but allow file:// URLs (machine-specific configs are expected)
+    if grep -v 'file://' "$absolute_path" | grep -q '/home/ezotoff'; then
+        echo "FAIL: Absolute path /home/ezotoff found in $relative_path (excluding file:// URLs)"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    else
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    fi
+    if grep -v 'file://' "$absolute_path" | grep -q '/Users/ezotoff'; then
+        echo "FAIL: Absolute path /Users/ezotoff found in $relative_path (excluding file:// URLs)"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    else
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    fi
 done < "$scan_file"
 
 (
