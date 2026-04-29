@@ -194,6 +194,59 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 
 ---
 
+## aspect-dynamics.mjs
+
+**Purpose**: Config-layer JavaScript plugin that performs deterministic heuristic scoring on conversation transcripts and dispatches transcript-visible advisory nudges.
+
+**What it Configures**:
+
+- Aspect set loading and resolution (e.g., `emotions-v1`)
+- Heuristic phrase matching against the recent conversation context
+- Deterministic scoring (no model-backed inference in MVP)
+- Transcript-visible advisory nudge dispatch when a score crosses the configured threshold
+- Per-session deduplication, circuit breaker, and recursion guard
+
+**How it Works**:
+
+The plugin registers an `event` handler that watches three event types:
+
+1. **`session.created`** — Initializes per-session state tracking. Child sessions are ignored.
+
+2. **`session.deleted`** — Cleans up session state to prevent memory leaks.
+
+3. **`session.idle`** — The main scoring pipeline runs here:
+   - Extracts the recent conversation context (configurable turn window)
+   - Checks a recursion guard to prevent nudge loops
+   - Prefilters context against active aspect sets using heuristic phrase matching
+   - Scores matching aspects deterministically (weighted hit count normalized to 0-1)
+   - Dispatches a transcript-visible nudge if the top score exceeds `nudgeThreshold`
+   - Deduplicates by assistant message ID so the same message is never nudged twice
+
+**Deferred Fields (Reserved for Future Use)**:
+
+The plugin accepts three deferred fields in config that are deliberately unused in MVP and trigger zero network calls:
+
+- `scoringModel` — Reserved for model-backed aspect scoring
+- `polishingModel` — Reserved for nudge text polishing
+- `dreamAgent` — Reserved for background session analysis
+
+These fields are logged at startup for visibility but are otherwise inert.
+
+**Key Fields**:
+
+- `enabled` — Master toggle for the plugin
+- `activeSets` — Array of aspect set IDs to load (e.g., `["emotions-v1"]`)
+- `heuristicPreFilter` — Whether to skip scoring when no heuristic phrases match
+- `contextWindowTurns` — Number of recent turns to include in context extraction
+- `nudgeThreshold` — Score threshold (0-1) for nudge dispatch
+- `maxAspectsPerSession` — Maximum aspects to evaluate per session
+
+**Install Target**: `$HOME/.config/opencode/aspect-dynamics.mjs`
+
+**Status**: Optional
+
+---
+
 ## Configuration Summary
 
 | File | What it Controls | Install Target | Status |
@@ -202,6 +255,9 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
 | `retry-errors.json` | Retryable error pattern registry with backoff and fallback rules | `$HOME/.config/opencode/retry-errors.json` | Required |
+| `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |
+| `aspect-dynamics/*.mjs` | 7 support modules (config, context, heuristics, session-state, sets, nudge, logging) | `$HOME/.config/opencode/aspect-dynamics/` | Optional |
+| `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`) | `$HOME/.config/opencode/aspect-dynamics/sets/` | Optional |
 | `oh-my-openagent.json` | OMO agent/category overrides and skill loading | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
 | `extras/ocx.jsonc` | OCX registry configuration pointer | `$HOME/.opencode/ocx.jsonc` | Optional |
 

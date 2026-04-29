@@ -2,23 +2,23 @@
 // Aspect Dynamics config-layer plugin surface
 
 import { loadConfig } from "./aspect-dynamics/config.mjs";
-import { loadSets } from "./aspect-dynamics/sets.mjs";
+import { extractContext, getEventSessionID, hasRecursionGuard, prefilterContext } from "./aspect-dynamics/context.mjs";
+import { rankAspects, scoreAspects, shouldNudge } from "./aspect-dynamics/heuristics.mjs";
+import { logEvent, logInfo, logWarn } from "./aspect-dynamics/logging.mjs";
+import { buildNudge } from "./aspect-dynamics/nudge.mjs";
 import {
-  getSessionState,
-  updateSessionState,
+  canProcess,
   deleteSessionState,
+  getLastHandledAssistantMessageId,
+  getSessionState,
   isChildSession,
   markInFlight,
   recordFailure,
   recordSuccess,
-  canProcess,
   setLastHandledAssistantMessageId,
-  getLastHandledAssistantMessageId,
+  updateSessionState,
 } from "./aspect-dynamics/session-state.mjs";
-import { extractContext, prefilterContext, getEventSessionID } from "./aspect-dynamics/context.mjs";
-import { scoreAspects, shouldNudge, rankAspects } from "./aspect-dynamics/heuristics.mjs";
-import { buildNudge } from "./aspect-dynamics/nudge.mjs";
-import { logInfo, logWarn, logEvent } from "./aspect-dynamics/logging.mjs";
+import { loadSets } from "./aspect-dynamics/sets.mjs";
 
 export default async function aspectDynamicsPlugin(ctx) {
   const config = await loadConfig();
@@ -36,6 +36,8 @@ export default async function aspectDynamicsPlugin(ctx) {
 
   return {
     event: async ({ event }) => {
+      if (config.enabled === false) return;
+
       const sessionID = getEventSessionID(event);
       if (!sessionID) return;
 
@@ -77,6 +79,12 @@ export default async function aspectDynamicsPlugin(ctx) {
             if (!context) {
               logWarn(`No context for session ${sessionID}`);
               recordFailure(sessionID);
+              return;
+            }
+
+            if (hasRecursionGuard(context)) {
+              logWarn(`Session ${sessionID} skipped — recursion guard detected aspect-dynamics nudge`);
+              recordSuccess(sessionID);
               return;
             }
 

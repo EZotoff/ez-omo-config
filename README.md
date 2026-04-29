@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **44 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **48 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -48,20 +48,21 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
+- **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 
 ---
 
 ## What's Included
 
-This repository contains 44 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 49 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 3 files | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 6 files | Core OpenCode and OMO configuration files |
+| 2-5 | **Configs** | 15 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
 | 6-11 | **Plugins** | 7 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, and session info clipboard |
-| 12-20 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
-| 21-30 | **Scripts** | 15 shell scripts | Wisdom propagation and worktree lifecycle scripts |
+| 12-21 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
+| 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
 | 32-33 | **Docker** | 2 files | Worktree container templates |
 | 34-36 | **Docs** | 3 files | Configuration, plugin, and worktree state documentation |
@@ -87,7 +88,8 @@ This repository contains 44 core artifacts + 1 external integration organized in
 | 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
 | 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
 | 11c | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
-| 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management |
+| 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
+| 12b | `knowledge/` | `skills/` | Deprecated compatibility shim that delegates to Wisdom |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
 | 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
 | 15 | `playwright/` | `skills/` | Browser automation testing |
@@ -96,17 +98,12 @@ This repository contains 44 core artifacts + 1 external integration organized in
 | 18 | `wisdom-common.sh` | `scripts/wisdom/` | Shared wisdom utilities |
 | 19 | `wisdom-search.sh` | `scripts/wisdom/` | Search wisdom database |
 | 20 | `wisdom-write.sh` | `scripts/wisdom/` | Write new learnings |
-| 20b | `wisdom-nominate.sh` | `scripts/wisdom/` | Passive infra-only nomination writer to canonical wisdom |
 | 21 | `wisdom-sync.sh` | `scripts/wisdom/` | Sync wisdom across notepads |
 | 22 | `wisdom-archive.sh` | `scripts/wisdom/` | Archive old wisdom entries |
 | 23 | `wisdom-delete.sh` | `scripts/wisdom/` | Delete wisdom entries |
 | 24 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
 | 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
 | 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
-| 26a | `wisdom-publish.sh` | `scripts/wisdom/` | Publish Wisdom entry as derivative artifact; tracks artifacts with staleness detection |
-| 26b | `knowledge-lookup.sh` | `scripts/wisdom/` | Deprecated shim: delegates knowledge queries to wisdom-search.sh |
-| 26c | `knowledge-snapshot.sh` | `scripts/wisdom/` | Deprecated shim: generates Wisdom-only session snapshot |
-| 26d | `knowledge-promote.sh` | `scripts/` | Deprecated shim: delegates to wisdom-publish.sh with legacy CLI interface |
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
@@ -118,6 +115,17 @@ This repository contains 44 core artifacts + 1 external integration organized in
 | 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
 | 36 | `worktree-state-schema.md` | `docs/` | Runtime state file formats and locations |
 | 37 | `vera/` (external) | `~/.config/opencode/skills/vera/` | Semantic code search (install: `vera agent install --client opencode`) |
+| 38 | `aspect-dynamics.mjs` | `configs/opencode/` | Config-layer plugin entry: heuristic scoring and advisory nudge dispatch |
+| 39 | `aspect-dynamics/config.mjs` | `configs/opencode/` | Config loader with deferred-field safeguards |
+| 40 | `aspect-dynamics/context.mjs` | `configs/opencode/` | Conversation context extraction and recursion guard |
+| 41 | `aspect-dynamics/heuristics.mjs` | `configs/opencode/` | Deterministic heuristic scorer for aspect sets |
+| 42 | `aspect-dynamics/session-state.mjs` | `configs/opencode/` | Per-session state tracking, deduplication, and circuit breaker |
+| 43 | `aspect-dynamics/sets.mjs` | `configs/opencode/` | Aspect set loader and resolver |
+| 44 | `aspect-dynamics/nudge.mjs` | `configs/opencode/` | Transcript-visible advisory nudge formatter |
+| 45 | `aspect-dynamics/logging.mjs` | `configs/opencode/` | Structured logging utilities |
+| 46 | `aspect-dynamics/sets/emotions-v1.json` | `configs/opencode/` | Seed aspect set for emotional tone detection |
+| 47 | `tests/aspect-dynamics/harness.mjs` | `tests/aspect-dynamics/` | Test harness for aspect-dynamics unit tests |
+| 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
 
 ---
 

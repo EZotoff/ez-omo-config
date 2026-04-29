@@ -1,17 +1,31 @@
 // tests/aspect-dynamics/harness.mjs
 // Test harness for aspect-dynamics plugin
 
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const PLUGIN_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics.mjs");
-const CONFIG_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "config.mjs");
 const SESSION_STATE_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "session-state.mjs");
 const CONTEXT_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "context.mjs");
+const HEURISTICS_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "heuristics.mjs");
 const SETS_PATH = join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "sets.mjs");
+
+const NUDGE_TEST_SETS = [
+  {
+    id: "emotions-v1",
+    defaultThreshold: 0.75,
+    aspects: [
+      {
+        id: "frustration",
+        heuristicPhrases: ["this is frustrating", "I'm stuck on this"],
+        nudgeInstruction: "Acknowledge frustration and provide one direct next step.",
+      },
+    ],
+  },
+];
 
 function makeFakeCtx(opts = {}) {
   const messagesStore = opts.messages ?? [
@@ -19,14 +33,15 @@ function makeFakeCtx(opts = {}) {
     { id: "msg-2", info: { role: "assistant", text: "hi there" } },
   ];
 
-  let getCallCount = 0;
   let messagesCallCount = 0;
+  let promptAsyncCallCount = 0;
+  let lastPromptBody = null;
 
   return {
     directory: "/tmp/fake-project",
     client: {
       session: {
-        async messages({ path }) {
+        async messages() {
           messagesCallCount++;
           if (opts.messagesShouldThrow && messagesCallCount <= opts.messagesShouldThrow) {
             throw new Error("Simulated messages failure");
@@ -34,12 +49,21 @@ function makeFakeCtx(opts = {}) {
           return { data: messagesStore };
         },
         async promptAsync({ path, body }) {
+          promptAsyncCallCount++;
+          lastPromptBody = body;
           return { data: { id: path.id, status: "ok" } };
         },
         async get({ path }) {
-          getCallCount++;
           return { data: { id: path.id, parentID: opts.parentID ?? null } };
         },
+      },
+    },
+    __test: {
+      getPromptAsyncCallCount() {
+        return promptAsyncCallCount;
+      },
+      getLastPromptBody() {
+        return lastPromptBody;
       },
     },
   };
@@ -186,10 +210,10 @@ async function runChildSessionIgnored() {
 async function runDedupSameAssistant() {
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
-  const { getSessionState, getLastHandledAssistantMessageId } = await import(SESSION_STATE_PATH);
+  const { getLastHandledAssistantMessageId } = await import(SESSION_STATE_PATH);
 
   const messages = [
-    { id: "msg-1", info: { role: "user", text: "hello" } },
+    { id: "msg-1", info: { role: "user", text: "this is frustrating" } },
     { id: "msg-2", info: { role: "assistant", text: "hi there" } },
   ];
 
@@ -206,7 +230,6 @@ async function runDedupSameAssistant() {
   });
   logCapture.restore();
 
-  const state1 = getSessionState("sess-dedup-1");
   if (getLastHandledAssistantMessageId("sess-dedup-1") !== "msg-2") {
     fail(`Expected lastHandledAssistantMessageId to be 'msg-2' after first idle, got ${getLastHandledAssistantMessageId("sess-dedup-1")}`);
   }
@@ -360,30 +383,17 @@ async function runPrefilterHit() {
   pass("prefilter-hit — matching phrase found, prefilter returns true (scoring proceeds)");
 }
 
-// Set a test config override for the next loadConfig() call.
-// Must be cleared after each test via clearTestConfig().
 async function setTestConfig(overrides) {
-  const configMod = await import(CONFIG_PATH);
+  const configMod = await import(join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "config.mjs"));
   configMod.__testConfigOverride.value = overrides;
 }
 
 async function clearTestConfig() {
-  const configMod = await import(CONFIG_PATH);
+  const configMod = await import(join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "config.mjs"));
   configMod.__testConfigOverride.value = null;
 }
 
-async function setTestSets(sets) {
-  const setsMod = await import(SETS_PATH);
-  setsMod.__testSetsOverride.value = sets;
-}
-
-async function clearTestSets() {
-  const setsMod = await import(SETS_PATH);
-  setsMod.__testSetsOverride.value = null;
-}
-
 async function runReservedFieldsIdle() {
-  // Inject config with all deferred fields populated
   await setTestConfig({
     scoringModel: "gpt-4",
     polishingModel: "gpt-4-mini",
@@ -397,16 +407,14 @@ async function runReservedFieldsIdle() {
   const result = await plugin(ctx);
   logCapture.restore();
 
-  // Verify deferred-field notice was logged
   const hasDeferredNotice = logCapture.logs.some(
     (l) => l.level === "info" && l.msg.includes("Deferred fields present")
   );
   if (!hasDeferredNotice) {
-    clearTestConfig();
+    await clearTestConfig();
     fail("Expected deferred-field notice log when scoringModel/polishingModel/dreamAgent are set");
   }
 
-  // Verify plugin still handles events with only heuristic scoring (no network calls)
   await result.event({
     event: {
       type: "session.created",
@@ -423,7 +431,6 @@ async function runReservedFieldsIdle() {
   });
   idleLogCapture.restore();
 
-  // Verify no model-call attempts or network-related errors
   const hasNetworkCall = idleLogCapture.logs.some(
     (l) =>
       l.msg.includes("model") ||
@@ -434,7 +441,7 @@ async function runReservedFieldsIdle() {
       l.msg.includes("http")
   );
   if (hasNetworkCall) {
-    clearTestConfig();
+    await clearTestConfig();
     fail("Deferred fields triggered a network/model call — expected zero network calls");
   }
 
@@ -443,7 +450,6 @@ async function runReservedFieldsIdle() {
 }
 
 async function runNoNetworkCalls() {
-  // Track all ctx.client.session method calls
   const callLog = [];
 
   const trackingCtx = {
@@ -471,7 +477,6 @@ async function runNoNetworkCalls() {
     },
   };
 
-  // Inject config with deferred fields to ensure they don't trigger calls
   await setTestConfig({
     scoringModel: "gpt-4",
     polishingModel: "gpt-4-mini",
@@ -482,7 +487,6 @@ async function runNoNetworkCalls() {
   const plugin = mod.default;
   const result = await plugin(trackingCtx);
 
-  // Run a full session lifecycle
   await result.event({
     event: {
       type: "session.created",
@@ -506,15 +510,11 @@ async function runNoNetworkCalls() {
 
   await clearTestConfig();
 
-  // Verify zero model-call attempts (promptAsync = model call)
   const modelCalls = callLog.filter((c) => c === "session.promptAsync");
   if (modelCalls.length > 0) {
     fail(`Expected zero model calls, got ${modelCalls.length} promptAsync calls`);
   }
 
-  // Verify zero dream-agent timers/locks (no setTimeout, no setInterval)
-  // We can't intercept timers easily, but we verify no code path triggers them
-  // by checking no unexpected session methods were called
   const unexpectedCalls = callLog.filter(
     (c) => c !== "session.messages" && c !== "session.get"
   );
@@ -526,142 +526,287 @@ async function runNoNetworkCalls() {
 }
 
 async function runBelowThreshold() {
-  // Inject a test set with a single phrase that scores below 0.75
-  await setTestSets([
-    {
-      id: "test",
-      defaultThreshold: 0.75,
-      aspects: [
-        { id: "greeting", heuristicPhrases: ["hello"], nudgeInstruction: "Say hello back" },
-      ],
-    },
-  ]);
-
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
+  const { __testSetsOverride } = await import(SETS_PATH);
 
-  // "hello" = 1 hit, weightedHits = 1.0, score = 0.5 (below 0.75)
   const messages = [
     { id: "msg-1", info: { role: "user", text: "hello" } },
-    { id: "msg-2", info: { role: "assistant", text: "hi there" } },
+    { id: "msg-2", info: { role: "assistant", text: "this is frustrating" } },
   ];
 
   const ctx = makeFakeCtx({ messages });
-  const result = await plugin(ctx);
+  __testSetsOverride.value = NUDGE_TEST_SETS;
 
-  const logCapture = captureLogs();
-  await result.event({
-    event: {
-      type: "session.idle",
-      properties: { sessionID: "sess-below-1" },
-    },
-  });
-  logCapture.restore();
+  try {
+    const result = await plugin(ctx);
 
-  await clearTestSets();
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-below-threshold-1" },
+      },
+    });
 
-  if (logCapture.logs.some(l => l.msg.includes("nudge"))) {
-    fail("Below-threshold scenario should NOT dispatch a nudge");
+    if (ctx.__test.getPromptAsyncCallCount() !== 0) {
+      fail(
+        `Expected no nudge dispatch for below-threshold case, got ${ctx.__test.getPromptAsyncCallCount()} dispatch(es)`
+      );
+    }
+  } finally {
+    __testSetsOverride.value = null;
   }
 
-  pass("below-threshold — score stays below 0.75, no nudge dispatched");
+  pass("below-threshold — score below threshold does not dispatch nudge");
 }
 
 async function runThresholdCrossed() {
-  // Inject a test set where 2 phrase hits cross the 0.75 threshold
-  await setTestSets([
-    {
-      id: "test",
-      defaultThreshold: 0.75,
-      aspects: [
-        { id: "frustration", heuristicPhrases: ["this is frustrating", "I'm stuck"], nudgeInstruction: "Acknowledge frustration" },
-      ],
-    },
-  ]);
-
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
+  const { __testSetsOverride } = await import(SETS_PATH);
 
-  // 2 hits in most recent user message => weightedHits = 2.0, score = 1.0
   const messages = [
-    { id: "msg-1", info: { role: "user", text: "this is frustrating I'm stuck" } },
+    {
+      id: "msg-1",
+      info: {
+        role: "user",
+        text: "this is frustrating and I'm stuck on this",
+      },
+    },
     { id: "msg-2", info: { role: "assistant", text: "I understand" } },
   ];
 
-  let promptAsyncCalled = false;
-  let promptAsyncBody = null;
-
   const ctx = makeFakeCtx({ messages });
-  const originalPromptAsync = ctx.client.session.promptAsync;
-  ctx.client.session.promptAsync = async ({ path, body }) => {
-    promptAsyncCalled = true;
-    promptAsyncBody = body;
-    return originalPromptAsync({ path, body });
-  };
+  __testSetsOverride.value = NUDGE_TEST_SETS;
 
-  const result = await plugin(ctx);
+  try {
+    const result = await plugin(ctx);
 
-  const logCapture = captureLogs();
-  await result.event({
-    event: {
-      type: "session.idle",
-      properties: { sessionID: "sess-threshold-1" },
-    },
-  });
-  logCapture.restore();
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-threshold-crossed-1" },
+      },
+    });
 
-  await clearTestSets();
+    const dispatches = ctx.__test.getPromptAsyncCallCount();
+    if (dispatches < 1) {
+      fail("Expected nudge dispatch for threshold-crossed case, got 0 dispatches");
+    }
 
-  if (!promptAsyncCalled) {
-    fail("Threshold-crossed scenario should dispatch a nudge via promptAsync");
+    const lastBody = ctx.__test.getLastPromptBody();
+    if (!Array.isArray(lastBody) || lastBody.length === 0) {
+      fail("Expected dispatched nudge payload to be a non-empty array");
+    }
+  } finally {
+    __testSetsOverride.value = null;
   }
 
-  pass("threshold-crossed — score >= 0.75, nudge dispatched via promptAsync");
+  pass("threshold-crossed — score at/above threshold dispatches nudge");
 }
 
 async function runTieBreak() {
-  // Inject a test set with two aspects that can tie on the same message
-  await setTestSets([
-    {
-      id: "test",
-      defaultThreshold: 0.75,
-      aspects: [
-        { id: "frustration", heuristicPhrases: ["this is", "frustrating"], nudgeInstruction: "Acknowledge frustration" },
-        { id: "urgency", heuristicPhrases: ["this is", "urgent"], nudgeInstruction: "Prioritize speed" },
-      ],
-    },
-  ]);
+  const { scoreAspects } = await import(HEURISTICS_PATH);
 
+  const set = {
+    id: "tie-set",
+    version: 1,
+    defaultThreshold: 0.75,
+    aspects: [
+      { id: "aspect-a", heuristicPhrases: ["one"] },
+      { id: "aspect-b", heuristicPhrases: ["two", "three"] },
+    ],
+  };
+
+  // Tie by score (0.5 vs 0.5), resolved by most-recent-user hit count.
+  const contextUserTieBreak = {
+    messages: [
+      { id: "m1", role: "user", text: "one" },
+      { id: "m2", role: "assistant", text: "two and three" },
+    ],
+    latestAssistantMessageId: "m2",
+  };
+
+  const resultUserTieBreak = scoreAspects(contextUserTieBreak, [set]);
+  if (resultUserTieBreak.topAspectId !== "tie-set:aspect-a") {
+    fail(
+      `Expected tie-break winner 'tie-set:aspect-a' by most-recent-user-hit rule, got '${resultUserTieBreak.topAspectId}'`
+    );
+  }
+
+  // Tie by score and equal most-recent-user hit count, resolved by aspect order.
+  const contextOrderTieBreak = {
+    messages: [
+      { id: "m3", role: "user", text: "one two" },
+      { id: "m4", role: "assistant", text: "ack" },
+    ],
+    latestAssistantMessageId: "m4",
+  };
+
+  const setOrderTie = {
+    ...set,
+    aspects: [
+      { id: "aspect-first", heuristicPhrases: ["one"] },
+      { id: "aspect-second", heuristicPhrases: ["two"] },
+    ],
+  };
+
+  const resultOrderTieBreak = scoreAspects(contextOrderTieBreak, [setOrderTie]);
+  if (resultOrderTieBreak.topAspectId !== "tie-set:aspect-first") {
+    fail(
+      `Expected tie-break winner 'tie-set:aspect-first' by set-order rule, got '${resultOrderTieBreak.topAspectId}'`
+    );
+  }
+
+  pass("tie-break — deterministic winner selected by user-hit then set-order rules");
+}
+
+async function runRecursiveNudge() {
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
+  const { __testSetsOverride } = await import(SETS_PATH);
 
-  // Both aspects get 2 hits => score 1.0 each; tie-break resolves to first in array (frustration)
   const messages = [
-    { id: "msg-1", info: { role: "user", text: "this is frustrating and urgent" } },
+    {
+      id: "msg-1",
+      info: {
+        role: "user",
+        text: "this is frustrating and I'm stuck on this",
+      },
+    },
     { id: "msg-2", info: { role: "assistant", text: "I understand" } },
   ];
 
   const ctx = makeFakeCtx({ messages });
-  const result = await plugin(ctx);
+  __testSetsOverride.value = NUDGE_TEST_SETS;
 
-  const logCapture = captureLogs();
-  await result.event({
-    event: {
-      type: "session.idle",
-      properties: { sessionID: "sess-tie-1" },
-    },
-  });
-  logCapture.restore();
+  try {
+    const result = await plugin(ctx);
 
-  await clearTestSets();
+    // First idle should dispatch a nudge
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-recursive-nudge-1" },
+      },
+    });
 
-  // Should have dispatched exactly one nudge
-  const nudgeLogs = logCapture.logs.filter(l => l.msg.includes("nudge"));
-  if (nudgeLogs.length !== 1) {
-    fail(`Expected exactly 1 nudge log, got ${nudgeLogs.length}`);
+    if (ctx.__test.getPromptAsyncCallCount() !== 1) {
+      fail(`Expected first idle to dispatch one nudge, got ${ctx.__test.getPromptAsyncCallCount()}`);
+    }
+
+    // Simulate transcript-visible nudge coming back as latest user message
+    messages.push({
+      id: "msg-3",
+      info: {
+        role: "user",
+        text: "[ASPECT-DYNAMICS-NUDGE v1] assistant acknowledged and applied",
+      },
+    });
+
+    // Second idle should be skipped by recursion guard
+    const logCapture = captureLogs();
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-recursive-nudge-1" },
+      },
+    });
+    logCapture.restore();
+
+    if (ctx.__test.getPromptAsyncCallCount() !== 1) {
+      fail(`Expected recursion guard to prevent second dispatch, got ${ctx.__test.getPromptAsyncCallCount()} total dispatches`);
+    }
+
+    if (!logCapture.hasWarn("recursion guard")) {
+      fail("Expected recursion guard warning on second idle");
+    }
+  } finally {
+    __testSetsOverride.value = null;
   }
 
-  pass("tie-break — deterministic winner selected when scores tie");
+  pass("recursive-nudge — plugin ignores its own nudge on subsequent idle");
+}
+
+async function runDisabled() {
+  await setTestConfig({ enabled: false });
+
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+  const ctx = makeFakeCtx();
+
+  try {
+    const result = await plugin(ctx);
+
+    await result.event({
+      event: {
+        type: "session.created",
+        properties: { sessionID: "sess-disabled-1" },
+      },
+    });
+
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-disabled-1" },
+      },
+    });
+
+    await result.event({
+      event: {
+        type: "session.deleted",
+        properties: { sessionID: "sess-disabled-1" },
+      },
+    });
+
+    if (ctx.__test.getPromptAsyncCallCount() !== 0) {
+      fail(`Expected no nudge dispatches when disabled, got ${ctx.__test.getPromptAsyncCallCount()}`);
+    }
+  } finally {
+    await clearTestConfig();
+  }
+
+  pass("disabled — plugin is no-op when enabled: false");
+}
+
+async function runInvalidConfig() {
+  await setTestConfig({ activeSets: "not-an-array" });
+
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+  const ctx = makeFakeCtx();
+  const logCapture = captureLogs();
+
+  try {
+    const result = await plugin(ctx);
+    logCapture.restore();
+
+    if (!logCapture.hasWarn("Invalid config")) {
+      fail("Expected warning for invalid config");
+    }
+
+    await result.event({
+      event: {
+        type: "session.created",
+        properties: { sessionID: "sess-invalid-1" },
+      },
+    });
+
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-invalid-1" },
+      },
+    });
+
+    if (ctx.__test.getPromptAsyncCallCount() !== 0) {
+      fail(`Expected no actions with invalid config, got ${ctx.__test.getPromptAsyncCallCount()} dispatch(es)`);
+    }
+  } finally {
+    await clearTestConfig();
+  }
+
+  pass("invalid-config — malformed config logs warning and behaves as no-op");
 }
 
 async function main() {
@@ -671,7 +816,7 @@ async function main() {
 
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
-    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break");
+    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break, recursive-nudge, disabled, invalid-config");
     process.exit(1);
   }
 
@@ -714,6 +859,15 @@ async function main() {
       break;
     case "tie-break":
       await runTieBreak();
+      break;
+    case "recursive-nudge":
+      await runRecursiveNudge();
+      break;
+    case "disabled":
+      await runDisabled();
+      break;
+    case "invalid-config":
+      await runInvalidConfig();
       break;
     default:
       console.error(`Unknown test case: ${testCase}`);

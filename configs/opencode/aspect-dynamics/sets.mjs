@@ -2,8 +2,15 @@
 // Stub set loader for aspect-dynamics plugin
 
 const DEFAULT_SETS = [
-  { id: "general", aspects: ["clarity", "conciseness", "completeness"] },
-  { id: "security", aspects: ["input-validation", "secrets-handling", "injection-guard"] },
+  {
+    id: "general",
+    version: 1,
+    defaultThreshold: 0.75,
+    aspects: [
+      { id: "clarity", heuristicPhrases: ["unclear", "confusing"], nudgeInstruction: "Be clearer." },
+      { id: "conciseness", heuristicPhrases: ["too long", "verbose"], nudgeInstruction: "Be more concise." },
+    ],
+  },
 ];
 
 // Test override — set by harness to inject custom sets

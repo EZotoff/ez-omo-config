@@ -45,6 +45,15 @@ assert_manifest_row 'models-preset.md.*commands/'
 assert_manifest_row 'opencode.json.*configs/opencode/'
 assert_manifest_row 'opencode.jsonc.*configs/opencode/'
 assert_manifest_row 'provider-connect-retry.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/config.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/context.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/heuristics.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/session-state.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/sets.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/nudge.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/logging.mjs.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/sets/emotions-v1.json.*configs/opencode/'
 assert_manifest_row 'oh-my-openagent.json.*configs/oh-my-openagent/'
 assert_manifest_row 'worktree.ts.*plugins/'
 assert_manifest_row 'git-safety.ts.*plugins/'
@@ -56,9 +65,20 @@ assert_file_exists "$REPO_ROOT/commands/models-preset.md"
 assert_file_exists "$REPO_ROOT/configs/opencode/opencode.json"
 assert_file_exists "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_file_exists "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/config.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/context.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/heuristics.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/session-state.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/sets.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/nudge.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/logging.mjs"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/sets/emotions-v1.json"
 assert_file_exists "$REPO_ROOT/configs/opencode/README.md"
 assert_file_exists "$REPO_ROOT/configs/oh-my-openagent/oh-my-openagent.json"
 assert_file_exists "$REPO_ROOT/extras/ocx.jsonc"
+assert_file_exists "$REPO_ROOT/tests/aspect-dynamics/harness.mjs"
+assert_file_exists "$REPO_ROOT/tests/test_aspect_dynamics_runtime.sh"
 
 assert_grep '\$HOME/.config/opencode/opencode.json' "$REPO_ROOT/configs/opencode/README.md"
 assert_grep '\$HOME/.opencode/opencode.jsonc' "$REPO_ROOT/configs/opencode/README.md"

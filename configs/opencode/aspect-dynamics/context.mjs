@@ -1,8 +1,11 @@
 // configs/opencode/aspect-dynamics/context.mjs
 // Context extractor and prefilter for aspect-dynamics plugin
 
+import { logWarn } from "./logging.mjs";
+
 const DEFAULT_CONTEXT_WINDOW_TURNS = 10;
 const MAX_MESSAGE_LENGTH = 600;
+const NUDGE_PREFIX = "[ASPECT-DYNAMICS-NUDGE v1]";
 
 /**
  * Fetch and prepare conversation context for aspect scoring.
@@ -61,7 +64,8 @@ export async function extractContext(ctx, sessionID, config = {}) {
       messages,
       latestAssistantMessageId,
     };
-  } catch {
+  } catch (err) {
+    logWarn(`Failed to extract context for session ${sessionID}: ${err.message}`);
     return null;
   }
 }
@@ -103,7 +107,7 @@ export function prefilterContext(context, activeSets, config = {}) {
     }
   }
 
-  const combinedText = (mostRecentUserText + " " + mostRecentAssistantText).toLowerCase();
+  const combinedText = `${mostRecentUserText} ${mostRecentAssistantText}`.toLowerCase();
 
   // Collect all heuristic phrases from active sets
   const phrases = [];
@@ -124,6 +128,31 @@ export function prefilterContext(context, activeSets, config = {}) {
     if (combinedText.includes(phrase)) {
       return true;
     }
+  }
+
+  return false;
+}
+
+/**
+ * Recursion guard: detect whether the most recent user message is
+ * the plugin's own transcript-visible nudge payload.
+ *
+ * @param {object} context - Context object returned by extractContext
+ * @returns {boolean} true if recursion guard should skip scoring
+ */
+export function hasRecursionGuard(context) {
+  if (!context?.messages?.length) {
+    return false;
+  }
+
+  for (let i = context.messages.length - 1; i >= 0; i--) {
+    const msg = context.messages[i];
+    if (msg.role !== "user") {
+      continue;
+    }
+
+    const text = typeof msg.text === "string" ? msg.text : "";
+    return text.startsWith(NUDGE_PREFIX);
   }
 
   return false;

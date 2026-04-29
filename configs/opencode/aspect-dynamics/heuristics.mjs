@@ -33,7 +33,8 @@ export function scoreAspects(context, activeSets) {
         evidenceSummary = `Aspect "${aspect.id}" scored ${normalizedScore.toFixed(2)} with ${weightedHits} weighted hits`;
       } else if (normalizedScore === topScore && topAspectId) {
         const currentTop = allScores.get(topAspectId);
-        const tieBreak = resolveTie(aspect, currentTop.aspectId, context, set.aspects);
+        const currentTopAspectObj = set.aspects.find(a => a.id === currentTop.aspectId);
+        const tieBreak = resolveTie(aspect, currentTopAspectObj, context, set.aspects);
         if (tieBreak === aspect.id) {
           topAspectId = key;
           evidenceSummary = `Aspect "${aspect.id}" scored ${normalizedScore.toFixed(2)} (tie-break winner)`;
@@ -137,18 +138,18 @@ function resolveTie(aspectA, aspectB, context, aspectList) {
   const userHitsB = countHitsInMostRecentUser(aspectB, context);
 
   if (userHitsA !== userHitsB) {
-    return userHitsA > userHitsB ? aspectA : aspectB;
+    return userHitsA > userHitsB ? aspectA.id : aspectB.id;
   }
 
   // Tie-break by aspect order in set file
-  const indexA = aspectList.findIndex(a => a.id === aspectA);
-  const indexB = aspectList.findIndex(a => a.id === aspectB);
+  const indexA = aspectList.findIndex(a => a.id === aspectA.id);
+  const indexB = aspectList.findIndex(a => a.id === aspectB.id);
   if (indexA !== indexB) {
-    return indexA < indexB ? aspectA : aspectB;
+    return indexA < indexB ? aspectA.id : aspectB.id;
   }
 
   // Final fallback: lexical
-  return aspectA.localeCompare(aspectB) <= 0 ? aspectA : aspectB;
+  return aspectA.id.localeCompare(aspectB.id) <= 0 ? aspectA.id : aspectB.id;
 }
 
 function countHitsInMostRecentUser(aspect, context) {

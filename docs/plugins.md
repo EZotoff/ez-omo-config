@@ -18,7 +18,10 @@ Plugins in this bundle are copied from the local OpenCode plugin registry and pa
 
 ## Config-Layer Plugins
 
-This document covers TypeScript plugins under `plugins/`. The repository also includes `provider-connect-retry.mjs`, a config-layer JavaScript plugin that lives in `configs/opencode/` and is documented in [Configuration Documentation](configs.md). It consumes the `retry-errors.json` registry for error pattern matching, backoff scheduling, nudge prompts, and fallback model selection.
+This document covers TypeScript plugins under `plugins/`. The repository also includes two config-layer JavaScript plugins that live in `configs/opencode/` and are documented in [Configuration Documentation](configs.md):
+
+- **`provider-connect-retry.mjs`** — Consumes the `retry-errors.json` registry for error pattern matching, backoff scheduling, nudge prompts, and fallback model selection.
+- **`aspect-dynamics.mjs`** — Performs deterministic heuristic scoring on conversation transcripts and dispatches transcript-visible advisory nudges. Uses 7 support modules under `aspect-dynamics/` and loads seed aspect sets from `aspect-dynamics/sets/`. No model-backed scoring in MVP; deferred fields (`scoringModel`, `polishingModel`, `dreamAgent`) are reserved for future use.
 
 ---
 
