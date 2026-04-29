@@ -1,8 +1,11 @@
+---
+name: wisdom
+description: Primary runtime memory skill for institutional knowledge, operational facts, patterns, and decisions. Use for ALL knowledge queries including deployment, config, and infrastructure.
+---
+
 # Wisdom System
 
-> **Note**: For operational knowledge queries (deployment, config, infrastructure), use the `knowledge` skill instead. This wisdom skill remains for general wisdom write/search operations.
-
-You have access to a shared knowledge store called **Wisdom** — institutional memory that accumulates patterns, gotchas, and decisions across sessions. Use it to avoid repeating mistakes and to leverage proven approaches.
+You have access to a shared knowledge store called **Wisdom** — institutional memory that accumulates patterns, gotchas, decisions, and operational facts across sessions. Wisdom is the **primary and only runtime memory store**. Use it to avoid repeating mistakes, to ground decisions in documented facts, and to reuse proven approaches.
 
 ## When to Use Wisdom
 
@@ -11,6 +14,7 @@ You have access to a shared knowledge store called **Wisdom** — institutional 
 - When encountering an unfamiliar error or build failure
 - Before making architectural decisions
 - When working in an area you haven't touched recently
+- **For operational queries** (deployment paths, config values, infrastructure facts, provider gotchas) — ALWAYS search Wisdom first. Do NOT infer operational facts from code.
 
 ### Write Wisdom (after discovering something)
 - After finding a non-obvious fix or workaround (type: `gotcha`)
@@ -29,12 +33,17 @@ You have access to a shared knowledge store called **Wisdom** — institutional 
 - `--type`: `gotcha`, `pattern`, `fact`, `decision`, `warning`
 - `--limit`: Default 10
 - `--json`: Machine-readable output
+- `--authority LEVEL`: Filter by canonical authority (`candidate|verified|published`)
+- `--status STATUS`: Filter by canonical status (`active|stale|superseded|retracted`)
+- `--provenance VALUE`: Filter by canonical provenance (`closeout|nomination|manual|manifest-import|migration|publish-export|compat-shim`)
 - Default search returns only `active` and `stale` entries.
 - Use `--include-status superseded,retracted` to expose hidden lifecycle states when needed.
-- Use `--authority candidate|verified|published` to filter canonical trust levels.
 - Use `--touch` only when you intentionally want to update access telemetry.
 
-> **Deprecation**: For operational knowledge queries (deployment paths, config values, infrastructure facts), prefer `~/.sisyphus/scripts/knowledge-lookup.sh` which searches authoritative manifests first, then wisdom candidates.
+**Qualifying answers by authority:**
+- `published` or `verified` → state the answer as documented fact
+- `candidate` → qualify: "This is a candidate finding, not yet verified"
+- Nothing found → answer UNKNOWN: "No documented knowledge found. This is unknown/undocumented"
 
 ### Write
 ```bash
@@ -44,12 +53,44 @@ echo "CONTENT" | ~/.sisyphus/scripts/wisdom-write.sh --type TYPE --tags "tag1,ta
 - Tags are required (comma-separated)
 - Type is auto-classified if omitted
 - Secrets are detected and blocked automatically
+- Default authority is `candidate`, default status is `active`
+
+### Edit
+```bash
+~/.sisyphus/scripts/wisdom-edit.sh ID --scope SCOPE [--set-authority LEVEL] [--set-status STATUS] [--set-provenance VALUE] [--dry-run]
+```
+- Update fields on an existing wisdom entry by ID
+- Use `--set-authority` to promote or demote trust level
+- Use `--set-status` to manage lifecycle (active, stale, superseded, retracted)
+- Use `--dry-run` to preview changes
+
+### Publish (promote to verified artifact)
+```bash
+~/.sisyphus/scripts/wisdom-publish.sh --id ID [--reason "justification"]
+```
+- Promotes a wisdom entry to `authority=published` and emits a derivative artifact
+- Tracks published artifacts with source digests for staleness detection
+- Requires an explicit reason
 
 ### Sync (after sessions with learnings)
 ```bash
 ~/.sisyphus/scripts/wisdom-sync.sh [--skip-llm] [--dry-run]
 ```
 Syncs entries from notepad learnings into the wisdom store.
+
+## Canonical Contract
+
+Every wisdom entry carries a canonical trust and lifecycle contract:
+
+| Field | Values | Meaning |
+|-------|--------|---------|
+| `authority` | `candidate`, `verified`, `published` | Trust level of the entry |
+| `status` | `active`, `stale`, `superseded`, `retracted` | Lifecycle state |
+| `provenance` | `closeout`, `nomination`, `manual`, `manifest-import`, `migration`, `publish-export`, `compat-shim` | How the entry originated |
+
+**Ranking order**: `published` > `verified` > `candidate`. Within the same authority, `active` > `stale`. `superseded` and `retracted` are hidden by default.
+
+**Conflict handling**: if the top two non-superseded matches are equally ranked, share the same topic, and mutually contradict, search returns `UNKNOWN` instead of guessing.
 
 ## Scope Levels
 - **system** (default): Universal — all projects and sessions. Use for language conventions, tool behaviors, general best practices.
@@ -64,6 +105,13 @@ Syncs entries from notepad learnings into the wisdom store.
 | `fact` | Important but undocumented project/domain knowledge |
 | `decision` | Architectural choices with reasoning and tradeoffs |
 | `warning` | Dangerous pitfalls, "don't do X because Y" |
+
+## Rules
+- **NEVER infer operational/infra facts from code** — search Wisdom first
+- **ALWAYS qualify answers** with authority level (published/verified/candidate/unknown)
+- Prefer "unknown" over guessing
+- Maximum 3 knowledge captures per task (avoid over-capturing)
+- The `knowledge` skill is a compatibility shim during deprecation. Use `wisdom` for all new work.
 
 ## Example Workflows
 
@@ -82,4 +130,9 @@ echo "Docker build fails if .dockerignore excludes required files — always che
 ```bash
 echo "Chose pnpm over npm for monorepo support — workspace protocol handling is critical for local package development" | \
   ~/.sisyphus/scripts/wisdom-write.sh --type decision --tags "pnpm,monorepo,architecture"
+```
+
+**Promoting a verified finding:**
+```bash
+~/.sisyphus/scripts/wisdom-publish.sh --id 20250304-123456-abcd --reason "Verified through three successful deployments"
 ```
