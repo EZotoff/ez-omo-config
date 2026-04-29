@@ -118,8 +118,8 @@ async function runRegistrationMissing() {
     fail("Import should have thrown for missing module");
   } catch (err) {
     if (err.code === "ERR_MODULE_NOT_FOUND" || err.message.includes("Cannot find module")) {
-      pass("registration-missing — correctly fails for missing module");
-      return;
+      console.error(`FAIL (expected): registration-missing — correctly fails for missing module: ${err.message}`);
+      process.exit(1);
     }
     throw err;
   }
