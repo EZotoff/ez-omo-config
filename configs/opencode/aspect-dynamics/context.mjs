@@ -17,6 +17,7 @@ export async function extractContext(ctx, sessionID) {
     return {
       messageCount: messages.length,
       lastUserMessage: messages[messages.length - 1] ?? null,
+      messages,
     };
   } catch {
     return null;
