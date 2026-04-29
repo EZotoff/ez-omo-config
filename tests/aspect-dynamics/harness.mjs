@@ -298,9 +298,9 @@ async function runCircuitBreaker() {
 async function runContextWindowRespected() {
   const { extractContext } = await import(CONTEXT_PATH);
 
-  // Build 15 user/assistant messages
+  // Build 30 user/assistant messages
   const messages = [];
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 30; i++) {
     messages.push({
       id: `msg-${i}`,
       info: { role: i % 2 === 0 ? "user" : "assistant", text: `message ${i}` },
@@ -311,20 +311,56 @@ async function runContextWindowRespected() {
   const context = await extractContext(ctx, "sess-cw-1", { contextWindowTurns: 10 });
 
   if (!context) fail("extractContext returned null");
-  if (context.messages.length !== 10) {
-    fail(`Expected 10 messages in context, got ${context.messages.length}`);
+  if (context.messages.length !== 20) {
+    fail(`Expected 20 messages in context (10 user/assistant pairs), got ${context.messages.length}`);
   }
-  if (context.messages[0].text !== "message 5") {
-    fail(`Expected first message text 'message 5', got '${context.messages[0].text}'`);
+  if (context.messages[0].text !== "message 10") {
+    fail(`Expected first message text 'message 10', got '${context.messages[0].text}'`);
   }
-  if (context.messages[9].text !== "message 14") {
-    fail(`Expected last message text 'message 14', got '${context.messages[9].text}'`);
+  if (context.messages[19].text !== "message 29") {
+    fail(`Expected last message text 'message 29', got '${context.messages[19].text}'`);
   }
-  if (context.latestAssistantMessageId !== "msg-13") {
-    fail(`Expected latestAssistantMessageId 'msg-13', got '${context.latestAssistantMessageId}'`);
+  if (context.latestAssistantMessageId !== "msg-29") {
+    fail(`Expected latestAssistantMessageId 'msg-29', got '${context.latestAssistantMessageId}'`);
   }
 
-  pass("context-window-respected — only last 10 user/assistant messages included");
+  pass("context-window-respected — only last 10 user/assistant pairs (20 messages) included");
+}
+
+async function runSeedSetLoad() {
+  const { loadSets } = await import(SETS_PATH);
+
+  const sets = await loadSets();
+  if (!Array.isArray(sets) || sets.length === 0) {
+    fail("Expected loadSets() to return non-empty array");
+  }
+
+  const emotions = sets.find((set) => set.id === "emotions-v1");
+  if (!emotions) {
+    fail("Expected emotions-v1 set to be loaded from seed JSON");
+  }
+
+  if (emotions.defaultThreshold !== 0.75) {
+    fail(`Expected emotions-v1 defaultThreshold=0.75, got ${emotions.defaultThreshold}`);
+  }
+
+  if (!Array.isArray(emotions.aspects) || emotions.aspects.length !== 4) {
+    fail(`Expected emotions-v1 to include 4 aspects, got ${emotions.aspects?.length ?? "invalid"}`);
+  }
+
+  pass("seed-set-load — emotions-v1 loads with threshold 0.75 and 4 aspects");
+}
+
+async function runMissingSet() {
+  const { loadSets, getSetById } = await import(SETS_PATH);
+  const sets = await loadSets();
+
+  const missing = getSetById(sets, "non-existent-set-id");
+  if (missing !== null) {
+    fail(`Expected missing set lookup to return null, got ${JSON.stringify(missing)}`);
+  }
+
+  pass("missing-set — getSetById returns null for unknown set ID");
 }
 
 async function runPrefilterSkip() {
@@ -816,7 +852,7 @@ async function main() {
 
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
-    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break, recursive-nudge, disabled, invalid-config");
+    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break, seed-set-load, missing-set, recursive-nudge, disabled, invalid-config");
     process.exit(1);
   }
 
@@ -859,6 +895,12 @@ async function main() {
       break;
     case "tie-break":
       await runTieBreak();
+      break;
+    case "seed-set-load":
+      await runSeedSetLoad();
+      break;
+    case "missing-set":
+      await runMissingSet();
       break;
     case "recursive-nudge":
       await runRecursiveNudge();

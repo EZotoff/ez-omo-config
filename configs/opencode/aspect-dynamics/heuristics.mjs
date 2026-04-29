@@ -134,6 +134,13 @@ export function rankAspects(allScores) {
  * @returns {string} The winning aspect ID
  */
 function resolveTie(aspectA, aspectB, context, aspectList) {
+  if (!aspectA) {
+    return aspectB?.id;
+  }
+  if (!aspectB) {
+    return aspectA.id;
+  }
+
   // Count hits in most recent user message
   const userHitsA = countHitsInMostRecentUser(aspectA, context);
   const userHitsB = countHitsInMostRecentUser(aspectB, context);
