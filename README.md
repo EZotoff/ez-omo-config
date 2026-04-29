@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **41 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **42 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -53,7 +53,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 41 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 42 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -61,7 +61,7 @@ This repository contains 41 core artifacts + 1 external integration organized in
 | 2-5 | **Configs** | 6 files | Core OpenCode and OMO configuration files |
 | 6-11 | **Plugins** | 7 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, and session info clipboard |
 | 12-20 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
-| 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
+| 21-30 | **Scripts** | 15 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
 | 32-33 | **Docker** | 2 files | Worktree container templates |
 | 34-36 | **Docs** | 3 files | Configuration, plugin, and worktree state documentation |
@@ -96,12 +96,15 @@ This repository contains 41 core artifacts + 1 external integration organized in
 | 18 | `wisdom-common.sh` | `scripts/wisdom/` | Shared wisdom utilities |
 | 19 | `wisdom-search.sh` | `scripts/wisdom/` | Search wisdom database |
 | 20 | `wisdom-write.sh` | `scripts/wisdom/` | Write new learnings |
+| 20b | `wisdom-nominate.sh` | `scripts/wisdom/` | Passive infra-only nomination writer to canonical wisdom |
 | 21 | `wisdom-sync.sh` | `scripts/wisdom/` | Sync wisdom across notepads |
 | 22 | `wisdom-archive.sh` | `scripts/wisdom/` | Archive old wisdom entries |
 | 23 | `wisdom-delete.sh` | `scripts/wisdom/` | Delete wisdom entries |
 | 24 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
 | 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
 | 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
+| 26a | `knowledge-lookup.sh` | `scripts/wisdom/` | Deprecated shim: delegates knowledge queries to wisdom-search.sh |
+| 26b | `knowledge-snapshot.sh` | `scripts/wisdom/` | Deprecated shim: generates Wisdom-only session snapshot |
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |

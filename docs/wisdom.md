@@ -32,8 +32,8 @@ The wisdom system consists of three integrated components:
 │  └──────────────┘      │  ┌────────┼─────┼────────┐  │     │
 │                        │  │        │     │        │  │     │
 │                        │  ▼        ▼     ▼        ▼  │     │
-│                        │ search  write  sync   archive │   │
-│                        │ delete   edit    gc    merge  │   │
+│                        │ search write nominate sync archive ││
+│                        │ delete  edit    gc      merge      ││
 │                        └─────────────────────────────┘   │
 │                                      │                    │
 │                                      ▼                    │
@@ -179,6 +179,35 @@ wisdom-write.sh --type gotcha --tags "docker,build" \
 - Content must be at least 20 characters
 - Tags are required
 - Secrets are detected and blocked
+
+### wisdom-nominate.sh
+
+**Purpose**: Preserve passive nomination as Wisdom-owned infra-only v1 behavior while writing canonical nomination records.
+
+**Usage**:
+```bash
+wisdom-nominate.sh [OPTIONS]
+```
+
+**Options**:
+- `--content`: Content string (reads stdin if omitted)
+- `--tags`: Comma-separated tags
+- `--scope`: `system|project|plan` (default: `system`)
+- `--type`: Optional explicit type (`gotcha|pattern|fact|decision|warning`)
+- `--project-id`: Required for `project`/`plan` scope
+- `--session-id` / `--origin-session`: Optional source session ID
+- `--source`: Source identifier (`nomination:passive` default)
+
+**Infra-only v1 policy**:
+- Accept when `scope=system`, **or**
+- Accept when tags contain at least one infra tag: `infra`, `config`, `deployment`, `setup`
+- Reject non-infra nominations with an informative message
+
+**Canonical write contract**:
+- `authority=candidate`
+- `status=active`
+- `provenance=nomination`
+- `origin_session=<session-id|null>`
 
 ### wisdom-sync.sh
 

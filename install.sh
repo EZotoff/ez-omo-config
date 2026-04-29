@@ -52,12 +52,15 @@ ITEMS=(
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"
     "scripts|scripts/wisdom/wisdom-search.sh|$HOME/.sisyphus/scripts/wisdom-search.sh"
     "scripts|scripts/wisdom/wisdom-write.sh|$HOME/.sisyphus/scripts/wisdom-write.sh"
+    "scripts|scripts/wisdom/wisdom-nominate.sh|$HOME/.sisyphus/scripts/wisdom-nominate.sh"
     "scripts|scripts/wisdom/wisdom-sync.sh|$HOME/.sisyphus/scripts/wisdom-sync.sh"
     "scripts|scripts/wisdom/wisdom-archive.sh|$HOME/.sisyphus/scripts/wisdom-archive.sh"
     "scripts|scripts/wisdom/wisdom-delete.sh|$HOME/.sisyphus/scripts/wisdom-delete.sh"
     "scripts|scripts/wisdom/wisdom-edit.sh|$HOME/.sisyphus/scripts/wisdom-edit.sh"
     "scripts|scripts/wisdom/wisdom-gc.sh|$HOME/.sisyphus/scripts/wisdom-gc.sh"
     "scripts|scripts/wisdom/wisdom-merge.sh|$HOME/.sisyphus/scripts/wisdom-merge.sh"
+    "scripts|scripts/wisdom/knowledge-lookup.sh|$HOME/.sisyphus/scripts/knowledge-lookup.sh"
+    "scripts|scripts/wisdom/knowledge-snapshot.sh|$HOME/.sisyphus/scripts/knowledge-snapshot.sh"
 )
 
 usage() {

@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 30 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 31 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -31,12 +31,15 @@ Complete inventory of 30 core artifacts for ez-omo-config repository scaffold.
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 20b | wisdom-nominate.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 21 | wisdom-sync.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 22 | wisdom-archive.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 23 | wisdom-delete.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 24 | wisdom-edit.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 25 | wisdom-gc.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26 | wisdom-merge.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26b | knowledge-lookup.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26c | knowledge-snapshot.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 
 ## Directory Structure
@@ -67,7 +70,7 @@ ez-omo-config/
 │   ├── deployment/         # Deployment helper skill
 │   └── frontend-ui-ux/     # Frontend/UX design skill
 ├── scripts/
-│   └── wisdom/             # Wisdom propagation scripts (9 files)
+│   └── wisdom/             # Wisdom propagation scripts (10 files)
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Documentation for configs, plugins, skills, wisdom
 ├── tests/                  # Bash verification suite and helpers
@@ -79,12 +82,12 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 30 core + 1 external (commands: 3, configs: 5, plugins: 6 + kdco-primitives dir, skills: 6 dirs + 1 external, scripts: 9, extras: 1)
+- **Total Artifacts**: 33 core + 1 external (commands: 3, configs: 5, plugins: 6 + kdco-primitives dir, skills: 6 dirs + 1 external, scripts: 13, extras: 1)
 - **Commands**: 3 slash command prompts (`models-preset.md`, `vscode.md`, `session-info.md`)
 - **Core Configs**: 5 files (opencode.json, opencode.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json)
 - **Plugins**: 3 main files + vscode.ts + session-info.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 6 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
-- **Scripts**: 9 wisdom shell scripts
+- **Scripts**: 13 wisdom shell scripts
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
@@ -96,5 +99,5 @@ ez-omo-config/
 ## Dependency Clusters
 
 1. **Worktree Plugin Cluster**: worktree.ts → worktree/state.ts, worktree/terminal.ts, kdco-primitives/
-2. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by all 8 other wisdom scripts)
+2. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by all 12 other wisdom scripts)
 3. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
