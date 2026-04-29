@@ -8,7 +8,7 @@ set -euo pipefail
 #                          [--manifest-scope SCOPE] [--emit-manifest] [--dry-run]
 
 SCRIPT_DIR="$(dirname "$0")"
-source "${HOME}/.sisyphus/scripts/knowledge-constants.sh" 2>/dev/null || source "${SCRIPT_DIR}/knowledge-constants.sh" || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
+source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || source "${HOME}/.sisyphus/scripts/knowledge-constants.sh" || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
 source "${SCRIPT_DIR}/wisdom-common.sh" || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
 
 usage() {
@@ -260,16 +260,16 @@ if [[ -n "$ENTRY_STORE" ]]; then
   wisdom_update_entry "$WISDOM_ID" "$ENTRY_STORE" "$UPDATED_JSON"
 fi
 
-mkdir -p "${HOME}/.sisyphus/knowledge"
-LOG_ENTRY=$(jq -n -c \
-  --arg ts "$NOW" \
-  --arg wid "$WISDOM_ID" \
-  --arg mid "$MANIFEST_ID" \
-  --arg path "$ARTIFACT_PATH" \
-  --arg reason "${REASON:-published}" \
-  --arg actor "user" \
-  --arg digest "$SOURCE_DIGEST" \
-  '{
+mkdir -p "${HOME}/.sisyphus/wisdom"
+  LOG_ENTRY=$(jq -n -c \
+    --arg ts "$NOW" \
+    --arg wid "$WISDOM_ID" \
+    --arg mid "$MANIFEST_ID" \
+    --arg path "$ARTIFACT_PATH" \
+    --arg reason "${REASON:-published}" \
+    --arg actor "user" \
+    --arg digest "$SOURCE_DIGEST" \
+    '{
     timestamp: $ts,
     wisdom_id: $wid,
     manifest_id: $mid,
@@ -280,7 +280,7 @@ LOG_ENTRY=$(jq -n -c \
     action: "publish"
   }')
 
-printf '%s\n' "$LOG_ENTRY" >> "${HOME}/.sisyphus/knowledge/promotion-log.jsonl"
+  printf '%s\n' "$LOG_ENTRY" >> "${HOME}/.sisyphus/wisdom/promotion-log.jsonl"
 
 echo "=== Publish Complete ==="
 echo "Wisdom: $WISDOM_ID"

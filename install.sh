@@ -52,6 +52,7 @@ ITEMS=(
     "skills|skills/parallel-dev|$HOME/.config/opencode/skills/parallel-dev"
     "skills|skills/worktree-coordinator|$HOME/.config/opencode/skills/worktree-coordinator"
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"
+    "scripts|scripts/wisdom/knowledge-constants.sh|$HOME/.sisyphus/scripts/knowledge-constants.sh"
     "scripts|scripts/wisdom/wisdom-search.sh|$HOME/.sisyphus/scripts/wisdom-search.sh"
     "scripts|scripts/wisdom/wisdom-write.sh|$HOME/.sisyphus/scripts/wisdom-write.sh"
     "scripts|scripts/wisdom/wisdom-closeout.sh|$HOME/.sisyphus/scripts/wisdom-closeout.sh"
@@ -68,6 +69,7 @@ ITEMS=(
     "scripts|scripts/wisdom/knowledge-snapshot.sh|$HOME/.sisyphus/scripts/knowledge-snapshot.sh"
     "scripts|scripts/knowledge-promote.sh|$HOME/.sisyphus/scripts/knowledge-promote.sh"
     "scripts|scripts/wisdom/wisdom-publish.sh|$HOME/.sisyphus/scripts/wisdom-publish.sh"
+    "scripts|scripts/wisdom/manifest-write.sh|$HOME/.sisyphus/scripts/manifest-write.sh"
 )
 
 usage() {

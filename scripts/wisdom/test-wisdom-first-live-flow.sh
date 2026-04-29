@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${HOME}/.sisyphus/scripts/knowledge-constants.sh" 2>/dev/null || source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
+source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || source "${HOME}/.sisyphus/scripts/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
 
 EVIDENCE_FILE="${HOME}/.sisyphus/evidence/task-12-live-flow.txt"
 TEST_TAG="test-live-flow"
