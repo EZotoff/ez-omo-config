@@ -61,6 +61,8 @@ ITEMS=(
     "scripts|scripts/wisdom/wisdom-edit.sh|$HOME/.sisyphus/scripts/wisdom-edit.sh"
     "scripts|scripts/wisdom/wisdom-gc.sh|$HOME/.sisyphus/scripts/wisdom-gc.sh"
     "scripts|scripts/wisdom/wisdom-merge.sh|$HOME/.sisyphus/scripts/wisdom-merge.sh"
+    "scripts|scripts/wisdom/wisdom-migrate.sh|$HOME/.sisyphus/scripts/wisdom-migrate.sh"
+    "scripts|scripts/wisdom/wisdom-restore.sh|$HOME/.sisyphus/scripts/wisdom-restore.sh"
     "scripts|scripts/wisdom/knowledge-lookup.sh|$HOME/.sisyphus/scripts/knowledge-lookup.sh"
     "scripts|scripts/wisdom/knowledge-snapshot.sh|$HOME/.sisyphus/scripts/knowledge-snapshot.sh"
 )
