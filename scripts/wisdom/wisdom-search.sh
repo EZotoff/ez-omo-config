@@ -128,6 +128,20 @@ entry_has_mutual_contradiction() {
     '
 }
 
+entries_share_conflict_rank() {
+    local first_ranked_entry="$1"
+    local second_ranked_entry="$2"
+
+    jq -nr --argjson first "$first_ranked_entry" --argjson second "$second_ranked_entry" '
+        $first._rank.relevance == $second._rank.relevance
+        and $first._rank.status_rank == $second._rank.status_rank
+        and $first._rank.authority_rank == $second._rank.authority_rank
+        and $first._rank.review_due_rank == $second._rank.review_due_rank
+        and $first._rank.verified_at_epoch == $second._rank.verified_at_epoch
+        and $first._rank.created_epoch == $second._rank.created_epoch
+    '
+}
+
 # --------------------------------------------------------------------------
 # Parse arguments
 # --------------------------------------------------------------------------
@@ -427,11 +441,8 @@ if [[ "$TOP_TWO_COUNT" -eq 2 ]]; then
 
     first_entry=$(printf '%s' "$first_ranked" | jq -c 'del(._store_path, ._relevance, ._rank)')
     second_entry=$(printf '%s' "$second_ranked" | jq -c 'del(._store_path, ._relevance, ._rank)')
-    first_relevance=$(printf '%s' "$first_ranked" | jq -r '._relevance // 0')
-    second_relevance=$(printf '%s' "$second_ranked" | jq -r '._relevance // 0')
-    comparison=$(wisdom_compare_entries "$first_entry" "$second_entry" "$first_relevance" "$second_relevance" "$NOW_ISO")
 
-    if [[ "$comparison" -eq 0 ]] && [[ "$(entry_has_mutual_contradiction "$first_entry" "$second_entry")" == "true" ]]; then
+    if [[ "$(entries_share_conflict_rank "$first_ranked" "$second_ranked")" == "true" ]] && [[ "$(entry_has_mutual_contradiction "$first_entry" "$second_entry")" == "true" ]]; then
         if contradiction_result=$(wisdom_check_contradiction "$first_entry" "$second_entry"); then
             wisdom_log WARN "Equal-rank contradictory wisdom detected; returning ${contradiction_result}"
             if [[ "$JSON_OUTPUT" == true ]]; then
