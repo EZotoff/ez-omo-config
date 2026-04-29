@@ -96,7 +96,7 @@ echo "" >> "$EVIDENCE_FILE"
 echo "Testing AC4: Unknown topic returns UNKNOWN..."
 echo "=== AC4 Test ===" >> "$EVIDENCE_FILE"
 
-UNKNOWN_OUTPUT=$("$SCRIPT_DIR/knowledge-lookup.sh" "nonexistent-zzz-topic-xyz-12345" 2>&1)
+UNKNOWN_OUTPUT=$("$SCRIPT_DIR/knowledge-lookup.sh" "nonexistent-zzz-topic-xyz-12345" 2>&1 || true)
 echo "$UNKNOWN_OUTPUT" >> "$EVIDENCE_FILE"
 
 if echo "$UNKNOWN_OUTPUT" | grep -q "UNKNOWN" && echo "$UNKNOWN_OUTPUT" | grep -q "do NOT infer"; then
