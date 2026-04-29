@@ -184,7 +184,7 @@ test_concurrent_safety() {
 test_closeout_lifecycle() {
     local closeout_id
     closeout_id=$(echo "Closeout test entry about the importance of testing closeout behavior thoroughly" | \
-        "${SCRIPT_DIR}/wisdom-closeout.sh" --scope system --tags "${TEST_TAG},closeout-test" 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
+        "${SCRIPT_DIR}/wisdom-closeout.sh" --scope system --tags "${TEST_TAG},closeout-test" 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}' | tail -1)
     [[ -z "$closeout_id" ]] && { echo "Failed to create closeout entry"; return 1; }
     local entry_json
     entry_json=$(jq -c --arg id "$closeout_id" 'select(.id == $id)' "${WISDOM_SYSTEM_DIR}")
