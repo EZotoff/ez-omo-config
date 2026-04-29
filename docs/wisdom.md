@@ -92,7 +92,7 @@ All scripts are installed to `$HOME/.sisyphus/scripts/` and depend on `wisdom-co
 | `wisdom_normalize_authority()` | Maps legacy authority values into canonical values |
 | `wisdom_normalize_status()` | Normalizes missing or legacy status values, including overdue stale detection |
 | `wisdom_build_metadata()` | Builds the fixed metadata object with all required keys |
-| `wisdom_rank_entry()` | Produces the canonical runtime ranking tuple |
+| `wisdom_rank_entry()` | Produces the canonical ranking tuple |
 | `wisdom_compare_entries()` | Compares two entries using the canonical ranking algorithm |
 | `wisdom_check_contradiction()` | Returns `UNKNOWN` for equal-rank contradictory entries on the same topic |
 | `wisdom_normalize_record()` | Converts legacy records into the canonical schema |

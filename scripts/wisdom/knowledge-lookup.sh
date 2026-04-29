@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # knowledge-lookup.sh — DEPRECATED compatibility shim
-# Reads ONLY from canonical Wisdom store. Never reads manifests.
+# Reads ONLY from Wisdom store. Never reads manifests.
 # Usage: knowledge-lookup.sh <query> [--scope <scope>] [--type <type>] [--authority-min <level>]
 #
 # DEPRECATION: This script is a backward-compatible shim. New code should call
-# wisdom-search.sh directly for canonical Wisdom queries.
+# wisdom-search.sh directly.
 
 SCRIPT_DIR="$(dirname "$0")"
 source "${HOME}/.sisyphus/scripts/knowledge-constants.sh" 2>/dev/null || source "${SCRIPT_DIR}/knowledge-constants.sh" || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
@@ -33,7 +33,7 @@ usage() {
 Usage: knowledge-lookup.sh QUERY [OPTIONS]
 
 Search operational knowledge with authority-first ordering.
-Reads ONLY from canonical Wisdom store (~/.sisyphus/wisdom/*.jsonl).
+Reads ONLY from Wisdom store (~/.sisyphus/wisdom/*.jsonl).
 
 Arguments:
   QUERY                    Search string (required, case-insensitive)

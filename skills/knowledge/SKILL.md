@@ -33,7 +33,7 @@ All commands below are thin wrappers around Wisdom. They exist to avoid breaking
 ```bash
 ~/.sisyphus/scripts/knowledge-snapshot.sh
 ```
-- **Deprecated**: generates session orientation from canonical Wisdom store only
+- **Deprecated**: generates session orientation from Wisdom store only
 - Emits a deprecation warning to stderr
 
 ### knowledge-promote.sh (shim)

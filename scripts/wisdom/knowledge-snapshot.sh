@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # knowledge-snapshot.sh — DEPRECATED compatibility shim
-# Reads ONLY from canonical Wisdom store. Never reads manifests.
+# Reads ONLY from Wisdom store. Never reads manifests.
 # Usage: knowledge-snapshot.sh [--help]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -18,7 +18,7 @@ Usage: knowledge-snapshot.sh [--help]
 Generates a bounded text summary of authoritative knowledge for agent
 session orientation. Outputs to stdout.
 
-Reads ONLY from canonical Wisdom store (~/.sisyphus/wisdom/*.jsonl).
+Reads ONLY from Wisdom store (~/.sisyphus/wisdom/*.jsonl).
 
 Sections:
   1. Wisdom (Canonical)  — all entries from wisdom JSONL
