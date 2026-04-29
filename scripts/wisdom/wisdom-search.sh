@@ -20,7 +20,9 @@ JSON_OUTPUT=false
 MIN_SCORE=""
 PROJECT_ID=""
 AUTHORITY_FILTER=""
-SORT_AUTHORITY=0
+INCLUDE_STATUS=""
+PROVENANCE_FILTER=""
+ORIGIN_SESSION_FILTER=""
 TOUCH=false
 
 # --------------------------------------------------------------------------
@@ -41,8 +43,10 @@ Options:
   --json                 Output as JSON array
   --min-score N          Filter by quality_score >= N
   --project-id ID        Limit to specific project (with --scope project or plan)
-  --authority LEVEL      Filter by authority level: wisdom|verified|manifest
-  --sort-authority       Sort by authority rank (manifest > verified > wisdom)
+  --authority LEVEL      Filter by authority level: candidate|verified|published
+  --include-status LIST  Also include statuses: superseded,retracted
+  --provenance VALUE     Filter by provenance value
+  --origin-session ID    Filter by origin_session
   --touch                Update access telemetry (accessed count, last_accessed)
   --help, -h             Show this help
 
@@ -52,6 +56,76 @@ Exit codes:
   2  Bad arguments
 EOF
     exit 2
+}
+
+trim_whitespace() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
+parse_csv_list() {
+    local csv="$1"
+    local output_name="$2"
+    local -n output_ref="$output_name"
+    local raw_items=()
+    local item trimmed
+
+    output_ref=()
+    IFS=',' read -r -a raw_items <<< "$csv"
+    for item in "${raw_items[@]}"; do
+        trimmed=$(trim_whitespace "$item")
+        [[ -z "$trimmed" ]] && continue
+        output_ref+=("$trimmed")
+    done
+}
+
+array_contains() {
+    local needle="$1"
+    shift
+    local item
+
+    for item in "$@"; do
+        if [[ "$item" == "$needle" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+validate_enum_value() {
+    local value="$1"
+    local field_name="$2"
+    local valid_values_name="$3"
+    local -n valid_values_ref="$valid_values_name"
+
+    if ! array_contains "$value" "${valid_values_ref[@]}"; then
+        wisdom_log ERROR "Invalid ${field_name}: ${value} (valid: ${valid_values_ref[*]})"
+        usage
+    fi
+}
+
+entry_has_mutual_contradiction() {
+    local first_entry="$1"
+    local second_entry="$2"
+
+    jq -nr --argjson first "$first_entry" --argjson second "$second_entry" '
+        def normalize_text:
+            if . == null then ""
+            else ascii_downcase | gsub("[^a-z0-9]+"; " ") | gsub("^ +| +$"; "")
+            end;
+        def topic_key($entry): (($entry.title // $entry.body // "") | normalize_text);
+        def body_key($entry): (($entry.body // "") | normalize_text);
+        topic_key($first) != ""
+        and topic_key($first) == topic_key($second)
+        and $first.status == $second.status
+        and $first.authority == $second.authority
+        and body_key($first) != body_key($second)
+        and (($first.contradicts // []) | index($second.id)) != null
+        and (($second.contradicts // []) | index($first.id)) != null
+    '
 }
 
 # --------------------------------------------------------------------------
@@ -82,8 +156,18 @@ while [[ $# -gt 0 ]]; do
         --authority)
             [[ $# -lt 2 ]] && { wisdom_log ERROR "--authority requires a value"; usage; }
             AUTHORITY_FILTER="$2"; shift 2 ;;
+        --include-status)
+            [[ $# -lt 2 ]] && { wisdom_log ERROR "--include-status requires a value"; usage; }
+            INCLUDE_STATUS="$2"; shift 2 ;;
+        --provenance)
+            [[ $# -lt 2 ]] && { wisdom_log ERROR "--provenance requires a value"; usage; }
+            PROVENANCE_FILTER="$2"; shift 2 ;;
+        --origin-session)
+            [[ $# -lt 2 ]] && { wisdom_log ERROR "--origin-session requires a value"; usage; }
+            ORIGIN_SESSION_FILTER="$2"; shift 2 ;;
         --sort-authority)
-            SORT_AUTHORITY=1; shift ;;
+            wisdom_log WARN "--sort-authority is deprecated; canonical ranking is now always applied"
+            shift ;;
         --touch)
             TOUCH=true; shift ;;
         --help|-h)
@@ -136,6 +220,31 @@ fi
 if [[ -n "$MIN_SCORE" ]] && ! [[ "$MIN_SCORE" =~ ^[0-9]+$ ]]; then
     wisdom_log ERROR "--min-score must be a non-negative integer"
     usage
+fi
+
+if [[ -n "$AUTHORITY_FILTER" ]]; then
+    validate_enum_value "$AUTHORITY_FILTER" "authority" "WISDOM_VALID_AUTHORITIES"
+fi
+
+if [[ -n "$PROVENANCE_FILTER" ]]; then
+    validate_enum_value "$PROVENANCE_FILTER" "provenance" "WISDOM_VALID_PROVENANCES"
+fi
+
+declare -a VISIBLE_STATUSES=("active" "stale")
+declare -a INCLUDE_STATUS_VALUES=()
+if [[ -n "$INCLUDE_STATUS" ]]; then
+    parse_csv_list "$INCLUDE_STATUS" INCLUDE_STATUS_VALUES
+    if [[ ${#INCLUDE_STATUS_VALUES[@]} -eq 0 ]]; then
+        wisdom_log ERROR "--include-status must include at least one status"
+        usage
+    fi
+
+    for status_value in "${INCLUDE_STATUS_VALUES[@]}"; do
+        validate_enum_value "$status_value" "status" "WISDOM_VALID_STATUSES"
+        if ! array_contains "$status_value" "${VISIBLE_STATUSES[@]}"; then
+            VISIBLE_STATUSES+=("$status_value")
+        fi
+    done
 fi
 
 # --------------------------------------------------------------------------
@@ -225,28 +334,56 @@ if [[ -n "$TAGS" ]]; then
     JQ_FILTER="${JQ_FILTER} | select((\$tags | map(ascii_downcase)) - (.tags // [] | map(ascii_downcase)) | length == 0)"
 fi
 
-# Add authority filter
-if [[ -n "$AUTHORITY_FILTER" ]]; then
-    JQ_FILTER="${JQ_FILTER} | select(.authority == \$authority_filter)"
-fi
-
 # --------------------------------------------------------------------------
 # Search all store files and collect results
 # --------------------------------------------------------------------------
 ALL_RESULTS=""
+NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 for store_file in "${STORE_FILES[@]}"; do
-    # Run jq filter on each JSONL file, add _store_path for access tracking
-    store_escaped=$(printf '%s' "$store_file" | jq -Rs .)
-    # Build jq args array for safe variable passing (no eval)
+    # Run jq filter on each JSONL file; canonical filtering happens after normalization
     jq_args=(-c --arg q "$QUERY")
     [[ -n "$TYPE" ]] && jq_args+=(--arg type_filter "$TYPE")
     [[ -n "$TAGS" ]] && jq_args+=(--argjson tags "$TAGS_JSON")
-    [[ -n "$AUTHORITY_FILTER" ]] && jq_args+=(--arg authority_filter "$AUTHORITY_FILTER")
-    results=$(jq "${jq_args[@]}" "${JQ_FILTER} | . + {\"_store_path\": ${store_escaped}}" "$store_file" 2>/dev/null || true)
-    if [[ -n "$results" ]]; then
-        ALL_RESULTS+="${results}"$'\n'
-    fi
+    results=$(jq "${jq_args[@]}" "$JQ_FILTER" "$store_file" 2>/dev/null || true)
+
+    while IFS= read -r raw_entry; do
+        [[ -z "$raw_entry" ]] && continue
+
+        normalized_entry=$(wisdom_normalize_record "$raw_entry" "$NOW_ISO") || continue
+
+        entry_status=$(printf '%s' "$normalized_entry" | jq -r '.status')
+        if ! array_contains "$entry_status" "${VISIBLE_STATUSES[@]}"; then
+            continue
+        fi
+
+        entry_authority=$(printf '%s' "$normalized_entry" | jq -r '.authority')
+        if [[ -n "$AUTHORITY_FILTER" && "$entry_authority" != "$AUTHORITY_FILTER" ]]; then
+            continue
+        fi
+
+        entry_provenance=$(printf '%s' "$normalized_entry" | jq -r '.provenance')
+        if [[ -n "$PROVENANCE_FILTER" && "$entry_provenance" != "$PROVENANCE_FILTER" ]]; then
+            continue
+        fi
+
+        entry_origin_session=$(printf '%s' "$normalized_entry" | jq -r '.origin_session // ""')
+        if [[ -n "$ORIGIN_SESSION_FILTER" && "$entry_origin_session" != "$ORIGIN_SESSION_FILTER" ]]; then
+            continue
+        fi
+
+        relevance_score=$(printf '%s' "$normalized_entry" | jq -r --arg q "$QUERY" '
+            if ($q | length) == 0 then 0
+            else ((.body // "" | ascii_downcase | split($q | ascii_downcase) | length) - 1)
+            end
+        ')
+
+        entry_with_meta=$(printf '%s' "$normalized_entry" | jq -c \
+            --arg store_path "$store_file" \
+            --argjson relevance "$relevance_score" \
+            '. + {"_store_path": $store_path, "_relevance": $relevance}')
+        ALL_RESULTS+="${entry_with_meta}"$'\n'
+    done <<< "$results"
 done
 
 ALL_RESULTS=$(printf '%s' "$ALL_RESULTS" | sed '/^$/d')
@@ -262,29 +399,20 @@ if [[ -z "$ALL_RESULTS" ]]; then
 fi
 
 # --------------------------------------------------------------------------
-# Sort by quality_score desc, then accessed desc; apply limit
-# If --sort-authority is set, sort by authority rank first
+# Sort using canonical ranking: relevance, status, authority, review_due,
+# verified_at, created, id; then apply limit.
 # --------------------------------------------------------------------------
-if [[ "$SORT_AUTHORITY" -eq 1 ]]; then
-    # Sort by authority rank (manifest=3, verified=2, wisdom=1, unknown=0)
-    SORTED_LIMITED=$(printf '%s\n' "$ALL_RESULTS" | jq -s '
-        sort_by(
-            -((.authority // "wisdom") as $a |
-                if $a == "manifest" then 3
-                elif $a == "verified" then 2
-                elif $a == "wisdom" then 1
-                else 0 end),
-            -(.quality_score // 0),
-            -(.accessed // 0)
-        )
-        | .[0:'"$LIMIT"']
-    ')
-else
-    SORTED_LIMITED=$(printf '%s\n' "$ALL_RESULTS" | jq -s '
-        sort_by(-(.quality_score // 0), -(.accessed // 0))
-        | .[0:'"$LIMIT"']
-    ')
-fi
+RANKED_RESULTS=""
+while IFS= read -r entry_json; do
+    [[ -z "$entry_json" ]] && continue
+    entry_relevance=$(printf '%s' "$entry_json" | jq -r '._relevance // 0')
+    canonical_entry=$(printf '%s' "$entry_json" | jq -c 'del(._store_path, ._relevance)')
+    entry_rank=$(wisdom_rank_entry "$canonical_entry" "$entry_relevance" "$NOW_ISO") || continue
+    ranked_entry=$(printf '%s' "$entry_json" | jq -c --argjson rank "$entry_rank" '. + {"_rank": $rank}')
+    RANKED_RESULTS+="${ranked_entry}"$'\n'
+done <<< "$ALL_RESULTS"
+
+SORTED_LIMITED=$(printf '%s\n' "$RANKED_RESULTS" | jq -s 'sort_by(._rank.sort_key) | .[0:'"$LIMIT"']')
 
 # Get count of results
 RESULT_COUNT=$(printf '%s' "$SORTED_LIMITED" | jq 'length')
@@ -296,6 +424,36 @@ if [[ "$RESULT_COUNT" -eq 0 ]]; then
         wisdom_log INFO "No matching entries found."
     fi
     exit 1
+fi
+
+# --------------------------------------------------------------------------
+# UNKNOWN handling: top two non-superseded, equal-rank contradictory entries
+# should not produce an arbitrary winner.
+# --------------------------------------------------------------------------
+TOP_TWO_NON_SUPERSEDED=$(printf '%s' "$SORTED_LIMITED" | jq -c '[.[] | select(.status != "superseded")][0:2]')
+TOP_TWO_COUNT=$(printf '%s' "$TOP_TWO_NON_SUPERSEDED" | jq 'length')
+
+if [[ "$TOP_TWO_COUNT" -eq 2 ]]; then
+    first_ranked=$(printf '%s' "$TOP_TWO_NON_SUPERSEDED" | jq -c '.[0]')
+    second_ranked=$(printf '%s' "$TOP_TWO_NON_SUPERSEDED" | jq -c '.[1]')
+
+    first_entry=$(printf '%s' "$first_ranked" | jq -c 'del(._store_path, ._relevance, ._rank)')
+    second_entry=$(printf '%s' "$second_ranked" | jq -c 'del(._store_path, ._relevance, ._rank)')
+    first_relevance=$(printf '%s' "$first_ranked" | jq -r '._relevance // 0')
+    second_relevance=$(printf '%s' "$second_ranked" | jq -r '._relevance // 0')
+    comparison=$(wisdom_compare_entries "$first_entry" "$second_entry" "$first_relevance" "$second_relevance" "$NOW_ISO")
+
+    if [[ "$comparison" -eq 0 ]] && [[ "$(entry_has_mutual_contradiction "$first_entry" "$second_entry")" == "true" ]]; then
+        if contradiction_result=$(wisdom_check_contradiction "$first_entry" "$second_entry"); then
+            wisdom_log WARN "Equal-rank contradictory wisdom detected; returning ${contradiction_result}"
+            if [[ "$JSON_OUTPUT" == true ]]; then
+                printf '%s\n' '"UNKNOWN"'
+            else
+                printf 'UNKNOWN\n'
+            fi
+            exit 0
+        fi
+    fi
 fi
 
 # --------------------------------------------------------------------------
@@ -324,7 +482,7 @@ fi
 # --------------------------------------------------------------------------
 if [[ "$JSON_OUTPUT" == true ]]; then
     # Strip _store_path from output
-    printf '%s' "$SORTED_LIMITED" | jq '[.[] | del(._store_path)]'
+    printf '%s' "$SORTED_LIMITED" | jq '[.[] | del(._store_path, ._relevance, ._rank)]'
 else
     # Human-readable output
     for i in $(seq 0 $((RESULT_COUNT - 1))); do
