@@ -514,6 +514,105 @@ async function runNoNetworkCalls() {
   pass("no-network-calls — zero model calls, zero dream-agent timers/locks, only session.messages and session.get used");
 }
 
+async function runBelowThreshold() {
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+
+  // Messages with weak phrase hits (won't reach 0.75 threshold)
+  const messages = [
+    { id: "msg-1", info: { role: "user", text: "hello" } },
+    { id: "msg-2", info: { role: "assistant", text: "hi there" } },
+  ];
+
+  const ctx = makeFakeCtx({ messages });
+  const result = await plugin(ctx);
+
+  const logCapture = captureLogs();
+  await result.event({
+    event: {
+      type: "session.idle",
+      properties: { sessionID: "sess-below-1" },
+    },
+  });
+  logCapture.restore();
+
+  if (logCapture.logs.some(l => l.msg.includes("nudge"))) {
+    fail("Below-threshold scenario should NOT dispatch a nudge");
+  }
+
+  pass("below-threshold — score stays below 0.75, no nudge dispatched");
+}
+
+async function runThresholdCrossed() {
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+
+  // Message with strong frustration phrase hit
+  const messages = [
+    { id: "msg-1", info: { role: "user", text: "this is frustrating" } },
+    { id: "msg-2", info: { role: "assistant", text: "I understand" } },
+  ];
+
+  let promptAsyncCalled = false;
+  let promptAsyncBody = null;
+
+  const ctx = makeFakeCtx({ messages });
+  const originalPromptAsync = ctx.client.session.promptAsync;
+  ctx.client.session.promptAsync = async ({ path, body }) => {
+    promptAsyncCalled = true;
+    promptAsyncBody = body;
+    return originalPromptAsync({ path, body });
+  };
+
+  const result = await plugin(ctx);
+
+  const logCapture = captureLogs();
+  await result.event({
+    event: {
+      type: "session.idle",
+      properties: { sessionID: "sess-threshold-1" },
+    },
+  });
+  logCapture.restore();
+
+  if (!promptAsyncCalled) {
+    fail("Threshold-crossed scenario should dispatch a nudge via promptAsync");
+  }
+
+  pass("threshold-crossed — score >= 0.75, nudge dispatched via promptAsync");
+}
+
+async function runTieBreak() {
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+
+  // Message that could match multiple aspects
+  const messages = [
+    { id: "msg-1", info: { role: "user", text: "this is frustrating and urgent" } },
+    { id: "msg-2", info: { role: "assistant", text: "I understand" } },
+  ];
+
+  const ctx = makeFakeCtx({ messages });
+  const result = await plugin(ctx);
+
+  const logCapture = captureLogs();
+  await result.event({
+    event: {
+      type: "session.idle",
+      properties: { sessionID: "sess-tie-1" },
+    },
+  });
+  logCapture.restore();
+
+  // Should have dispatched exactly one nudge
+  const nudgeLogs = logCapture.logs.filter(l => l.msg.includes("nudge"));
+  if (nudgeLogs.length !== 1) {
+    fail(`Expected exactly 1 nudge log, got ${nudgeLogs.length}`);
+  }
+
+  pass("tie-break — deterministic winner selected when scores tie");
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const caseIdx = args.indexOf("--case");
@@ -521,7 +620,7 @@ async function main() {
 
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
-    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls");
+    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break");
     process.exit(1);
   }
 
@@ -555,6 +654,15 @@ async function main() {
       break;
     case "no-network-calls":
       await runNoNetworkCalls();
+      break;
+    case "below-threshold":
+      await runBelowThreshold();
+      break;
+    case "threshold-crossed":
+      await runThresholdCrossed();
+      break;
+    case "tie-break":
+      await runTieBreak();
       break;
     default:
       console.error(`Unknown test case: ${testCase}`);

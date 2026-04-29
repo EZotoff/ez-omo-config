@@ -16,8 +16,8 @@ import {
   getLastHandledAssistantMessageId,
 } from "./aspect-dynamics/session-state.mjs";
 import { extractContext, prefilterContext, getEventSessionID } from "./aspect-dynamics/context.mjs";
-import { scoreAspect, shouldNudge, rankAspects } from "./aspect-dynamics/heuristics.mjs";
-import { buildNudge, formatNudgeForDispatch } from "./aspect-dynamics/nudge.mjs";
+import { scoreAspects, shouldNudge, rankAspects } from "./aspect-dynamics/heuristics.mjs";
+import { buildNudge } from "./aspect-dynamics/nudge.mjs";
 import { logInfo, logWarn, logEvent } from "./aspect-dynamics/logging.mjs";
 
 export default async function aspectDynamicsPlugin(ctx) {
@@ -95,22 +95,32 @@ export default async function aspectDynamicsPlugin(ctx) {
               return;
             }
 
+            const scoring = scoreAspects(context, sets);
+            const ranked = rankAspects(scoring.allScores);
+
+            if (scoring.topScore >= 0) {
+              const topSet = sets.find(s =>
+                Array.from(scoring.allScores.values()).some(e =>
+                  e.setId === s.id && e.aspectId === scoring.topAspectId?.split(":")[1]
+                )
+              );
+              const threshold = topSet?.defaultThreshold ?? 0.75;
+
+              if (shouldNudge(scoring.topScore, threshold)) {
+                const topEntry = scoring.allScores.get(scoring.topAspectId);
+                const nudge = buildNudge(ranked, topEntry);
+                if (nudge && ctx?.client?.session?.promptAsync) {
+                  await ctx.client.session.promptAsync({
+                    path: { id: sessionID },
+                    body: nudge,
+                  });
+                  logEvent("nudge", sessionID, `aspect=${topEntry.aspectId}, score=${scoring.topScore.toFixed(2)}`);
+                }
+              }
+            }
+
             const state = getSessionState(sessionID);
-
-            for (const set of sets) {
-              for (const aspect of set.aspects) {
-                const score = scoreAspect(aspect, context);
-                state.scores.set(aspect, score);
-              }
-            }
-
-            const ranked = rankAspects(state.scores);
-            if (shouldNudge(Array.from(state.scores.values()), config.nudgeThreshold)) {
-              const nudge = buildNudge(ranked);
-              if (nudge) {
-                logEvent("nudge", sessionID, `aspects=${ranked.slice(0, 3).join(",")}`);
-              }
-            }
+            state.scores = new Map(scoring.allScores);
 
             updateSessionState(sessionID, { aspects: ranked });
 
