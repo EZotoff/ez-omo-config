@@ -81,6 +81,22 @@ All scripts are installed to `$HOME/.sisyphus/scripts/` and depend on `wisdom-co
 - `WISDOM_SCRIPTS`: `~/.sisyphus/scripts`
 - Valid types: `gotcha`, `pattern`, `fact`, `decision`, `warning`
 - Valid scopes: `system`, `project`, `plan`
+- Valid authorities: `candidate`, `verified`, `published`
+- Valid statuses: `active`, `stale`, `superseded`, `retracted`
+- Valid provenances: `closeout`, `nomination`, `manual`, `manifest-import`, `migration`, `publish-export`, `compat-shim`
+
+**Canonical Helpers**:
+
+| Function | Purpose |
+|----------|---------|
+| `wisdom_normalize_authority()` | Maps legacy authority values into canonical runtime values |
+| `wisdom_normalize_status()` | Normalizes missing or legacy status values, including overdue stale detection |
+| `wisdom_build_metadata()` | Builds the fixed metadata object with all required keys |
+| `wisdom_rank_entry()` | Produces the canonical runtime ranking tuple |
+| `wisdom_compare_entries()` | Compares two entries using the canonical ranking algorithm |
+| `wisdom_check_contradiction()` | Returns `UNKNOWN` for equal-rank contradictory entries on the same topic |
+| `wisdom_normalize_record()` | Converts legacy records into the canonical schema |
+| `wisdom_validate_canonical()` | Validates canonical authority/status/provenance/metadata rules |
 
 ### wisdom-search.sh
 
@@ -99,6 +115,9 @@ wisdom-search.sh QUERY [OPTIONS]
 - `--json`: Output as JSON array
 - `--min-score N`: Filter by quality_score >= N
 - `--project-id ID`: Limit to specific project
+- `--authority LEVEL`: Filter by authority level
+
+**Current Authority Values**: `candidate`, `verified`, `published`
 
 **Example**:
 ```bash
@@ -128,6 +147,11 @@ wisdom-write.sh [OPTIONS]
 - `--source`: Source identifier
 - `--project-id`: Required for project/plan scope
 - `--score`: Quality score integer (default: 0)
+- `--authority`: `candidate|verified|published` (default canonical authority is `candidate`)
+- `--provenance`: `closeout|nomination|manual|manifest-import|migration|publish-export|compat-shim`
+- `--origin-session`: Optional source session ID
+- `--verified-at`: Required when authority is `verified` or `published`
+- `--review-due`: Optional review timestamp; overdue entries should use `status=stale`
 
 **Example**:
 ```bash
@@ -248,6 +272,10 @@ wisdom-edit.sh ID --scope SCOPE [--project-id PROJECT] [edit-flags] [--dry-run]
 - `--set-tags "tag1,tag2"`: Replace all tags
 - `--add-tags "tag3,tag4"`: Append tags
 - `--set-score N`: Set quality_score
+- `--set-authority LEVEL`: Set canonical authority (`candidate|verified|published`)
+- `--set-superseded-by ID`: Mark replacement entry when status is `superseded`
+- `--set-verified-at ISO`: Set canonical verification timestamp
+- `--set-review-due ISO`: Set review due timestamp
 
 **Example**:
 ```bash

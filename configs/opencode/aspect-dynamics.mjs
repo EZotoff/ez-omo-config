@@ -15,7 +15,7 @@ import {
   setLastHandledAssistantMessageId,
   getLastHandledAssistantMessageId,
 } from "./aspect-dynamics/session-state.mjs";
-import { extractContext, getEventSessionID } from "./aspect-dynamics/context.mjs";
+import { extractContext, prefilterContext, getEventSessionID } from "./aspect-dynamics/context.mjs";
 import { scoreAspect, shouldNudge, rankAspects } from "./aspect-dynamics/heuristics.mjs";
 import { buildNudge, formatNudgeForDispatch } from "./aspect-dynamics/nudge.mjs";
 import { logInfo, logWarn, logEvent } from "./aspect-dynamics/logging.mjs";
@@ -53,33 +53,29 @@ export default async function aspectDynamicsPlugin(ctx) {
           logEvent("session.idle", sessionID);
 
           if (!canProcess(sessionID)) {
-            const state = getSessionState(sessionID);
-            if (state.circuitBroken) {
-              logWarn(`Session ${sessionID} skipped — circuit breaker open`);
-            } else if (state.inFlight) {
-              logWarn(`Session ${sessionID} skipped — action already in flight`);
-            }
+            logWarn(`Session ${sessionID} skipped — inFlight or circuitBroken`);
             return;
           }
 
           markInFlight(sessionID, true);
 
           try {
-            const context = await extractContext(ctx, sessionID);
+            const context = await extractContext(ctx, sessionID, config);
             if (!context) {
               logWarn(`No context for session ${sessionID}`);
               recordFailure(sessionID);
               return;
             }
 
-            // Deduplication: find latest assistant message ID
-            const messages = context.messages ?? [];
-            const assistantMessages = messages.filter(
-              (m) => m?.info?.role === "assistant"
-            );
-            const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
-            const latestAssistantId = latestAssistantMessage?.id ?? null;
+            // Prefilter: skip scoring if no heuristic phrases match
+            if (!prefilterContext(context, sets, config)) {
+              logEvent("session.idle", sessionID, "prefilter=skip");
+              recordSuccess(sessionID);
+              return;
+            }
 
+            // Deduplication: skip if already handled this assistant message
+            const latestAssistantId = context.latestAssistantMessageId;
             const lastHandled = getLastHandledAssistantMessageId(sessionID);
             if (latestAssistantId && latestAssistantId === lastHandled) {
               logWarn(`Session ${sessionID} skipped — already handled assistant message ${latestAssistantId}`);
