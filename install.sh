@@ -52,6 +52,7 @@ ITEMS=(
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"
     "scripts|scripts/wisdom/wisdom-search.sh|$HOME/.sisyphus/scripts/wisdom-search.sh"
     "scripts|scripts/wisdom/wisdom-write.sh|$HOME/.sisyphus/scripts/wisdom-write.sh"
+    "scripts|scripts/wisdom/wisdom-closeout.sh|$HOME/.sisyphus/scripts/wisdom-closeout.sh"
     "scripts|scripts/wisdom/wisdom-nominate.sh|$HOME/.sisyphus/scripts/wisdom-nominate.sh"
     "scripts|scripts/wisdom/wisdom-sync.sh|$HOME/.sisyphus/scripts/wisdom-sync.sh"
     "scripts|scripts/wisdom/wisdom-archive.sh|$HOME/.sisyphus/scripts/wisdom-archive.sh"
