@@ -138,10 +138,10 @@ test_status_aware_ranking() {
 
 test_contradiction_unknown() {
     local id1 id2 result
-    id1=$(echo "Contradiction test entry A says always use approach X for this problem" | \
+    id1=$(echo "Always use approach X for handling contradictions in wisdom entries" | \
         "${SCRIPT_DIR}/wisdom-write.sh" --scope system --type decision --tags "${TEST_TAG},contradict-test" --score 5 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
     [[ -z "$id1" ]] && { echo "Failed to create entry A"; return 1; }
-    id2=$(echo "Contradiction test entry B says never use approach X for this problem" | \
+    id2=$(echo "Never use approach X for handling contradictions in wisdom entries" | \
         "${SCRIPT_DIR}/wisdom-write.sh" --scope system --type decision --tags "${TEST_TAG},contradict-test" --score 5 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
     [[ -z "$id2" ]] && { echo "Failed to create entry B"; return 1; }
     "${SCRIPT_DIR}/wisdom-edit.sh" --id "$id1" --scope system --set-contradicts "$id2" >/dev/null 2>&1
