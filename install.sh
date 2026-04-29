@@ -30,6 +30,8 @@ ITEMS=(
     "configs|configs/opencode/opencode.json|$HOME/.config/opencode/opencode.json"
     "configs|configs/opencode/opencode.jsonc|$HOME/.opencode/opencode.jsonc"
     "configs|configs/opencode/provider-connect-retry.mjs|$HOME/.config/opencode/provider-connect-retry.mjs"
+    "configs|configs/opencode/aspect-dynamics.mjs|$HOME/.config/opencode/aspect-dynamics.mjs"
+    "configs|configs/opencode/aspect-dynamics|$HOME/.config/opencode/aspect-dynamics"
     "configs|configs/retry-errors.json|$HOME/.config/opencode/retry-errors.json"
     "configs|configs/oh-my-openagent/oh-my-openagent.json|$HOME/.config/opencode/oh-my-openagent.json"
     "configs|extras/ocx.jsonc|$HOME/.opencode/ocx.jsonc"
