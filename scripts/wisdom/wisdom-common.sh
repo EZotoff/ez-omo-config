@@ -421,9 +421,13 @@ wisdom_normalize_status() {
 #     Outputs: compact metadata JSON object to stdout
 # --------------------------------------------------------------------------
 wisdom_build_metadata() {
-    local record_json="${1:-{}}"
+    local record_json="${1:-}"
     local legacy_authority="${2:-}"
     local legacy_authority_json="null"
+
+    if [[ -z "$record_json" ]]; then
+        record_json='{}'
+    fi
 
     if [[ -n "$legacy_authority" && "$legacy_authority" != "null" ]]; then
         legacy_authority_json=$(wisdom_escape_json "$legacy_authority")

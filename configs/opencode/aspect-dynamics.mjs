@@ -53,7 +53,12 @@ export default async function aspectDynamicsPlugin(ctx) {
           logEvent("session.idle", sessionID);
 
           if (!canProcess(sessionID)) {
-            logWarn(`Session ${sessionID} skipped — inFlight or circuitBroken`);
+            const state = getSessionState(sessionID);
+            if (state.circuitBroken) {
+              logWarn(`Session ${sessionID} skipped — circuit breaker open`);
+            } else if (state.inFlight) {
+              logWarn(`Session ${sessionID} skipped — action already in flight`);
+            }
             return;
           }
 

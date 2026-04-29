@@ -270,6 +270,94 @@ async function runCircuitBreaker() {
   pass("circuit-breaker — circuit opens after 3 failures and skips subsequent events");
 }
 
+async function runContextWindowRespected() {
+  const { extractContext } = await import(CONTEXT_PATH);
+
+  // Build 15 user/assistant messages
+  const messages = [];
+  for (let i = 0; i < 15; i++) {
+    messages.push({
+      id: `msg-${i}`,
+      info: { role: i % 2 === 0 ? "user" : "assistant", text: `message ${i}` },
+    });
+  }
+
+  const ctx = makeFakeCtx({ messages });
+  const context = await extractContext(ctx, "sess-cw-1", { contextWindowTurns: 10 });
+
+  if (!context) fail("extractContext returned null");
+  if (context.messages.length !== 10) {
+    fail(`Expected 10 messages in context, got ${context.messages.length}`);
+  }
+  if (context.messages[0].text !== "message 5") {
+    fail(`Expected first message text 'message 5', got '${context.messages[0].text}'`);
+  }
+  if (context.messages[9].text !== "message 14") {
+    fail(`Expected last message text 'message 14', got '${context.messages[9].text}'`);
+  }
+  if (context.latestAssistantMessageId !== "msg-13") {
+    fail(`Expected latestAssistantMessageId 'msg-13', got '${context.latestAssistantMessageId}'`);
+  }
+
+  pass("context-window-respected — only last 10 user/assistant messages included");
+}
+
+async function runPrefilterSkip() {
+  const { prefilterContext } = await import(CONTEXT_PATH);
+
+  const context = {
+    messages: [
+      { id: "msg-1", role: "user", text: "hello there" },
+      { id: "msg-2", role: "assistant", text: "hi back" },
+    ],
+    latestAssistantMessageId: "msg-2",
+  };
+
+  const activeSets = [
+    {
+      id: "test",
+      aspects: [
+        { name: "frustration", heuristicPhrases: ["this is frustrating", "so annoyed"] },
+      ],
+    },
+  ];
+
+  const result = prefilterContext(context, activeSets, { heuristicPreFilter: true });
+  if (result !== false) {
+    fail(`Expected prefilter to return false (skip), got ${result}`);
+  }
+
+  pass("prefilter-skip — no matching phrases, prefilter returns false (zero scorer executions)");
+}
+
+async function runPrefilterHit() {
+  const { prefilterContext } = await import(CONTEXT_PATH);
+
+  const context = {
+    messages: [
+      { id: "msg-1", role: "user", text: "this is frustrating" },
+      { id: "msg-2", role: "assistant", text: "I understand" },
+    ],
+    latestAssistantMessageId: "msg-2",
+  };
+
+  const activeSets = [
+    {
+      id: "test",
+      aspects: [
+        { name: "frustration", heuristicPhrases: ["this is frustrating", "so annoyed"] },
+      ],
+    },
+  ];
+
+  const result = prefilterContext(context, activeSets, { heuristicPreFilter: true });
+  if (result !== true) {
+    fail(`Expected prefilter to return true (proceed), got ${result}`);
+  }
+
+  pass("prefilter-hit — matching phrase found, prefilter returns true (scoring proceeds)");
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const caseIdx = args.indexOf("--case");
@@ -277,7 +365,7 @@ async function main() {
 
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
-    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker");
+    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit");
     process.exit(1);
   }
 
@@ -296,6 +384,15 @@ async function main() {
       break;
     case "circuit-breaker":
       await runCircuitBreaker();
+      break;
+    case "context-window-respected":
+      await runContextWindowRespected();
+      break;
+    case "prefilter-skip":
+      await runPrefilterSkip();
+      break;
+    case "prefilter-hit":
+      await runPrefilterHit();
       break;
     default:
       console.error(`Unknown test case: ${testCase}`);
