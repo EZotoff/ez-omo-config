@@ -40,7 +40,7 @@
           "limit": {
             "context": 128000,
             "input": 80000,
-            "output": 32000
+            "output": 128000
           },
           "variants": {
             "high": {
@@ -56,7 +56,7 @@
           "limit": {
             "context": 128000,
             "input": 80000,
-            "output": 32000
+            "output": 64000
           },
           "variants": {
             "high": {
@@ -72,7 +72,7 @@
           "limit": {
             "context": 128000,
             "input": 80000,
-            "output": 32000
+            "output": 64000
           }
         },
         "grok-code-fast-1": {
@@ -80,7 +80,7 @@
           "limit": {
             "context": 128000,
             "input": 80000,
-            "output": 32000
+            "output": 64000
           }
         },
         "gpt-5.4": {
@@ -88,7 +88,7 @@
           "limit": {
             "context": 400000,
             "input": 400000,
-            "output": 32000
+            "output": 128000
           },
           "modalities": {
             "input": [
@@ -121,9 +121,9 @@
         "gpt-5.3-codex": {
           "name": "GPT 5.3 Codex",
           "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 32000
+            "context": 400000,
+            "input": 400000,
+            "output": 128000
           },
           "variants": {
             "low": {
