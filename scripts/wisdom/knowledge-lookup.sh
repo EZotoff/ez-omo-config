@@ -9,7 +9,7 @@ set -euo pipefail
 # wisdom-search.sh directly.
 
 SCRIPT_DIR="$(dirname "$0")"
-source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || source "${HOME}/.sisyphus/scripts/knowledge-constants.sh" || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
+source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
 source "${SCRIPT_DIR}/wisdom-common.sh" || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
 
 # --------------------------------------------------------------------------
