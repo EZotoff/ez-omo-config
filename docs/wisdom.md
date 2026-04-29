@@ -115,9 +115,17 @@ wisdom-search.sh QUERY [OPTIONS]
 - `--json`: Output as JSON array
 - `--min-score N`: Filter by quality_score >= N
 - `--project-id ID`: Limit to specific project
-- `--authority LEVEL`: Filter by authority level
+- `--authority LEVEL`: Filter by canonical authority level (`candidate|verified|published`)
+- `--include-status LIST`: Extend default visibility with comma-separated statuses such as `superseded,retracted`
+- `--provenance VALUE`: Filter by canonical provenance value
+- `--origin-session ID`: Filter by canonical origin session ID
+- `--touch`: Explicitly update `accessed` and `last_accessed` telemetry for returned entries
 
-**Current Authority Values**: `candidate`, `verified`, `published`
+**Default retrieval**: searches only `active` and `stale` entries. `superseded` and `retracted` stay hidden unless explicitly included with `--include-status`.
+
+**Canonical ranking**: results are ordered by query relevance, then status (`active > stale`), authority (`published > verified > candidate`), review freshness, `verified_at`, `created`, and `id`.
+
+**Conflict handling**: if the top two non-superseded matches are equally ranked, share the same normalized topic key, have the same status/authority, carry different bodies, and mutually reference each other in `contradicts`, search returns `UNKNOWN` instead of guessing.
 
 **Example**:
 ```bash
@@ -126,9 +134,12 @@ wisdom-search.sh docker --type pattern --limit 5
 
 # Search with JSON output
 wisdom-search.sh "build error" --scope project --project-id myapp --json
+
+# Include superseded entries explicitly
+wisdom-search.sh docker --include-status superseded --json
 ```
 
-**Access Tracking**: Each search automatically updates `accessed` count and `last_accessed` timestamp for matched entries.
+**Access Tracking**: Search is read-only by default. Pass `--touch` to explicitly update `accessed` and `last_accessed` for matched entries.
 
 ### wisdom-write.sh
 
@@ -273,6 +284,9 @@ wisdom-edit.sh ID --scope SCOPE [--project-id PROJECT] [edit-flags] [--dry-run]
 - `--add-tags "tag3,tag4"`: Append tags
 - `--set-score N`: Set quality_score
 - `--set-authority LEVEL`: Set canonical authority (`candidate|verified|published`)
+- `--set-status STATUS`: Set canonical status (`active|stale|superseded|retracted`)
+- `--set-provenance VALUE`: Set canonical provenance (`closeout|nomination|manual|manifest-import|migration|publish-export|compat-shim`)
+- `--set-origin-session ID`: Set the source session ID string
 - `--set-superseded-by ID`: Mark replacement entry when status is `superseded`
 - `--set-verified-at ISO`: Set canonical verification timestamp
 - `--set-review-due ISO`: Set review due timestamp

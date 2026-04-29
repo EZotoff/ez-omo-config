@@ -29,6 +29,10 @@ You have access to a shared knowledge store called **Wisdom** — institutional 
 - `--type`: `gotcha`, `pattern`, `fact`, `decision`, `warning`
 - `--limit`: Default 10
 - `--json`: Machine-readable output
+- Default search returns only `active` and `stale` entries.
+- Use `--include-status superseded,retracted` to expose hidden lifecycle states when needed.
+- Use `--authority candidate|verified|published` to filter canonical trust levels.
+- Use `--touch` only when you intentionally want to update access telemetry.
 
 > **Deprecation**: For operational knowledge queries (deployment paths, config values, infrastructure facts), prefer `~/.sisyphus/scripts/knowledge-lookup.sh` which searches authoritative manifests first, then wisdom candidates.
 

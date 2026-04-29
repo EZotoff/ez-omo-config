@@ -412,25 +412,13 @@ while IFS= read -r entry_json; do
     RANKED_RESULTS+="${ranked_entry}"$'\n'
 done <<< "$ALL_RESULTS"
 
-SORTED_LIMITED=$(printf '%s\n' "$RANKED_RESULTS" | jq -s 'sort_by(._rank.sort_key) | .[0:'"$LIMIT"']')
-
-# Get count of results
-RESULT_COUNT=$(printf '%s' "$SORTED_LIMITED" | jq 'length')
-
-if [[ "$RESULT_COUNT" -eq 0 ]]; then
-    if [[ "$JSON_OUTPUT" == true ]]; then
-        echo "[]"
-    else
-        wisdom_log INFO "No matching entries found."
-    fi
-    exit 1
-fi
+SORTED_RESULTS=$(printf '%s\n' "$RANKED_RESULTS" | jq -s 'sort_by(._rank.sort_key)')
 
 # --------------------------------------------------------------------------
 # UNKNOWN handling: top two non-superseded, equal-rank contradictory entries
 # should not produce an arbitrary winner.
 # --------------------------------------------------------------------------
-TOP_TWO_NON_SUPERSEDED=$(printf '%s' "$SORTED_LIMITED" | jq -c '[.[] | select(.status != "superseded")][0:2]')
+TOP_TWO_NON_SUPERSEDED=$(printf '%s' "$SORTED_RESULTS" | jq -c '[.[] | select(.status != "superseded")][0:2]')
 TOP_TWO_COUNT=$(printf '%s' "$TOP_TWO_NON_SUPERSEDED" | jq 'length')
 
 if [[ "$TOP_TWO_COUNT" -eq 2 ]]; then
@@ -454,6 +442,20 @@ if [[ "$TOP_TWO_COUNT" -eq 2 ]]; then
             exit 0
         fi
     fi
+fi
+
+SORTED_LIMITED=$(printf '%s' "$SORTED_RESULTS" | jq '.[0:'"$LIMIT"']')
+
+# Get count of results
+RESULT_COUNT=$(printf '%s' "$SORTED_LIMITED" | jq 'length')
+
+if [[ "$RESULT_COUNT" -eq 0 ]]; then
+    if [[ "$JSON_OUTPUT" == true ]]; then
+        echo "[]"
+    else
+        wisdom_log INFO "No matching entries found."
+    fi
+    exit 1
 fi
 
 # --------------------------------------------------------------------------
