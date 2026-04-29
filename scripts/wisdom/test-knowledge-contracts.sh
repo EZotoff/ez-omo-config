@@ -7,7 +7,6 @@ source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Fail
 EVIDENCE_DIR="$HOME/.sisyphus/evidence"
 mkdir -p "$EVIDENCE_DIR"
 EVIDENCE_FILE="$EVIDENCE_DIR/task-12-contract-tests.txt"
-
 TEST_TAG="test-contract-v2"
 
 {
@@ -17,9 +16,7 @@ TEST_TAG="test-contract-v2"
 } > "$EVIDENCE_FILE"
 
 log_result() {
-    local ac="$1"
-    local status="$2"
-    local description="$3"
+    local ac="$1" status="$2" description="$3"
     echo "AC$ac: $status - $description" >> "$EVIDENCE_FILE"
     echo "AC$ac: $status - $description"
 }
@@ -36,7 +33,6 @@ cleanup_test_data() {
 
 cleanup_test_data
 
-# AC1: knowledge-lookup.sh shim delegates to Wisdom (no manifest reads)
 echo "Testing AC1: knowledge-lookup.sh delegates to Wisdom..."
 echo "=== AC1 Test ===" >> "$EVIDENCE_FILE"
 
@@ -48,7 +44,6 @@ echo "$WISDOM_OUTPUT" >> "$EVIDENCE_FILE"
 if [[ $WISDOM_CREATED -eq 0 ]]; then
     LOOKUP_OUTPUT=$("$SCRIPT_DIR/knowledge-lookup.sh" "AC1 test wisdom entry" 2>&1)
     echo "$LOOKUP_OUTPUT" >> "$EVIDENCE_FILE"
-
     if echo "$LOOKUP_OUTPUT" | grep -q "DEPRECATION" && echo "$LOOKUP_OUTPUT" | grep -q "AC1 test wisdom entry"; then
         log_result "1" "PASS" "knowledge-lookup.sh emits deprecation and returns wisdom results"
     else
@@ -60,13 +55,11 @@ fi
 
 echo "" >> "$EVIDENCE_FILE"
 
-# AC2: knowledge-snapshot.sh shim works without manifests
 echo "Testing AC2: knowledge-snapshot.sh works without manifests..."
 echo "=== AC2 Test ===" >> "$EVIDENCE_FILE"
 
 SNAPSHOT_OUTPUT=$("$SCRIPT_DIR/knowledge-snapshot.sh" 2>&1)
 echo "Snapshot output (first 200 chars): ${SNAPSHOT_OUTPUT:0:200}..." >> "$EVIDENCE_FILE"
-
 CHARS=$(echo -n "$SNAPSHOT_OUTPUT" | wc -c)
 echo "Character count: $CHARS" >> "$EVIDENCE_FILE"
 
@@ -78,7 +71,6 @@ fi
 
 echo "" >> "$EVIDENCE_FILE"
 
-# AC3: knowledge-promote.sh shim delegates to wisdom-publish.sh
 echo "Testing AC3: knowledge-promote.sh delegates to wisdom-publish.sh..."
 echo "=== AC3 Test ===" >> "$EVIDENCE_FILE"
 
@@ -89,7 +81,6 @@ PROMOTE_WISDOM_ID=$("$SCRIPT_DIR/wisdom-write.sh" --scope system --type pattern 
 if [[ -n "$PROMOTE_WISDOM_ID" ]]; then
     PROMOTE_OUTPUT=$("$SCRIPT_DIR/knowledge-promote.sh" --wisdom-id "$PROMOTE_WISDOM_ID" --type deployment --reason "test promotion" 2>&1)
     echo "$PROMOTE_OUTPUT" >> "$EVIDENCE_FILE"
-
     if echo "$PROMOTE_OUTPUT" | grep -qi "WARNING.*deprecated\|deprecated.*wisdom-publish" && \
        echo "$PROMOTE_OUTPUT" | grep -q "Publish Complete"; then
         log_result "3" "PASS" "knowledge-promote.sh emits deprecation warning and delegates to wisdom-publish.sh"
@@ -102,7 +93,6 @@ fi
 
 echo "" >> "$EVIDENCE_FILE"
 
-# AC4: UNKNOWN behavior preserved
 echo "Testing AC4: Unknown topic returns UNKNOWN..."
 echo "=== AC4 Test ===" >> "$EVIDENCE_FILE"
 
@@ -117,7 +107,6 @@ fi
 
 echo "" >> "$EVIDENCE_FILE"
 
-# AC5: Deprecation warnings emitted for all shims
 echo "Testing AC5: All shims emit deprecation warnings..."
 echo "=== AC5 Test ===" >> "$EVIDENCE_FILE"
 
