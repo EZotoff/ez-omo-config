@@ -82,7 +82,7 @@ test_metadata_roundtrip() {
         "${SCRIPT_DIR}/wisdom-write.sh" \
             --scope system --type fact --tags "${TEST_TAG},metadata-test" --score 5 \
             --authority verified --provenance manual --origin-session "test-session-123" \
-            --verified-at "2025-01-15T10:30:00Z" --review-due "2025-07-15T10:30:00Z" 2>&1)
+            --verified-at "2025-01-15T10:30:00Z" --review-due "2027-07-15T10:30:00Z" 2>&1)
     entry_id=$(echo "$output" | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
     [[ -z "$entry_id" ]] && { echo "Failed to extract entry ID"; return 1; }
     entry_json=$(jq -c --arg id "$entry_id" 'select(.id == $id)' "${WISDOM_SYSTEM_DIR}" 2>/dev/null)
@@ -92,7 +92,7 @@ test_metadata_roundtrip() {
     [[ $(echo "$entry_json" | jq -r '.provenance')  == "manual" ]]          || { echo "provenance mismatch"; return 1; }
     [[ $(echo "$entry_json" | jq -r '.origin_session') == "test-session-123" ]] || { echo "origin_session mismatch"; return 1; }
     [[ $(echo "$entry_json" | jq -r '.verified_at') == "2025-01-15T10:30:00Z" ]] || { echo "verified_at mismatch"; return 1; }
-    [[ $(echo "$entry_json" | jq -r '.review_due')  == "2025-07-15T10:30:00Z" ]] || { echo "review_due mismatch"; return 1; }
+    [[ $(echo "$entry_json" | jq -r '.review_due')  == "2027-07-15T10:30:00Z" ]] || { echo "review_due mismatch"; return 1; }
     return 0
 }
 
