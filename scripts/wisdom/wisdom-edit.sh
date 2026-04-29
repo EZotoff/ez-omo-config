@@ -34,6 +34,7 @@ Edit flags (at least one required):
   --set-provenance VALUE    Set provenance: closeout|nomination|manual|manifest-import|migration|publish-export|compat-shim
   --set-origin-session ID   Set origin session ID string
   --set-superseded-by ID    Mark entry as superseded by another entry ID
+  --set-contradicts ID      Add a Wisdom ID to the contradicts array
   --set-verified-at ISO     Set verification timestamp (ISO-8601)
   --set-review-due ISO      Set review due timestamp (ISO-8601)
 
@@ -143,6 +144,7 @@ main() {
     local set_provenance=""
     local set_origin_session=""
     local set_superseded_by=""
+    local set_contradicts=""
     local set_verified_at=""
     local set_review_due=""
     
@@ -204,6 +206,10 @@ main() {
                 set_superseded_by="$2"
                 shift 2
                 ;;
+            --set-contradicts)
+                set_contradicts="$2"
+                shift 2
+                ;;
             --set-verified-at)
                 set_verified_at="$2"
                 shift 2
@@ -245,7 +251,7 @@ main() {
     # Validate at least one edit flag is provided
     if [[ -z "$set_body" && -z "$set_type" && -z "$set_tags" && -z "$add_tags" && -z "$set_score" && \
           -z "$set_authority" && -z "$set_status" && -z "$set_provenance" && -z "$set_origin_session" && \
-          -z "$set_superseded_by" && -z "$set_verified_at" && -z "$set_review_due" ]]; then
+          -z "$set_superseded_by" && -z "$set_contradicts" && -z "$set_verified_at" && -z "$set_review_due" ]]; then
         echo "Error: at least one edit flag must be provided" >&2
         usage >&2
         return 2
@@ -352,6 +358,11 @@ main() {
     # Apply --set-superseded-by
     if [[ -n "$set_superseded_by" ]]; then
         updated_json=$(echo "$updated_json" | jq --arg superseded_by "$set_superseded_by" '.superseded_by = $superseded_by')
+    fi
+
+    # Apply --set-contradicts
+    if [[ -n "$set_contradicts" ]]; then
+        updated_json=$(echo "$updated_json" | jq --arg contradicts_id "$set_contradicts" '.contradicts = ((.contradicts // []) + [$contradicts_id] | unique)')
     fi
     
     # Apply --set-verified-at
