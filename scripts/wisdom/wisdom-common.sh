@@ -407,6 +407,12 @@ wisdom_normalize_status() {
 #                          metadata.legacy_authority=superseded
 #     missing status       status=active unless review_due is past, then stale
 #     missing origin       origin_session=null
+#
+#     Current component                         Target role
+#     --------------------------------------    --------------------------------------
+#     ~/.sisyphus/data/wisdom/*.jsonl           Canonical runtime memory store
+#     ~/.sisyphus/scripts/wisdom-*.sh           Canonical runtime CRUD/search surface
+#     knowledge-lookup.sh / knowledge-snapshot  Wisdom-backed compatibility shims
 # --------------------------------------------------------------------------
 
 # --------------------------------------------------------------------------
@@ -663,7 +669,7 @@ wisdom_normalize_record() {
             origin_session: (($record.origin_session // null) | if . == "" then null else . end),
             verified_at: (
                 if ($authority == "verified" or $authority == "published") then
-                    (($record.verified_at // $metadata.last_verified // null) | if . == "" then null else . end)
+                    (($record.verified_at // $metadata.last_verified // $record.created // null) | if . == "" then null else . end)
                 else null end
             ),
             review_due: (($record.review_due // null) | if . == "" then null else . end),
