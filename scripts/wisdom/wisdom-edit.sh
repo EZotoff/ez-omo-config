@@ -365,6 +365,7 @@ main() {
     fi
 
     updated_json=$(printf '%s' "$updated_json" | jq -c '.')
+    updated_json=$(wisdom_normalize_record "$updated_json") || return 2
 
     if ! wisdom_validate_jsonl_line "$updated_json"; then
         return 2
