@@ -58,6 +58,39 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 ---
 
+## dcp.jsonc
+
+**Purpose**: DCP (Dynamic Context Pruning) plugin configuration. Controls how the DCP plugin compresses conversation ranges and manages archived summaries.
+
+**What it Configures**:
+
+- Range compression mode and retention policy
+- Token budget caps for archived summaries
+- Whether old raw turns stay fully hidden or remain reversible
+
+**Key Fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `compress.mode` | string | Always `"range"`. Enables range-based compression where contiguous blocks of old conversation turns are summarized. |
+| `compress.retentionMode` | string | `"reversible"` or `"bounded"`. Controls what happens to archived raw turns after compression. |
+| `compress.maxArchivedSummaryTokens` | integer | Maximum tokens allowed for all archived summaries combined. Only enforced when `retentionMode` is `"bounded"`. |
+
+**Retention Modes**:
+
+- **`reversible`** (default upstream behavior): Old raw turns are hidden from the default prompt path but kept in session storage. They can be restored later via `decompress` or `recompress` commands.
+- **`bounded`** (local patched behavior): Old raw turns are archived out of the default prompt path and a hard token cap is enforced on the total size of all archived summaries. When the cap is exceeded, the oldest archive blocks are dropped to stay within budget. The `decompress` and `recompress` commands reject bounded archive blocks, so archived content cannot be restored. This keeps long-running sessions from growing without limit.
+
+**Local Patch Note**:
+
+The bounded retention mode is **not upstream standard behavior**. It is backed by a local patch to the installed `@tarquinen/opencode-dcp` package. The patch registry entry lives at `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`. If you update the DCP package, you may need to reapply or verify the patch.
+
+**Install Target**: `$HOME/.config/opencode/dcp.jsonc`
+
+**Status**: Optional
+
+---
+
 ## provider-connect-retry.mjs
 
 **Purpose**: First-party JavaScript plugin loaded by `opencode.json` that handles provider connection retries and empty-response recovery.
@@ -251,6 +284,7 @@ These fields are logged at startup for visibility but are otherwise inert.
 |------|------------------|----------------|--------|
 | `opencode.json` | Main config: 8 providers, 9 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
+| `dcp.jsonc` | DCP plugin configuration with bounded range archive retention (local patch) | `$HOME/.config/opencode/dcp.jsonc` | Optional |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
 | `retry-errors.json` | Retryable error pattern registry with backoff and fallback rules | `$HOME/.config/opencode/retry-errors.json` | Required |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |

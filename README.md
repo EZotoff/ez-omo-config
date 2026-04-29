@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **48 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **49 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -49,17 +49,18 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Review enforcement** — automated code review triggers after completing implementation work
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
+- **Bounded DCP retention** — local patch that caps archived summary tokens during DCP range compression, keeping long-running sessions within a fixed token budget
 
 ---
 
 ## What's Included
 
-This repository contains 51 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 52 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 3 files | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 15 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
+| 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
 | 6-11 | **Plugins** | 7 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, and session info clipboard |
 | 12-21 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
@@ -77,6 +78,7 @@ This repository contains 51 core artifacts + 1 external integration organized in
 | 1c | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
+| 3b | `dcp.jsonc` | `configs/opencode/` | DCP plugin configuration with bounded range archive retention (local patch) |
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection and registry-driven error matching |
 | 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models for the retry plugin |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
