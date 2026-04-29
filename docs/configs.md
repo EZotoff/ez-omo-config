@@ -79,7 +79,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 **Retention Modes**:
 
 - **`reversible`** (default upstream behavior): Old raw turns are hidden from the default prompt path but kept in session storage. They can be restored later via `decompress` or `recompress` commands.
-- **`bounded`** (local patched behavior): Old raw turns are archived out of the default prompt path and a hard token cap is enforced on the total size of all archived summaries. When the cap is exceeded, the oldest archive blocks are dropped to stay within budget. The `decompress` and `recompress` commands reject bounded archive blocks, so archived content cannot be restored. This keeps long-running sessions from growing without limit.
+- **`bounded`** (local patched behavior): Old raw turns are archived out of the default prompt path and a hard token cap is enforced on the total size of all archived summaries. The `maxArchivedSummaryTokens` budget is enforced per-summary via hard text truncation; if a summary exceeds the budget its text is clipped and a tail marker is appended. The `decompress` and `recompress` commands reject bounded archive blocks, so archived content cannot be restored. This keeps long-running sessions from growing without limit.
 
 **Local Patch Note**:
 

@@ -183,11 +183,17 @@ async function runDecompressArchivedRejected() {
 // ---------------------------------------------------------------------------
 async function main() {
   const args = process.argv.slice(2);
+
+  let testCase = null;
   const caseIdx = args.indexOf("--case");
-  const testCase = caseIdx >= 0 ? args[caseIdx + 1] : null;
+  if (caseIdx >= 0) {
+    testCase = args[caseIdx + 1];
+  } else if (args.length > 0 && !args[0].startsWith("-")) {
+    testCase = args[0];
+  }
 
   if (!testCase) {
-    console.error("Usage: npx tsx bounded-range.mjs --case <case-name>");
+    console.error("Usage: npx tsx bounded-range.mjs [--case] <case-name>");
     console.error(
       "Cases: monotonic-summary-bound, archived-raw-stays-out-of-prompt, persisted-frontier-state, decompress-archived-rejected"
     );
