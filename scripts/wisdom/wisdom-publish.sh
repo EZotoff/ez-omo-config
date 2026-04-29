@@ -204,16 +204,21 @@ if [[ "$EMIT_MANIFEST" == true ]]; then
       --owner "user" \
       --tags "$ENTRY_TAGS" \
       --validation-method "published from wisdom" \
-      --freshness-days 90 2>/dev/null) || { echo "ERROR: manifest-write.sh failed" >&2; exit 1; }
+      --freshness-days 90 2>/dev/null) || {
+        echo "WARNING: manifest-write.sh failed (file may already exist); continuing with wisdom record update only" >&2
+        MANIFEST_OUTPUT=""
+      }
 
-    MANIFEST_ID="$(printf '%s' "$MANIFEST_OUTPUT" | tail -n1 | tr -d '[:space:]')"
+    if [[ -n "$MANIFEST_OUTPUT" ]]; then
+      MANIFEST_ID="$(printf '%s' "$MANIFEST_OUTPUT" | tail -n1 | tr -d '[:space:]')"
 
-    MANIFEST_SLUG=$(echo "$ENTRY_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//;s/-$//')
-    MANIFEST_FILE="${KNOWLEDGE_MANIFESTS_DIR}/${MANIFEST_SCOPE}/${MANIFEST_SLUG}.md"
-    if [[ -f "$MANIFEST_FILE" ]]; then
-      sed -i "s/^provenance:.*/provenance: published-from-wisdom:${WISDOM_ID}/" "$MANIFEST_FILE"
+      MANIFEST_SLUG=$(echo "$ENTRY_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//;s/-$//')
+      MANIFEST_FILE="${KNOWLEDGE_MANIFESTS_DIR}/${MANIFEST_SCOPE}/${MANIFEST_SLUG}.md"
+      if [[ -f "$MANIFEST_FILE" ]]; then
+        sed -i "s/^provenance:.*/provenance: published-from-wisdom:${WISDOM_ID}/" "$MANIFEST_FILE"
+      fi
+      ARTIFACT_PATH="$MANIFEST_FILE"
     fi
-    ARTIFACT_PATH="$MANIFEST_FILE"
   fi
 else
   ARTIFACT_PATH="knowledge://wisdom/${WISDOM_ID}/published/${NOW}"

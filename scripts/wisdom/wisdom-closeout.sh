@@ -93,7 +93,7 @@ get_match_summary() {
         return 1
     fi
 
-    jq -rc --arg scope "$scope" --arg type "$type" --arg body "$body" '
+    jq -sc --arg scope "$scope" --arg type "$type" --arg body "$body" '
         def tokens($text):
             ($text // "")
             | ascii_downcase
@@ -108,7 +108,7 @@ get_match_summary() {
               end;
         ($body | tokens) as $incoming
         | [
-            .
+            .[]
             | select(.scope == $scope)
             | select(.type == $type)
             | select((.status // "active") != "superseded" and (.status // "active") != "retracted")
