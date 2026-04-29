@@ -106,7 +106,7 @@ get_match_summary() {
             | if ($u | length) == 0 then 0
               else ((($left | map(select($right | index(.)))) | length) / ($u | length))
               end;
-        ($body | tokens) as $incoming
+        (tokens($body)) as $incoming
         | [
             .[]
             | select(.scope == $scope)
@@ -115,7 +115,7 @@ get_match_summary() {
             | . as $candidate
             | {
                 id: $candidate.id,
-                score: jaccard($incoming; ($candidate.body | tokens)),
+                score: jaccard($incoming; tokens($candidate.body)),
                 created: ($candidate.created // "")
               }
           ]
