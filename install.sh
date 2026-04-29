@@ -44,6 +44,7 @@ ITEMS=(
     "plugins|plugins/session-info.ts|$HOME/.opencode/plugin/session-info.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
+    "skills|skills/knowledge|$HOME/.config/opencode/skills/knowledge"
     "skills|skills/atlas-review-handler|$HOME/.config/opencode/skills/atlas-review-handler"
     "skills|skills/review-protocol|$HOME/.config/opencode/skills/review-protocol"
     "skills|skills/playwright|$HOME/.config/opencode/skills/playwright"

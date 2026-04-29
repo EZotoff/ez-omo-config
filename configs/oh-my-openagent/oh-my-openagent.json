@@ -11,7 +11,7 @@
         "knowledge",
         "vera"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `knowledge` skill. It provides authority-first lookup via manifests and wisdom.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery: Use `vera search` for conceptual queries ('how does X work', 'where is Y logic'). Use `vera grep` for exact strings and regex. Use LSP tools for goto-definition and find-references. Follow the AGENTS.md tool selection decision tree."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. It provides authority-first lookup via the canonical Wisdom store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery: Use `vera search` for conceptual queries ('how does X work', 'where is Y logic'). Use `vera grep` for exact strings and regex. Use LSP tools for goto-definition and find-references. Follow the AGENTS.md tool selection decision tree."
     },
     "hephaestus": {
       "model": "github-copilot/gpt-5.3-codex",
@@ -27,7 +27,7 @@
         "wisdom",
         "knowledge"
       ],
-      "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `knowledge` skill to check documented knowledge first.\nPrefer verified manifests over candidate wisdom. Flag when design assumptions conflict with implementation reality."
+      "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality."
     },
     "librarian": {
       "model": "opencode-go/minimax-m2.7",
@@ -59,7 +59,7 @@
         "wisdom",
         "knowledge"
       ],
-      "prompt_append": "When creating plans, consult the `knowledge` skill for documented constraints, design decisions, and implementation patterns.\nUse knowledge-lookup.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as knowledge entries."
+      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries."
     },
     "metis": {
       "model": "github-copilot/gpt-5.4",
@@ -91,7 +91,7 @@
         "wisdom",
         "knowledge"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `knowledge` skill. It provides authority-first lookup via manifests and wisdom.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. It provides authority-first lookup via the canonical Wisdom store.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions."
     },
     "sisyphus-junior": {
       "model": "zai-coding-plan/glm-5.1",
@@ -102,7 +102,7 @@
         "wisdom",
         "knowledge"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `knowledge` skill. It provides authority-first lookup via manifests and wisdom.\nDo NOT infer operational facts from code — consult documented knowledge first."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. It provides authority-first lookup via the canonical Wisdom store.\nDo NOT infer operational facts from code — consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
       "model": "github-copilot/gemini-3.1-pro-preview",
