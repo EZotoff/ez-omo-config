@@ -219,7 +219,7 @@ The plugin registers an `event` handler that watches three event types:
    - Checks a recursion guard to prevent nudge loops
    - Prefilters context against active aspect sets using heuristic phrase matching
    - Scores matching aspects deterministically (weighted hit count normalized to 0-1)
-   - Dispatches a transcript-visible nudge if the top score exceeds `nudgeThreshold`
+   - Dispatches a transcript-visible nudge if the top score exceeds the set's default threshold
    - Deduplicates by assistant message ID so the same message is never nudged twice
 
 **Deferred Fields (Reserved for Future Use)**:
@@ -238,8 +238,6 @@ These fields are logged at startup for visibility but are otherwise inert.
 - `activeSets` — Array of aspect set IDs to load (e.g., `["emotions-v1"]`)
 - `heuristicPreFilter` — Whether to skip scoring when no heuristic phrases match
 - `contextWindowTurns` — Number of recent turns to include in context extraction
-- `nudgeThreshold` — Score threshold (0-1) for nudge dispatch
-- `maxAspectsPerSession` — Maximum aspects to evaluate per session
 
 **Install Target**: `$HOME/.config/opencode/aspect-dynamics.mjs`
 

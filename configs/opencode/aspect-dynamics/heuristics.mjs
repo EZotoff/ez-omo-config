@@ -152,7 +152,7 @@ function resolveTie(aspectA, aspectB, context, aspectList) {
   // Tie-break by aspect order in set file
   const indexA = aspectList.findIndex(a => a.id === aspectA.id);
   const indexB = aspectList.findIndex(a => a.id === aspectB.id);
-  if (indexA !== indexB) {
+  if (indexA !== indexB && indexA >= 0 && indexB >= 0) {
     return indexA < indexB ? aspectA.id : aspectB.id;
   }
 

@@ -69,6 +69,12 @@ export default async function aspectDynamicsPlugin(ctx) {
         case "session.idle": {
           logEvent("session.idle", sessionID);
 
+          const child = await isChildSession(ctx, sessionID);
+          if (child) {
+            logWarn(`Session ${sessionID} skipped — child session`);
+            return;
+          }
+
           if (!canProcess(sessionID)) {
             const state = getSessionState(sessionID);
             if (state.circuitBroken) {
