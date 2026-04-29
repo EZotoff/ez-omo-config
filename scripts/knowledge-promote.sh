@@ -6,6 +6,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$0")"
 
+# Find wisdom-publish.sh: same dir at runtime, or scripts/wisdom/ in repo
+WISDOM_PUBLISH="${SCRIPT_DIR}/wisdom-publish.sh"
+if [[ ! -f "$WISDOM_PUBLISH" ]]; then
+  WISDOM_PUBLISH="${SCRIPT_DIR}/wisdom/wisdom-publish.sh"
+fi
+
 {
   echo "WARNING: knowledge-promote.sh is deprecated. Use wisdom-publish.sh instead." >&2
   echo "  wisdom-publish.sh --id <wisdom-id> [--type TYPE] [--reason TEXT] [--emit-manifest]" >&2
@@ -52,5 +58,5 @@ done
 WP_ARGS=("--id" "$WISDOM_ID" "--type" "$MANIFEST_TYPE" "--reason" "$REASON" "--emit-manifest")
 [[ -n "$SCOPE_OVERRIDE" ]] && WP_ARGS+=("--manifest-scope" "$SCOPE_OVERRIDE")
 
-"${SCRIPT_DIR}/wisdom-publish.sh" "${WP_ARGS[@]}"
+"$WISDOM_PUBLISH" "${WP_ARGS[@]}"
 exit $?
