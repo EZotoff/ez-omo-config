@@ -1,6 +1,8 @@
 // configs/opencode/aspect-dynamics/session-state.mjs
 // In-memory session state tracking for aspect-dynamics plugin
 
+import { logWarn } from "./logging.mjs";
+
 const stateBySession = new Map();
 
 export function getSessionState(sessionID) {
@@ -36,7 +38,8 @@ export async function isChildSession(ctx, sessionID) {
     const response = await ctx.client.session.get({ path: { id: sessionID } });
     const parentID = response?.data?.parentID ?? null;
     return parentID !== null;
-  } catch {
+  } catch (err) {
+    logWarn(`Failed to check parent session for ${sessionID}: ${err.message}`);
     return false;
   }
 }

@@ -1,5 +1,5 @@
 {
-  "setId": "emotions-v1",
+  "id": "emotions-v1",
   "version": 1,
   "defaultThreshold": 0.75,
   "aspects": [
