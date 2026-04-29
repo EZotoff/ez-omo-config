@@ -405,6 +405,43 @@ wisdom-merge.sh --ids ID1,ID2,ID3 --scope project --project-id myproj \
 
 **Safety**: Merged entry is written first, then source entries are deleted. If write fails, originals remain.
 
+### wisdom-migrate.sh
+
+**Purpose**: Perform canonical migration for Wisdom-first runtime.
+
+**What it does**:
+1. Creates a timestamped backup tarball that includes Wisdom stores, manifest sources, skill directories, AGENTS.md, and OMO config.
+2. Normalizes legacy Wisdom JSONL records in place using `wisdom_normalize_record` and canonical validation.
+3. Imports manifests as canonical Wisdom records with `authority=published`, `provenance=manifest-import`, and mapped legacy metadata fields.
+
+**Idempotence behavior**:
+- Upsert matching order: `metadata.legacy_manifest_id` → `metadata.legacy_manifest_path` → canonical fingerprint (`scope+type+title+body`) → create.
+- Exact matches merge tags and preserve highest authority/status rank.
+- Replacement updates create a new record and supersede the old record (`status=superseded`, `superseded_by=<new-id>`).
+
+**Usage**:
+```bash
+wisdom-migrate.sh
+
+# run phases selectively
+wisdom-migrate.sh --backup-only
+wisdom-migrate.sh --normalize-only
+wisdom-migrate.sh --import-only
+
+# restore through migrate command
+wisdom-migrate.sh --restore /path/to/backup.tar.gz --restore-target /tmp/restore-root
+```
+
+### wisdom-restore.sh
+
+**Purpose**: Restore a backup tarball produced by `wisdom-migrate.sh`.
+
+**Usage**:
+```bash
+wisdom-restore.sh --backup /path/to/backup.tar.gz
+wisdom-restore.sh --backup /path/to/backup.tar.gz --target-root /tmp/restore-root
+```
+
 ## Skill Integration
 
 The `wisdom/` skill provides OpenCode integration for the wisdom system. It wraps the scripts and provides a high-level interface for agents.
