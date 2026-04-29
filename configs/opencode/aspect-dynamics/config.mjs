@@ -6,6 +6,8 @@ const DEFAULT_CONFIG = {
   logLevel: "info",
   nudgeThreshold: 0.7,
   maxAspectsPerSession: 8,
+  heuristicPreFilter: false,
+  contextWindowTurns: 10,
 };
 
 export async function loadConfig() {

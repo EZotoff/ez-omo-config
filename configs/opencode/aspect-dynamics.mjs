@@ -15,7 +15,7 @@ import {
   setLastHandledAssistantMessageId,
   getLastHandledAssistantMessageId,
 } from "./aspect-dynamics/session-state.mjs";
-import { extractContext, getEventSessionID } from "./aspect-dynamics/context.mjs";
+import { extractContext, prefilterContext, getEventSessionID } from "./aspect-dynamics/context.mjs";
 import { scoreAspect, shouldNudge, rankAspects } from "./aspect-dynamics/heuristics.mjs";
 import { buildNudge, formatNudgeForDispatch } from "./aspect-dynamics/nudge.mjs";
 import { logInfo, logWarn, logEvent } from "./aspect-dynamics/logging.mjs";
@@ -51,14 +51,24 @@ export default async function aspectDynamicsPlugin(ctx) {
 
         case "session.idle": {
           logEvent("session.idle", sessionID);
+          const state = getSessionState(sessionID);
+          const context = await extractContext(ctx, sessionID, config);
+          if (!context) {
+            logWarn(`No context for session ${sessionID}`);
+            return;
+          }
 
-          if (!canProcess(sessionID)) {
-            const state = getSessionState(sessionID);
-            if (state.circuitBroken) {
-              logWarn(`Session ${sessionID} skipped — circuit breaker open`);
-            } else if (state.inFlight) {
-              logWarn(`Session ${sessionID} skipped — action already in flight`);
+          if (!prefilterContext(context, sets, config)) {
+            logEvent("session.idle", sessionID, "prefilter=skip");
+            return;
+          }
+
+          for (const set of sets) {
+            for (const aspect of set.aspects) {
+              const score = scoreAspect(aspect, context);
+              state.scores.set(aspect, score);
             }
+          }
             return;
           }
 
@@ -68,6 +78,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             const context = await extractContext(ctx, sessionID);
             if (!context) {
               logWarn(`No context for session ${sessionID}`);
+              recordFailure(sessionID);
               return;
             }
 

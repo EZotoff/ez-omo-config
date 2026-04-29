@@ -187,72 +187,7 @@ wisdom_update_entry() {
 }
 
 # --------------------------------------------------------------------------
-# 8. wisdom_validate_jsonl_line — Validate a JSONL entry against schema
-#    Args: $1=json_string
-#    Returns: 0 if valid, 1 if invalid (errors on stderr)
-# --------------------------------------------------------------------------
-wisdom_validate_jsonl_line() {
-    local json_string="$1"
-
-    # Check valid JSON
-    if ! printf '%s' "$json_string" | jq empty 2>/dev/null; then
-        echo "Error: not valid JSON" >&2
-        return 1
-    fi
-
-    # Check required fields exist
-    local missing
-    missing=$(printf '%s' "$json_string" | jq -r '
-        [
-            (if .id          == null then "id"      else empty end),
-            (if .type        == null then "type"    else empty end),
-            (if .scope       == null then "scope"   else empty end),
-            (if .body        == null then "body"    else empty end),
-            (if .created     == null then "created" else empty end)
-        ] | join(", ")
-    ')
-    if [[ -n "$missing" ]]; then
-        echo "Error: missing required fields: $missing" >&2
-        return 1
-    fi
-
-    # Validate type
-    local entry_type
-    entry_type=$(printf '%s' "$json_string" | jq -r '.type')
-    local type_valid=false
-    local t
-    for t in "${WISDOM_VALID_TYPES[@]}"; do
-        if [[ "$entry_type" == "$t" ]]; then
-            type_valid=true
-            break
-        fi
-    done
-    if [[ "$type_valid" == false ]]; then
-        echo "Error: invalid type '$entry_type' (valid: ${WISDOM_VALID_TYPES[*]})" >&2
-        return 1
-    fi
-
-    # Validate scope
-    local entry_scope
-    entry_scope=$(printf '%s' "$json_string" | jq -r '.scope')
-    local scope_valid=false
-    local sv
-    for sv in "${WISDOM_VALID_SCOPES[@]}"; do
-        if [[ "$entry_scope" == "$sv" ]]; then
-            scope_valid=true
-            break
-        fi
-    done
-    if [[ "$scope_valid" == false ]]; then
-        echo "Error: invalid scope '$entry_scope' (valid: ${WISDOM_VALID_SCOPES[*]})" >&2
-        return 1
-    fi
-
-    return 0
-}
-
-# --------------------------------------------------------------------------
-# 9. wisdom_escape_json — Escape a string for safe JSON embedding
+# 8. wisdom_escape_json — Escape a string for safe JSON embedding
 #    Args: $1=string
 #    Outputs: JSON-escaped string WITH surrounding quotes
 # --------------------------------------------------------------------------
@@ -261,7 +196,7 @@ wisdom_escape_json() {
 }
 
 # --------------------------------------------------------------------------
-# 10. wisdom_classify_type — Keyword-based type classification
+# 9. wisdom_classify_type — Keyword-based type classification
 #     Args: $1=content text
 #     Outputs: type string to stdout
 # --------------------------------------------------------------------------
@@ -282,7 +217,7 @@ wisdom_classify_type() {
 }
 
 # --------------------------------------------------------------------------
-# 11. wisdom_check_secret — Detect secrets/credentials in content
+# 10. wisdom_check_secret — Detect secrets/credentials in content
 #     Args: $1=content
 #     Returns: 0 if SAFE (no secret), 1 if secret detected (BLOCKED)
 # --------------------------------------------------------------------------
@@ -341,7 +276,7 @@ wisdom_check_secret() {
 }
 
 # --------------------------------------------------------------------------
-# 12. wisdom_require_jq — Check that jq is available
+# 11. wisdom_require_jq — Check that jq is available
 #     Returns: 0 if available, 1 if missing
 # --------------------------------------------------------------------------
 wisdom_require_jq() {
@@ -353,7 +288,7 @@ wisdom_require_jq() {
 }
 
 # --------------------------------------------------------------------------
-# 13. wisdom_log — Log a message to stderr
+# 12. wisdom_log — Log a message to stderr
 #     Args: $1=level (INFO|WARN|ERROR), $2=message
 # --------------------------------------------------------------------------
 wisdom_log() {
@@ -366,7 +301,7 @@ wisdom_log() {
 }
 
 # --------------------------------------------------------------------------
-# 14. wisdom_field_with_default — Extract field from JSONL with default
+# 13. wisdom_field_with_default — Extract field from JSONL with default
 #     Args: $1=field_name, $2=json_line, $3=default_value
 #     Outputs: field value or default if missing/null
 # --------------------------------------------------------------------------
@@ -517,7 +452,7 @@ wisdom_rank_entry() {
     local now_iso="${3:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
     local normalized
 
-    normalized=$(wisdom_normalize_record "$entry_json") || return 1
+    normalized=$(wisdom_normalize_record "$entry_json" "$now_iso") || return 1
 
     printf '%s' "$normalized" | jq -c --arg relevance "$relevance" --arg now "$now_iso" '
         def status_rank:
@@ -784,47 +719,46 @@ wisdom_validate_canonical() {
         def array_of_strings: type == "array" and all(.[]?; type == "string");
         def iso8601_or_null:
             . == null or (type == "string" and (try (fromdateiso8601 | type) catch null) != null);
-        def metadata_object: if .metadata | type == "object" then .metadata else {} end;
-
-        [
-            (if .id == null then "missing required field: id" else empty end),
-            (if .type == null then "missing required field: type" else empty end),
-            (if .scope == null then "missing required field: scope" else empty end),
-            (if .body == null then "missing required field: body" else empty end),
-            (if .created == null then "missing required field: created" else empty end),
-            (if (.type != null and ($valid_types | index(.type) == null)) then "invalid type '\(.type)' (valid: \($valid_types | join(", ")) )" else empty end),
-            (if (.scope != null and ($valid_scopes | index(.scope) == null)) then "invalid scope '\(.scope)' (valid: \($valid_scopes | join(", ")) )" else empty end),
-            (if (.title | string_or_null | not) then "title must be null or string" else empty end),
-            (if (.tags | type != "array") then "tags must be an array" else empty end),
-            (if (.tags | type == "array" and (all(.[]?; type == "string" and ascii_downcase == .) | not)) then "tags must be lowercase strings" else empty end),
-            (if (.authority == null or ($valid_authorities | index(.authority) == null)) then "invalid authority '\(.authority)' (valid: \($valid_authorities | join(", ")) )" else empty end),
-            (if (.status == null or ($valid_statuses | index(.status) == null)) then "invalid status '\(.status)' (valid: \($valid_statuses | join(", ")) )" else empty end),
-            (if (.provenance == null or ($valid_provenances | index(.provenance) == null)) then "invalid provenance '\(.provenance)' (valid: \($valid_provenances | join(", ")) )" else empty end),
-            (if (.origin_session | string_or_null | not) then "origin_session must be null or string" else empty end),
-            (if (.created | iso8601_or_null | not) then "created must be an ISO-8601 timestamp" else empty end),
-            (if (.verified_at | iso8601_or_null | not) then "verified_at must be null or ISO-8601 timestamp" else empty end),
-            (if ((.authority == "verified" or .authority == "published") and .verified_at == null) then "verified_at is required when authority=\(.authority)" else empty end),
-            (if (.authority == "candidate" and .verified_at != null) then "verified_at must be null when authority=candidate" else empty end),
-            (if (.review_due | iso8601_or_null | not) then "review_due must be null or ISO-8601 timestamp" else empty end),
-            (if (.superseded_by | string_or_null | not) then "superseded_by must be null or string" else empty end),
-            (if (.status == "superseded" and (.superseded_by == null or .superseded_by == "")) then "superseded_by is required when status=superseded" else empty end),
-            (if (.status != "superseded" and .superseded_by != null) then "superseded_by must be null unless status=superseded" else empty end),
-            (if (.contradicts | array_of_strings | not) then "contradicts must be an array of strings" else empty end),
-            (if (.metadata | type != "object") then "metadata must be an object" else empty end),
-            (if (.metadata | type == "object" and (($metadata_keys - (.metadata | keys_unsorted)) | length > 0)) then "metadata missing keys: \(($metadata_keys - (.metadata | keys_unsorted)) | join(", "))" else empty end),
-            (if (.metadata | type == "object" and (((.metadata | keys_unsorted) - $metadata_keys) | length > 0)) then "metadata has invalid keys: \((((.metadata | keys_unsorted) - $metadata_keys)) | join(", "))" else empty end),
-            (if (.metadata | type == "object" and (.metadata.published_artifacts | type != "array")) then "metadata.published_artifacts must be an array" else empty end),
-            (if (.metadata | type == "object" and (.metadata.owner | string_or_null | not)) then "metadata.owner must be null or string" else empty end),
-            (if (.metadata | type == "object" and (.metadata.sensitivity | string_or_null | not)) then "metadata.sensitivity must be null or string" else empty end),
-            (if (.metadata | type == "object" and (.metadata.validation_method | string_or_null | not)) then "metadata.validation_method must be null or string" else empty end),
-            (if (.metadata | type == "object" and (.metadata.last_verified | iso8601_or_null | not)) then "metadata.last_verified must be null or ISO-8601 timestamp" else empty end),
-            (if (.metadata | type == "object" and (.metadata.freshness_days | number_or_null | not)) then "metadata.freshness_days must be null or number" else empty end),
-            (if (.metadata | type == "object" and (.metadata.legacy_manifest_id | string_or_null | not)) then "metadata.legacy_manifest_id must be null or string" else empty end),
-            (if (.metadata | type == "object" and (.metadata.legacy_manifest_path | string_or_null | not)) then "metadata.legacy_manifest_path must be null or string" else empty end),
-            (if (.metadata | type == "object" and (.metadata.legacy_authority | string_or_null | not)) then "metadata.legacy_authority must be null or string" else empty end),
-            (if (.metadata | type == "object" and (.metadata.source_kind | string_or_null | not)) then "metadata.source_kind must be null or string" else empty end),
-            (if (.source | string_or_null | not) then "source must be null or string" else empty end),
-            (if (.quality_score | number_or_null | not) then "quality_score must be null or number" else empty end)
+        . as $record
+        | [
+            (if $record.id == null then "missing required field: id" else empty end),
+            (if $record.type == null then "missing required field: type" else empty end),
+            (if $record.scope == null then "missing required field: scope" else empty end),
+            (if $record.body == null then "missing required field: body" else empty end),
+            (if $record.created == null then "missing required field: created" else empty end),
+            (if ($record.type != null and ($valid_types | index($record.type)) == null) then "invalid type \($record.type) (valid: \($valid_types | join(", ")) )" else empty end),
+            (if ($record.scope != null and ($valid_scopes | index($record.scope)) == null) then "invalid scope \($record.scope) (valid: \($valid_scopes | join(", ")) )" else empty end),
+            (if ($record.title | string_or_null | not) then "title must be null or string" else empty end),
+            (if ($record.tags | type != "array") then "tags must be an array" else empty end),
+            (if ($record.tags | type == "array" and (all(.[]?; type == "string" and ascii_downcase == .) | not)) then "tags must be lowercase strings" else empty end),
+            (if ($record.authority == null or ($valid_authorities | index($record.authority)) == null) then "invalid authority \($record.authority) (valid: \($valid_authorities | join(", ")) )" else empty end),
+            (if ($record.status == null or ($valid_statuses | index($record.status)) == null) then "invalid status \($record.status) (valid: \($valid_statuses | join(", ")) )" else empty end),
+            (if ($record.provenance == null or ($valid_provenances | index($record.provenance)) == null) then "invalid provenance \($record.provenance) (valid: \($valid_provenances | join(", ")) )" else empty end),
+            (if ($record.origin_session | string_or_null | not) then "origin_session must be null or string" else empty end),
+            (if ($record.created | iso8601_or_null | not) then "created must be an ISO-8601 timestamp" else empty end),
+            (if ($record.verified_at | iso8601_or_null | not) then "verified_at must be null or ISO-8601 timestamp" else empty end),
+            (if (($record.authority == "verified" or $record.authority == "published") and $record.verified_at == null) then "verified_at is required when authority=\($record.authority)" else empty end),
+            (if ($record.authority == "candidate" and $record.verified_at != null) then "verified_at must be null when authority=candidate" else empty end),
+            (if ($record.review_due | iso8601_or_null | not) then "review_due must be null or ISO-8601 timestamp" else empty end),
+            (if ($record.superseded_by | string_or_null | not) then "superseded_by must be null or string" else empty end),
+            (if ($record.status == "superseded" and ($record.superseded_by == null or $record.superseded_by == "")) then "superseded_by is required when status=superseded" else empty end),
+            (if ($record.status != "superseded" and $record.superseded_by != null) then "superseded_by must be null unless status=superseded" else empty end),
+            (if ($record.contradicts | array_of_strings | not) then "contradicts must be an array of strings" else empty end),
+            (if ($record.metadata | type != "object") then "metadata must be an object" else empty end),
+            (if ($record.metadata | type == "object" and (($metadata_keys - ($record.metadata | keys_unsorted)) | length > 0)) then "metadata missing keys: \(($metadata_keys - ($record.metadata | keys_unsorted)) | join(", "))" else empty end),
+            (if ($record.metadata | type == "object" and ((($record.metadata | keys_unsorted) - $metadata_keys) | length > 0)) then "metadata has invalid keys: \((($record.metadata | keys_unsorted) - $metadata_keys) | join(", "))" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.published_artifacts | type != "array")) then "metadata.published_artifacts must be an array" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.owner | string_or_null | not)) then "metadata.owner must be null or string" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.sensitivity | string_or_null | not)) then "metadata.sensitivity must be null or string" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.validation_method | string_or_null | not)) then "metadata.validation_method must be null or string" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.last_verified | iso8601_or_null | not)) then "metadata.last_verified must be null or ISO-8601 timestamp" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.freshness_days | number_or_null | not)) then "metadata.freshness_days must be null or number" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.legacy_manifest_id | string_or_null | not)) then "metadata.legacy_manifest_id must be null or string" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.legacy_manifest_path | string_or_null | not)) then "metadata.legacy_manifest_path must be null or string" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.legacy_authority | string_or_null | not)) then "metadata.legacy_authority must be null or string" else empty end),
+            (if ($record.metadata | type == "object" and ($record.metadata.source_kind | string_or_null | not)) then "metadata.source_kind must be null or string" else empty end),
+            (if ($record.source | string_or_null | not) then "source must be null or string" else empty end),
+            (if ($record.quality_score | number_or_null | not) then "quality_score must be null or number" else empty end)
         ]
         | map(select(length > 0))
         | .[]
@@ -852,9 +786,9 @@ wisdom_validate_canonical() {
 }
 
 # --------------------------------------------------------------------------
-# 25. wisdom_validate_jsonl_line — Validate a JSONL entry against schema
-#     Args: $1=json_string
-#     Returns: 0 if valid, 1 if invalid (errors on stderr)
+# 25. wisdom_authority_rank — Convert authority string to numeric rank
+#     Args: $1=authority_string
+#     Outputs: numeric rank: published=3, verified=2, candidate=1, unknown=0
 # --------------------------------------------------------------------------
 wisdom_authority_rank() {
     local authority normalized_authority
@@ -869,6 +803,11 @@ wisdom_authority_rank() {
     esac
 }
 
+# --------------------------------------------------------------------------
+# 26. wisdom_validate_jsonl_line — Validate a JSONL entry against schema
+#     Args: $1=json_string
+#     Returns: 0 if valid, 1 if invalid (errors on stderr)
+# --------------------------------------------------------------------------
 wisdom_validate_jsonl_line() {
     local json_string="$1"
     local normalized
@@ -883,7 +822,7 @@ wisdom_validate_jsonl_line() {
 }
 
 # --------------------------------------------------------------------------
-# 26. wisdom_atomic_append — Atomic append with flock-based file locking
+# 27. wisdom_atomic_append — Atomic append with flock-based file locking
 #     Args: $1=file_path, $2=content
 #     Returns: 0 on success, 1 on lock failure
 # --------------------------------------------------------------------------
@@ -906,7 +845,7 @@ wisdom_atomic_append() {
 }
 
 # --------------------------------------------------------------------------
-# 27. wisdom_atomic_write — Atomic write with flock-based file locking
+# 28. wisdom_atomic_write — Atomic write with flock-based file locking
 #     Args: $1=file_path, $2=content
 #     Returns: 0 on success, 1 on lock failure
 # --------------------------------------------------------------------------

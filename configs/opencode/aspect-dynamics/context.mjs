@@ -1,7 +1,17 @@
 // configs/opencode/aspect-dynamics/context.mjs
-// Stub context extractor for aspect-dynamics plugin
+// Context extractor and prefilter for aspect-dynamics plugin
 
-export async function extractContext(ctx, sessionID) {
+const DEFAULT_CONTEXT_WINDOW_TURNS = 10;
+const MAX_MESSAGE_LENGTH = 600;
+
+/**
+ * Fetch and prepare conversation context for aspect scoring.
+ * @param {object} ctx - OpenCode plugin context
+ * @param {string} sessionID - Session identifier
+ * @param {object} [config] - Plugin configuration
+ * @returns {Promise<{messages: Array<{id: string, role: string, text: string}>, latestAssistantMessageId: string|null}>|null}
+ */
+export async function extractContext(ctx, sessionID, config = {}) {
   if (!ctx?.client?.session) {
     return null;
   }
@@ -12,16 +22,111 @@ export async function extractContext(ctx, sessionID) {
       ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
     });
 
-    const messages = Array.isArray(response?.data) ? response.data : [];
+    const allMessages = Array.isArray(response?.data) ? response.data : [];
+
+    // Filter to user and assistant messages only
+    const relevantMessages = allMessages.filter((msg) => {
+      const role = msg?.info?.role ?? msg?.role;
+      return role === "user" || role === "assistant";
+    });
+
+    // Slice to last N messages (default 10)
+    const limit = config.contextWindowTurns ?? DEFAULT_CONTEXT_WINDOW_TURNS;
+    const slicedMessages = relevantMessages.slice(-limit);
+
+    // Build result with truncated text
+    const messages = slicedMessages.map((msg) => {
+      const role = msg?.info?.role ?? msg?.role;
+      let text = msg?.info?.text ?? msg?.text ?? "";
+      if (text.length > MAX_MESSAGE_LENGTH) {
+        text = text.slice(0, MAX_MESSAGE_LENGTH);
+      }
+      return {
+        id: msg.id,
+        role,
+        text,
+      };
+    });
+
+    // Find the most recent assistant message ID
+    let latestAssistantMessageId = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") {
+        latestAssistantMessageId = messages[i].id;
+        break;
+      }
+    }
 
     return {
-      messageCount: messages.length,
-      lastUserMessage: messages[messages.length - 1] ?? null,
       messages,
+      latestAssistantMessageId,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Heuristic prefilter: decide whether to proceed with aspect scoring.
+ * Checks if any heuristic phrase from active sets appears in the most
+ * recent user message or most recent assistant message.
+ *
+ * @param {object} context - Context object returned by extractContext
+ * @param {Array<object>} activeSets - Active aspect sets
+ * @param {object} [config] - Plugin configuration
+ * @returns {boolean} true if scoring should proceed
+ */
+export function prefilterContext(context, activeSets, config = {}) {
+  // If heuristic prefilter is disabled, always proceed
+  if (config.heuristicPreFilter !== true) {
+    return true;
+  }
+
+  if (!context?.messages?.length) {
+    return false;
+  }
+
+  // Find most recent user and assistant message text
+  let mostRecentUserText = "";
+  let mostRecentAssistantText = "";
+
+  for (let i = context.messages.length - 1; i >= 0; i--) {
+    const msg = context.messages[i];
+    if (msg.role === "user" && !mostRecentUserText) {
+      mostRecentUserText = msg.text;
+    }
+    if (msg.role === "assistant" && !mostRecentAssistantText) {
+      mostRecentAssistantText = msg.text;
+    }
+    if (mostRecentUserText && mostRecentAssistantText) {
+      break;
+    }
+  }
+
+  const combinedText = (mostRecentUserText + " " + mostRecentAssistantText).toLowerCase();
+
+  // Collect all heuristic phrases from active sets
+  const phrases = [];
+  for (const set of activeSets ?? []) {
+    for (const aspect of set.aspects ?? []) {
+      if (aspect && typeof aspect === "object" && Array.isArray(aspect.heuristicPhrases)) {
+        for (const phrase of aspect.heuristicPhrases) {
+          if (typeof phrase === "string") {
+            phrases.push(phrase.toLowerCase());
+          }
+        }
+      }
+    }
+  }
+
+  // Check if any phrase appears in the combined text
+  for (const phrase of phrases) {
+    if (combinedText.includes(phrase)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function getEventSessionID(event) {
