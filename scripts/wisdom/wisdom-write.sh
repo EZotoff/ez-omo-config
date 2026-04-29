@@ -12,6 +12,7 @@ SOURCE=""
 PROJECT_ID=""
 SCORE=0
 AUTHORITY=""
+STATUS=""
 PROVENANCE=""
 ORIGIN_SESSION=""
 VERIFIED_AT=""
@@ -28,6 +29,7 @@ Usage: wisdom-write.sh [OPTIONS]
   --project-id     project/plan identifier   (required for project/plan scope)
   --score          quality score integer     (default: 0)
   --authority      candidate|verified|stale|superseded (default: candidate)
+  --status         active|stale|superseded|retracted (default: active)
   --provenance     provenance string         (default: agent-session)
   --origin-session session ID                (optional)
   --verified-at    ISO8601 date              (optional)
@@ -46,6 +48,7 @@ while [[ $# -gt 0 ]]; do
         --project-id)     PROJECT_ID="$2";     shift 2 ;;
         --score)          SCORE="$2";          shift 2 ;;
         --authority)      AUTHORITY="$2";      shift 2 ;;
+        --status)         STATUS="$2";         shift 2 ;;
         --provenance)     PROVENANCE="$2";     shift 2 ;;
         --origin-session) ORIGIN_SESSION="$2"; shift 2 ;;
         --verified-at)    VERIFIED_AT="$2";    shift 2 ;;
@@ -103,6 +106,12 @@ entry=$(jq -nc \
     --arg created "$created" \
     --arg source "$SOURCE" \
     --argjson score "$SCORE" \
+    --arg authority "$AUTHORITY" \
+    --arg status "$STATUS" \
+    --arg provenance "$PROVENANCE" \
+    --arg origin_session "$ORIGIN_SESSION" \
+    --arg verified_at "$VERIFIED_AT" \
+    --arg review_due "$REVIEW_DUE" \
     '{
         id: $id,
         type: $type,
@@ -113,15 +122,26 @@ entry=$(jq -nc \
         accessed: 0,
         last_accessed: "",
         source: $source,
-        quality_score: $score
+        quality_score: $score,
+        authority: (if $authority == "" then null else $authority end),
+        status: (if $status == "" then null else $status end),
+        provenance: (if $provenance == "" then null else $provenance end),
+        origin_session: (if $origin_session == "" then null else $origin_session end),
+        verified_at: (if $verified_at == "" then null else $verified_at end),
+        review_due: (if $review_due == "" then null else $review_due end)
     }')
 
-if ! wisdom_validate_jsonl_line "$entry"; then
+normalized=$(wisdom_normalize_record "$entry") || {
+    wisdom_log ERROR "Failed to normalize entry"
+    exit 3
+}
+
+if ! wisdom_validate_jsonl_line "$normalized"; then
     wisdom_log ERROR "Generated entry failed validation"
     exit 3
 fi
 
-if ! wisdom_append_entry "$entry" "$store_path"; then
+if ! wisdom_append_entry "$normalized" "$store_path"; then
     wisdom_log ERROR "Failed to write entry to store"
     exit 3
 fi

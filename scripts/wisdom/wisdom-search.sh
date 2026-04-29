@@ -21,6 +21,7 @@ MIN_SCORE=""
 PROJECT_ID=""
 AUTHORITY_FILTER=""
 SORT_AUTHORITY=0
+TOUCH=false
 
 # --------------------------------------------------------------------------
 # Usage
@@ -42,6 +43,7 @@ Options:
   --project-id ID        Limit to specific project (with --scope project or plan)
   --authority LEVEL      Filter by authority level: wisdom|verified|manifest
   --sort-authority       Sort by authority rank (manifest > verified > wisdom)
+  --touch                Update access telemetry (accessed count, last_accessed)
   --help, -h             Show this help
 
 Exit codes:
@@ -82,6 +84,8 @@ while [[ $# -gt 0 ]]; do
             AUTHORITY_FILTER="$2"; shift 2 ;;
         --sort-authority)
             SORT_AUTHORITY=1; shift ;;
+        --touch)
+            TOUCH=true; shift ;;
         --help|-h)
             usage ;;
         -*)
@@ -297,23 +301,23 @@ fi
 # --------------------------------------------------------------------------
 # Access tracking: bump accessed+1 and set last_accessed for matched entries
 # --------------------------------------------------------------------------
-NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+if [[ "$TOUCH" == true ]]; then
+    NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-# Iterate over each result and update its store
-for i in $(seq 0 $((RESULT_COUNT - 1))); do
-    entry_json=$(printf '%s' "$SORTED_LIMITED" | jq -c ".[$i]")
-    entry_id=$(printf '%s' "$entry_json" | jq -r '.id')
-    store_path=$(printf '%s' "$entry_json" | jq -r '._store_path')
+    for i in $(seq 0 $((RESULT_COUNT - 1))); do
+        entry_json=$(printf '%s' "$SORTED_LIMITED" | jq -c ".[$i]")
+        entry_id=$(printf '%s' "$entry_json" | jq -r '.id')
+        store_path=$(printf '%s' "$entry_json" | jq -r '._store_path')
 
-    # Build updated entry: bump accessed, set last_accessed, remove _store_path
-    updated_json=$(printf '%s' "$entry_json" | jq -c --arg now "$NOW_ISO" "
-        del(._store_path)
-        | .accessed = ((.accessed // 0) + 1)
-        | .last_accessed = \$now
-    ")
+        updated_json=$(printf '%s' "$entry_json" | jq -c --arg now "$NOW_ISO" '
+            del(._store_path)
+            | .accessed = ((.accessed // 0) + 1)
+            | .last_accessed = $now
+        ')
 
-    wisdom_update_entry "$entry_id" "$store_path" "$updated_json" 2>/dev/null || true
-done
+        wisdom_update_entry "$entry_id" "$store_path" "$updated_json" 2>/dev/null || true
+    done
+fi
 
 # --------------------------------------------------------------------------
 # Output results

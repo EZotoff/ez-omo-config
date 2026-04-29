@@ -148,6 +148,7 @@ wisdom_append_entry() {
 wisdom_remove_entry() {
     local id="$1"
     local store_path="$2"
+    local lockfile="${store_path}.lock"
 
     # Check entry exists first
     if ! wisdom_read_entry "$id" "$store_path" >/dev/null 2>&1; then
@@ -155,11 +156,22 @@ wisdom_remove_entry() {
         return 1
     fi
 
-    local tmp
-    tmp=$(mktemp "${store_path}.tmp.XXXXXX")
-    jq -c --arg id "$id" 'select(.id != $id)' "$store_path" > "$tmp"
-    mv -f "$tmp" "$store_path"
-    return 0
+    if ! command -v flock >/dev/null 2>&1; then
+        echo "WARNING: flock not available, falling back to non-atomic remove" >&2
+        local tmp
+        tmp=$(mktemp "${store_path}.tmp.XXXXXX")
+        jq -c --arg id "$id" 'select(.id != $id)' "$store_path" > "$tmp"
+        mv -f "$tmp" "$store_path"
+        return 0
+    fi
+
+    (
+        flock -w 10 200 || { echo "ERROR: Could not acquire lock on $store_path" >&2; exit 1; }
+        local tmp
+        tmp=$(mktemp "${store_path}.tmp.XXXXXX")
+        jq -c --arg id "$id" 'select(.id != $id)' "$store_path" > "$tmp"
+        mv -f "$tmp" "$store_path"
+    ) 200>"$lockfile"
 }
 
 # --------------------------------------------------------------------------
@@ -171,6 +183,7 @@ wisdom_update_entry() {
     local id="$1"
     local store_path="$2"
     local updated_json="$3"
+    local lockfile="${store_path}.lock"
 
     # Check entry exists
     if ! wisdom_read_entry "$id" "$store_path" >/dev/null 2>&1; then
@@ -178,12 +191,22 @@ wisdom_update_entry() {
         return 1
     fi
 
-    # Atomic: filter out old entry + append updated
-    local tmp
-    tmp=$(mktemp "${store_path}.tmp.XXXXXX")
-    { jq -c --arg id "$id" 'select(.id != $id)' "$store_path"; printf '%s\n' "$updated_json"; } > "$tmp"
-    mv -f "$tmp" "$store_path"
-    return 0
+    if ! command -v flock >/dev/null 2>&1; then
+        echo "WARNING: flock not available, falling back to non-atomic update" >&2
+        local tmp
+        tmp=$(mktemp "${store_path}.tmp.XXXXXX")
+        { jq -c --arg id "$id" 'select(.id != $id)' "$store_path"; printf '%s\n' "$updated_json"; } > "$tmp"
+        mv -f "$tmp" "$store_path"
+        return 0
+    fi
+
+    (
+        flock -w 10 200 || { echo "ERROR: Could not acquire lock on $store_path" >&2; exit 1; }
+        local tmp
+        tmp=$(mktemp "${store_path}.tmp.XXXXXX")
+        { jq -c --arg id "$id" 'select(.id != $id)' "$store_path"; printf '%s\n' "$updated_json"; } > "$tmp"
+        mv -f "$tmp" "$store_path"
+    ) 200>"$lockfile"
 }
 
 # --------------------------------------------------------------------------
