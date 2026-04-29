@@ -109,7 +109,7 @@ test_search_excludes_inactive() {
     [[ -z "$retracted_id" ]] && { echo "Failed to create retracted entry"; return 1; }
     "${SCRIPT_DIR}/wisdom-edit.sh" --id "$superseded_id" --scope system --set-status superseded --set-superseded-by "$active_id" >/dev/null 2>&1
     "${SCRIPT_DIR}/wisdom-edit.sh" --id "$retracted_id" --scope system --set-status retracted >/dev/null 2>&1
-    search_output=$("${SCRIPT_DIR}/wisdom-search.sh" "search exclusion testing" --scope system --tags "${TEST_TAG},search-exclude" --json 2>/dev/null)
+    search_output=$("${SCRIPT_DIR}/wisdom-search.sh" "default exclusion testing" --scope system --tags "${TEST_TAG},search-exclude" --json 2>/dev/null)
     local count
     count=$(echo "$search_output" | jq 'length')
     [[ "$count" -eq 1 ]] || { echo "Expected 1 result, got $count"; return 1; }
