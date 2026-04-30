@@ -41,7 +41,8 @@ ls -la ~/.opencode/plugin/
 After running `./install.sh`, your OpenCode CLI gains:
 
 - **`/models-preset`** — view all 12 agent model assignments at a glance
-- **`/session-info`** — copy project path and session title to clipboard (no LLM round-trip)
+- **`/session-id`** — copy the invoking session ID to clipboard (no LLM round-trip)
+- **`/session-info`** — copy project path, session title, and invoking session ID to clipboard (no LLM round-trip)
 - **Git safety guardrails** — automatic prevention of destructive git operations
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Runtime fallback** — automatic model switching across 7 providers when APIs fail or rate-limit
@@ -59,9 +60,9 @@ This repository contains 52 core artifacts + 1 external integration organized in
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
-| 1 | **Commands** | 3 files | Slash commands for OpenCode workflows |
+| 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
-| 6-11 | **Plugins** | 7 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, and session info clipboard |
+| 6-11 | **Plugins** | 8 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, and session clipboard commands |
 | 12-21 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
@@ -75,7 +76,8 @@ This repository contains 52 core artifacts + 1 external integration organized in
 |---|----------|------|---------|
 | 1 | `models-preset.md` | `commands/` | Slash command for showing current OMO model assignments |
 | 1b | `vscode.md` | `commands/` | VS Code launcher command stub (handled by plugin) |
-| 1c | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
+| 1c | `session-id.md` | `commands/` | Session ID clipboard command stub (handled by plugin) |
+| 1d | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
 | 3b | `dcp.jsonc` | `configs/opencode/` | DCP plugin configuration with bounded range archive retention (local patch) |
@@ -89,7 +91,8 @@ This repository contains 52 core artifacts + 1 external integration organized in
 | 10 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
 | 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
 | 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
-| 11c | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
+| 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id, no LLM round-trip) |
+| 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
 | 12b | `knowledge/` | `skills/` | Deprecated compatibility shim that delegates to Wisdom |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |

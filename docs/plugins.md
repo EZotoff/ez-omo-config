@@ -25,6 +25,39 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ---
 
+## session-id.ts
+
+**Purpose**: Copies the invoking OpenCode session ID to the clipboard without any LLM round-trip.
+
+**Features**:
+
+- Intercepts `/session-id` via `command.execute.before`
+- Uses the invoking hook's `sessionID` directly
+- Writes the raw session ID to the system clipboard with `xclip`
+
+**Dependencies**: None (self-contained)
+
+**Install Target**: `$HOME/.opencode/plugin/session-id.ts`
+
+---
+
+## session-info.ts
+
+**Purpose**: Copies project path, git branch, session title, and invoking session ID to the clipboard without any LLM round-trip.
+
+**Features**:
+
+- Intercepts `/session-info` via `command.execute.before`
+- Resolves the active branch from the current worktree/project directory
+- Reads the invoking session title from the SDK using the hook's `sessionID`
+- Writes `Project <path>:<branch>; Session <title>; ID <session-id>` to the system clipboard with `xclip`
+
+**Dependencies**: OpenCode plugin client session API
+
+**Install Target**: `$HOME/.opencode/plugin/session-info.ts`
+
+---
+
 ## worktree.ts
 
 **Purpose**: Creates isolated git worktrees for AI sessions and coordinates session state plus terminal spawning.

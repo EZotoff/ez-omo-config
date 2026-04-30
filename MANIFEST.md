@@ -8,7 +8,8 @@ Complete inventory of 41 core artifacts for ez-omo-config repository scaffold.
 |---|---|---|---|---|---|---|
 | 1 | models-preset.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
 | 1b | vscode.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
-| 1c | session-info.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
+| 1c | session-id.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
+| 1d | session-info.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
 | 2 | opencode.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 3 | opencode.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
 | 4 | provider-connect-retry.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
@@ -30,7 +31,8 @@ Complete inventory of 41 core artifacts for ez-omo-config repository scaffold.
 | 10 | review-enforcer.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Review Protocol | Required |
 | 11 | kdco-primitives/ | `~/.opencode/plugin/kdco-primitives/` | `plugins/kdco-primitives/` | `$HOME/.opencode/plugin/kdco-primitives/` | KDCO Library | Required |
 | 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
-| 11c | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
+| 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
+| 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 12b | knowledge/ | `~/.config/opencode/skills/knowledge/` | `skills/knowledge/` | `$HOME/.config/opencode/skills/` | Wisdom Shim (Deprecated) | Required |
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
@@ -56,6 +58,7 @@ ez-omo-config/
 ├── commands/
 │   └── models-preset.md    # Slash command prompt for model tables
 │   └── vscode.md           # VS Code launcher (handled by plugin, no LLM)
+│   └── session-id.md       # Session ID clipboard (handled by plugin, no LLM)
 │   └── session-info.md     # Session info clipboard (handled by plugin, no LLM)
 ├── configs/
 │   ├── opencode/           # Main OpenCode configuration (3 files + aspect-dynamics)
@@ -66,6 +69,7 @@ ez-omo-config/
 │   ├── git-safety.ts       # Git safety protocol plugin
 │   ├── review-enforcer.ts  # Review enforcer plugin
 │   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
+│   ├── session-id.ts       # Session ID clipboard plugin (intercepts /session-id command)
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
@@ -94,9 +98,9 @@ ez-omo-config/
 ## Artifact Summary
 
 - **Total Artifacts**: 41 core + 1 external (commands: 3, configs: 14, plugins: 6 + kdco-primitives dir, skills: 6 dirs + 1 external, scripts: 9, extras: 1)
-- **Commands**: 3 slash command prompts (`models-preset.md`, `vscode.md`, `session-info.md`)
+- **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 14 files (opencode.json, opencode.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
-- **Plugins**: 3 main files + vscode.ts + session-info.ts + worktree/ (2 files) + kdco-primitives/ directory
+- **Plugins**: 3 main files + vscode.ts + session-id.ts + session-info.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 7 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
 - **Scripts**: 9 wisdom shell scripts
 - **Extras**: 1 file (ocx.jsonc)

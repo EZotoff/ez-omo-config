@@ -8,7 +8,7 @@
 import { homedir } from "node:os"
 import type { Plugin } from "@opencode-ai/plugin"
 
-const SessionInfoPlugin: Plugin = async ({ worktree, directory }) => {
+const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 	const dir = worktree || directory
 
 	return {
@@ -28,29 +28,20 @@ const SessionInfoPlugin: Plugin = async ({ worktree, directory }) => {
 
 			let title = ""
 			try {
-				const sessionResult = Bun.spawnSync(
-					["opencode", "session", "list", "-n", "1", "--format", "json"],
-					{ stdout: "pipe", stderr: "pipe" },
-				)
-				if (sessionResult.success && sessionResult.stdout) {
-					const raw = new TextDecoder().decode(sessionResult.stdout as Uint8Array)
-					const sessions = JSON.parse(raw)
-					if (Array.isArray(sessions) && sessions.length > 0) {
-						title = sessions[0].title ?? ""
-					}
-				}
+				const sessionResult = await client.session.get({ path: { id: input.sessionID } })
+				title = sessionResult.data?.title ?? ""
 			} catch {}
 
 			const home = homedir()
 			let displayPath = dir
 			if (displayPath.startsWith(home)) {
-				displayPath = "~" + displayPath.slice(home.length)
+				displayPath = `~${displayPath.slice(home.length)}`
 			}
 			if (branch) {
 				displayPath = `${displayPath}:${branch}`
 			}
 
-			const result = `Project ${displayPath}; Session ${title}`
+			const result = `Project ${displayPath}; Session ${title}; ID ${input.sessionID}`
 
 			const safeResult = result.replace(/'/g, "'\\''")
 			const clipResult = Bun.spawnSync(

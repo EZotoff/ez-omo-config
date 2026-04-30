@@ -26,6 +26,7 @@ ITEMS_BACKED_UP=0
 ITEMS=(
     "commands|commands/models-preset.md|$HOME/.config/opencode/command/models-preset.md"
     "commands|commands/vscode.md|$HOME/.config/opencode/command/vscode.md"
+    "commands|commands/session-id.md|$HOME/.config/opencode/command/session-id.md"
     "commands|commands/session-info.md|$HOME/.config/opencode/command/session-info.md"
     "configs|configs/opencode/opencode.json|$HOME/.config/opencode/opencode.json"
     "configs|configs/opencode/opencode.jsonc|$HOME/.opencode/opencode.jsonc"
@@ -41,6 +42,7 @@ ITEMS=(
     "plugins|plugins/review-enforcer.ts|$HOME/.opencode/plugin/review-enforcer.ts"
     "plugins|plugins/auto-checkpoint.ts|$HOME/.opencode/plugin/auto-checkpoint.ts"
     "plugins|plugins/vscode.ts|$HOME/.opencode/plugin/vscode.ts"
+    "plugins|plugins/session-id.ts|$HOME/.opencode/plugin/session-id.ts"
     "plugins|plugins/session-info.ts|$HOME/.opencode/plugin/session-info.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
