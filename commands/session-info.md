@@ -1,5 +1,5 @@
 ---
-description: Copy project path and session title to clipboard (no LLM round-trip)
+description: Copy project path, session title, and session ID to clipboard (no LLM round-trip)
 ---
 
-Handled by plugin. This command copies `Project <path>:<branch>; Session <title>` to the clipboard directly.
+Handled by plugin. This command copies `Project <path>:<branch>; Session <title>; ID <session-id>` to the clipboard directly.

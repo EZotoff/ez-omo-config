@@ -11,7 +11,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `review-enforcer.ts` — injects review workflow instructions after task completion so plan execution gets reviewed consistently.
 - `auto-checkpoint.ts` — automatically creates git checkpoint commits when sessions become idle or tasks complete, with quiescence-based safety guards.
 - `session-id.ts` — copies the invoking session ID to clipboard via `/session-id`, no LLM round-trip.
-- `session-info.ts` — copies `Project <path>:<branch>; Session <title>` to clipboard via `/session-info` command, no LLM round-trip.
+- `session-info.ts` — copies `Project <path>:<branch>; Session <title>; ID <session-id>` to clipboard via `/session-info` command, no LLM round-trip.
 - `kdco-primitives/` — shared helpers used by the plugin bundle, including project ID lookup, shell escaping, tmux detection, temp paths, logging, timeout helpers, and shared types.
 
 ## Dependency notes
