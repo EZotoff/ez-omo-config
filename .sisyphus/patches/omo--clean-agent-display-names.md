@@ -1,158 +1,107 @@
 ---
 patch_id: "omo--clean-agent-display-names"
 dependency: "oh-my-openagent"
-target_file: "dist/index.js, dist/cli/index.js"
-target_install_path: "/home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent"
+target_file: "src/shared/agent-display-names.ts, src/features/claude-code-session-state/state.ts, src/cli/run/event-handlers.ts"
+target_install_path: "/home/ezotoff/omo-hub/projects/oh-my-openagent"
 status: "active"
-applied_date: "2026-04-18"
+applied_date: "2026-04-30"
 dep_version: "current"
 upstream_issue: "none"
-verification_pattern: 'return getAgentDisplayName\(configKey\);'
+verification_pattern: 'normalizeAgentForPrompt|getAgentDisplayName\(configKey\)'
 ---
 
 # Clean Agent Display Names
 
 ## Problem
-Oh-My-OpenAgent had two display-name issues in its bundled `dist/index.js` and `dist/cli/index.js`:
 
-1. **Verbose role suffixes**: Agent display names included redundant role descriptions (e.g., `"Sisyphus - Ultraworker"`, `"Atlas - Plan Executor"`). The TUI shows these names when cycling agents with Tab, making the display unnecessarily verbose.
-
-2. **Zero-width sort-prefix injection**: `getAgentRuntimeName()` prepended invisible zero-width characters from `AGENT_LIST_SORT_PREFIXES` to agent names. These characters (`\u200B`, `\u200C`, `\u200D`, `\uFEFF`) are invisible in most contexts but cause issues in clipboard copy/paste, terminal selection, and string comparison. The function was structured as:
-   ```
-   Before: return (AGENT_LIST_SORT_PREFIXES[configKey] || "") + displayName;
-   After:  return getAgentDisplayName(configKey);
-   ```
+Oh-My-OpenAgent displayed verbose agent names with role suffixes (e.g., `"Sisyphus - Ultraworker"`) and injected invisible zero-width sort-prefix characters into runtime labels. Early attempts to fix this by patching cache bundle copies at `~/.cache/opencode/packages/oh-my-openagent@latest/...` produced false positives. The patches appeared intact in the cached bundles, but the live TUI still showed suffixed names because OpenCode loads the plugin from `file:///home/ezotoff/omo-hub/projects/oh-my-openagent`, not from the cache.
 
 ## Patch Description
-Two aspects were repaired across all active `@latest` bundle copies:
 
-### Aspect 1: Plain display names
-Stripped role suffixes from all top-level agent entries in `AGENT_DISPLAY_NAMES`:
+The decisive fix was applied at the source level in `/home/ezotoff/omo-hub/projects/oh-my-openagent`. Three files were changed:
 
-| Before | After |
-|--------|-------|
-| `"Sisyphus - Ultraworker"` | `"Sisyphus"` |
-| `"Hephaestus - Deep Agent"` | `"Hephaestus"` |
-| `"Prometheus - Plan Builder"` | `"Prometheus"` |
-| `"Atlas - Plan Executor"` | `"Atlas"` |
-| `"Metis - Plan Consultant"` | `"Metis"` |
-| `"Momus - Plan Critic"` | `"Momus"` |
-| `"Athena - Council"` | `"Athena"` |
-| `"Athena-Junior - Council"` | `"Athena-Junior"` |
+### Source file 1: src/shared/agent-display-names.ts
 
-### Aspect 2: Sort-prefix neutralization
-- `getAgentRuntimeName()` now delegates directly to `getAgentDisplayName()` instead of prepending sort-prefix characters:
-  ```
-  Before: getAgentRuntimeName(configKey) { return (AGENT_LIST_SORT_PREFIXES[configKey] || "") + getAgentDisplayName(configKey); }
-  After:  getAgentRuntimeName(configKey) { return getAgentDisplayName(configKey); }
-  ```
-- `AGENT_LIST_SORT_PREFIXES` is set to an empty object `{}` in both files, neutralizing any future additions.
+- Plain runtime-facing display names in `AGENT_DISPLAY_NAMES` (e.g., `"Sisyphus"`, `"Atlas"`, `"Hephaestus"`).
+- `getAgentRuntimeName()` and `getAgentListDisplayName()` now return plain `getAgentDisplayName(configKey)` without zero-width prefix injection.
+- `LEGACY_DISPLAY_NAMES` expanded to include both dashed and parenthesized historical forms for backward compatibility.
+- New `normalizeAgentForPrompt()` function canonicalizes any known legacy label to its plain display name.
 
-### Scope notes
-- Old suffixed names (`"sisyphus (ultraworker)"`, etc.) remain in `LEGACY_DISPLAY_NAMES` as backward-compatible alias mappings. This is intentional — these maps translate legacy input names to current config keys and do not appear in the TUI.
-- `REVERSE_DISPLAY_NAMES` is auto-generated from `AGENT_DISPLAY_NAMES` and therefore contains only clean plain names.
+### Source file 2: src/features/claude-code-session-state/state.ts
 
-### Applied to (4 active files)
-- `/home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js`
-- `/home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js`
-- `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js`
-- `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js`
+- `normalizeStoredAgentName()` now calls `normalizeAgentForPrompt()` to canonicalize legacy labels, not just strip invisible characters.
+- Session agent storage resolves legacy names like `"Sisyphus - Ultraworker"` to `"Sisyphus"`.
+
+### Source file 3: src/cli/run/event-handlers.ts
+
+- `handleMessageUpdated()` normalizes incoming `props.info.agent` through `normalizeAgentForPrompt()` before assigning `state.currentAgent` and rendering headers.
+
+### Backward compatibility notes
+
+- `LEGACY_DISPLAY_NAMES` preserves mappings for dashed/parenthesized legacy labels (e.g., `"sisyphus - ultraworker"`, `"atlas (plan executor)"`).
+- `REVERSE_DISPLAY_NAMES` auto-generates from clean `AGENT_DISPLAY_NAMES`.
+- Zero-width character stripping remains in `stripAgentListSortPrefix()` for defense in depth.
 
 ## Verification
 
-This patch has **two verification patterns** — both must pass for the patch to be intact:
+This patch is verified at the source level. The cache bundles are secondary artifacts produced by `bun run build`.
 
-### Verification A: Sort-prefix neutralization (authoritative)
 ```bash
-# Check that getAgentRuntimeName() delegates to getAgentDisplayName() without prefix
-grep -n 'return getAgentDisplayName(configKey);' \
-  /home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js \
-  /home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js
+# Verify all three source files contain the fix patterns
+grep -E 'normalizeAgentForPrompt|getAgentDisplayName\(configKey\)' \
+  /home/ezotoff/omo-hub/projects/oh-my-openagent/src/shared/agent-display-names.ts \
+  /home/ezotoff/omo-hub/projects/oh-my-openagent/src/features/claude-code-session-state/state.ts \
+  /home/ezotoff/omo-hub/projects/oh-my-openagent/src/cli/run/event-handlers.ts
 ```
-Expected: 4 matches (one per file). If any file lacks this pattern, the sort-prefix fix is stale in that file.
 
-### Verification B: Plain display names
-```bash
-# Check that AGENT_DISPLAY_NAMES entries are plain (no role suffix)
-grep -n 'sisyphus: "Sisyphus"' \
-  /home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js \
-  /home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js
-```
-Expected: 4 matches. If any file shows `"Sisyphus - Ultraworker"` or `"Sisyphus (Ultraworker)"`, display names are stale in that file.
+Expected: matches in all three files. `agent-display-names.ts` shows `return getAgentDisplayName(configKey)`; `state.ts` shows `normalizeAgentForPrompt`; `event-handlers.ts` shows `normalizeAgentForPrompt`.
 
-### Verification C: AGENT_LIST_SORT_PREFIXES is empty
-```bash
-# Check that AGENT_LIST_SORT_PREFIXES is an empty object
-grep -A1 'AGENT_LIST_SORT_PREFIXES = {' \
-  /home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js \
-  /home/ezotoff/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js
-```
-Expected: Each file shows `AGENT_LIST_SORT_PREFIXES = {` followed immediately by `};` on the next line (empty object).
+### Runtime QA evidence
 
-**False-positive warning**: The old single-file check (`grep 'sisyphus: "Sisyphus"' dist/index.js`) would pass even if `dist/cli/index.js` was stale. Always verify all 4 active files.
+After rebuilding (`bun run build`) and restarting `opencode serve`, a fresh TUI session showed plain labels:
+- `Sisyphus · ...` on initial load
+- `Atlas · ...` after cycling agents with Tab
+
+This confirms the live runtime loads from the local source, not stale cache bundles.
 
 ## Reapply Instructions
 
-If the patch is lost after an OMO update:
+If the patch is lost after a source update or dependency refresh:
 
-1. Find all active oh-my-openagent bundle files:
+1. Verify the live load path in OpenCode config:
    ```bash
-   find ~/.cache/opencode ~/snap/alacritty/common/.cache/opencode \
-     -path '*/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js' -o \
-     -path '*/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js' \
-     2>/dev/null
+   grep 'oh-my-openagent' ~/.config/opencode/opencode.json
+   ```
+   If it points to `file:///home/ezotoff/omo-hub/projects/oh-my-openagent`, edit the source files there directly.
+
+2. In `src/shared/agent-display-names.ts`:
+   - Ensure `AGENT_DISPLAY_NAMES` contains plain names only.
+   - Ensure `getAgentRuntimeName()` returns `getAgentDisplayName(configKey)` without prefix.
+   - Ensure `normalizeAgentForPrompt()` canonicalizes known legacy labels.
+
+3. In `src/features/claude-code-session-state/state.ts`:
+   - Ensure `normalizeStoredAgentName()` calls `normalizeAgentForPrompt()`.
+
+4. In `src/cli/run/event-handlers.ts`:
+   - Ensure `handleMessageUpdated()` sanitizes `props.info.agent` via `normalizeAgentForPrompt()`.
+
+5. Rebuild the project:
+   ```bash
+   cd /home/ezotoff/omo-hub/projects/oh-my-openagent
+   bun run build
    ```
 
-2. For each `dist/index.js` and `dist/cli/index.js`, apply both fixes:
+6. Restart OpenCode for changes to take effect.
 
-   **Fix A — Neutralize sort-prefix in getAgentRuntimeName():**
-   ```bash
-   # Replace the prefix-prepending version with a direct delegation
-   sed -i 's/return (AGENT_LIST_SORT_PREFIXES\[configKey\] || "") + getAgentDisplayName(configKey);/return getAgentDisplayName(configKey);/' <file>
-   ```
+### Historical note on cache-bundle patching
 
-   **Fix B — Strip role suffixes from AGENT_DISPLAY_NAMES:**
-   ```bash
-   sed -i \
-     -e 's/"Sisyphus - Ultraworker"/"Sisyphus"/g' \
-     -e 's/"Sisyphus (Ultraworker)"/"Sisyphus"/g' \
-     -e 's/"Hephaestus - Deep Agent"/"Hephaestus"/g' \
-     -e 's/"Hephaestus (Deep Agent)"/"Hephaestus"/g' \
-     -e 's/"Prometheus - Plan Builder"/"Prometheus"/g' \
-     -e 's/"Prometheus (Plan Builder)"/"Prometheus"/g' \
-     -e 's/"Atlas - Plan Executor"/"Atlas"/g' \
-     -e 's/"Atlas (Plan Executor)"/"Atlas"/g' \
-     -e 's/"Metis - Plan Consultant"/"Metis"/g' \
-     -e 's/"Metis (Plan Consultant)"/"Metis"/g' \
-     -e 's/"Momus - Plan Critic"/"Momus"/g' \
-     -e 's/"Momus (Plan Critic)"/"Momus"/g' \
-     -e 's/"Athena - Council"/"Athena"/g' \
-     -e 's/"Athena (Council)"/"Athena"/g' \
-     -e 's/"Athena-Junior - Council"/"Athena-Junior"/g' \
-     -e 's/"Athena-Junior (Council)"/"Athena-Junior"/g' \
-     <file>
-   ```
-
-   **Fix C — Empty AGENT_LIST_SORT_PREFIXES:**
-   ```bash
-   # Replace the sort-prefix entries with an empty object
-   # Find the AGENT_LIST_SORT_PREFIXES block and empty it
-   # The block looks like: AGENT_LIST_SORT_PREFIXES = { "\u200B...": "agent-key", ... };
-   sed -i '/AGENT_LIST_SORT_PREFIXES = {/,/};/c\  AGENT_LIST_SORT_PREFIXES = {\n  };' <file>
-   ```
-
-3. Restart OpenCode for changes to take effect.
+Earlier iterations (2026-04-18) patched only bundle copies under `~/.cache/opencode/packages/oh-my-openagent@latest/...` and `~/snap/alacritty/common/.cache/...`. This was insufficient because the plugin `file://` URL in `opencode.json` bypassed the cache. Those bundle edits are now considered stale. Do not reapply them.
 
 ## Durable Alternative
+
 Upstream could:
-- Add a config-based display name override in `oh-my-openagent.json` (e.g., `"display_name"` field per agent)
-- Remove the sort-prefix mechanism entirely or make it opt-in
-- Use plain names as defaults with role descriptions as tooltips/metadata
+- Add a config-based display name override in `oh-my-openagent.json` (e.g., `"display_name"` field per agent).
+- Remove the sort-prefix mechanism entirely or make it opt-in.
+- Use plain names as defaults with role descriptions as tooltips or metadata.
 
 Status: not-yet-pursued
