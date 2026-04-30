@@ -31,14 +31,53 @@ Changes across 8+ runtime files:
 - **commands/recompress.js**: Added guard that rejects bounded archive blocks with a clear error message.
 - **commands/compression-targets.js**: Updated target listing to exclude archive blocks from recompressible targets.
 
+## Install Locations
+
+DCP exists in **3 locations** on the system. OpenCode running inside the Alacritty snap resolves modules from the snap cache, NOT from `~/.config/opencode/node_modules/`.
+
+| # | Path | Version | Active? | Notes |
+|---|------|---------|---------|-------|
+| 1 | `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.9 | ❌ Not used by snap | Manual install; patched first |
+| 2 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.8 | ✅ **Runtime** | Loaded by OpenCode inside snap sandbox |
+| 3 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` | 3.1.9 | ❌ Download cache | OpenCode package store; not loaded at runtime |
+
+**All 10 patched files must be applied to location #2 (the snap runtime copy)** for the patch to take effect. Location #1 was the original patch target but is not loaded by snap-confined OpenCode. Location #3 is a dormant download cache.
+
 ## Verification
 ```bash
-grep -nE "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens" /home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range.js /home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/state.js /home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js /home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/messages/prune.js /home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/commands/decompress.js /home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/commands/recompress.js /home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/commands/compression-targets.js 2>/dev/null && echo "APPLIED" || echo "STALE"
+# Check the ACTIVE runtime copy (snap location):
+grep -cE "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens|retentionMode" \
+  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js \
+  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range.js \
+  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/state.js \
+  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range-utils.js
 ```
-Expected: Multiple matches across the listed files.
+Expected: config.js ≥15, range.js ≥4, state.js ≥2, range-utils.js ≥2 matches.
+
+```bash
+# Quick: verify all 10 files are identical between source and snap:
+SRC="/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+DEST="/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+for f in config.js compress/range.js compress/state.js compress/range-utils.js messages/sync.js messages/prune.js commands/decompress.js commands/recompress.js prompts/compress-range.js commands/compression-targets.js; do
+  diff -q "$SRC/$f" "$DEST/$f" > /dev/null 2>&1 && echo "OK: $f" || echo "MISMATCH: $f"
+done
+```
 
 ## Reapply Instructions
-If the patch is lost after a DCP package update, reapply in this order:
+If the patch is lost after a DCP package update:
+
+1. Apply patches to `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/` (source of truth).
+2. **Then copy all 10 patched files to the snap runtime location:**
+   ```bash
+   SRC="/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+   DEST="/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+   for f in config.js compress/range.js compress/state.js compress/range-utils.js messages/sync.js messages/prune.js commands/decompress.js commands/recompress.js prompts/compress-range.js commands/compression-targets.js; do
+     cp "$SRC/$f" "$DEST/$f"
+   done
+   ```
+3. Restart OpenCode.
+
+Per-file patch details:
 
 1. **config.js**: Add `"compress.retentionMode"` and `"compress.maxArchivedSummaryTokens"` to `VALID_CONFIG_KEYS`, and add type validation in `validateConfigTypes()`.
 2. **compress/state.js**: In `applyCompressionState()`, initialize `archivedBlockIds: []` on new `byMessageId` entries, and preserve it defensively on existing entries. Set `archiveRawMessages: retentionMode === "bounded"` and `retentionMode` on block metadata.
