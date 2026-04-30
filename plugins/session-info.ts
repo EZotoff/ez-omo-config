@@ -1,7 +1,8 @@
 /**
  * Session Info to Clipboard Plugin
  *
- * Intercepts /session-info command and copies "Project <path>:<branch>; Session <title>"
+ * Intercepts /session-info command and copies
+ * "Project <path>:<branch>; Session <title>; ID <session-id>"
  * to the clipboard — no LLM round-trip.
  */
 
@@ -55,7 +56,7 @@ const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 				throw new Error("__session_info_handled__")
 			}
 
-			console.error(`[session-info] Copied: ${result}`)
+			console.error("[session-info] Copied session info to clipboard.")
 
 			// Abort the pipeline so the command never reaches the LLM
 			throw new Error("__session_info_handled__")

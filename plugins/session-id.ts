@@ -27,8 +27,9 @@ const SessionIdPlugin: Plugin = async () => {
 				throw new Error("__session_id_handled__")
 			}
 
-			console.error(`[session-id] Copied: ${result}`)
+			console.error("[session-id] Copied invoking session ID to clipboard.")
 
+			// Abort the pipeline so the command never reaches the LLM
 			throw new Error("__session_id_handled__")
 		},
 	}
