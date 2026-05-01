@@ -1550,8 +1550,10 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 						return
 					}
 
-					const rootSessionId = await resolveRootSessionId(client, sessionID)
-
+					// Do not call OpenCode APIs from session.created. This hook runs while
+					// POST /session is still in flight; awaiting client.session.get() here can
+					// deadlock TUI bootstrap before internal TUI plugins render.
+					const rootSessionId = parentId || sessionID
 					const state = getSession(sessionID, cwd, rootSessionId)
 					state.parentId = parentId
 					state.title = title
@@ -1563,7 +1565,12 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 					}
 					rootState.lastSemanticSkipReason = undefined
 					if (!parentId) {
-						await ensureRootBaselineSnapshot(rootState)
+						setTimeout(() => {
+							ensureRootBaselineSnapshot(rootState).catch((error) => {
+								const reason = error instanceof Error ? error.message : String(error)
+								log("warn", `baseline snapshot deferred failure — root=${rootSessionId}, error=${reason}`)
+							})
+						}, 0)
 					}
 
 					if (parentId) {
