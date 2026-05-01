@@ -32,40 +32,39 @@ rm -f "$COMPOSE_FILE" 2>/dev/null || true
 
 echo "Worktree cleanup complete: $BRANCH"
 
-# =============================================================================
-# Vera Cleanup — stop semantic code search watcher
-# =============================================================================
-
+# --- Vera Cleanup ---
 WORKSPACE_KEY="$(basename "$(pwd)")-$(echo -n "$(realpath "$(pwd)")" | sha1sum | cut -c1-8)"
 WATCHERS_DIR="$HOME/.local/share/opencode/worktree-state/$PROJECT_ID/vera-watchers"
-VERA_STATE_FILE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
+WATCHER_STATE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-if [ -f "$VERA_STATE_FILE" ]; then
-  VERA_PID=$(jq -r '.pid // empty' "$VERA_STATE_FILE" 2>/dev/null)
-  VERA_STATUS=$(jq -r '.status // empty' "$VERA_STATE_FILE" 2>/dev/null)
+if [ -f "$WATCHER_STATE" ]; then
+  PID=$(jq -r '.pid // empty' "$WATCHER_STATE" 2>/dev/null)
+  STATUS=$(jq -r '.status // empty' "$WATCHER_STATE" 2>/dev/null)
 
-  if [ -n "$VERA_PID" ] && [ "$VERA_PID" != "null" ] && [ "$VERA_STATUS" = "running" ]; then
-    kill "$VERA_PID" 2>/dev/null || true
+  if [ -n "$PID" ] && [ "$STATUS" = "running" ]; then
+    echo "Stopping Vera watcher (PID: $PID) for workspace: $WORKSPACE_KEY"
+    kill "$PID" 2>/dev/null || true
 
-    WAITED=0
-    while [ "$WAITED" -lt 5 ]; do
-      if ! kill -0 "$VERA_PID" 2>/dev/null; then
+    # Wait up to 5 seconds for graceful shutdown
+    for i in 1 2 3 4 5; do
+      if ! kill -0 "$PID" 2>/dev/null; then
         break
       fi
       sleep 1
-      WAITED=$((WAITED + 1))
     done
 
-    if kill -0 "$VERA_PID" 2>/dev/null; then
-      kill -9 "$VERA_PID" 2>/dev/null || true
+    # Force kill if still alive
+    if kill -0 "$PID" 2>/dev/null; then
+      echo "WARN: Vera watcher did not stop gracefully, forcing kill (PID: $PID)"
+      kill -9 "$PID" 2>/dev/null || true
     fi
   fi
 
-  STOPPED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   TEMP_FILE=$(mktemp)
-  jq --arg stoppedAt "$STOPPED_AT" \
-     '.status = "stopped" | .pid = null | .lastVerifiedAt = $stoppedAt' \
-     "$VERA_STATE_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$VERA_STATE_FILE"
+  jq --arg ts "$TIMESTAMP" '.status = "stopped" | .pid = null | .lastVerifiedAt = $ts' "$WATCHER_STATE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$WATCHER_STATE"
+  rm -f "$WATCHER_STATE"
+  echo "Vera watcher state removed for workspace: $WORKSPACE_KEY"
+else
+  echo "INFO: No Vera watcher state found for workspace: $WORKSPACE_KEY"
 fi
-
-echo "Vera watcher cleanup complete for workspace $WORKSPACE_KEY"

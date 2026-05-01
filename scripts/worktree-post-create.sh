@@ -87,32 +87,26 @@ fi
 echo "Worktree state created: $STATE_FILE"
 echo "Port allocated: $PORT"
 
-# =============================================================================
-# Vera Bootstrap — semantic code search indexing
-# =============================================================================
-
-WORKSPACE_KEY="$(basename "$(pwd)")-$(echo -n "$(realpath "$(pwd)")" | sha1sum | cut -c1-8)"
-WATCHERS_DIR="$HOME/.local/share/opencode/worktree-state/$PROJECT_ID/vera-watchers"
-mkdir -p "$WATCHERS_DIR"
-
-VERA_STATE_FILE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
-WORKSPACE_PATH="$(pwd)"
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-INDEX_PATH="$WORKSPACE_PATH/.vera"
-WATCH_LOG_PATH="$HOME/.opencode/plugin/vera-runtime/$WORKSPACE_KEY.log"
-
+# --- Vera Bootstrap ---
 if command -v vera &> /dev/null; then
-  if vera index . &> /dev/null; then
-    cat > "$VERA_STATE_FILE" << EOF
+  WORKSPACE_KEY="$(basename "$(pwd)")-$(echo -n "$(realpath "$(pwd)")" | sha1sum | cut -c1-8)"
+  WATCHERS_DIR="$HOME/.local/share/opencode/worktree-state/$PROJECT_ID/vera-watchers"
+  mkdir -p "$WATCHERS_DIR"
+  WATCHER_STATE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
+  TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  echo "Running vera index for workspace: $WORKSPACE_KEY"
+  if vera index . > /dev/null 2>&1; then
+    cat > "$WATCHER_STATE" << EOF
 {
   "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$WORKSPACE_PATH",
+  "workspacePath": "$(pwd)",
   "projectId": "$PROJECT_ID",
   "pid": null,
   "status": "indexed",
   "sessionIds": [],
-  "indexPath": "$INDEX_PATH",
-  "watchLogPath": "$WATCH_LOG_PATH",
+  "indexPath": "$(realpath .)/.vera",
+  "watchLogPath": "$WATCHERS_DIR/$WORKSPACE_KEY.log",
   "lastIndexedAt": "$TIMESTAMP",
   "startedAt": null,
   "lastVerifiedAt": null,
@@ -120,85 +114,27 @@ if command -v vera &> /dev/null; then
   "lastFailureReason": null
 }
 EOF
-    vera watch . &> /dev/null &
-    VERA_PID=$!
-    if kill -0 "$VERA_PID" 2>/dev/null; then
-      STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-      cat > "$VERA_STATE_FILE" << EOF
-{
-  "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$WORKSPACE_PATH",
-  "projectId": "$PROJECT_ID",
-  "pid": $VERA_PID,
-  "status": "running",
-  "sessionIds": [],
-  "indexPath": "$INDEX_PATH",
-  "watchLogPath": "$WATCH_LOG_PATH",
-  "lastIndexedAt": "$TIMESTAMP",
-  "startedAt": "$STARTED_AT",
-  "lastVerifiedAt": null,
-  "lastFailureAt": null,
-  "lastFailureReason": null
-}
-EOF
-      echo "Vera watcher started (pid=$VERA_PID) for workspace $WORKSPACE_KEY"
-    else
-      cat > "$VERA_STATE_FILE" << EOF
-{
-  "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$WORKSPACE_PATH",
-  "projectId": "$PROJECT_ID",
-  "pid": null,
-  "status": "watch-failed",
-  "sessionIds": [],
-  "indexPath": "$INDEX_PATH",
-  "watchLogPath": "$WATCH_LOG_PATH",
-  "lastIndexedAt": "$TIMESTAMP",
-  "startedAt": null,
-  "lastVerifiedAt": null,
-  "lastFailureAt": "$TIMESTAMP",
-  "lastFailureReason": "vera watch process failed to start"
-}
-EOF
-      echo "WARN: Vera watcher failed to start for workspace $WORKSPACE_KEY"
-    fi
+
   else
-    cat > "$VERA_STATE_FILE" << EOF
+    cat > "$WATCHER_STATE" << EOF
 {
   "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$WORKSPACE_PATH",
+  "workspacePath": "$(pwd)",
   "projectId": "$PROJECT_ID",
   "pid": null,
   "status": "index-failed",
   "sessionIds": [],
-  "indexPath": "$INDEX_PATH",
-  "watchLogPath": "$WATCH_LOG_PATH",
+  "indexPath": "$(realpath .)/.vera",
+  "watchLogPath": "$WATCHERS_DIR/$WORKSPACE_KEY.log",
   "lastIndexedAt": null,
   "startedAt": null,
   "lastVerifiedAt": null,
   "lastFailureAt": "$TIMESTAMP",
-  "lastFailureReason": "vera index exited with non-zero status"
+  "lastFailureReason": "vera index . failed"
 }
 EOF
-    echo "WARN: Vera indexing failed for workspace $WORKSPACE_KEY"
+    echo "WARN: vera index failed for workspace: $WORKSPACE_KEY"
   fi
 else
-  cat > "$VERA_STATE_FILE" << EOF
-{
-  "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$WORKSPACE_PATH",
-  "projectId": "$PROJECT_ID",
-  "pid": null,
-  "status": "missing-binary",
-  "sessionIds": [],
-  "indexPath": "$INDEX_PATH",
-  "watchLogPath": "$WATCH_LOG_PATH",
-  "lastIndexedAt": null,
-  "startedAt": null,
-  "lastVerifiedAt": null,
-  "lastFailureAt": null,
-  "lastFailureReason": null
-}
-EOF
-  echo "WARN: Vera binary not found; watcher state set to missing-binary"
+  echo "INFO: vera not found; skipping Vera bootstrap"
 fi
