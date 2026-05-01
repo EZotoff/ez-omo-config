@@ -181,7 +181,7 @@ Two-tier system:
 
 ## Vera Watchers JSON Schema
 
-File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<workspace-key>.json`
+File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<workspaceKey>.json`
 
 ### Directory Layout
 
@@ -190,61 +190,61 @@ File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<worksp
 ├── worktrees/
 │   └── <branch>.json
 ├── vera-watchers/
-│   └── <workspace-key>.json
+│   └── <workspaceKey>.json
+│   └── <workspaceKey>.log
 ├── merge-queue.json
 ├── merge.lock
 └── ports.json
 ```
 
-- `vera-watchers/` stores one JSON file per workspace (not per branch).
-- The workspace key is `<workspace-basename>-<sha1-8(realpath(workspacePath))>`.
-- Project ID is `basename "$(git rev-parse --show-toplevel)"` (same as worktree scripts).
+- `vera-watchers/` stores one JSON state file and one log file per watched workspace.
+- `workspaceKey` is computed as `<basename>-<sha1-8(realpath(path))>`.
 
 ### Fields
 
 | Field | Type | Required | Description |
 |---|---|---:|---|
-| `workspaceKey` | string | yes | Unique workspace identifier (`<basename>-<sha1-8(path)>`). |
-| `workspacePath` | string | yes | Absolute path to the workspace directory. |
-| `projectId` | string | yes | Project identifier from git toplevel basename. |
-| `pid` | number \| null | yes | Process ID of the active `vera watch` process, or `null`. |
-| `status` | string | yes | Current watcher state: `indexed`, `running`, `stale`, `stopped`, `missing-binary`, `index-failed`, `watch-failed`. |
+| `workspaceKey` | string | yes | Stable key derived from the realpath of the workspace. |
+| `workspacePath` | string | yes | Absolute path to the watched workspace directory. |
+| `projectId` | string | yes | Project identifier (basename of git top-level). |
+| `pid` | number \| null | no | Process ID of the active vera watcher process, if running. |
+| `status` | string | yes | Current watcher state. See status enum below. |
 | `sessionIds` | string[] | yes | OpenCode session IDs currently associated with this workspace. |
-| `indexPath` | string | yes | Absolute path to the Vera index directory (typically `<workspace>/.vera`). |
-| `watchLogPath` | string | yes | Absolute path to the per-workspace watcher log file. |
-| `lastIndexedAt` | string (ISO 8601) \| null | yes | Timestamp of the last successful index, or `null`. |
-| `startedAt` | string (ISO 8601) \| null | yes | Timestamp when the watcher process started, or `null`. |
-| `lastVerifiedAt` | string (ISO 8601) \| null | yes | Timestamp of the last health/verification check, or `null`. |
-| `lastFailureAt` | string (ISO 8601) \| null | yes | Timestamp of the last failure, or `null`. |
-| `lastFailureReason` | string \| null | yes | Human-readable reason for the last failure, or `null`. |
+| `indexPath` | string | yes | Absolute path to the Vera index directory for this workspace. |
+| `watchLogPath` | string | yes | Absolute path to the watcher log file. |
+| `lastIndexedAt` | string (ISO 8601) \| null | no | Timestamp of the last successful index. |
+| `startedAt` | string (ISO 8601) \| null | no | When the watcher was first started. |
+| `lastVerifiedAt` | string (ISO 8601) \| null | no | Timestamp of the last health/verification check. |
+| `lastFailureAt` | string (ISO 8601) \| null | no | Timestamp of the last watcher failure, if any. |
+| `lastFailureReason` | string \| null | no | Reason for the last failure (stderr excerpt or message). |
 
-### Status Values
+### Status Enum
 
-| Status | Meaning |
+| Value | Meaning |
 |---|---|
-| `indexed` | Index exists and is up-to-date; watcher not currently running. |
-| `running` | `vera watch` process is active and monitoring the workspace. |
-| `stale` | Index exists but may be out of date; re-index recommended. |
-| `stopped` | No active watcher; no sessions associated. |
-| `missing-binary` | `vera` binary not found in `$PATH`. |
-| `index-failed` | Last `vera index` command exited with non-zero status. |
-| `watch-failed` | `vera watch` process exited unexpectedly or failed to start. |
+| `indexed` | Workspace has been indexed but watcher is not running. |
+| `running` | Watcher is actively monitoring the workspace. |
+| `stale` | Previously running watcher PID is no longer valid. |
+| `stopped` | Watcher was explicitly stopped. |
+| `missing-binary` | Vera binary not found on PATH. |
+| `index-failed` | Index operation failed. |
+| `watch-failed` | Watcher start/operation failed. |
 
 ### Example
 
 ```json
 {
-  "workspaceKey": "my-project-a1b2c3d4",
-  "workspacePath": "/home/ezotoff/projects/my-project",
-  "projectId": "my-project",
+  "workspaceKey": "my-repo-3f8a2b1c",
+  "workspacePath": "/home/ezotoff/projects/my-repo",
+  "projectId": "my-repo",
   "pid": 12345,
   "status": "running",
   "sessionIds": ["ses_abc123"],
-  "indexPath": "/home/ezotoff/projects/my-project/.vera",
-  "watchLogPath": "/home/ezotoff/.opencode/plugin/vera-runtime/my-project-a1b2c3d4.log",
-  "lastIndexedAt": "2026-05-01T10:00:00.000Z",
-  "startedAt": "2026-05-01T10:00:00.000Z",
-  "lastVerifiedAt": "2026-05-01T10:05:00.000Z",
+  "indexPath": "/home/ezotoff/projects/my-repo/.vera",
+  "watchLogPath": "/home/ezotoff/.local/share/opencode/worktree-state/my-repo/vera-watchers/my-repo-3f8a2b1c.log",
+  "lastIndexedAt": "2026-05-01T10:15:00.000Z",
+  "startedAt": "2026-05-01T09:00:00.000Z",
+  "lastVerifiedAt": "2026-05-01T10:30:00.000Z",
   "lastFailureAt": null,
   "lastFailureReason": null
 }

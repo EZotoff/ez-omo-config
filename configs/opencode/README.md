@@ -11,7 +11,17 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudge dispatch | `$HOME/.config/opencode/aspect-dynamics.mjs` |
 | `aspect-dynamics/*.mjs` | 7 support modules: config, context, heuristics, session-state, sets, nudge, logging | `$HOME/.config/opencode/aspect-dynamics/` |
 | `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`) | `$HOME/.config/opencode/aspect-dynamics/sets/` |
+| `worktree.jsonc` | Worktree sync config and hook registration for automated worktree lifecycle management | `$HOME/.opencode/worktree.jsonc` |
 | `extras/ocx.jsonc` | OCX registry configuration pointer used by the OCX CLI | `$HOME/.opencode/ocx.jsonc` |
+
+## Worktree Lifecycle Automation
+
+Two hook scripts automate worktree setup and teardown:
+
+- **`scripts/worktree-post-create.sh`** — Runs after a worktree is created. Handles state creation, port allocation, Docker container start, and Vera index bootstrapping.
+- **`scripts/worktree-pre-delete.sh`** — Runs before a worktree is deleted. Handles container stop, port freeing, state cleanup, and Vera watcher cleanup.
+
+These hooks are registered in `worktree.jsonc` and are invoked automatically by the worktree plugin. No manual intervention is needed.
 
 ## Portability notes
 

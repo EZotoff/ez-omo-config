@@ -175,9 +175,11 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 **Install Target**: `$HOME/.config/opencode/skills/vera/` (installed via `vera agent install --client opencode`)
 
-**Agents Using This Skill**: `explore`, `sisyphus`, `librarian`
+**Agents Using This Skill**: `explore`, `sisyphus`, `librarian`, `prometheus`
 
-**Note**: Vera is installed externally via its own CLI. It is NOT managed by `install.sh`. See [Vera Implementation Plan](../docs/vera-implementation-plan.md) for details.
+**Install Method**: `vera agent install --client opencode --scope global`
+
+**Note**: Vera is installed globally via its own CLI. Global scope is recommended so all projects and agents share the same Vera installation. Project scope is optional and only needed if the global install fails. Vera is NOT managed by `install.sh`. See [Vera Implementation Plan](../docs/vera-implementation-plan.md) for details.
 
 ---
 

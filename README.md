@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **49 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **57 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -56,13 +56,13 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 52 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 57 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
-| 6-11 | **Plugins** | 8 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, and session clipboard commands |
+| 6-11 | **Plugins** | 9 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, and Vera runtime supervision |
 | 12-21 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
@@ -93,6 +93,7 @@ This repository contains 52 core artifacts + 1 external integration organized in
 | 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
 | 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id, no LLM round-trip) |
 | 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
+| 11e | `vera-runtime.ts` | `plugins/` | Vera watcher supervision plugin (automated index lifecycle, fail-open) |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
 | 12b | `knowledge/` | `skills/` | Deprecated compatibility shim that delegates to Wisdom |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
@@ -113,9 +114,9 @@ This repository contains 52 core artifacts + 1 external integration organized in
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
 | 30 | `worktree-coordinator/` | `skills/` | Worktree parallel development guide |
-| 31 | `worktree-post-create.sh` | `scripts/worktree/` | State creation, port allocation, Docker start |
-| 32 | `worktree-pre-delete.sh` | `scripts/worktree/` | Container stop, port free, state cleanup |
-| 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration |
+| 31 | `worktree-post-create.sh` | `scripts/worktree/` | State creation, port allocation, Docker start, Vera bootstrap. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
+| 32 | `worktree-pre-delete.sh` | `scripts/worktree/` | Container stop, port free, state cleanup, Vera watcher cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
+| 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
 | 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
 | 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
 | 36 | `worktree-state-schema.md` | `docs/` | Runtime state file formats and locations |
@@ -208,7 +209,7 @@ Install only specific artifact types:
 ./install.sh --commands   # Install only slash commands
 ./install.sh --plugins    # Install only plugins
 ./install.sh --skills     # Install only skills
-./install.sh --scripts    # Install only wisdom scripts
+./install.sh --scripts    # Install all scripts (wisdom + worktree hooks)
 ```
 
 The `commands` category installs slash-command prompts into `~/.config/opencode/command/`, including `/models-preset` at `~/.config/opencode/command/models-preset.md`.
