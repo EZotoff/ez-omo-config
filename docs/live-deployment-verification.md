@@ -48,7 +48,7 @@ bash scripts/verify-live-deployment.sh \
 1. **Config symlink** — Verifies `~/.config/opencode/opencode.json` points to the expected repo path.
 2. **Plugin file exists** — Checks the live plugin file is present at its install target.
 3. **Plugin SHA match** — Compares SHA256 of the repo copy against the live copy.
-4. **Plugin registered** — Confirms the plugin is listed in the active `opencode.json` plugin array.
+4. **HOME plugin autoload path** — Confirms the plugin is installed under `~/.opencode/plugin/`, where OpenCode auto-loads plugin files. Vera runtime is intentionally not listed in `opencode.json`.
 5. **Project exists and is a git repo** — Validates the project path.
 6. **Runtime proven** — Uses a timestamp marker to determine whether post-marker log entries or watcher state timestamps exist.
 7. **Vera index exists** — Checks for the `.vera/` index directory (skips if watcher state reports `missing-binary` in fail-open mode).
@@ -123,6 +123,6 @@ The workflow requires the verifier to confirm live deployment, but concrete proo
 ## See Also
 
 - [AGENTS.md](../AGENTS.md) — Source of the evidence-state taxonomy and claim discipline
-- [Plugins Documentation](plugins.md) — `review-enforcer.ts` live gate and `vera-runtime.ts` active registration
+- [Plugins Documentation](plugins.md) — `review-enforcer.ts` live gate and `vera-runtime.ts` HOME plugin autoload behavior
 - [Configuration Documentation](configs.md) — Symlink scope caveat distinguishing config files from plugin targets
 - [MANIFEST.md](../MANIFEST.md) — Complete artifact inventory
