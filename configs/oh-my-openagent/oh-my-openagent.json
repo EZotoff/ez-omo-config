@@ -55,7 +55,6 @@
       ],
       "skills": [
         "wisdom",
-        "knowledge",
         "vera"
       ],
       "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
@@ -87,8 +86,7 @@
         "github-copilot/gpt-5.4"
       ],
       "skills": [
-        "wisdom",
-        "knowledge"
+        "wisdom"
       ],
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions."
     },
@@ -98,8 +96,7 @@
         "github-copilot/claude-sonnet-4.6"
       ],
       "skills": [
-        "wisdom",
-        "knowledge"
+        "wisdom"
       ],
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first."
     },

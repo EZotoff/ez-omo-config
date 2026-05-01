@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 52 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 51 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -37,7 +37,6 @@ Complete inventory of 52 core artifacts for ez-omo-config repository scaffold.
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
 | 11e | vera-runtime.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Vera Watcher Supervision | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
-| 12b | knowledge/ | `~/.config/opencode/skills/knowledge/` | `skills/knowledge/` | `$HOME/.config/opencode/skills/` | Wisdom Shim (Deprecated) | Required |
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
 | 14 | review-protocol/ | `~/.config/opencode/skills/review-protocol/` | `skills/review-protocol/` | `$HOME/.config/opencode/skills/` | Review Protocol | Required |
 | 15 | playwright/ | `~/.config/opencode/skills/playwright/` | `skills/playwright/` | `$HOME/.config/opencode/skills/` | Browser Testing | Optional |
@@ -84,7 +83,6 @@ ez-omo-config/
 │   └── kdco-primitives/    # Shared library
 ├── skills/
 │   ├── wisdom/             # Wisdom propagation skill (primary runtime memory)
-│   ├── knowledge/          # Deprecated compatibility shim (delegates to Wisdom)
 │   ├── atlas-review-handler/ # Review orchestration skill
 │   ├── review-protocol/    # Review protocol skill
 │   ├── playwright/         # Browser testing skill

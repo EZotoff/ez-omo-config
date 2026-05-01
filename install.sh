@@ -48,7 +48,6 @@ ITEMS=(
     "plugins|plugins/vera-runtime.ts|$HOME/.opencode/plugin/vera-runtime.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
-    "skills|skills/knowledge|$HOME/.config/opencode/skills/knowledge"
     "skills|skills/debate|$HOME/.config/opencode/skills/debate"
     "skills|skills/deployment|$HOME/.config/opencode/skills/deployment"
     "skills|skills/github-triage|$HOME/.config/opencode/skills/github-triage"
