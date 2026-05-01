@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# DCP bounded-range patch verification.
+# Checks that patched files are present on disk across all three install copies
+# (reference, runtime, package cache) and exercises five functional regression
+# cases via the harness.
+#
+# LIMITATION: This test proves patch presence on disk. A long-running OpenCode
+# server/TUI started BEFORE a patch sync may still use unpatched modules until
+# restarted. To verify a fresh process does not emit unknown-key warnings, also
+# run: bash tests/test_dcp_startup_warning.sh
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -68,6 +77,10 @@ echo ""
 echo "=========================================="
 echo "DCP bounded-range: $TOTAL_PASSED passed, $TOTAL_FAILED failed"
 echo "=========================================="
+echo ""
+echo "NOTE: File-marker checks prove patch presence on disk."
+echo "      Run 'bash tests/test_dcp_startup_warning.sh' to verify a fresh"
+echo "      OpenCode process does not emit unknown-key warnings."
 
 if [[ $TOTAL_FAILED -gt 0 ]]; then
     exit 1

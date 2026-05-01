@@ -62,6 +62,14 @@ bash tests/test_dcp_bounded_range.sh
 
 Expected: 8 passed, 0 failed. The script exercises marker detection on all three install copies plus five functional regression cases. This is the single command to run after any OpenCode or DCP package update to confirm the patch is still intact.
 
+Also run the fresh-start warning probe to ensure a new OpenCode process does not reject the bounded-retention keys:
+
+```bash
+bash tests/test_dcp_startup_warning.sh
+```
+
+Expected: 2 passed, 0 failed. This test starts a short-lived `opencode serve` probe and fails if the startup logs contain `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens`.
+
 ## Verification
 
 ### How to tell bounded retention is configured

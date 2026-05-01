@@ -289,6 +289,16 @@ bash tests/test_dcp_bounded_range.sh
 
 Expected: 8 passed, 0 failed. The proof script checks marker presence across all three DCP install copies (reference, runtime, and package cache) and exercises five functional regression cases, including runtime metadata validation of `retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, and `truncationOccurred`.
 
+**Fresh-start warning probe**: File-marker checks prove the patch files exist on disk, but they do not prove a running OpenCode process has loaded them. To verify a fresh process does not reject the bounded-retention keys as unknown, also run:
+
+```bash
+bash tests/test_dcp_startup_warning.sh
+```
+
+Expected: 2 passed, 0 failed. This test starts a short-lived `opencode serve` probe and fails if the startup logs contain `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens`.
+
+**Stale-process gotcha**: If you see the DCP unknown-key warning in a running OpenCode server or TUI session that was started *before* the latest patch sync, the patched modules may not be loaded in that process. File-marker checks prove patch presence on disk, but long-running processes only load DCP modules at startup. Restart OpenCode to load the patched code.
+
 For install locations, failure string meanings, and reapply instructions, see `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
 
 ---
