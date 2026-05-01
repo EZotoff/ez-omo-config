@@ -97,7 +97,8 @@ ez-omo-config/
 │   ├── wisdom/             # Wisdom propagation scripts (9 files)
 │   └── worktree/           # Worktree lifecycle hooks (2 files)
 ├── extras/                 # Extra configurations (ocx.jsonc)
-├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt
+├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, and observability contract
+│   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
 ├── tests/                  # Bash verification suite and helpers
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities

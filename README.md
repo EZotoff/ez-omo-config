@@ -344,6 +344,7 @@ For in-depth guides on specific components:
 | Wisdom System | [docs/wisdom.md](docs/wisdom.md) |
 | Vera Integration | [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md) |
 | Compatibility Debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
+| Observability Contract | [docs/configs.md](docs/configs.md) |
 
 ---
 

@@ -348,4 +348,112 @@ Every observability event produced by a config-layer system must include these f
 | `session_id` | string | Correlation ID for the OpenCode session |
 | `duration_ms` | integer | Elapsed time for the operation, in milliseconds |
 | `reason` | string | Human-readable explanation when status is not `success` |
-| `counts` | object | Numeric aggregates (e.g., `{
+| `counts` | object | Numeric aggregates (e.g., `{"aspectsScored": 7, "nudgesDispatched": 1}`) |
+| `error` | object | Sanitized error information. Contains only `class` and `message`. Never a stack trace |
+| `version` | string | System version or commit hash |
+| `config_hash` | string | Fingerprint of the active configuration (e.g., hash of `aspect-dynamics.mjs` or `dcp.jsonc`) |
+
+### Redaction Rules
+
+The following values must **never** appear in any observability event:
+
+- Raw transcript content
+- Prompts sent to models
+- Model responses or completions
+- API keys, tokens, or credentials
+- Authentication paths or secret file locations
+- Full message bodies from OpenCode sessions
+- Request bodies, response bodies, or headers from provider calls
+
+**Allowed substitutions**:
+
+| Instead of | Log this |
+|---|---|
+| Full message text | Message ID, role, and token count |
+| Prompt content | Prompt hash or `prompt_sha256` |
+| Model response | Response length in tokens and finish reason |
+| API key | Provider ID only (e.g., `github-copilot`, `moonshot`) |
+| File path with secrets | File name only, or a redaction marker `<redacted>` |
+
+### Retention Rules
+
+All durable JSONL and proof artifacts must be bounded:
+
+- **Default maximum**: 1000 events per JSONL file
+- **Bound by count**: Truncate to the most recent 1000 lines when the limit is exceeded
+- **Bound by age**: Events older than 30 days may be removed during cleanup
+- **Explicit cleanup**: Systems must provide a manual cleanup command or flag
+- **Deterministic truncation**: Prefer line-count truncation over time-based rotation for predictability
+
+### Examples
+
+**Aspect Dynamics — session scored event:**
+
+```json
+{
+  "ts": "2026-05-01T14:32:01.123Z",
+  "system": "aspect-dynamics",
+  "event": "session.scored",
+  "status": "success",
+  "session_id": "ses_abc123",
+  "duration_ms": 12,
+  "counts": {
+    "aspectsScored": 7,
+    "nudgesDispatched": 1,
+    "contextWindowTurns": 10
+  },
+  "version": "1.2.0",
+  "config_hash": "a3f1b2c4"
+}
+```
+
+**Aspect Dynamics — scoring failure event:**
+
+```json
+{
+  "ts": "2026-05-01T14:32:05.456Z",
+  "system": "aspect-dynamics",
+  "event": "session.scored",
+  "status": "failure",
+  "session_id": "ses_abc123",
+  "duration_ms": 45,
+  "reason": "Aspect set emotions-v1 failed to load",
+  "error": {
+    "class": "FileNotFoundError",
+    "message": "Set file not found at configured path"
+  },
+  "version": "1.2.0",
+  "config_hash": "a3f1b2c4"
+}
+```
+
+**DCP — range compression archived event:**
+
+```json
+{
+  "ts": "2026-05-01T14:35:22.789Z",
+  "system": "dcp",
+  "event": "compress.range_archived",
+  "status": "success",
+  "session_id": "ses_def456",
+  "duration_ms": 234,
+  "counts": {
+    "turnsArchived": 15,
+    "tokensBefore": 4200,
+    "tokensAfter": 1800,
+    "summariesCreated": 1
+  },
+  "version": "1.0.0",
+  "config_hash": "dcp-bounded-v1"
+}
+```
+
+---
+
+## See Also
+
+- [Plugins Documentation](plugins.md) — Plugin configuration references
+- [Skills Documentation](skills.md) — Skill loading configuration
+- [MANIFEST.md](../MANIFEST.md) — Complete artifact inventory
+- `configs/opencode/README.md` — Quick reference
+- `install.sh` — Installation script with backup and idempotency
