@@ -1655,8 +1655,9 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 
 				const existingState = sessions.get(sessionId)
 				const cwd = existingState?.cwd ?? directory
-				const rootSessionId = await resolveRootSessionId(client, sessionId)
+				const { rootSessionId, parentId } = await resolveRootSession(client, sessionId)
 				const state = getSession(sessionId, cwd, rootSessionId)
+				state.parentId = parentId
 				const rootState = getSession(rootSessionId, cwd, rootSessionId)
 
 				const snapshotResult = await getDirtyPathSnapshot(rootState.cwd)
@@ -1715,8 +1716,9 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 
 				const existingState = sessions.get(sessionId)
 				const cwd = existingState?.cwd ?? directory
-				const rootSessionId = await resolveRootSessionId(client, sessionId)
+				const { rootSessionId, parentId } = await resolveRootSession(client, sessionId)
 				const state = getSession(sessionId, cwd, rootSessionId)
+				state.parentId = parentId
 				const rootState = getSession(rootSessionId, cwd, rootSessionId)
 				const now = Date.now()
 				const pendingSnapshot = rootState.pendingToolSnapshot
