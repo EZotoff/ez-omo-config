@@ -787,7 +787,7 @@ function buildSemanticProposalPrompt(args: {
 	].join("\n")
 }
 
-export async function createSemanticHelperSession(args: {
+async function createSemanticHelperSession(args: {
 	client: AutoCheckpointClient
 	rootSessionId: string
 	rootSessionTitle: string
@@ -816,7 +816,7 @@ export async function createSemanticHelperSession(args: {
 	}
 }
 
-export async function sendSemanticProposal(args: {
+async function sendSemanticProposal(args: {
 	client: AutoCheckpointClient
 	helperSessionId: string
 	rootSessionTitle: string
@@ -846,7 +846,7 @@ export async function sendSemanticProposal(args: {
 	}
 }
 
-export async function pollForHelperResponse(args: {
+async function pollForHelperResponse(args: {
 	client: AutoCheckpointClient
 	helperSessionId: string
 }): Promise<Result<string, string>> {
@@ -871,7 +871,7 @@ export async function pollForHelperResponse(args: {
 	return Result.err("helper-timeout")
 }
 
-export function validateSemanticProposal(args: {
+function validateSemanticProposal(args: {
 	responseText: string
 	candidatePaths: string[]
 	conflictPaths: Set<string>
@@ -941,7 +941,7 @@ export function validateSemanticProposal(args: {
 	})
 }
 
-export async function resolveSemanticProposal(args: {
+async function resolveSemanticProposal(args: {
 	client: AutoCheckpointClient
 	rootState: SessionState
 	rootSessionId: string
@@ -998,6 +998,10 @@ export async function resolveSemanticProposal(args: {
 		})
 		helperSessionIds.delete(helperSession.value.id)
 	}
+}
+
+export const AutoCheckpointTestHelpers = {
+	resolveSemanticProposal,
 }
 
 async function isGitOperationInProgress(cwd: string): Promise<boolean> {

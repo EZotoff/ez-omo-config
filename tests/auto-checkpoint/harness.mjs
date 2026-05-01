@@ -790,8 +790,9 @@ function makeAssistantTextMessage(text) {
 
 async function runStructuredHelperResponseAccepted() {
 	const { mod } = await loadPluginBundle();
-	if (typeof mod.resolveSemanticProposal !== "function") {
-		fail("plugin did not export resolveSemanticProposal helper");
+ const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ if (typeof resolveSemanticProposal !== "function") {
+  fail("plugin did not export resolveSemanticProposal test helper");
 	}
 
 	const candidatePaths = ["tracked.txt", "src/main.ts"];
@@ -814,7 +815,7 @@ async function runStructuredHelperResponseAccepted() {
 		conflictPaths: new Set(),
 	};
 
-	const result = await mod.resolveSemanticProposal({
+ const result = await resolveSemanticProposal({
 		client: ctx.client,
 		rootState,
 		rootSessionId: "root-abcdef12",
@@ -861,8 +862,9 @@ async function runStructuredHelperResponseAccepted() {
 
 async function runMissingRootSessionMetadataFallbacks() {
 	const { mod } = await loadPluginBundle();
-	if (typeof mod.resolveSemanticProposal !== "function") {
-		fail("plugin did not export resolveSemanticProposal helper");
+ const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ if (typeof resolveSemanticProposal !== "function") {
+  fail("plugin did not export resolveSemanticProposal test helper");
 	}
 
 	const ctx = makeFakeCtx({
@@ -878,7 +880,7 @@ async function runMissingRootSessionMetadataFallbacks() {
 		],
 	});
 
-	const result = await mod.resolveSemanticProposal({
+ const result = await resolveSemanticProposal({
 		client: ctx.client,
 		rootState: { cwd: process.cwd(), conflictPaths: new Set() },
 		rootSessionId: undefined,
@@ -918,8 +920,9 @@ async function runMissingRootSessionMetadataFallbacks() {
 
 async function runMalformedLlmResponseSkips() {
 	const { mod } = await loadPluginBundle();
-	if (typeof mod.resolveSemanticProposal !== "function") {
-		fail("plugin did not export resolveSemanticProposal helper");
+ const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ if (typeof resolveSemanticProposal !== "function") {
+  fail("plugin did not export resolveSemanticProposal test helper");
 	}
 
 	const ctx = makeFakeCtx({
@@ -931,7 +934,7 @@ async function runMalformedLlmResponseSkips() {
 		],
 	});
 
-	const result = await mod.resolveSemanticProposal({
+ const result = await resolveSemanticProposal({
 		client: ctx.client,
 		rootState: { cwd: process.cwd(), conflictPaths: new Set() },
 		rootSessionId: "root-abcdef12",
@@ -977,8 +980,9 @@ async function withImmediateTimersAndTimeAdvance(fn) {
 
 async function runLlmOutOfScopeFileSkips() {
 	const { mod } = await loadPluginBundle();
-	if (typeof mod.resolveSemanticProposal !== "function") {
-		fail("plugin did not export resolveSemanticProposal helper");
+ const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ if (typeof resolveSemanticProposal !== "function") {
+  fail("plugin did not export resolveSemanticProposal test helper");
 	}
 
 	const ctx = makeFakeCtx({
@@ -994,7 +998,7 @@ async function runLlmOutOfScopeFileSkips() {
 		],
 	});
 
-	const result = await mod.resolveSemanticProposal({
+ const result = await resolveSemanticProposal({
 		client: ctx.client,
 		rootState: { cwd: process.cwd(), conflictPaths: new Set() },
 		rootSessionId: "root-abcdef12",
