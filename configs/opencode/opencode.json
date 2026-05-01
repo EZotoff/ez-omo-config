@@ -429,6 +429,10 @@
     },
     "zai-coding-plan": {
       "name": "Z.AI Coding Plan",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://api.z.ai/api/coding/paas/v4"
+      },
       "models": {
         "glm-5": {
           "name": "GLM 5",
