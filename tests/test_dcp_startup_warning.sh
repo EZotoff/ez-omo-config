@@ -17,6 +17,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OPENCODE_BIN="${OPENCODE_BIN:-/home/ezotoff/.opencode/bin/opencode}"
 TIMEOUT_SECS="${TIMEOUT_SECS:-8}"
 
+# Early executable check: fail fast if the binary does not exist or is not executable.
+if [[ ! -x "$OPENCODE_BIN" ]]; then
+    echo "FAIL: OPENCODE_BIN not found or not executable: $OPENCODE_BIN"
+    exit 1
+fi
+
 # Forbidden warning patterns
 FORBIDDEN_PATTERN='Unknown keys: compress\.retentionMode, compress\.maxArchivedSummaryTokens|DCP: config warning'
 
@@ -51,13 +57,21 @@ for _ in $(seq 1 "$TIMEOUT_SECS"); do
     sleep 1
 done
 
-# Ensure the server is dead (timeout may already have killed it).
+# Capture the backgrounded process exit status FIRST, before any cleanup.
+# We use `wait` with the PID to get the actual exit code of the timeout command.
+# If the process is already dead, wait returns immediately with its exit code.
+# If still alive, wait blocks until it exits (timeout will kill it).
+EXIT_CODE=0
+wait $CMD_PID 2>/dev/null
+EXIT_CODE=$?
+
+# Cleanup: if the process is somehow still alive (shouldn't happen after wait),
+# terminate it and suppress expected signal-exit statuses.
 if kill -0 $CMD_PID 2>/dev/null; then
     kill $CMD_PID 2>/dev/null
     wait $CMD_PID 2>/dev/null || true
 fi
 
-EXIT_CODE=$?
 # timeout returns 124 when it kills the command; 125+ or other codes indicate
 # timeout/internal errors. If the process died on its own, EXIT_CODE is the
 # process's code.
