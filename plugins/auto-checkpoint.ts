@@ -776,7 +776,7 @@ export async function createSemanticHelperSession(args: {
 	rootSessionTitle: string
 	rootDirectory: string
 }): Promise<Result<SemanticHelperSession, string>> {
-	const compactRootTitle = args.rootSessionTitle.replace(/[\r\n\t]/g, " ").replace(/\s+/g, " ").trim() || "checkpoint"
+	const compactRootTitle = (args.rootSessionTitle || "checkpoint").replace(/[\r\n\t]/g, " ").replace(/\s+/g, " ").trim() || "checkpoint"
 	const helperTitle = `${CONFIG.semantic.helperSessionTitlePrefix} ${args.rootSessionId.slice(0, 8)} ${compactRootTitle}`
 
 	try {
