@@ -50,6 +50,8 @@ const CONFIG = {
 	},
 } as const
 
+const PLUGIN_ENABLED = process.env.OPENCODE_AUTO_CHECKPOINT_ENABLE === "1"
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -1579,6 +1581,9 @@ async function evaluateCheckpoint(
 
 export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 	const { directory, client } = ctx
+	if (!PLUGIN_ENABLED) {
+		return {}
+	}
 
 	log("info", "Plugin initialized")
 
@@ -1587,10 +1592,6 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 		// HOOK: event — session lifecycle events
 		// =================================================================
 			event: async (input: EventInput) => {
-				if (process.env.OPENCODE_AUTO_CHECKPOINT_DISABLE_EVENT === "1") {
-					return
-				}
-
 				const { event } = input
 				const sessionID = extractSessionId(event)
 				if (!sessionID) return

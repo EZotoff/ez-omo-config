@@ -146,6 +146,8 @@ At each evidence state, agents may only use approved claim language:
 
 **Purpose**: Creates semantic session-scoped git checkpoint commits when sessions become idle or complete work, using an LLM helper session to select files and compose messages from a bounded candidate set.
 
+**Runtime default**: Installed but disabled unless `OPENCODE_AUTO_CHECKPOINT_ENABLE=1` is set. This keeps OpenCode TUI startup safe; enable only when checkpoint automation is explicitly wanted. File logging is also opt-in via `OPENCODE_AUTO_CHECKPOINT_FILE_LOG=1`.
+
 **Features**:
 
 - **Root-session-tree scoping**: Only files attributed to the current root session tree are eligible for checkpointing. Child-session work rolls up to its root and never creates standalone checkpoints.

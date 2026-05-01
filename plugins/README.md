@@ -9,7 +9,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `worktree/terminal.ts` — cross-platform terminal spawning and tmux helpers used by `worktree.ts`.
 - `git-safety.ts` — blocks destructive shell and git commands and reports working tree safety before risky operations.
 - `review-enforcer.ts` — injects review workflow instructions after task completion so plan execution gets reviewed consistently.
-- `auto-checkpoint.ts` — semantic session-scoped git checkpointing. Uses an ephemeral LLM helper session to select files and compose commit messages from a bounded candidate set, with temp-index safety and skip-on-ambiguity guards.
+- `auto-checkpoint.ts` — semantic session-scoped git checkpointing. Disabled by default for TUI startup safety; set `OPENCODE_AUTO_CHECKPOINT_ENABLE=1` to enable. Uses an ephemeral LLM helper session to select files and compose commit messages from a bounded candidate set, with temp-index safety and skip-on-ambiguity guards.
 - `session-id.ts` — copies the invoking session ID to clipboard via `/session-id`, no LLM round-trip.
 - `session-info.ts` — copies `Project <path>:<branch>; Session <title>; ID <session-id>` to clipboard via `/session-info` command, no LLM round-trip.
 - `kdco-primitives/` — shared helpers used by the plugin bundle, including project ID lookup, shell escaping, tmux detection, temp paths, logging, timeout helpers, and shared types.
