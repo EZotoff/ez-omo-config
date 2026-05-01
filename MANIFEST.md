@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 51 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 52 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -31,6 +31,7 @@ Complete inventory of 51 core artifacts for ez-omo-config repository scaffold.
 | 8 | worktree/terminal.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
 | 9 | git-safety.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Git Safety | Required |
 | 10 | review-enforcer.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Review Protocol | Required |
+| 10b | auto-checkpoint.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Checkpoint Plugin | Required |
 | 11 | kdco-primitives/ | `~/.opencode/plugin/kdco-primitives/` | `plugins/kdco-primitives/` | `$HOME/.opencode/plugin/kdco-primitives/` | KDCO Library | Required |
 | 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
 | 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
@@ -73,6 +74,7 @@ ez-omo-config/
 │   └── retry-errors.json    # Retry registry for provider-connect-retry plugin
 ├── plugins/
 │   ├── worktree.ts         # Worktree plugin core
+│   ├── auto-checkpoint.ts  # Semantic session-scoped checkpoint plugin
 │   ├── git-safety.ts       # Git safety protocol plugin
 │   ├── review-enforcer.ts  # Review enforcer plugin
 │   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
@@ -108,10 +110,10 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 51 core + 1 external (commands: 4, configs: 16, plugins: 10 files + kdco-primitives dir, skills: 9 dirs + 1 external, scripts: 11, extras: 1)
+- **Total Artifacts**: 52 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 9 dirs + 1 external, scripts: 11, extras: 1)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
-- **Plugins**: 7 main files + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
+- **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 9 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
 - **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts
 - **Extras**: 1 file (ocx.jsonc)

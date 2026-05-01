@@ -115,6 +115,25 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ---
 
+## auto-checkpoint.ts
+
+**Purpose**: Creates semantic session-scoped git checkpoint commits when sessions become idle or complete work, using an LLM helper session to select files and compose messages from a bounded candidate set.
+
+**Features**:
+
+- **Root-session-tree scoping**: Only files attributed to the current root session tree are eligible for checkpointing. Child-session work rolls up to its root and never creates standalone checkpoints.
+- **Deterministic path attribution**: Tracks file ownership via `tool.execute.before`/`after` hooks, marking newly dirty paths per root session. Baseline-dirty and multi-root-conflicted paths are excluded.
+- **Helper-session semantic selection**: Creates an ephemeral helper session with a `[auto-checkpoint helper]` title prefix, dispatches a strict JSON prompt with candidate files and diff payload, polls for response, and deletes the helper session afterward.
+- **Temp-index safety**: Stages validated semantic subsets through an isolated temporary git index (`GIT_INDEX_FILE`), leaving the real index untouched whether the commit succeeds or skips.
+- **Skip-on-ambiguity guards**: Skips checkpointing when candidates are empty, binary, oversized, conflicted, or when the LLM returns malformed/low-confidence/out-of-scope proposals.
+- **Mutex-time revalidation**: All expensive operations (candidate collection, LLM proposal, commit staging) occur inside the worktree mutex with revalidation of idle state, HEAD SHA, and dirty tree.
+
+**Dependencies**: None (self-contained)
+
+**Install Target**: `$HOME/.opencode/plugin/auto-checkpoint.ts`
+
+---
+
 ## vera-runtime.ts
 
 **Purpose**: Supervises Vera semantic search watchers during active OpenCode sessions, ensuring indexes stay fresh without manual intervention.
