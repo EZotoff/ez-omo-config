@@ -2,12 +2,12 @@
 patch_id: "opencode-dcp--bounded-range-archive-mode"
 dependency: "@tarquinen/opencode-dcp"
 target_file: "dist/lib/compress/range.js"
-target_install_path: "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp"
+target_install_path: "/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
 status: "active"
 applied_date: "2026-04-30"
-dep_version: "3.1.9"
+dep_version: "3.1.7"
 upstream_issue: "https://github.com/Opencode-DCP/opencode-dynamic-context-pruning/pull/501"
-verification_pattern: "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens"
+verification_pattern: "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens|retentionMode"
 ---
 
 # Bounded Range Archive Mode for DCP
@@ -33,31 +33,32 @@ Changes across 8+ runtime files:
 
 ## Install Locations
 
-DCP exists in **3 locations** on the system. OpenCode running inside the Alacritty snap resolves modules from the snap cache, NOT from `~/.config/opencode/node_modules/`.
+DCP exists in **multiple locations** on this machine. The currently active backend is the native process `/home/ezotoff/.opencode/bin/opencode serve`, which loads plugins from the native cache under `~/.cache/opencode`, not from the snap cache.
 
 | # | Path | Version | Active? | Notes |
 |---|------|---------|---------|-------|
-| 1 | `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.9 | ❌ Not used by snap | Manual install; patched first |
-| 2 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.8 | ✅ **Runtime** | Loaded by OpenCode inside snap sandbox |
-| 3 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` | 3.1.9 | ❌ Download cache | OpenCode package store; not loaded at runtime |
+| 1 | `/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.7 | ✅ **Current runtime** | Loaded by the native OpenCode backend; this is the live patch target |
+| 2 | `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.9 | ⚙️ Reference copy | Manual patched install kept as the source-of-truth donor for runtime syncs |
+| 3 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.8 | ❌ Inactive snap runtime | Only relevant if OpenCode is launched from the snap-confined environment again |
+| 4 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` | 3.1.9 | ❌ Download cache | Package store artifact; not currently loaded at runtime |
 
-**All 10 patched files must be applied to location #2 (the snap runtime copy)** for the patch to take effect. Location #1 was the original patch target but is not loaded by snap-confined OpenCode. Location #3 is a dormant download cache.
+**All 10 patched files must be applied to location #1 (the native runtime copy)** for the patch to take effect in the current setup. Location #2 remains the maintained patched reference copy. If the active backend ever switches back to a snap-confined runtime, the snap runtime copy (#3) will need the same sync.
 
 ## Verification
 ```bash
-# Check the ACTIVE runtime copy (snap location):
+# Check the ACTIVE runtime copy (native location):
 grep -cE "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens|retentionMode" \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/state.js \
-  /home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range-utils.js
+  /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js \
+  /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range.js \
+  /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/state.js \
+  /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range-utils.js
 ```
 Expected: config.js ≥15, range.js ≥4, state.js ≥2, range-utils.js ≥2 matches.
 
 ```bash
-# Quick: verify all 10 files are identical between source and snap:
+# Quick: verify all 10 files are identical between reference and active runtime:
 SRC="/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
-DEST="/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+DEST="/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
 for f in config.js compress/range.js compress/state.js compress/range-utils.js messages/sync.js messages/prune.js commands/decompress.js commands/recompress.js prompts/compress-range.js commands/compression-targets.js; do
   diff -q "$SRC/$f" "$DEST/$f" > /dev/null 2>&1 && echo "OK: $f" || echo "MISMATCH: $f"
 done
@@ -67,15 +68,16 @@ done
 If the patch is lost after a DCP package update:
 
 1. Apply patches to `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/` (source of truth).
-2. **Then copy all 10 patched files to the snap runtime location:**
+2. **Then copy all 10 patched files to the native runtime location:**
    ```bash
    SRC="/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
-   DEST="/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+   DEST="/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
    for f in config.js compress/range.js compress/state.js compress/range-utils.js messages/sync.js messages/prune.js commands/decompress.js commands/recompress.js prompts/compress-range.js commands/compression-targets.js; do
      cp "$SRC/$f" "$DEST/$f"
    done
    ```
-3. Restart OpenCode.
+3. Restart OpenCode so the already-running backend reloads the patched modules.
+4. If the active backend later switches back to a snap-confined OpenCode process, repeat the same copy into `/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/`.
 
 Per-file patch details:
 
