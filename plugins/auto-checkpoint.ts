@@ -196,9 +196,13 @@ type SessionMessage = {
 	}>
 }
 
-function extractSessionId(event: { type: string; properties?: Record<string, unknown> }): string {
+function extractSessionId(event: { type: string; properties?: Record<string, unknown>; id?: string; session_id?: string; sessionId?: string; sessionID?: string }): string {
 	const props = event.properties ?? {}
 	return (
+		(event.id as string) ??
+		(event.session_id as string) ??
+		(event.sessionId as string) ??
+		(event.sessionID as string) ??
 		(props.session_id as string) ??
 		(props.sessionId as string) ??
 		(props.sessionID as string) ??
