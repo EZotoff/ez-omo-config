@@ -64,6 +64,29 @@ grep -cE "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens|ret
 Expected: config.js ≥15, range.js ≥4, state.js ≥2, range-utils.js ≥2 matches.
 
 ```bash
+# Runtime-proof regression for bounded archive metadata:
+bash tests/test_dcp_bounded_range.sh
+```
+Expected output includes `PASS bounded-runtime-proof-metadata`.
+
+The `bounded-runtime-proof-metadata` harness case asserts bounded archive metadata and limits from runtime state/block objects:
+
+- `retentionMode === "bounded"`
+- `archiveRawMessages === true`
+- `maxArchivedSummaryTokens` loaded from `configs/opencode/dcp.jsonc`
+- `archivedBlockId` is present and integer
+- `rawMessageCoverageCount` + `rawMessageCoverage` reflect covered raw IDs
+- `archivedMessageCoverageCount` reflects archived coverage in `byMessageId`
+- `normalizedSummaryTokenCount <= maxArchivedSummaryTokens`
+- `truncationOccurred === true` when summary normalization exceeds budget
+
+```bash
+# Proof-string grep for metadata assertions and runtime-proof case wiring:
+grep -n "bounded-runtime-proof-metadata\|archiveRawMessages\|maxArchivedSummaryTokens\|retentionMode\|archivedBlockId\|rawMessageCoverageCount\|normalizedSummaryTokenCount\|truncationOccurred" \
+  tests/dcp-local-patch/bounded-range.mjs tests/test_dcp_bounded_range.sh
+```
+
+```bash
 # Quick: verify all 10 files are identical between reference and both native cache copies:
 SRC="/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
 for DEST in \

@@ -76,6 +76,7 @@ ITEMS=(
     "scripts|scripts/wisdom/manifest-write.sh|$HOME/.sisyphus/scripts/manifest-write.sh"
     "scripts|scripts/worktree-post-create.sh|$HOME/.opencode/scripts/worktree-post-create.sh"
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
+    "scripts|scripts/verify-live-deployment.sh|$HOME/.sisyphus/scripts/verify-live-deployment.sh"
 )
 
 DCP_PATCH_FILES=(

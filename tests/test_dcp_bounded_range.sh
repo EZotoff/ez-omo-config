@@ -62,6 +62,7 @@ run_case "monotonic-summary-bound"
 run_case "archived-raw-stays-out-of-prompt"
 run_case "persisted-frontier-state"
 run_case "decompress-archived-rejected"
+run_case "bounded-runtime-proof-metadata"
 
 echo ""
 echo "=========================================="

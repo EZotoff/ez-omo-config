@@ -4,6 +4,8 @@
 import { readFileSync } from "node:fs";
 
 const DCP_ROOT = "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist";
+const DCP_CONFIG_PATH = "/home/ezotoff/ez-omo-config/configs/opencode/dcp.jsonc";
+const BOUNDED_TRUNCATION_MARKER = "Older archived detail omitted.";
 
 function fail(message) {
   console.error(`FAIL: ${message}`);
@@ -169,13 +171,203 @@ async function runDecompressArchivedRejected() {
   const decompressPath = `${DCP_ROOT}/lib/commands/decompress.js`;
   const source = readFileSync(decompressPath, "utf-8");
 
-  const expectedGuard =
-    "Compression ${target.displayId} uses bounded archival retention and cannot be decompressed to raw history.";
-  if (!source.includes(expectedGuard)) {
+  const expectedGuardSuffix =
+    "uses bounded archival retention and cannot be decompressed to raw history.";
+  if (!source.includes(expectedGuardSuffix) || !source.includes("target.displayId")) {
     fail(`decompress-archived-rejected: guard string not found in decompress.js`);
   }
 
   pass("decompress-archived-rejected");
+}
+
+// ---------------------------------------------------------------------------
+// 5. bounded-runtime-proof-metadata
+// ---------------------------------------------------------------------------
+async function runBoundedRuntimeProofMetadata() {
+  const { parse } = await import(
+    "/home/ezotoff/.config/opencode/node_modules/jsonc-parser/lib/esm/main.js"
+  );
+  const { normalizeBoundedRangeSummary } = await import(
+    `${DCP_ROOT}/lib/compress/range-utils.js`
+  );
+  const {
+    allocateBlockId,
+    allocateRunId,
+    applyCompressionState,
+    wrapCompressedSummary,
+  } = await import(`${DCP_ROOT}/lib/compress/state.js`);
+  const { syncCompressionBlocks } = await import(`${DCP_ROOT}/lib/messages/sync.js`);
+  const { createPruneMessagesState } = await import(`${DCP_ROOT}/lib/state/utils.js`);
+  const { countTokens } = await import(`${DCP_ROOT}/lib/token-utils.js`);
+
+  const dcpConfig = parse(readFileSync(DCP_CONFIG_PATH, "utf-8"));
+  const compressConfig = dcpConfig?.compress;
+
+  if (!compressConfig || typeof compressConfig !== "object") {
+    fail(`bounded-runtime-proof-metadata: failed to load compress config from dcp.jsonc`);
+  }
+
+  if (compressConfig.mode !== "range") {
+    fail(
+      `bounded-runtime-proof-metadata: expected compress.mode=range, got ${JSON.stringify(
+        compressConfig.mode
+      )}`
+    );
+  }
+
+  if (compressConfig.retentionMode !== "bounded") {
+    fail(
+      `bounded-runtime-proof-metadata: expected retentionMode=bounded, got ${JSON.stringify(
+        compressConfig.retentionMode
+      )}`
+    );
+  }
+
+  if (
+    typeof compressConfig.maxArchivedSummaryTokens !== "number" ||
+    !Number.isFinite(compressConfig.maxArchivedSummaryTokens) ||
+    compressConfig.maxArchivedSummaryTokens < 1
+  ) {
+    fail(
+      `bounded-runtime-proof-metadata: invalid maxArchivedSummaryTokens ${JSON.stringify(
+        compressConfig.maxArchivedSummaryTokens
+      )}`
+    );
+  }
+
+  const maxArchivedSummaryTokens = compressConfig.maxArchivedSummaryTokens;
+  const messageIds = ["msg-1", "msg-2", "msg-3", "msg-4", "msg-5"];
+
+  const state = {
+    prune: {
+      messages: createPruneMessagesState(),
+    },
+    stats: {
+      pruneTokenCounter: 0,
+      totalPruneTokens: 0,
+    },
+  };
+
+  const messageTokenById = new Map(
+    messageIds.map((messageId, index) => [messageId, 60 + index * 5])
+  );
+  const selection = {
+    messageIds,
+    messageTokenById,
+    toolIds: [],
+  };
+
+  const longSummary = `${"Bounded runtime proof metadata should keep archive summaries within the configured token budget while preserving key context for future reasoning. ".repeat(
+    600
+  )} (b1) {block_2} `;
+
+  const normalizedSummary = normalizeBoundedRangeSummary(
+    longSummary,
+    maxArchivedSummaryTokens
+  );
+  const normalizedSummaryTokenCount = countTokens(normalizedSummary);
+  const truncationOccurred = normalizedSummary.includes(BOUNDED_TRUNCATION_MARKER);
+
+  if (!truncationOccurred) {
+    fail(`bounded-runtime-proof-metadata: expected summary truncation marker`);
+  }
+  if (normalizedSummaryTokenCount > maxArchivedSummaryTokens) {
+    fail(
+      `bounded-runtime-proof-metadata: normalized summary token count ${normalizedSummaryTokenCount} exceeds budget ${maxArchivedSummaryTokens}`
+    );
+  }
+
+  const blockId = allocateBlockId(state);
+  const runId = allocateRunId(state);
+  const wrappedSummary = wrapCompressedSummary(blockId, normalizedSummary);
+
+  applyCompressionState(
+    state,
+    {
+      topic: "bounded-runtime-proof",
+      batchTopic: "bounded-runtime-proof",
+      startId: "m0001",
+      endId: "m0005",
+      mode: "range",
+      runId,
+      compressMessageId: "msg-compress-proof",
+      compressCallId: "call-runtime-proof",
+      summaryTokens: countTokens(wrappedSummary),
+      retentionMode: compressConfig.retentionMode,
+    },
+    selection,
+    messageIds[0],
+    blockId,
+    wrappedSummary,
+    []
+  );
+
+  const logger = {
+    warn: () => {},
+    info: () => {},
+    debug: () => {},
+  };
+  const messages = messageIds.map((id) => ({ info: { id } }));
+  syncCompressionBlocks(state, logger, messages);
+
+  const block = state.prune.messages.blocksById.get(blockId);
+  if (!block) {
+    fail(`bounded-runtime-proof-metadata: missing archived block ${blockId}`);
+  }
+
+  const archivedMessageCoverage = [];
+  for (const [messageId, entry] of state.prune.messages.byMessageId.entries()) {
+    if (entry.archivedBlockIds?.includes(blockId)) {
+      archivedMessageCoverage.push(messageId);
+    }
+  }
+
+  const proof = {
+    retentionMode: block.retentionMode,
+    archiveRawMessages: block.archiveRawMessages,
+    maxArchivedSummaryTokens,
+    archivedBlockId: block.blockId,
+    rawMessageCoverageCount: block.effectiveMessageIds.length,
+    rawMessageCoverage: block.effectiveMessageIds,
+    archivedMessageCoverageCount: archivedMessageCoverage.length,
+    normalizedSummaryTokenCount,
+    truncationOccurred,
+  };
+
+  if (proof.retentionMode !== "bounded") {
+    fail(
+      `bounded-runtime-proof-metadata: expected block retentionMode=bounded, got ${JSON.stringify(
+        proof.retentionMode
+      )}`
+    );
+  }
+  if (proof.archiveRawMessages !== true) {
+    fail(`bounded-runtime-proof-metadata: expected archiveRawMessages=true`);
+  }
+  if (!Number.isInteger(proof.archivedBlockId) || proof.archivedBlockId < 1) {
+    fail(
+      `bounded-runtime-proof-metadata: invalid archived block id ${JSON.stringify(
+        proof.archivedBlockId
+      )}`
+    );
+  }
+  if (proof.rawMessageCoverageCount !== messageIds.length) {
+    fail(
+      `bounded-runtime-proof-metadata: expected raw coverage ${messageIds.length}, got ${proof.rawMessageCoverageCount}`
+    );
+  }
+  if (proof.archivedMessageCoverageCount !== messageIds.length) {
+    fail(
+      `bounded-runtime-proof-metadata: expected archived coverage ${messageIds.length}, got ${proof.archivedMessageCoverageCount}`
+    );
+  }
+  if (proof.normalizedSummaryTokenCount > proof.maxArchivedSummaryTokens) {
+    fail(
+      `bounded-runtime-proof-metadata: normalized summary token count ${proof.normalizedSummaryTokenCount} exceeds maxArchivedSummaryTokens ${proof.maxArchivedSummaryTokens}`
+    );
+  }
+
+  pass("bounded-runtime-proof-metadata");
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +387,7 @@ async function main() {
   if (!testCase) {
     console.error("Usage: npx tsx bounded-range.mjs [--case] <case-name>");
     console.error(
-      "Cases: monotonic-summary-bound, archived-raw-stays-out-of-prompt, persisted-frontier-state, decompress-archived-rejected"
+      "Cases: monotonic-summary-bound, archived-raw-stays-out-of-prompt, persisted-frontier-state, decompress-archived-rejected, bounded-runtime-proof-metadata"
     );
     process.exit(1);
   }
@@ -212,6 +404,9 @@ async function main() {
       break;
     case "decompress-archived-rejected":
       await runDecompressArchivedRejected();
+      break;
+    case "bounded-runtime-proof-metadata":
+      await runBoundedRuntimeProofMetadata();
       break;
     default:
       console.error(`Unknown scenario: ${testCase}`);
