@@ -56,3 +56,42 @@ assert_no_grep() {
     TESTS_PASSED=$((TESTS_PASSED + 1))
     return 0
 }
+
+# assert_command_fails — verify command exits non-zero
+assert_command_fails() {
+    local description="$1"
+    shift
+    if "$@" >/dev/null 2>&1; then
+        echo "FAIL: Command expected to fail but succeeded: $description"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return 1
+    fi
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    return 0
+}
+
+# assert_json_contains_plugin — verify JSON file plugin array contains value
+assert_json_contains_plugin() {
+    local json_file="$1"
+    local plugin_name="$2"
+    if ! python3 -c "
+import json, sys
+try:
+    with open('$json_file') as f:
+        data = json.load(f)
+    plugins = data.get('plugin', [])
+    if any('$plugin_name' in str(p) for p in plugins):
+        sys.exit(0)
+    else:
+        sys.exit(1)
+except Exception as e:
+    print(f'JSON parse error: {e}')
+    sys.exit(1)
+" 2>/dev/null; then
+        echo "FAIL: Plugin '$plugin_name' not found in $json_file plugin array"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return 1
+    fi
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    return 0
+}
