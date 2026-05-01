@@ -431,6 +431,7 @@ async function clearTestConfig() {
 
 async function runReservedFieldsIdle() {
   await setTestConfig({
+    logLevel: "info",
     scoringModel: "gpt-4",
     polishingModel: "gpt-4-mini",
     dreamAgent: { enabled: true, interval: 30000 },

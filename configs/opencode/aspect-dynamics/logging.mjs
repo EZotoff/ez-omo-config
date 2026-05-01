@@ -3,9 +3,11 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 const PLUGIN_PREFIX = "[aspect-dynamics]";
+const LOG_LEVELS = { silent: 4, error: 3, warn: 2, info: 1 };
+let currentLogLevel = "warn";
 
 const MAX_PROOF_EVENTS = 1000;
 const PROOF_DIR = join(homedir(), ".local", "share", "opencode", "aspect-dynamics");
@@ -13,6 +15,14 @@ const PROOF_PATH = join(PROOF_DIR, "events.jsonl");
 
 // Test override — allows harness to intercept proof events without file I/O
 export const __testProofOverride = { value: null };
+
+export function setLogLevel(level) {
+  currentLogLevel = level in LOG_LEVELS ? level : "warn";
+}
+
+function shouldLog(level) {
+  return LOG_LEVELS[level] >= LOG_LEVELS[currentLogLevel];
+}
 
 function ensureProofDir() {
   try {
@@ -44,7 +54,7 @@ export function emitProof(eventType, payload = {}) {
   }
 
   try {
-    const line = JSON.stringify(record) + "\n";
+    const line = `${JSON.stringify(record)}\n`;
     appendFileSync(PROOF_PATH, line, "utf8");
 
     // Retention cap: truncate to most recent MAX_PROOF_EVENTS lines
@@ -61,7 +71,7 @@ function truncateProofIfNeeded() {
     const lines = content.split("\n").filter((l) => l.trim() !== "");
     if (lines.length > MAX_PROOF_EVENTS) {
       const kept = lines.slice(-MAX_PROOF_EVENTS);
-      writeFileSync(PROOF_PATH, kept.join("\n") + "\n", "utf8");
+      writeFileSync(PROOF_PATH, `${kept.join("\n")}\n`, "utf8");
     }
   } catch (err) {
     console.error("[aspect-dynamics proof] truncation failed:", err);
@@ -101,18 +111,22 @@ export function resetProofEvents() {
 }
 
 export function logInfo(msg) {
+  if (!shouldLog("info")) return;
   console.info(`${PLUGIN_PREFIX} ${msg}`);
 }
 
 export function logWarn(msg) {
+  if (!shouldLog("warn")) return;
   console.warn(`${PLUGIN_PREFIX} ${msg}`);
 }
 
 export function logError(msg) {
+  if (!shouldLog("error")) return;
   console.error(`${PLUGIN_PREFIX} ${msg}`);
 }
 
 export function logEvent(eventType, sessionID, extra = "") {
+  if (!shouldLog("info")) return;
   const ts = new Date().toISOString();
   const line = `[${ts}] ${PLUGIN_PREFIX} [${eventType}] session=${sessionID} ${extra}`.trim();
   console.info(line);

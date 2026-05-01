@@ -4,7 +4,7 @@
 import { loadConfig } from "./aspect-dynamics/config.mjs";
 import { extractContext, getEventSessionID, hasRecursionGuard, prefilterContext } from "./aspect-dynamics/context.mjs";
 import { rankAspects, scoreAspects, shouldNudge } from "./aspect-dynamics/heuristics.mjs";
-import { emitProof, logEvent, logInfo, logWarn } from "./aspect-dynamics/logging.mjs";
+import { emitProof, logEvent, logInfo, logWarn, setLogLevel } from "./aspect-dynamics/logging.mjs";
 import { buildNudge } from "./aspect-dynamics/nudge.mjs";
 import {
   canProcess,
@@ -28,6 +28,8 @@ export default async function aspectDynamicsPlugin(ctx) {
       event: async () => {},
     };
   }
+
+  setLogLevel(config.logLevel);
 
   const sets = await loadSets();
 

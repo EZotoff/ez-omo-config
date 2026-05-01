@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 const DEFAULT_CONFIG = {
   enabled: true,
-  logLevel: "info",
+  logLevel: "warn",
   heuristicPreFilter: false,
   contextWindowTurns: 10,
   // Deferred fields — accepted but inert in MVP (zero network calls)
@@ -15,6 +15,8 @@ const DEFAULT_CONFIG = {
   polishingModel: null,
   dreamAgent: null,
 };
+
+const LOG_LEVELS = { silent: 4, error: 3, warn: 2, info: 1 };
 
 const OMO_CONFIG_PATH = join(homedir(), ".config", "opencode", "oh-my-openagent.json");
 
@@ -50,7 +52,18 @@ function validateConfig(candidate) {
     return false;
   }
 
+  if (candidate.logLevel !== undefined && !(candidate.logLevel in LOG_LEVELS)) {
+    console.warn(
+      `[aspect-dynamics] Invalid config: logLevel must be one of ${Object.keys(LOG_LEVELS).join(", ")}, got ${candidate.logLevel}`
+    );
+    return false;
+  }
+
   return true;
+}
+
+function shouldLogInfo(config) {
+  return LOG_LEVELS.info >= LOG_LEVELS[config.logLevel ?? DEFAULT_CONFIG.logLevel];
 }
 
 function logDeferredFields(config) {
@@ -58,7 +71,7 @@ function logDeferredFields(config) {
   if (config.scoringModel) deferred.push("scoringModel");
   if (config.polishingModel) deferred.push("polishingModel");
   if (config.dreamAgent) deferred.push("dreamAgent");
-  if (deferred.length > 0) {
+  if (deferred.length > 0 && shouldLogInfo(config)) {
     console.info(`[aspect-dynamics] Deferred fields present (inert in MVP): ${deferred.join(", ")}`);
   }
 }
