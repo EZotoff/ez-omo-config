@@ -290,13 +290,20 @@ function withImmediateTimers(fn) {
 
 async function withTempHome(fn) {
 	const previousHome = process.env.HOME;
+	const previousFileLogging = process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG;
 	const tempHome = mkdtempSync(join(tmpdir(), "auto-checkpoint-harness-"));
 	process.env.HOME = tempHome;
+	process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG = "1";
 
 	try {
 		return await fn(tempHome);
 	} finally {
 		process.env.HOME = previousHome;
+		if (previousFileLogging === undefined) {
+			delete process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG;
+		} else {
+			process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG = previousFileLogging;
+		}
 	}
 }
 

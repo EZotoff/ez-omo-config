@@ -255,6 +255,7 @@ function shouldIgnoreHelperSession(sessionId: string, title: string): boolean {
 // =============================================================================
 
 const LOG_PATH = `${process.env.HOME}/.opencode/plugin/auto-checkpoint.log`
+const FILE_LOGGING_ENABLED = process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG === "1"
 let logDirectoryReady: Promise<void> | undefined
 
 function ensureLogDirectory(): Promise<void> {
@@ -263,6 +264,10 @@ function ensureLogDirectory(): Promise<void> {
 }
 
 function log(level: string, message: string): void {
+	if (!FILE_LOGGING_ENABLED) {
+		return
+	}
+
 	const timestamp = new Date().toISOString()
 	const line = `[${timestamp}] [${level.toUpperCase()}] ${message}\n`
 	void ensureLogDirectory()
