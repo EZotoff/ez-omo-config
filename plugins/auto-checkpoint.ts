@@ -1577,9 +1577,6 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 						rootState.title = title
 					}
 					rootState.lastSemanticSkipReason = undefined
-					if (!parentId) {
-						await ensureRootBaselineSnapshot(rootState)
-					}
 
 					if (parentId) {
 						const parent = getSession(parentId, cwd, rootSessionId)
