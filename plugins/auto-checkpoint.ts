@@ -1,4 +1,5 @@
-import { appendFileSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs"
+import { existsSync, unlinkSync, writeFileSync } from "node:fs"
+import { appendFile, mkdir } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, posix, resolve } from "node:path"
 import type { Plugin } from "@opencode-ai/plugin"
@@ -254,16 +255,19 @@ function shouldIgnoreHelperSession(sessionId: string, title: string): boolean {
 // =============================================================================
 
 const LOG_PATH = `${process.env.HOME}/.opencode/plugin/auto-checkpoint.log`
+let logDirectoryReady: Promise<void> | undefined
+
+function ensureLogDirectory(): Promise<void> {
+	logDirectoryReady ??= mkdir(dirname(LOG_PATH), { recursive: true })
+	return logDirectoryReady
+}
 
 function log(level: string, message: string): void {
 	const timestamp = new Date().toISOString()
 	const line = `[${timestamp}] [${level.toUpperCase()}] ${message}\n`
-	try {
-		mkdirSync(dirname(LOG_PATH), { recursive: true })
-		appendFileSync(LOG_PATH, line)
-	} catch {
-		// intentionally swallowed
-	}
+	void ensureLogDirectory()
+		.then(() => appendFile(LOG_PATH, line))
+		.catch(() => {})
 }
 
 // =============================================================================

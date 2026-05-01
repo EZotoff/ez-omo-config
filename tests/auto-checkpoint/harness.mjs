@@ -371,7 +371,7 @@ async function runHelperSessionsIgnored() {
 			fail("helper session should be ignored before root-session lookup");
 		}
 
-		const logs = readPluginLog(homeDir);
+		const logs = await waitForLogContains(homeDir, "session.created — helper-1 (helper ignored)");
 		if (!logs.includes("session.created — helper-1 (helper ignored)")) {
 			fail("expected helper ignored log entry");
 		}
