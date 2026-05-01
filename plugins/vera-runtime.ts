@@ -61,7 +61,7 @@ function log(level: string, message: string): void {
 	}
 }
 
-export function computeProjectId(): string {
+function computeProjectId(): string {
 	try {
 		const proc = Bun.spawnSync([
 			"bash",
@@ -78,7 +78,7 @@ export function computeProjectId(): string {
 	return "unknown-project"
 }
 
-export function computeWorkspaceKey(workspacePath: string): string {
+function computeWorkspaceKey(workspacePath: string): string {
 	try {
 		const proc = Bun.spawnSync(["realpath", workspacePath])
 		const real = proc.success ? proc.stdout.toString().trim() : workspacePath
@@ -97,17 +97,17 @@ function getWatchersDir(): string {
 	return `${STATE_BASE}/${projectId}/vera-watchers`
 }
 
-export function getStateFilePath(workspacePath: string): string {
+function getStateFilePath(workspacePath: string): string {
 	const key = computeWorkspaceKey(workspacePath)
 	return `${getWatchersDir()}/${key}.json`
 }
 
-export function getLogPath(workspacePath: string): string {
+function getLogPath(workspacePath: string): string {
 	const key = computeWorkspaceKey(workspacePath)
 	return `${getWatchersDir()}/${key}.log`
 }
 
-export function readWatcherState(workspacePath: string): VeraWatcherState | null {
+function readWatcherState(workspacePath: string): VeraWatcherState | null {
 	const path = getStateFilePath(workspacePath)
 	try {
 		const raw = readFileSync(path, "utf-8")
@@ -117,7 +117,7 @@ export function readWatcherState(workspacePath: string): VeraWatcherState | null
 	}
 }
 
-export function writeWatcherState(workspacePath: string, state: VeraWatcherState): void {
+function writeWatcherState(workspacePath: string, state: VeraWatcherState): void {
 	const path = getStateFilePath(workspacePath)
 	if (watcherStateWriteLocks.has(path)) {
 		log("debug", `[${workspacePath}] writeWatcherState: write lock already held, skipping`)
