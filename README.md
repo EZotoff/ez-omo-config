@@ -238,30 +238,32 @@ cd ez-omo-config
 
 ## Configuration Highlights
 
-### 8 Configured Providers
+### 9 Enabled Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
-| **Google** | Gemini models via Antigravity | Gemini 3 Pro, Gemini 3 Flash |
-| **OpenAI** | GPT models via OAuth | GPT 5.4, GPT 5.3 Codex, GPT 5.2 |
-| **GitHub Copilot** | Claude and GPT via Copilot | Claude Opus 4.6, Claude Sonnet 4.6, GPT 5.4, GPT 5.5 |
-| **Moonshot** | Kimi models | Kimi K2.5 |
-| **Kimi For Coding (OAuth)** | Kimi K2.6 via device-flow OAuth | Kimi K2.6 (kimi-for-coding) |
-| **Z.AI** | GLM models via Coding Plan | GLM 5 |
+| **Google** | Gemini and Antigravity-hosted models | Gemini 3 Pro, Gemini 3 Flash, Claude Sonnet/Opus Thinking |
+| **OpenCode Go** | Built-in OpenCode Go provider | Minimax M2.7, DeepSeek V4 Flash |
+| **GitHub Copilot** | Claude, GPT, and Grok via Copilot | Claude Opus 4.6, Claude Sonnet 4.6, GPT 5.4, GPT 5.5, GPT 5.3 Codex, Grok Code Fast 1 |
+| **Moonshot** | Kimi models via OpenAI-compatible API | Kimi K2.5 |
+| **Kimi Code** | Kimi coding models via Anthropic-compatible API | Kimi K2.5 (`k2p5`) |
+| **Kimi For Coding (OAuth)** | Kimi K2.6 via device-flow OAuth | Kimi K2.6 (`kimi-for-coding`) |
+| **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1 |
 | **DeepSeek** | DeepSeek V3.2 | DeepSeek Chat, DeepSeek Reasoner |
-| **Inception** | Mercury models | Mercury 2 |
+| **Inception Labs** | Mercury models | Mercury 2 |
 
-### 12 Agent Model Assignments
+### 13 Agent Model Assignments
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `github-copilot/gpt-5.4` | default | `zai-coding-plan/glm-5` | Orchestrator with wisdom injection |
+| **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `github-copilot/claude-sonnet-4.6`, `github-copilot/gpt-5.4` | Orchestrator with wisdom injection |
 | **prometheus** | `github-copilot/gpt-5.5` | high | `zai-coding-plan/glm-5.1` | Planner, deep reasoning |
-| **sisyphus** | `github-copilot/gpt-5.4` | high | `zai-coding-plan/glm-5` | Executor, focused tasks |
-| **librarian** | `github-copilot/gemini-3-flash-preview` | high | `google/antigravity-gemini-3-flash` | Search, documentation |
+| **sisyphus** | `zai-coding-plan/glm-5.1` | default | `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
+| **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `github-copilot/claude-sonnet-4.6` | Category task executor |
+| **librarian** | `opencode-go/minimax-m2.7` | default | (none) | Search, documentation |
 | **explore** | `opencode-go/minimax-m2.7` | default | `github-copilot/grok-code-fast-1` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `google/antigravity-gemini-3-pro` | default | `zai-coding-plan/glm-5` | Complex frontend work |
-| **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5` | Writing, documentation |
+| **frontend-ui-ux-engineer** | `google/antigravity-gemini-3-pro` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |
+| **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5.1` | Writing, documentation |
 | **multimodal-looker** | `google/antigravity-gemini-3-pro` | default | (none) | Image/PDF analysis |
 | **oracle** | `github-copilot/gpt-5.5` | high | `google/antigravity-gemini-3-pro` | Q&A, knowledge queries |
 | **metis** | `github-copilot/gpt-5.5` | high | `github-copilot/claude-sonnet-4.6` | Deep analysis |
