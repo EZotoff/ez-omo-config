@@ -96,6 +96,11 @@ interface SessionState {
 	timer?: Timer
 }
 
+interface RootResolution {
+	rootSessionId: string
+	parentId?: string
+}
+
 interface GitStatus {
 	isDirty: boolean
 	shortSha: string
@@ -1226,15 +1231,23 @@ async function ensureRootBaselineSnapshot(rootState: SessionState): Promise<void
 	)
 }
 
-async function resolveRootSessionId(client: RootSessionClient, sessionId: string): Promise<string> {
+async function resolveRootSession(client: RootSessionClient, sessionId: string): Promise<RootResolution> {
 	let currentId = sessionId
+	let immediateParentId: string | undefined
+
 	for (let depth = 0; depth < CONFIG.maxSessionChainDepth; depth++) {
 		const session = await client.session.get({ path: { id: currentId } })
-		const parentID = session.data?.parentID
-		if (!parentID) return currentId
+		const parentID = session.data?.parentID ?? undefined
+		if (depth === 0) {
+			immediateParentId = parentID
+		}
+		if (!parentID) {
+			return { rootSessionId: currentId, parentId: immediateParentId }
+		}
 		currentId = parentID
 	}
-	return currentId
+
+	return { rootSessionId: currentId, parentId: immediateParentId }
 }
 
 function getWorktreeMutex(cwd: string): Mutex {
@@ -1612,7 +1625,11 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 
 					const props = event.properties || {}
 					const cwd = (props.directory as string) || directory
-					const rootSessionId = await resolveRootSessionId(client, sessionID)
+					// Keep event handling startup-safe: session lifecycle events can fire
+					// while POST /session is still in flight, so do not call OpenCode APIs
+					// here. Tool/checkpoint paths resolve ancestry later when the session
+					// API is safe to query.
+					const rootSessionId = sessions.get(sessionID)?.rootSessionId || sessionID
 					const sessionState = getSession(sessionID, cwd, rootSessionId)
 					const rootState = getSession(rootSessionId, cwd, rootSessionId)
 					const now = Date.now()
