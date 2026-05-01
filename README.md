@@ -253,7 +253,7 @@ cd ez-omo-config
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
 | **atlas** | `github-copilot/gpt-5.4` | default | `zai-coding-plan/glm-5` | Orchestrator with wisdom injection |
-| **prometheus** | `github-copilot/claude-opus-4.6` | default | `zai-coding-plan/glm-5` | Planner, deep reasoning |
+| **prometheus** | `github-copilot/gpt-5.5` | high | `zai-coding-plan/glm-5.1` | Planner, deep reasoning |
 | **sisyphus** | `github-copilot/gpt-5.4` | high | `zai-coding-plan/glm-5` | Executor, focused tasks |
 | **librarian** | `github-copilot/gemini-3-flash-preview` | high | `google/antigravity-gemini-3-flash` | Search, documentation |
 | **explore** | `opencode-go/minimax-m2.7` | default | `github-copilot/grok-code-fast-1` | Discovery, exploration |

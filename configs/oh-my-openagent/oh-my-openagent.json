@@ -48,7 +48,7 @@
       "model": "google/gemini-3.1-pro-preview"
     },
     "prometheus": {
-      "model": "github-copilot/gpt-5.4",
+      "model": "github-copilot/gpt-5.5",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
