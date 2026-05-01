@@ -139,10 +139,16 @@
       ]
     },
     "quick": {
-      "model": "deepseek/deepseek-chat"
+      "model": "opencode-go/deepseek-v4-flash",
+      "fallback_models": [
+        "deepseek/deepseek-chat"
+      ]
     },
     "unspecified-low": {
-      "model": "opencode-go/deepseek-v4-flash"
+      "model": "opencode-go/deepseek-v4-flash",
+      "fallback_models": [
+        "deepseek/deepseek-chat"
+      ]
     },
     "unspecified-high": {
       "model": "kimi-for-coding-oauth/kimi-for-coding",
