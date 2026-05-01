@@ -31,7 +31,7 @@ This page links to per-system observability documentation for the four non-Wisdo
 - **Repo docs**: [README.md](../README.md) (DCP Observability section), [docs/configs.md](configs.md)
 - **Patch docs**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`
 - **Implementation**: `configs/opencode/dcp.jsonc`
-- **Tests**: `tests/test_dcp_bounded_range.sh`
+- **Tests**: `tests/test_dcp_bounded_range.sh`, `tests/test_dcp_startup_warning.sh`
 - **Runbook section**: See `.sisyphus/evidence/task-11-non-wisdom-observability-runbook.md` — DCP bounded-memory
 
 ## Consolidated Runbook

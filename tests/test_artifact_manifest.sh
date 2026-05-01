@@ -63,8 +63,11 @@ assert_manifest_row 'kdco-primitives/.*plugins/kdco-primitives/'
 assert_manifest_row 'ocx.jsonc.*extras/'
 assert_manifest_row 'vera-runtime.ts.*plugins/'
 assert_manifest_row 'worktree.jsonc.*configs/opencode/'
+assert_manifest_row 'dcp.jsonc.*configs/opencode/'
 assert_manifest_row 'worktree-post-create.sh.*scripts/'
 assert_manifest_row 'worktree-pre-delete.sh.*scripts/'
+assert_manifest_row 'test_dcp_bounded_range.sh.*tests/'
+assert_manifest_row 'test_dcp_startup_warning.sh.*tests/'
 
 assert_file_exists "$REPO_ROOT/commands/models-preset.md"
 assert_file_exists "$REPO_ROOT/configs/opencode/opencode.json"
@@ -89,6 +92,10 @@ assert_file_exists "$REPO_ROOT/tests/test_auto_checkpoint_semantic.sh"
 assert_file_exists "$REPO_ROOT/plugins/auto-checkpoint.ts"
 assert_file_exists "$REPO_ROOT/plugins/vera-runtime.ts"
 assert_file_exists "$REPO_ROOT/configs/opencode/worktree.jsonc"
+assert_file_exists "$REPO_ROOT/configs/opencode/dcp.jsonc"
+assert_file_exists "$REPO_ROOT/tests/test_dcp_bounded_range.sh"
+assert_file_exists "$REPO_ROOT/tests/test_dcp_startup_warning.sh"
+assert_file_exists "$REPO_ROOT/.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md"
 assert_file_exists "$REPO_ROOT/scripts/worktree-post-create.sh"
 assert_file_exists "$REPO_ROOT/scripts/worktree-pre-delete.sh"
 

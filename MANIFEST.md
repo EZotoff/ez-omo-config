@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 55 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 57 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -60,6 +60,8 @@ Complete inventory of 55 core artifacts for ez-omo-config repository scaffold.
 | 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 | 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
+| 28a | test_dcp_bounded_range.sh | (repo only) | `tests/` | (repo only) | DCP Verification | Required |
+| 28b | test_dcp_startup_warning.sh | (repo only) | `tests/` | (repo only) | DCP Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 
 ## Directory Structure
@@ -115,13 +117,13 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 55 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 9 dirs + 1 external, scripts: 12, tests: 2, extras: 1, docs: 5)
+- **Total Artifacts**: 57 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 9 dirs + 1 external, scripts: 12, tests: 4, extras: 1, docs: 5)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 9 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
 - **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script
-- **Tests**: 2 test scripts (aspect-dynamics runtime test, live deployment contract test)
+- **Tests**: 4 test scripts (aspect-dynamics runtime test, live deployment contract test, DCP bounded range test, DCP startup warning test)
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
