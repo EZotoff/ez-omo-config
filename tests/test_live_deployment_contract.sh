@@ -27,8 +27,9 @@ trap 'rm -f "$DRY_RUN_OUTPUT"' EXIT
 HOME="$REPO_ROOT/tests/fake-home-$$" bash "$REPO_ROOT/install.sh" --dry-run --scripts >"$DRY_RUN_OUTPUT" 2>&1 || true
 assert_grep 'verify-live-deployment.sh' "$DRY_RUN_OUTPUT"
 
-echo "=== Contract 3: opencode.json plugin array contains vera-runtime.ts ==="
-assert_json_contains_plugin "configs/opencode/opencode.json" "vera-runtime.ts"
+echo "=== Contract 3: vera-runtime is HOME-autoloaded, not explicitly config-registered ==="
+assert_file_exists "plugins/vera-runtime.ts"
+assert_no_grep 'vera-runtime.ts' "configs/opencode/opencode.json"
 
 echo "=== Contract 4: Evidence-state language in required files ==="
 assert_grep 'repo_implemented' "AGENTS.md"
