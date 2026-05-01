@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, readdirSync, mkdirSync } from "node:fs"
+import { mkdtempSync, rmSync, readdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -25,39 +25,33 @@ function mockBunSpawnSync(overrides: {
 		const cmdArray = Array.isArray(cmd) ? cmd : [String(cmd)]
 		const cmdStr = cmdArray.join(" ")
 
-		// command -v vera
 		if (cmdStr.includes("command -v vera")) {
 			const available = overrides.veraAvailable ?? true
 			const stdout = available ? Buffer.from("/usr/bin/vera") : Buffer.from("")
 			return { success: available, exitCode: available ? 0 : 1, stdout, stderr: Buffer.from("") } as any
 		}
 
-		// git rev-parse for project ID
 		if (cmdStr.includes("git rev-parse")) {
 			const pid = overrides.projectId
 			const stdout = pid ? Buffer.from(pid) : Buffer.from("")
 			return { success: !!pid, exitCode: pid ? 0 : 1, stdout, stderr: Buffer.from("") } as any
 		}
 
-		// realpath
 		if (cmdStr.startsWith("realpath")) {
 			const path = cmdArray[1] || ""
 			return { success: true, exitCode: 0, stdout: Buffer.from(path), stderr: Buffer.from("") } as any
 		}
 
-		// kill -0 for pid alive check
 		if (cmdStr.includes("kill -0")) {
 			const alive = overrides.pidAlive ?? false
 			return { success: alive, exitCode: alive ? 0 : 1, stdout: Buffer.from(""), stderr: Buffer.from("") } as any
 		}
 
-		// vera index
 		if (cmdStr.includes("vera index")) {
 			const success = overrides.veraIndexSuccess ?? true
 			return { success, exitCode: success ? 0 : 1, stdout: Buffer.from(""), stderr: Buffer.from("") } as any
 		}
 
-		// vera update
 		if (cmdStr.includes("vera update")) {
 			const success = overrides.veraUpdateSuccess ?? true
 			return { success, exitCode: success ? 0 : 1, stdout: Buffer.from(""), stderr: Buffer.from("") } as any
@@ -118,9 +112,6 @@ async function importPlugin(directory: string) {
 	return await pluginFn({ directory })
 }
 
-// =============================================================================
-// Test 1: same-workspace-dedupe
-// =============================================================================
 async function runSameWorkspaceDedupe() {
 	const caseName = "same-workspace-dedupe"
 	const { tempHome, originalHome } = setupTempHome()
@@ -173,7 +164,6 @@ async function runSameWorkspaceDedupe() {
 			fail(caseName, `Expected exactly 1 state file, found ${jsonFiles.length}`)
 		}
 
-		// Clean up timers
 		await plugin["session.deleted"](
 			{
 				event: { properties: { session_id: "sess-1" } },
@@ -195,9 +185,6 @@ async function runSameWorkspaceDedupe() {
 	pass(caseName)
 }
 
-// =============================================================================
-// Test 2: cross-workspace-isolation
-// =============================================================================
 async function runCrossWorkspaceIsolation() {
 	const caseName = "cross-workspace-isolation"
 	const { tempHome, originalHome } = setupTempHome()
@@ -255,7 +242,6 @@ async function runCrossWorkspaceIsolation() {
 			fail(caseName, `Expected exactly 2 state files, found ${jsonFiles.length}`)
 		}
 
-		// Clean up timers
 		await pluginA["session.deleted"](
 			{
 				event: { properties: { session_id: "sess-a-1" } },
@@ -277,9 +263,6 @@ async function runCrossWorkspaceIsolation() {
 	pass(caseName)
 }
 
-// =============================================================================
-// Test 3: stale-pid-recovery
-// =============================================================================
 async function runStalePidRecovery() {
 	const caseName = "stale-pid-recovery"
 	const { tempHome, originalHome } = setupTempHome()
@@ -289,7 +272,6 @@ async function runStalePidRecovery() {
 	try {
 		const wsDir = createTempWorkspace(tempHome)
 
-		// Pre-create state file with fake dead PID
 		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
 		const key = mod.computeWorkspaceKey(wsDir)
 		const initialState = {
@@ -331,7 +313,6 @@ async function runStalePidRecovery() {
 			fail(caseName, `Expected status=running after recovery, got ${state.status}`)
 		}
 
-		// Clean up timer
 		await plugin["session.deleted"](
 			{
 				event: { properties: { session_id: "sess-stale-1" } },
@@ -347,13 +328,9 @@ async function runStalePidRecovery() {
 	pass(caseName)
 }
 
-// =============================================================================
-// Test 4: missing-vera-fails-open
-// =============================================================================
 async function runMissingVeraFailsOpen() {
 	const caseName = "missing-vera-fails-open"
 	const { tempHome, originalHome } = setupTempHome()
-	// Start with vera available to get handlers, then switch to missing
 	let restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project" })
 	const restoreSpawn = mockBunSpawn()
 
@@ -362,7 +339,6 @@ async function runMissingVeraFailsOpen() {
 
 		const plugin = await importPlugin(wsDir)
 
-		// Now simulate vera missing from PATH
 		restoreSpawnSync()
 		restoreSpawnSync = mockBunSpawnSync({ veraAvailable: false, projectId: "test-project" })
 
@@ -393,7 +369,6 @@ async function runMissingVeraFailsOpen() {
 			fail(caseName, `Expected status=missing-binary, got ${state.status}`)
 		}
 
-		// Clean up timer (if any)
 		try {
 			await plugin["session.deleted"](
 				{
@@ -411,9 +386,6 @@ async function runMissingVeraFailsOpen() {
 	pass(caseName)
 }
 
-// =============================================================================
-// Main
-// =============================================================================
 async function main() {
 	const args = process.argv.slice(2)
 	const caseIdx = args.indexOf("--case")
