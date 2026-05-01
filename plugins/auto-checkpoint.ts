@@ -1565,12 +1565,7 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 					}
 					rootState.lastSemanticSkipReason = undefined
 					if (!parentId) {
-						setTimeout(() => {
-							ensureRootBaselineSnapshot(rootState).catch((error) => {
-								const reason = error instanceof Error ? error.message : String(error)
-								log("warn", `baseline snapshot deferred failure — root=${rootSessionId}, error=${reason}`)
-							})
-						}, 0)
+						await ensureRootBaselineSnapshot(rootState)
 					}
 
 					if (parentId) {
