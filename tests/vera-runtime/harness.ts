@@ -1,49 +1,96 @@
-import { mkdtempSync, rmSync, readdirSync } from "node:fs"
+import { mkdtempSync, rmSync, readdirSync, mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 const PLUGIN_PATH = join(import.meta.dir, "..", "..", "plugins", "vera-runtime.ts")
 
-let _originalHome: string | undefined
-let _tempHome: string | null = null
-let _pluginModule: any = null
+let nextFakePid = 50000
 
-function setupTempHome(): string {
-	if (_tempHome) return _tempHome
-	_originalHome = process.env.HOME
-	_tempHome = mkdtempSync(join(tmpdir(), "vera-runtime-test-"))
-	process.env.HOME = _tempHome
-	return _tempHome
+function setupTempHome(): { tempHome: string; originalHome: string | undefined } {
+	const originalHome = process.env.HOME
+	const tempHome = mkdtempSync(join(tmpdir(), "vera-runtime-test-"))
+	process.env.HOME = tempHome
+	return { tempHome, originalHome }
 }
 
-function mockBunSpawnSyncForVeraMissing(): () => void {
+function mockBunSpawnSync(overrides: {
+	veraAvailable?: boolean
+	pidAlive?: boolean
+	veraIndexSuccess?: boolean
+	veraUpdateSuccess?: boolean
+	projectId?: string
+} = {}): () => void {
 	const original = Bun.spawnSync
 	Bun.spawnSync = function (cmd: any, opts?: any) {
-		if (Array.isArray(cmd) && cmd[0] === "bash" && cmd[1] === "-c" && typeof cmd[2] === "string" && cmd[2].includes("command -v vera")) {
-			const buf = Buffer.from("")
-			return { success: false, exitCode: 1, stdout: buf, stderr: buf } as any
+		const cmdArray = Array.isArray(cmd) ? cmd : [String(cmd)]
+		const cmdStr = cmdArray.join(" ")
+
+		// command -v vera
+		if (cmdStr.includes("command -v vera")) {
+			const available = overrides.veraAvailable ?? true
+			const stdout = available ? Buffer.from("/usr/bin/vera") : Buffer.from("")
+			return { success: available, exitCode: available ? 0 : 1, stdout, stderr: Buffer.from("") } as any
+		}
+
+		// git rev-parse for project ID
+		if (cmdStr.includes("git rev-parse")) {
+			const pid = overrides.projectId
+			const stdout = pid ? Buffer.from(pid) : Buffer.from("")
+			return { success: !!pid, exitCode: pid ? 0 : 1, stdout, stderr: Buffer.from("") } as any
+		}
+
+		// realpath
+		if (cmdStr.startsWith("realpath")) {
+			const path = cmdArray[1] || ""
+			return { success: true, exitCode: 0, stdout: Buffer.from(path), stderr: Buffer.from("") } as any
+		}
+
+		// kill -0 for pid alive check
+		if (cmdStr.includes("kill -0")) {
+			const alive = overrides.pidAlive ?? false
+			return { success: alive, exitCode: alive ? 0 : 1, stdout: Buffer.from(""), stderr: Buffer.from("") } as any
+		}
+
+		// vera index
+		if (cmdStr.includes("vera index")) {
+			const success = overrides.veraIndexSuccess ?? true
+			return { success, exitCode: success ? 0 : 1, stdout: Buffer.from(""), stderr: Buffer.from("") } as any
+		}
+
+		// vera update
+		if (cmdStr.includes("vera update")) {
+			const success = overrides.veraUpdateSuccess ?? true
+			return { success, exitCode: success ? 0 : 1, stdout: Buffer.from(""), stderr: Buffer.from("") } as any
+		}
+
+		return original(cmd, opts)
+	}
+	return () => {
+		Bun.spawnSync = original
+	}
+}
+
+function mockBunSpawn(): () => void {
+	const original = Bun.spawn
+	Bun.spawn = function (cmd: any, opts?: any) {
+		const cmdStr = Array.isArray(cmd) ? cmd.join(" ") : String(cmd)
+		if (cmdStr.includes("vera watch")) {
+			const pid = nextFakePid++
+			return { pid, success: true } as any
 		}
 		return original(cmd, opts)
 	}
-	return () => { Bun.spawnSync = original }
+	return () => {
+		Bun.spawn = original
+	}
 }
 
-async function loadPluginModule() {
-	if (!_pluginModule) {
-		_pluginModule = await import(`${PLUGIN_PATH}?${Date.now()}`)
-	}
-	return _pluginModule
-}
-
-function cleanup() {
-	if (_tempHome) {
-		try {
-			rmSync(_tempHome, { recursive: true, force: true })
-		} catch {}
-		_tempHome = null
-	}
-	if (_originalHome !== undefined) {
-		process.env.HOME = _originalHome
+function cleanup(tempHome: string, originalHome: string | undefined) {
+	try {
+		rmSync(tempHome, { recursive: true, force: true })
+	} catch {}
+	if (originalHome !== undefined) {
+		process.env.HOME = originalHome
 	}
 }
 
@@ -56,354 +103,341 @@ function pass(caseName: string) {
 	console.log(`PASS: ${caseName}`)
 }
 
-function createTempWorkspace(): string {
-	const home = setupTempHome()
+function createTempWorkspace(home: string): string {
 	const wsDir = mkdtempSync(join(home, "workspace-"))
 	return wsDir
 }
 
-function makeMockState(partial: Partial<any> = {}): any {
-	return {
-		workspaceKey: partial.workspaceKey ?? "",
-		workspacePath: partial.workspacePath ?? "",
-		projectId: partial.projectId ?? "",
-		pid: partial.pid ?? null,
-		status: partial.status ?? "stopped",
-		sessionIds: partial.sessionIds ?? [],
-		indexPath: partial.indexPath ?? "",
-		watchLogPath: partial.watchLogPath ?? "",
-		lastIndexedAt: partial.lastIndexedAt ?? null,
-		startedAt: partial.startedAt ?? null,
-		lastVerifiedAt: partial.lastVerifiedAt ?? null,
-		lastFailureAt: partial.lastFailureAt ?? null,
-		lastFailureReason: partial.lastFailureReason ?? null,
-	}
+function getWatchersDir(projectId: string): string {
+	return join(process.env.HOME!, ".local", "share", "opencode", "worktree-state", projectId, "vera-watchers")
 }
 
+async function importPlugin(directory: string) {
+	const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
+	const pluginFn = mod.default
+	return await pluginFn({ directory })
+}
+
+// =============================================================================
+// Test 1: same-workspace-dedupe
+// =============================================================================
 async function runSameWorkspaceDedupe() {
 	const caseName = "same-workspace-dedupe"
-	const wsDir = createTempWorkspace()
+	const { tempHome, originalHome } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	const restoreSpawn = mockBunSpawn()
 
 	try {
-		const mod = await loadPluginModule()
-		const { computeWorkspaceKey, getStateFilePath, readWatcherState, writeWatcherState } = mod
+		const wsDir = createTempWorkspace(tempHome)
 
-		const key1 = computeWorkspaceKey(wsDir)
-		const key2 = computeWorkspaceKey(wsDir)
-		if (key1 !== key2) {
-			fail(caseName, `workspaceKey not deterministic: ${key1} !== ${key2}`)
+		const plugin = await importPlugin(wsDir)
+
+		await plugin["session.created"](
+			{
+				event: { properties: { session_id: "sess-1" } },
+			},
+			{},
+		)
+
+		await plugin["session.created"](
+			{
+				event: { properties: { session_id: "sess-2" } },
+			},
+			{},
+		)
+
+		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
+		const state = mod.readWatcherState(wsDir)
+
+		if (!state) {
+			fail(caseName, "No state file found after session.created calls")
 		}
 
-		const stateFile = getStateFilePath(wsDir)
-		if (!stateFile.endsWith(`${key1}.json`)) {
-			fail(caseName, `state file path incorrect: ${stateFile}`)
+		if (state.sessionIds.length !== 2) {
+			fail(caseName, `Expected 2 sessionIds, got ${state.sessionIds.length}`)
 		}
 
-		const state1 = makeMockState({
-			workspaceKey: key1,
-			workspacePath: wsDir,
-			projectId: "ez-omo-config",
-			status: "running",
-			pid: 12345,
-			sessionIds: ["session-1"],
-			indexPath: `${wsDir}/.vera`,
-			watchLogPath: stateFile.replace(/\.json$/, ".log"),
-		})
-
-		writeWatcherState(wsDir, state1)
-
-		const read1 = readWatcherState(wsDir)
-		if (!read1) {
-			fail(caseName, "readWatcherState returned null after first write")
-		}
-		if (read1.pid !== 12345) {
-			fail(caseName, `expected pid=12345, got ${read1.pid}`)
-		}
-		if (read1.status !== "running") {
-			fail(caseName, `expected status=running, got ${read1.status}`)
+		if (!state.sessionIds.includes("sess-1")) {
+			fail(caseName, "sess-1 not in sessionIds")
 		}
 
-		const state2 = makeMockState({
-			workspaceKey: key1,
-			workspacePath: wsDir,
-			projectId: "ez-omo-config",
-			status: "stopped",
-			pid: null,
-			sessionIds: ["session-1", "session-2"],
-			indexPath: `${wsDir}/.vera`,
-			watchLogPath: stateFile.replace(/\.json$/, ".log"),
-		})
-
-		writeWatcherState(wsDir, state2)
-
-		const read2 = readWatcherState(wsDir)
-		if (!read2) {
-			fail(caseName, "readWatcherState returned null after second write")
-		}
-		if (read2.status !== "stopped") {
-			fail(caseName, `expected status=stopped after overwrite, got ${read2.status}`)
-		}
-		if (read2.sessionIds.length !== 2) {
-			fail(caseName, `expected 2 sessionIds after overwrite, got ${read2.sessionIds.length}`)
+		if (!state.sessionIds.includes("sess-2")) {
+			fail(caseName, "sess-2 not in sessionIds")
 		}
 
-		const watchersDir = join(stateFile, "..")
+		const watchersDir = getWatchersDir("test-project")
 		const files = readdirSync(watchersDir)
 		const jsonFiles = files.filter((f: string) => f.endsWith(".json"))
+
 		if (jsonFiles.length !== 1) {
-			fail(caseName, `expected exactly 1 state file, found ${jsonFiles.length}`)
+			fail(caseName, `Expected exactly 1 state file, found ${jsonFiles.length}`)
 		}
+
+		// Clean up timers
+		await plugin["session.deleted"](
+			{
+				event: { properties: { session_id: "sess-1" } },
+			},
+			{},
+		)
+		await plugin["session.deleted"](
+			{
+				event: { properties: { session_id: "sess-2" } },
+			},
+			{},
+		)
 	} finally {
-		try { rmSync(wsDir, { recursive: true, force: true }) } catch {}
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
 	}
 
 	pass(caseName)
 }
 
+// =============================================================================
+// Test 2: cross-workspace-isolation
+// =============================================================================
 async function runCrossWorkspaceIsolation() {
 	const caseName = "cross-workspace-isolation"
-	const wsA = createTempWorkspace()
-	const wsB = createTempWorkspace()
+	const { tempHome, originalHome } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	const restoreSpawn = mockBunSpawn()
 
 	try {
-		const mod = await loadPluginModule()
-		const { computeWorkspaceKey, getStateFilePath, readWatcherState, writeWatcherState } = mod
+		const wsA = createTempWorkspace(tempHome)
+		const wsB = createTempWorkspace(tempHome)
 
-		const keyA = computeWorkspaceKey(wsA)
-		const keyB = computeWorkspaceKey(wsB)
+		const pluginA = await importPlugin(wsA)
+		const pluginB = await importPlugin(wsB)
 
-		if (keyA === keyB) {
-			fail(caseName, `different workspaces produced identical keys: ${keyA}`)
+		await pluginA["session.created"](
+			{
+				event: { properties: { session_id: "sess-a-1" } },
+			},
+			{},
+		)
+
+		await pluginB["session.created"](
+			{
+				event: { properties: { session_id: "sess-b-1" } },
+			},
+			{},
+		)
+
+		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
+		const stateA = mod.readWatcherState(wsA)
+		const stateB = mod.readWatcherState(wsB)
+
+		if (!stateA) {
+			fail(caseName, "No state file found for workspace A")
+		}
+		if (!stateB) {
+			fail(caseName, "No state file found for workspace B")
 		}
 
-		const statePathA = getStateFilePath(wsA)
-		const statePathB = getStateFilePath(wsB)
-
-		if (statePathA === statePathB) {
-			fail(caseName, "different workspaces mapped to same state file path")
+		if (stateA.pid === stateB.pid) {
+			fail(caseName, `Workspaces A and B have same pid: ${stateA.pid}`)
 		}
 
-		const stateA = makeMockState({
-			workspaceKey: keyA,
-			workspacePath: wsA,
-			projectId: "ez-omo-config",
-			status: "running",
-			pid: 11111,
-			sessionIds: ["sess-a-1"],
-			indexPath: `${wsA}/.vera`,
-			watchLogPath: statePathA.replace(/\.json$/, ".log"),
-		})
-
-		const stateB = makeMockState({
-			workspaceKey: keyB,
-			workspacePath: wsB,
-			projectId: "ez-omo-config",
-			status: "indexed",
-			pid: 22222,
-			sessionIds: ["sess-b-1"],
-			indexPath: `${wsB}/.vera`,
-			watchLogPath: statePathB.replace(/\.json$/, ".log"),
-		})
-
-		writeWatcherState(wsA, stateA)
-		writeWatcherState(wsB, stateB)
-
-		const readA = readWatcherState(wsA)
-		const readB = readWatcherState(wsB)
-
-		if (!readA) {
-			fail(caseName, "readWatcherState returned null for workspace A")
+		if (stateA.status !== "running") {
+			fail(caseName, `Workspace A: expected status=running, got ${stateA.status}`)
 		}
-		if (!readB) {
-			fail(caseName, "readWatcherState returned null for workspace B")
+		if (stateB.status !== "running") {
+			fail(caseName, `Workspace B: expected status=running, got ${stateB.status}`)
 		}
 
-		if (readA.pid !== 11111) {
-			fail(caseName, `workspace A: expected pid=11111, got ${readA.pid}`)
-		}
-		if (readA.status !== "running") {
-			fail(caseName, `workspace A: expected status=running, got ${readA.status}`)
+		const watchersDir = getWatchersDir("test-project")
+		const files = readdirSync(watchersDir)
+		const jsonFiles = files.filter((f: string) => f.endsWith(".json"))
+
+		if (jsonFiles.length !== 2) {
+			fail(caseName, `Expected exactly 2 state files, found ${jsonFiles.length}`)
 		}
 
-		if (readB.pid !== 22222) {
-			fail(caseName, `workspace B: expected pid=22222, got ${readB.pid}`)
-		}
-		if (readB.status !== "indexed") {
-			fail(caseName, `workspace B: expected status=indexed, got ${readB.status}`)
-		}
+		// Clean up timers
+		await pluginA["session.deleted"](
+			{
+				event: { properties: { session_id: "sess-a-1" } },
+			},
+			{},
+		)
+		await pluginB["session.deleted"](
+			{
+				event: { properties: { session_id: "sess-b-1" } },
+			},
+			{},
+		)
 	} finally {
-		try { rmSync(wsA, { recursive: true, force: true }) } catch {}
-		try { rmSync(wsB, { recursive: true, force: true }) } catch {}
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
 	}
 
 	pass(caseName)
 }
 
+// =============================================================================
+// Test 3: stale-pid-recovery
+// =============================================================================
 async function runStalePidRecovery() {
 	const caseName = "stale-pid-recovery"
-	const wsDir = createTempWorkspace()
+	const { tempHome, originalHome } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: false })
+	const restoreSpawn = mockBunSpawn()
 
 	try {
-		const mod = await loadPluginModule()
-		const { computeWorkspaceKey, getStateFilePath, readWatcherState, writeWatcherState } = mod
+		const wsDir = createTempWorkspace(tempHome)
 
-		const key = computeWorkspaceKey(wsDir)
-		const statePath = getStateFilePath(wsDir)
-
-		const staleState = makeMockState({
+		// Pre-create state file with fake dead PID
+		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
+		const key = mod.computeWorkspaceKey(wsDir)
+		const initialState = {
 			workspaceKey: key,
 			workspacePath: wsDir,
-			projectId: "ez-omo-config",
-			status: "running",
+			projectId: "test-project",
 			pid: 99999,
+			status: "running",
 			sessionIds: ["sess-stale-1"],
 			indexPath: `${wsDir}/.vera`,
-			watchLogPath: statePath.replace(/\.json$/, ".log"),
-		})
+			watchLogPath: `${mod.getStateFilePath(wsDir).replace(/\.json$/, ".log")}`,
+			lastIndexedAt: new Date().toISOString(),
+			startedAt: new Date().toISOString(),
+			lastVerifiedAt: new Date().toISOString(),
+			lastFailureAt: null,
+			lastFailureReason: null,
+		}
+		mod.writeWatcherState(wsDir, initialState)
 
-		writeWatcherState(wsDir, staleState)
+		const plugin = await importPlugin(wsDir)
 
-		const readStale = readWatcherState(wsDir)
-		if (!readStale) {
-			fail(caseName, "readWatcherState returned null for stale state")
-		}
-		if (readStale.pid !== 99999) {
-			fail(caseName, `expected stale pid=99999, got ${readStale.pid}`)
-		}
-		if (readStale.status !== "running") {
-			fail(caseName, `expected status=running for stale state, got ${readStale.status}`)
+		await plugin["session.created"](
+			{
+				event: { properties: { session_id: "sess-stale-1" } },
+			},
+			{},
+		)
+
+		const state = mod.readWatcherState(wsDir)
+		if (!state) {
+			fail(caseName, "No state file found after session.created")
 		}
 
-		const recoveredState = makeMockState({
-			workspaceKey: key,
-			workspacePath: wsDir,
-			projectId: "ez-omo-config",
-			status: "stopped",
-			pid: null,
-			sessionIds: ["sess-stale-1"],
-			indexPath: `${wsDir}/.vera`,
-			watchLogPath: statePath.replace(/\.json$/, ".log"),
-		})
+		if (state.pid === 99999) {
+			fail(caseName, `Stale PID 99999 was not replaced, still ${state.pid}`)
+		}
 
-		writeWatcherState(wsDir, recoveredState)
+		if (state.status !== "running") {
+			fail(caseName, `Expected status=running after recovery, got ${state.status}`)
+		}
 
-		const readRecovered = readWatcherState(wsDir)
-		if (!readRecovered) {
-			fail(caseName, "readWatcherState returned null after recovery write")
-		}
-		if (readRecovered.pid !== null) {
-			fail(caseName, `expected recovered pid=null, got ${readRecovered.pid}`)
-		}
-		if (readRecovered.status !== "stopped") {
-			fail(caseName, `expected recovered status=stopped, got ${readRecovered.status}`)
-		}
+		// Clean up timer
+		await plugin["session.deleted"](
+			{
+				event: { properties: { session_id: "sess-stale-1" } },
+			},
+			{},
+		)
 	} finally {
-		try { rmSync(wsDir, { recursive: true, force: true }) } catch {}
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
 	}
 
 	pass(caseName)
 }
 
+// =============================================================================
+// Test 4: missing-vera-fails-open
+// =============================================================================
 async function runMissingVeraFailsOpen() {
 	const caseName = "missing-vera-fails-open"
-	const wsDir = createTempWorkspace()
+	const { tempHome, originalHome } = setupTempHome()
+	// Start with vera available to get handlers, then switch to missing
+	let restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project" })
+	const restoreSpawn = mockBunSpawn()
 
 	try {
-		const restoreSpawn = mockBunSpawnSyncForVeraMissing()
-		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
-		restoreSpawn()
+		const wsDir = createTempWorkspace(tempHome)
 
-		const { computeWorkspaceKey, getStateFilePath, readWatcherState, writeWatcherState } = mod
+		const plugin = await importPlugin(wsDir)
 
-		const key = computeWorkspaceKey(wsDir)
-		const statePath = getStateFilePath(wsDir)
+		// Now simulate vera missing from PATH
+		restoreSpawnSync()
+		restoreSpawnSync = mockBunSpawnSync({ veraAvailable: false, projectId: "test-project" })
 
-		const state = makeMockState({
-			workspaceKey: key,
-			workspacePath: wsDir,
-			projectId: "ez-omo-config",
-			status: "missing-binary",
-			pid: null,
-			sessionIds: [],
-			indexPath: `${wsDir}/.vera`,
-			watchLogPath: statePath.replace(/\.json$/, ".log"),
-		})
-
-		writeWatcherState(wsDir, state)
-
-		const readBack = readWatcherState(wsDir)
-		if (!readBack) {
-			fail(caseName, "readWatcherState returned null")
-		}
-		if (readBack.status !== "missing-binary") {
-			fail(caseName, `expected status=missing-binary, got ${readBack.status}`)
-		}
-
-		const restoreSpawn2 = mockBunSpawnSyncForVeraMissing()
-		let pluginResult: any
+		let threw = false
 		try {
-			const pluginFn = mod.default
-			pluginResult = await pluginFn({ directory: wsDir })
-		} finally {
-			restoreSpawn2()
+			await plugin["session.created"](
+				{
+					event: { properties: { session_id: "sess-missing-1" } },
+				},
+				{},
+			)
+		} catch (_err) {
+			threw = true
 		}
 
-		if (pluginResult === null || typeof pluginResult !== "object") {
-			fail(caseName, `expected plugin to return an object, got ${typeof pluginResult}`)
+		if (threw) {
+			fail(caseName, "session.created threw when vera binary is missing")
 		}
-		if (Object.keys(pluginResult).length !== 0) {
-			fail(caseName, `expected plugin to return empty object when vera unavailable, got keys: ${Object.keys(pluginResult).join(", ")}`)
+
+		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
+		const state = mod.readWatcherState(wsDir)
+
+		if (!state) {
+			fail(caseName, "No state file found")
 		}
+
+		if (state.status !== "missing-binary") {
+			fail(caseName, `Expected status=missing-binary, got ${state.status}`)
+		}
+
+		// Clean up timer (if any)
+		try {
+			await plugin["session.deleted"](
+				{
+					event: { properties: { session_id: "sess-missing-1" } },
+				},
+				{},
+			)
+		} catch {}
 	} finally {
-		try { rmSync(wsDir, { recursive: true, force: true }) } catch {}
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
 	}
 
 	pass(caseName)
 }
 
+// =============================================================================
+// Main
+// =============================================================================
 async function main() {
 	const args = process.argv.slice(2)
 	const caseIdx = args.indexOf("--case")
 	const testCase = caseIdx >= 0 ? args[caseIdx + 1] : null
 
-	const allCases = [
-		"same-workspace-dedupe",
-		"cross-workspace-isolation",
-		"stale-pid-recovery",
-		"missing-vera-fails-open",
-	]
-
-	if (!testCase) {
-		console.error("Usage: bun tests/vera-runtime/harness.ts --case <case-name>")
-		console.error("Cases:", allCases.join(", "))
-		process.exit(1)
+	const testMap: Record<string, () => Promise<void>> = {
+		"same-workspace-dedupe": runSameWorkspaceDedupe,
+		"cross-workspace-isolation": runCrossWorkspaceIsolation,
+		"stale-pid-recovery": runStalePidRecovery,
+		"missing-vera-fails-open": runMissingVeraFailsOpen,
 	}
 
-	try {
-		switch (testCase) {
-			case "same-workspace-dedupe":
-				await runSameWorkspaceDedupe()
-				break
-			case "cross-workspace-isolation":
-				await runCrossWorkspaceIsolation()
-				break
-			case "stale-pid-recovery":
-				await runStalePidRecovery()
-				break
-			case "missing-vera-fails-open":
-				await runMissingVeraFailsOpen()
-				break
-			default:
-				console.error(`Unknown test case: ${testCase}`)
-				console.error("Valid cases:", allCases.join(", "))
-				process.exit(1)
+	if (testCase) {
+		const fn = testMap[testCase]
+		if (!fn) {
+			console.error(`Unknown test case: ${testCase}`)
+			console.error("Valid cases:", Object.keys(testMap).join(", "))
+			process.exit(1)
 		}
-	} catch (err: any) {
-		console.error(`UNEXPECTED ERROR in ${testCase}: ${err?.message ?? err}`)
-		console.error(err?.stack ?? "")
-		process.exit(1)
-	} finally {
-		cleanup()
+		await fn()
+	} else {
+		for (const fn of Object.values(testMap)) {
+			await fn()
+		}
 	}
 }
 
