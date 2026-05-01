@@ -32,7 +32,7 @@ function cleanup() {
 		try {
 			rmSync(_tempHome, { recursive: true, force: true })
 		} catch {
-			// best effort
+			/* intentionally swallowed */
 		}
 		_tempHome = null
 	}
