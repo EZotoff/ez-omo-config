@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **57 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **52 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -56,7 +56,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 57 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 52 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
