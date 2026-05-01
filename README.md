@@ -239,7 +239,7 @@ cd ez-omo-config
 |----------|-------------|------------|
 | **Google** | Gemini models via Antigravity | Gemini 3 Pro, Gemini 3 Flash |
 | **OpenAI** | GPT models via OAuth | GPT 5.4, GPT 5.3 Codex, GPT 5.2 |
-| **GitHub Copilot** | Claude and GPT via Copilot | Claude Opus 4.6, Claude Sonnet 4.6, GPT 5.4 |
+| **GitHub Copilot** | Claude and GPT via Copilot | Claude Opus 4.6, Claude Sonnet 4.6, GPT 5.4, GPT 5.5 |
 | **Moonshot** | Kimi models | Kimi K2.5 |
 | **Kimi For Coding (OAuth)** | Kimi K2.6 via device-flow OAuth | Kimi K2.6 (kimi-for-coding) |
 | **Z.AI** | GLM models via Coding Plan | GLM 5 |
@@ -258,9 +258,9 @@ cd ez-omo-config
 | **frontend-ui-ux-engineer** | `github-copilot/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5` | Complex frontend work |
 | **document-writer** | `moonshot/kimi-k2.5` | default | `zai-coding-plan/glm-5` | Writing, documentation |
 | **multimodal-looker** | `moonshot/kimi-k2.5` | default | (none) | Image/PDF analysis |
-| **oracle** | `github-copilot/gpt-5.4` | high | `github-copilot/claude-opus-4.6` | Q&A, knowledge queries |
-| **metis** | `github-copilot/gpt-5.4` | xhigh | (none) | Deep analysis |
-| **momus** | `github-copilot/gpt-5.4` | high | `github-copilot/claude-opus-4.6` | Code review, critique |
+| **oracle** | `github-copilot/gpt-5.5` | high | `github-copilot/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **metis** | `github-copilot/gpt-5.5` | high | `github-copilot/claude-sonnet-4.6` | Deep analysis |
+| **momus** | `github-copilot/gpt-5.5` | xhigh | `github-copilot/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `github-copilot/gpt-5.3-codex` | xhigh | (none) | Infrastructure, deployment |
 
 ### Key Experimental Features

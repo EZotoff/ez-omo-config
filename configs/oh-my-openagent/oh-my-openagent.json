@@ -18,7 +18,7 @@
       "variant": "xhigh"
     },
     "oracle": {
-      "model": "github-copilot/gpt-5.4",
+      "model": "github-copilot/gpt-5.5",
       "variant": "high",
       "fallback_models": [
         "github-copilot/gemini-3.1-pro-preview"
@@ -63,7 +63,7 @@
       "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "metis": {
-      "model": "github-copilot/gpt-5.4",
+      "model": "github-copilot/gpt-5.5",
       "variant": "high",
       "fallback_models": [
         "github-copilot/claude-sonnet-4.6"
@@ -73,7 +73,7 @@
       ]
     },
     "momus": {
-      "model": "github-copilot/gpt-5.4",
+      "model": "github-copilot/gpt-5.5",
       "variant": "xhigh",
       "fallback_models": [
         "github-copilot/gemini-3.1-pro-preview"
