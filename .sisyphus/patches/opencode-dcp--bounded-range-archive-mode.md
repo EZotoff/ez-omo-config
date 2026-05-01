@@ -134,15 +134,28 @@ for DEST in \
 done
 ```
 
+### How to prove a fresh OpenCode process does not warn
+
+File-marker checks prove patch presence on disk, but they do not prove a running OpenCode process loaded the patched modules. To verify a fresh startup does not reject `compress.retentionMode` and `compress.maxArchivedSummaryTokens` as unknown keys, run:
+
+```bash
+bash tests/test_dcp_startup_warning.sh
+```
+
+Expected: 2 passed, 0 failed. The test probes a short-lived `opencode serve --print-logs --log-level WARN --port 0` startup and fails if stdout/stderr contains `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens` or `DCP: config warning`.
+
+**Stale-process gotcha**: If a running OpenCode server or TUI session emits the DCP unknown-key warning despite all file-marker checks passing, the process was likely started before the most recent patch sync. The patched modules are only loaded at process startup; an already-running process continues using the old modules until restarted. Always restart OpenCode after reapplying or syncing the patch.
+
 ### What command to run after OpenCode or DCP updates
 
-After any OpenCode or DCP package update, run:
+After any OpenCode or DCP package update, run both verification scripts:
 
 ```bash
 bash tests/test_dcp_bounded_range.sh
+bash tests/test_dcp_startup_warning.sh
 ```
 
-If any case fails, the patch may have been overwritten. Reapply per the instructions below, then rerun the proof command.
+If any case fails, the patch may have been overwritten. Reapply per the instructions below, then rerun both proof commands. If `test_dcp_bounded_range.sh` passes but a running OpenCode process still warns, restart that process — the patched modules are only loaded at startup.
 
 ### What failure strings mean
 
@@ -156,13 +169,15 @@ If any case fails, the patch may have been overwritten. Reapply per the instruct
 | `FAIL: persisted-frontier-state` | The sync logic is not computing `archivedBlockIds`. Block state may be inconsistent after a restart or reload. |
 | `FAIL: decompress-archived-rejected` | The decompress command guard is missing. Users could accidentally decompress an archived block, which is not supported in bounded mode. |
 | `FAIL: bounded-runtime-proof-metadata` | The end-to-end runtime metadata proof failed. The config may be missing `retentionMode: "bounded"` or `maxArchivedSummaryTokens`, or the runtime state objects are not receiving the patch fields. |
+| `FAIL: startup probe` (`test_dcp_startup_warning.sh`) | The `opencode serve` probe crashed or exited unexpectedly before timeout. This usually indicates a startup failure unrelated to DCP. |
+| `FAIL: DCP unknown-key warning detected` (`test_dcp_startup_warning.sh`) | A fresh OpenCode process emitted `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens`. The active runtime copy (`~/.cache/opencode/node_modules/@tarquinen/opencode-dcp/`) is unpatched or the running process was started before the latest patch sync. Restart OpenCode after confirming file markers pass. |
 
 ## Reapply Instructions
 If the patch is lost after a DCP package update:
 
 1. Apply patches to `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/` (source of truth).
 2. Run `./install.sh --configs` from this repo to sync patched files into both native cache destinations (`~/.cache/opencode/node_modules/...` and `~/.cache/opencode/packages/...`).
-3. Restart OpenCode so the already-running backend reloads the patched modules.
+3. **Restart OpenCode** so the already-running backend reloads the patched modules. This step is critical: an OpenCode server or TUI that was started before the patch sync will continue using the old, unpatched modules until it is restarted. File-marker checks prove patch presence on disk; only a process restart guarantees the patched code is loaded.
 4. If the active backend later switches to snap-confined OpenCode, manually sync the same 10 files into the snap cache/runtime copies too.
 
 Per-file patch details:
