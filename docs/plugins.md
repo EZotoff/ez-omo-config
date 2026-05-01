@@ -100,7 +100,7 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ## review-enforcer.ts
 
-**Purpose**: Injects review workflow instructions after task completion so plan execution gets reviewed consistently.
+**Purpose**: Injects review workflow instructions after task completion so plan execution gets reviewed consistently. Also enforces the Live Deployment Verification Gate by requiring agents to distinguish between evidence states when reporting deployment status.
 
 **Features**:
 
@@ -108,6 +108,7 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 - Enforces review quality gates
 - Integrates with review-protocol skill
 - Ensures consistent review coverage across tasks
+- **Live Deployment Gate**: Agents must report evidence states accurately. Unverified live or runtime states must be flagged with `Not verified live: [missing state]`.
 
 **Dependencies**: Works alongside `review-protocol/` skill
 
@@ -155,6 +156,16 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 | `tool.execute.before` | Before any tool executes | If tool modifies files, trigger `vera update .` |
 
 **Dependencies**: None (self-contained; falls open if `vera` binary absent)
+
+**Active Registration Requirement**:
+
+`vera-runtime.ts` must be registered in the active `opencode.json` plugin array. The verifier checks this with:
+
+```bash
+grep -q 'vera-runtime' "$HOME/.config/opencode/opencode.json"
+```
+
+If the plugin is present at the install target but not registered in the active config, OpenCode will not load it. After adding the plugin to `opencode.json` in the repo, the symlinked config makes the change immediately active.
 
 **Install Target**: `$HOME/.opencode/plugin/vera-runtime.ts`
 

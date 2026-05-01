@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **52 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **54 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -273,6 +273,18 @@ cd ez-omo-config
 | **Aggressive Truncation** | Enabled | Truncates verbose tool outputs aggressively |
 | **Runtime Fallback** | Enabled | Automatically switches to fallback models on API errors (404, 429, 500, 502, 503, 504) |
 | **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
+
+### DCP Observability
+
+The bounded DCP retention patch is a local modification, not upstream standard behavior. After any OpenCode or DCP package update, verify the patch is still intact:
+
+```bash
+bash tests/test_dcp_bounded_range.sh
+```
+
+Expected: 8 passed, 0 failed. The proof script checks marker presence across all three DCP install copies (reference, runtime, and package cache) and exercises five functional regression cases, including runtime metadata validation of `retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, and `truncationOccurred`.
+
+For install locations, failure string meanings, and reapply instructions, see `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
 
 ---
 

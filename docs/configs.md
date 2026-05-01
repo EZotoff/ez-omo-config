@@ -92,6 +92,18 @@ The bounded retention mode is **not upstream standard behavior**. It is backed b
 
 This prevents package-cache refreshes from reintroducing unknown-key warnings for `compress.retentionMode` and `compress.maxArchivedSummaryTokens`.
 
+**Observability**:
+
+After any OpenCode or DCP update, verify the patch is still intact by running the canonical proof command from the repo root:
+
+```bash
+bash tests/test_dcp_bounded_range.sh
+```
+
+Expected: 8 passed, 0 failed. The script checks marker presence across all three install copies (reference, runtime, and package cache) and exercises five functional regression cases, including the `bounded-runtime-proof-metadata` case that asserts runtime block metadata (`retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, `rawMessageCoverageCount`, `normalizedSummaryTokenCount`, `truncationOccurred`) against the live DCP state.
+
+For detailed install locations, verification commands, failure string meanings, and reapply instructions, see the patch registry entry at `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
+
 **Install Target**: `$HOME/.config/opencode/dcp.jsonc`
 
 **Status**: Optional
@@ -283,6 +295,29 @@ These fields are logged at startup for visibility but are otherwise inert.
 **Install Target**: `$HOME/.config/opencode/aspect-dynamics.mjs`
 
 **Status**: Optional
+
+---
+
+## Symlinked Configs vs Installed Plugin Targets
+
+Not all files in this repository share the same deployment model. The symlinked config behavior applies **only** to the listed config files. Installed plugin targets are separate deployable artifacts.
+
+### Symlinked Config Files
+
+These files are symlinked from `~/.config/opencode/` into this repo. Editing either path edits the same file. There is one file, not two.
+
+| File | Live Path | Store Path |
+|------|-----------|------------|
+| `opencode.json` | `~/.config/opencode/opencode.json` | `configs/opencode/opencode.json` |
+| `oh-my-openagent.json` | `~/.config/opencode/oh-my-openagent.json` | `configs/oh-my-openagent/oh-my-openagent.json` |
+| `provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` | `configs/opencode/provider-connect-retry.mjs` |
+| `retry-errors.json` | `~/.config/opencode/retry-errors.json` | `configs/retry-errors.json` |
+
+### Installed Plugin Targets
+
+Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `install.sh` and must be treated as distinct deployment targets. They do **not** share the "one file, not two" symlink property. After editing a plugin in the repo, run `install.sh --plugins` to push changes to the live target.
+
+**Why the distinction matters**: Agents must know whether a change to a repo file is automatically visible to OpenCode (symlinked configs) or requires an install step (plugins). Claim language for plugins must reflect the actual install state, not just the repo state.
 
 ---
 

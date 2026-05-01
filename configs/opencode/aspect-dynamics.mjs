@@ -4,7 +4,7 @@
 import { loadConfig } from "./aspect-dynamics/config.mjs";
 import { extractContext, getEventSessionID, hasRecursionGuard, prefilterContext } from "./aspect-dynamics/context.mjs";
 import { rankAspects, scoreAspects, shouldNudge } from "./aspect-dynamics/heuristics.mjs";
-import { logEvent, logInfo, logWarn } from "./aspect-dynamics/logging.mjs";
+import { emitProof, logEvent, logInfo, logWarn } from "./aspect-dynamics/logging.mjs";
 import { buildNudge } from "./aspect-dynamics/nudge.mjs";
 import {
   canProcess,
@@ -32,6 +32,7 @@ export default async function aspectDynamicsPlugin(ctx) {
   const sets = await loadSets();
 
   logInfo("Plugin loaded");
+  emitProof("plugin_loaded", { version: "1.0.0" });
 
   // Deferred-field safeguard: scoringModel, polishingModel, dreamAgent are
   // accepted from config but deliberately unused in MVP. Zero network calls
@@ -54,20 +55,24 @@ export default async function aspectDynamicsPlugin(ctx) {
           const child = await isChildSession(ctx, sessionID);
           if (child) {
             logWarn(`Child session ${sessionID} ignored — no aspect-dynamics tracking`);
+            emitProof("child_session_ignored", { session_id: sessionID });
             return;
           }
           getSessionState(sessionID);
+          emitProof("session_created", { session_id: sessionID });
           break;
         }
 
         case "session.deleted": {
           logEvent("session.deleted", sessionID);
           deleteSessionState(sessionID);
+          emitProof("session_deleted", { session_id: sessionID });
           break;
         }
 
         case "session.idle": {
           logEvent("session.idle", sessionID);
+          emitProof("idle_seen", { session_id: sessionID });
 
           const child = await isChildSession(ctx, sessionID);
           if (child) {
@@ -79,6 +84,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             const state = getSessionState(sessionID);
             if (state.circuitBroken) {
               logWarn(`Session ${sessionID} skipped — circuit breaker open`);
+              emitProof("circuit_open", { session_id: sessionID, failure_count: state.failureCount });
             } else if (state.inFlight) {
               logWarn(`Session ${sessionID} skipped — action already in flight`);
             }
@@ -92,6 +98,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             if (!context) {
               logWarn(`No context for session ${sessionID}`);
               recordFailure(sessionID);
+              emitProof("failure", { session_id: sessionID, reason: "no_context" });
               return;
             }
 
@@ -104,6 +111,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             // Prefilter: skip scoring if no heuristic phrases match
             if (!prefilterContext(context, sets, config)) {
               logEvent("session.idle", sessionID, "prefilter=skip");
+              emitProof("skip", { session_id: sessionID, reason: "prefilter" });
               recordSuccess(sessionID);
               return;
             }
@@ -139,12 +147,15 @@ export default async function aspectDynamicsPlugin(ctx) {
                     body: nudge,
                   });
                   logEvent("nudge", sessionID, `aspect=${topEntry.aspectId}, score=${scoring.topScore.toFixed(2)}`);
+                  emitProof("nudge_sent", { session_id: sessionID, aspect: topEntry.aspectId, score: scoring.topScore });
                 }
               }
             }
 
             const state = getSessionState(sessionID);
             state.scores = new Map(scoring.allScores);
+
+            emitProof("score", { session_id: sessionID, top_aspect: scoring.topAspectId, top_score: scoring.topScore });
 
             updateSessionState(sessionID, { aspects: ranked });
 
@@ -156,6 +167,7 @@ export default async function aspectDynamicsPlugin(ctx) {
           } catch (err) {
             logWarn(`Error processing session.idle for ${sessionID}: ${err.message}`);
             recordFailure(sessionID);
+            emitProof("failure", { session_id: sessionID, reason: "exception", error: err.message });
           } finally {
             markInFlight(sessionID, false);
           }

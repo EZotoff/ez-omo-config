@@ -805,6 +805,271 @@ async function runDisabled() {
   pass("disabled — plugin is no-op when enabled: false");
 }
 
+async function runProofDisabled() {
+  await setTestConfig({ enabled: false });
+
+  const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
+    join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
+  );
+
+  __testProofOverride.value = [];
+  resetProofEvents();
+
+  try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+    const ctx = makeFakeCtx();
+    const result = await plugin(ctx);
+
+    await result.event({
+      event: {
+        type: "session.created",
+        properties: { sessionID: "sess-proof-disabled-1" },
+      },
+    });
+
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-proof-disabled-1" },
+      },
+    });
+
+    const proofs = readProofEvents();
+    const hasAnyEvent = proofs.some((p) => p.session_id === "sess-proof-disabled-1");
+    if (hasAnyEvent) {
+      fail("Expected no proof events when plugin is disabled");
+    }
+  } finally {
+    __testProofOverride.value = null;
+    await clearTestConfig();
+  }
+
+  pass("proof-disabled — no proof events emitted when plugin is disabled");
+}
+
+async function runProofCreated() {
+  const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
+    join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
+  );
+
+  __testProofOverride.value = [];
+  resetProofEvents();
+
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+  const ctx = makeFakeCtx();
+  const result = await plugin(ctx);
+
+  await result.event({
+    event: {
+      type: "session.created",
+      properties: { sessionID: "sess-proof-created-1" },
+    },
+  });
+
+  const proofs = readProofEvents();
+  const created = proofs.find((p) => p.event === "session_created" && p.session_id === "sess-proof-created-1");
+  if (!created) {
+    __testProofOverride.value = null;
+    fail("Expected session_created proof event");
+  }
+
+  __testProofOverride.value = null;
+  pass("proof-created — session.created emits proof event");
+}
+
+async function runProofSkip() {
+  const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
+    join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
+  );
+
+  __testProofOverride.value = [];
+  resetProofEvents();
+
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+
+  // Messages with no heuristic phrases → prefilter skip
+  const messages = [
+    { id: "msg-1", info: { role: "user", text: "hello there" } },
+    { id: "msg-2", info: { role: "assistant", text: "hi back" } },
+  ];
+
+  const ctx = makeFakeCtx({ messages });
+  const result = await plugin(ctx);
+
+  await result.event({
+    event: {
+      type: "session.created",
+      properties: { sessionID: "sess-proof-skip-1" },
+    },
+  });
+
+  await result.event({
+    event: {
+      type: "session.idle",
+      properties: { sessionID: "sess-proof-skip-1" },
+    },
+  });
+
+  const proofs = readProofEvents();
+  const skip = proofs.find((p) => p.event === "skip" && p.session_id === "sess-proof-skip-1");
+  if (!skip) {
+    __testProofOverride.value = null;
+    fail("Expected skip proof event on prefilter miss");
+  }
+  if (skip.reason !== "prefilter") {
+    __testProofOverride.value = null;
+    fail(`Expected skip reason=prefilter, got ${skip.reason}`);
+  }
+
+  __testProofOverride.value = null;
+  pass("proof-skip — prefilter skip emits proof event with reason=prefilter");
+}
+
+async function runProofNudge() {
+  const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
+    join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
+  );
+  const { __testSetsOverride } = await import(SETS_PATH);
+
+  __testProofOverride.value = [];
+  resetProofEvents();
+
+  const messages = [
+    {
+      id: "msg-1",
+      info: {
+        role: "user",
+        text: "this is frustrating and I'm stuck on this",
+      },
+    },
+    { id: "msg-2", info: { role: "assistant", text: "I understand" } },
+  ];
+
+  const ctx = makeFakeCtx({ messages });
+  __testSetsOverride.value = NUDGE_TEST_SETS;
+
+  try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+    const result = await plugin(ctx);
+
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-proof-nudge-1" },
+      },
+    });
+
+    const proofs = readProofEvents();
+    const nudge = proofs.find((p) => p.event === "nudge_sent" && p.session_id === "sess-proof-nudge-1");
+    if (!nudge) {
+      fail("Expected nudge_sent proof event");
+    }
+    if (!nudge.aspect) {
+      fail("Expected nudge_sent proof to include aspect");
+    }
+    if (typeof nudge.score !== "number") {
+      fail("Expected nudge_sent proof to include numeric score");
+    }
+  } finally {
+    __testProofOverride.value = null;
+    __testSetsOverride.value = null;
+  }
+
+  pass("proof-nudge — nudge dispatch emits proof event with aspect and score");
+}
+
+async function runProofCircuit() {
+  const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
+    join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
+  );
+
+  __testProofOverride.value = [];
+  resetProofEvents();
+
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+
+  // Make messages() throw to force failures
+  const ctx = makeFakeCtx({ messagesShouldThrow: 3 });
+  const result = await plugin(ctx);
+
+  // Trigger 3 failures
+  for (let i = 0; i < 3; i++) {
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-proof-circuit-1" },
+      },
+    });
+  }
+
+  // 4th idle should hit circuit breaker
+  await result.event({
+    event: {
+      type: "session.idle",
+      properties: { sessionID: "sess-proof-circuit-1" },
+    },
+  });
+
+  const proofs = readProofEvents();
+  const circuit = proofs.find((p) => p.event === "circuit_open" && p.session_id === "sess-proof-circuit-1");
+  if (!circuit) {
+    __testProofOverride.value = null;
+    fail("Expected circuit_open proof event after repeated failures");
+  }
+  if (circuit.failure_count !== 3) {
+    __testProofOverride.value = null;
+    fail(`Expected failure_count=3, got ${circuit.failure_count}`);
+  }
+
+  __testProofOverride.value = null;
+  pass("proof-circuit — circuit breaker open emits proof event with failure_count");
+}
+
+async function runProofRetention() {
+  const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
+    join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
+  );
+
+  __testProofOverride.value = [];
+  resetProofEvents();
+
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+  const ctx = makeFakeCtx();
+  const result = await plugin(ctx);
+
+  // Generate many session.created events to exceed MAX_PROOF_EVENTS (1000)
+  for (let i = 0; i < 1005; i++) {
+    await result.event({
+      event: {
+        type: "session.created",
+        properties: { sessionID: `sess-retention-${i}` },
+      },
+    });
+  }
+
+  const proofs = readProofEvents();
+  if (proofs.length > 1000) {
+    __testProofOverride.value = null;
+    fail(`Expected proof events capped at 1000, got ${proofs.length}`);
+  }
+
+  // Verify the most recent events are retained (should see sess-retention-1004)
+  const last = proofs[proofs.length - 1];
+  if (!last || !last.session_id || !last.session_id.includes("1004")) {
+    __testProofOverride.value = null;
+    fail("Expected retention cap to preserve most recent events");
+  }
+
+  __testProofOverride.value = null;
+  pass("proof-retention — proof events capped at MAX_PROOF_EVENTS=1000");
+}
+
 async function runInvalidConfig() {
   await setTestConfig({ activeSets: "not-an-array" });
 
@@ -852,7 +1117,7 @@ async function main() {
 
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
-    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break, seed-set-load, missing-set, recursive-nudge, disabled, invalid-config");
+    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break, seed-set-load, missing-set, recursive-nudge, disabled, invalid-config, proof-disabled, proof-created, proof-skip, proof-nudge, proof-circuit, proof-retention");
     process.exit(1);
   }
 
@@ -910,6 +1175,24 @@ async function main() {
       break;
     case "invalid-config":
       await runInvalidConfig();
+      break;
+    case "proof-disabled":
+      await runProofDisabled();
+      break;
+    case "proof-created":
+      await runProofCreated();
+      break;
+    case "proof-skip":
+      await runProofSkip();
+      break;
+    case "proof-nudge":
+      await runProofNudge();
+      break;
+    case "proof-circuit":
+      await runProofCircuit();
+      break;
+    case "proof-retention":
+      await runProofRetention();
       break;
     default:
       console.error(`Unknown test case: ${testCase}`);

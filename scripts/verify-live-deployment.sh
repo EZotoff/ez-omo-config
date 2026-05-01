@@ -131,6 +131,7 @@ fi
 
 mkdir -p "$EVIDENCE_DIR"
 : > "$EVIDENCE_DIR/commands.txt"
+: > "$EVIDENCE_DIR/live-paths.txt"
 
 EXPECTED_SYMLINK_TARGET="/home/ezotoff/ez-omo-config/configs/opencode/opencode.json"
 ACTUAL_SYMLINK_TARGET=""
@@ -149,6 +150,7 @@ if [[ "$ACTUAL_SYMLINK_TARGET" != "$EXPECTED_SYMLINK_TARGET" ]]; then
 else
     record_result "config_symlink" "passed" \
         "Symlink correctly points to $EXPECTED_SYMLINK_TARGET"
+    echo "$HOME/.config/opencode/opencode.json" >> "$EVIDENCE_DIR/live-paths.txt"
 fi
 
 LIVE_PLUGIN_PATH="$HOME/.opencode/plugin/vera-runtime.ts"
@@ -160,6 +162,7 @@ if [[ ! -f "$LIVE_PLUGIN_PATH" ]]; then
 else
     record_result "plugin_file_exists" "passed" \
         "Live plugin file found: $LIVE_PLUGIN_PATH"
+    echo "$LIVE_PLUGIN_PATH" >> "$EVIDENCE_DIR/live-paths.txt"
 fi
 
 REPO_PLUGIN_PATH="$REPO_ROOT/plugins/vera-runtime.ts"
@@ -186,6 +189,7 @@ if [[ -f "$ACTIVE_CONFIG" ]]; then
     if grep -q 'vera-runtime' "$ACTIVE_CONFIG" 2>/dev/null; then
         record_result "plugin_registered" "passed" \
             "vera-runtime found in plugin array"
+        echo "$ACTIVE_CONFIG" >> "$EVIDENCE_DIR/live-paths.txt"
     else
         record_result "plugin_registered" "failed" \
             "vera-runtime NOT found in plugin array of $ACTIVE_CONFIG"
@@ -195,6 +199,10 @@ else
     record_result "plugin_registered" "failed" \
         "Active config not found: $ACTIVE_CONFIG"
     fail_with "plugin_not_registered"
+fi
+
+if [[ -f "$ACTIVE_CONFIG" ]]; then
+    python3 -c "import json; data=json.load(open('$ACTIVE_CONFIG')); print(json.dumps(data.get('plugins', [])))" > "$EVIDENCE_DIR/active-config-plugin-array.json" 2>/dev/null || true
 fi
 
 log_cmd "test -d \"$PROJECT_PATH\""

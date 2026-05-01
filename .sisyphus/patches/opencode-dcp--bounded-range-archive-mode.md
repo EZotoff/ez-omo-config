@@ -52,22 +52,49 @@ DCP exists in **multiple locations** on this machine. The currently active backe
 - `install.sh --configs` now syncs all 10 patched files from #2 into both native cache copies (#1 runtime + #3 package cache) when those destinations exist.
 - If the active backend ever switches to snap-confined runtime, repeat the same sync for snap paths (#4/#5).
 
-## Verification
+## Canonical Proof Command
+
+Run the canonical proof script from the repo root:
+
 ```bash
-# Check the ACTIVE runtime copy (native location):
+bash tests/test_dcp_bounded_range.sh
+```
+
+Expected: 8 passed, 0 failed. The script exercises marker detection on all three install copies plus five functional regression cases. This is the single command to run after any OpenCode or DCP package update to confirm the patch is still intact.
+
+## Verification
+
+### How to tell bounded retention is configured
+
+Check `configs/opencode/dcp.jsonc`:
+
+```bash
+grep -E 'retentionMode|maxArchivedSummaryTokens' configs/opencode/dcp.jsonc
+```
+
+You should see `"retentionMode": "bounded"` and a positive integer for `"maxArchivedSummaryTokens"`.
+
+### How to prove the active runtime copy is patched
+
+Check the **active** runtime copy (native location):
+
+```bash
 grep -cE "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens|retentionMode" \
   /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js \
   /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range.js \
   /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/state.js \
   /home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/compress/range-utils.js
 ```
+
 Expected: config.js ≥15, range.js ≥4, state.js ≥2, range-utils.js ≥2 matches.
 
+### How to prove bounded archive metadata works at runtime
+
+Run the regression harness:
+
 ```bash
-# Runtime-proof regression for bounded archive metadata:
 bash tests/test_dcp_bounded_range.sh
 ```
-Expected output includes `PASS bounded-runtime-proof-metadata`.
 
 The `bounded-runtime-proof-metadata` harness case asserts bounded archive metadata and limits from runtime state/block objects:
 
@@ -98,6 +125,29 @@ for DEST in \
   done
 done
 ```
+
+### What command to run after OpenCode or DCP updates
+
+After any OpenCode or DCP package update, run:
+
+```bash
+bash tests/test_dcp_bounded_range.sh
+```
+
+If any case fails, the patch may have been overwritten. Reapply per the instructions below, then rerun the proof command.
+
+### What failure strings mean
+
+| Failure output | Meaning |
+|---|---|
+| `FAIL: markers-reference-copy` | The reference install at `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/` is missing bounded-retention markers. The source-of-truth copy was likely overwritten. |
+| `FAIL: markers-runtime-copy` | The active runtime at `~/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` is unpatched. DCP will ignore `retentionMode` and `maxArchivedSummaryTokens` config keys. |
+| `FAIL: markers-package-cache-copy` | The package cache at `~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` is unpatched. Future package-cache promotions will revert the patch. |
+| `FAIL: monotonic-summary-bound` | The token budget enforcement function `normalizeBoundedRangeSummary()` is missing or broken. Archived summaries may exceed the token cap. |
+| `FAIL: archived-raw-stays-out-of-prompt` | The prune logic is not filtering archived raw messages. Old turns remain in the prompt, defeating the purpose of bounded retention. |
+| `FAIL: persisted-frontier-state` | The sync logic is not computing `archivedBlockIds`. Block state may be inconsistent after a restart or reload. |
+| `FAIL: decompress-archived-rejected` | The decompress command guard is missing. Users could accidentally decompress an archived block, which is not supported in bounded mode. |
+| `FAIL: bounded-runtime-proof-metadata` | The end-to-end runtime metadata proof failed. The config may be missing `retentionMode: "bounded"` or `maxArchivedSummaryTokens`, or the runtime state objects are not receiving the patch fields. |
 
 ## Reapply Instructions
 If the patch is lost after a DCP package update:
