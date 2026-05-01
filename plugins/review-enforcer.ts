@@ -177,7 +177,6 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 			.log({ body: { service: "review-enforcer", level, message: msg } })
 			.catch(() => {})
 
-	appLog("info", "Review enforcer plugin initialized (production)")
 	log("info", "Plugin initialized")
 	log("info", `Guards initialized: dedup=${processedCallIDs.size}, planComplete=${planCompletionTriggered}`)
 
@@ -227,7 +226,7 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 				}
 				const safeProgress = progressElapsed > 5000 ? null : progress
 
-				if (safeProgress !== null && safeProgress.complete && !planCompletionTriggered) {
+				if (safeProgress?.complete && !planCompletionTriggered) {
 					planCompletionTriggered = true
 					output.output = taskOutput + PLAN_COMPLETION_INSTRUCTION
 					log("info", `INJECT (plan-complete) — All ${safeProgress.total} tasks checked. Appended plan completion instructions.`)

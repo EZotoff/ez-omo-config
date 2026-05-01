@@ -1527,12 +1527,6 @@ async function evaluateCheckpoint(
 export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 	const { directory, client } = ctx
 
-	const appLog = (level: "info" | "debug" | "warn" | "error", msg: string) =>
-		client.app
-			.log({ body: { service: "auto-checkpoint", level, message: msg } })
-			.catch(() => {})
-
-	appLog("info", "Auto-checkpoint plugin initialized")
 	log("info", "Plugin initialized")
 
 	return {
