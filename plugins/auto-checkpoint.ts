@@ -1000,8 +1000,12 @@ async function resolveSemanticProposal(args: {
 	}
 }
 
-export const AutoCheckpointTestHelpers = {
-	resolveSemanticProposal,
+export function getAutoCheckpointTestHelpers(): {
+	resolveSemanticProposal: typeof resolveSemanticProposal
+} {
+	return {
+		resolveSemanticProposal,
+	}
 }
 
 async function isGitOperationInProgress(cwd: string): Promise<boolean> {

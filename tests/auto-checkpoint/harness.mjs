@@ -790,7 +790,7 @@ function makeAssistantTextMessage(text) {
 
 async function runStructuredHelperResponseAccepted() {
 	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
@@ -862,7 +862,7 @@ async function runStructuredHelperResponseAccepted() {
 
 async function runMissingRootSessionMetadataFallbacks() {
 	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
@@ -920,7 +920,7 @@ async function runMissingRootSessionMetadataFallbacks() {
 
 async function runMalformedLlmResponseSkips() {
 	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
@@ -980,7 +980,7 @@ async function withImmediateTimersAndTimeAdvance(fn) {
 
 async function runLlmOutOfScopeFileSkips() {
 	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.AutoCheckpointTestHelpers?.resolveSemanticProposal;
+ const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
