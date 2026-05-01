@@ -14,19 +14,19 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 **What it Configures**:
 
-- **Providers**: 8 provider configurations for different AI services
-- **Plugins**: 9 plugin registrations and their settings
-- **Model Settings**: Default models, limits, timeouts
+- **Providers**: 9 provider configurations for different AI services
+- **Plugins**: 10 plugin registrations and their settings
+- **Model Settings**: Provider model catalogs, default models, limits, and timeouts
 - **Runtime Defaults**: Agent behavior, output preferences
 - **Feature Flags**: Experimental features and toggles
 
 **Key Sections**:
 
-- `providers` — API endpoints and authentication
-- `plugins` — Loaded plugins and their configurations
-- `models` — Model assignments and parameters
-- `limits` — Token limits and rate limiting
-- `defaults` — Default behaviors and preferences
+- `enabled_providers` — Enabled provider IDs
+- `plugin` — Loaded plugins and local config-layer modules
+- `agent` — Agent-specific runtime settings such as the compaction model
+- `provider` — Provider definitions, model catalogs, endpoints, and options
+- `compaction` / `experimental` — Compaction behavior and feature flags
 
 **Install Target**: `$HOME/.config/opencode/opencode.json`
 
@@ -193,14 +193,15 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 
 **What it Configures**:
 
-- Agent category assignments
+- Agent model assignments
+- Category model assignments
 - Default skill loading
 - OMO-specific settings
 - Override behaviors for core OpenCode
 
 **Key Features**:
 
-- Custom agent categories
+- Custom agent and category model overrides
 - Skill auto-loading per category
 - OMO workflow integrations
 - Extension point configurations
@@ -282,7 +283,7 @@ These fields are logged at startup for visibility but are otherwise inert.
 
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
-| `opencode.json` | Main config: 8 providers, 9 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
+| `opencode.json` | Main config: 9 providers, 10 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `dcp.jsonc` | DCP plugin configuration with bounded range archive retention (local patch) | `$HOME/.config/opencode/dcp.jsonc` | Optional |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
@@ -290,7 +291,7 @@ These fields are logged at startup for visibility but are otherwise inert.
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |
 | `aspect-dynamics/*.mjs` | 7 support modules (config, context, heuristics, session-state, sets, nudge, logging) | `$HOME/.config/opencode/aspect-dynamics/` | Optional |
 | `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`) | `$HOME/.config/opencode/aspect-dynamics/sets/` | Optional |
-| `oh-my-openagent.json` | OMO agent/category overrides and skill loading | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
+| `oh-my-openagent.json` | OMO agent/category model overrides and skill loading | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
 | `extras/ocx.jsonc` | OCX registry configuration pointer | `$HOME/.opencode/ocx.jsonc` | Optional |
 
 ---
