@@ -37,6 +37,22 @@ function createBunSpawnShim() {
 	};
 }
 
+function createBunSpawnSyncShim() {
+	return function bunSpawnSync(argv, opts = {}) {
+		const result = spawnSync(argv[0], argv.slice(1), {
+			cwd: opts.cwd,
+			encoding: null,
+			env: opts.env,
+		});
+
+		return {
+			exitCode: result.status ?? 0,
+			stdout: result.stdout ?? Buffer.from(""),
+			stderr: result.stderr ?? Buffer.from(""),
+		};
+	};
+}
+
 function installBunShim() {
 	if (!globalThis.Bun) {
 		globalThis.Bun = {};
@@ -44,6 +60,9 @@ function installBunShim() {
 
 	if (typeof globalThis.Bun.spawn !== "function") {
 		globalThis.Bun.spawn = createBunSpawnShim();
+	}
+	if (typeof globalThis.Bun.spawnSync !== "function") {
+		globalThis.Bun.spawnSync = createBunSpawnSyncShim();
 	}
 }
 
