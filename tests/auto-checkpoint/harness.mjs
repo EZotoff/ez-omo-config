@@ -511,6 +511,7 @@ async function runPredirtyPathSkipped() {
 		const hooks = await plugin(ctx);
 
 		await createRootSession(hooks, "root-1", repoDir);
+		await waitForLogContains(homeDir, "baseline snapshot captured — root=root-1");
 		runCommand(repoDir, ["git", "checkout", "--", "tracked.txt"]);
 
 		await runToolCycle(hooks, "root-1", async () => {
@@ -547,6 +548,7 @@ async function runConflictingRootOwnershipSkips() {
 
 		await createRootSession(hooks, "root-1", repoDir);
 		await createRootSession(hooks, "root-2", repoDir);
+		await waitForLogContains(homeDir, "baseline snapshot captured — root=root-2");
 
 		await runToolCycle(hooks, "root-1", async () => {
 			appendFile(repoDir, "tracked.txt", "root-1-change\n");
