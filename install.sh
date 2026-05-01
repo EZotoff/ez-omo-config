@@ -77,6 +77,19 @@ ITEMS=(
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
 )
 
+DCP_PATCH_FILES=(
+    "config.js"
+    "compress/range.js"
+    "compress/state.js"
+    "compress/range-utils.js"
+    "messages/sync.js"
+    "messages/prune.js"
+    "commands/decompress.js"
+    "commands/recompress.js"
+    "prompts/compress-range.js"
+    "commands/compression-targets.js"
+)
+
 usage() {
     cat <<'EOF'
 Usage: ./install.sh [OPTIONS]
@@ -383,6 +396,63 @@ selected_groups() {
     printf '%s\n' "${groups[*]}"
 }
 
+sync_dcp_local_patch() {
+    if [[ "$INSTALL_CONFIGS" -ne 1 ]]; then
+        return 0
+    fi
+
+    local source_root="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+    local -a destination_roots=(
+        "$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
+    )
+
+    if [[ ! -d "$source_root" ]]; then
+        log "DCP patch sync: skipped (reference copy not found: $source_root)"
+        return 0
+    fi
+
+    local file
+    local missing_source_files=0
+    for file in "${DCP_PATCH_FILES[@]}"; do
+        if [[ ! -f "$source_root/$file" ]]; then
+            log "DCP patch sync: skipped (missing source file: $source_root/$file)"
+            missing_source_files=1
+        fi
+    done
+
+    if [[ "$missing_source_files" -eq 1 ]]; then
+        return 0
+    fi
+
+    local destination_root
+    local destinations_seen=0
+    for destination_root in "${destination_roots[@]}"; do
+        if [[ ! -d "$destination_root" ]]; then
+            log "DCP patch sync: destination not present, skipping: $destination_root"
+            continue
+        fi
+
+        destinations_seen=$((destinations_seen + 1))
+
+        if [[ "$DRY_RUN" -eq 1 ]]; then
+            log "[DRY-RUN] DCP patch sync: would update $destination_root"
+            continue
+        fi
+
+        for file in "${DCP_PATCH_FILES[@]}"; do
+            mkdir -p "$(dirname "$destination_root/$file")"
+            cp -p "$source_root/$file" "$destination_root/$file"
+        done
+
+        log "DCP patch sync: updated $destination_root"
+    done
+
+    if [[ "$destinations_seen" -eq 0 ]]; then
+        log "DCP patch sync: no cache copies found to update."
+    fi
+}
+
 print_summary() {
     log ""
     log "Install summary"
@@ -417,6 +487,8 @@ main() {
             install_item "$source_rel" "$target"
         fi
     done
+
+    sync_dcp_local_patch
 
     print_summary
 }
