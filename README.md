@@ -260,12 +260,12 @@ cd ez-omo-config
 | **sisyphus** | `github-copilot/gpt-5.4` | high | `zai-coding-plan/glm-5` | Executor, focused tasks |
 | **librarian** | `github-copilot/gemini-3-flash-preview` | high | `google/antigravity-gemini-3-flash` | Search, documentation |
 | **explore** | `opencode-go/minimax-m2.7` | default | `github-copilot/grok-code-fast-1` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `github-copilot/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5` | Complex frontend work |
-| **document-writer** | `moonshot/kimi-k2.5` | default | `zai-coding-plan/glm-5` | Writing, documentation |
-| **multimodal-looker** | `moonshot/kimi-k2.5` | default | (none) | Image/PDF analysis |
-| **oracle** | `github-copilot/gpt-5.5` | high | `github-copilot/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **frontend-ui-ux-engineer** | `google/antigravity-gemini-3-pro` | default | `zai-coding-plan/glm-5` | Complex frontend work |
+| **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5` | Writing, documentation |
+| **multimodal-looker** | `google/antigravity-gemini-3-pro` | default | (none) | Image/PDF analysis |
+| **oracle** | `github-copilot/gpt-5.5` | high | `google/antigravity-gemini-3-pro` | Q&A, knowledge queries |
 | **metis** | `github-copilot/gpt-5.5` | high | `github-copilot/claude-sonnet-4.6` | Deep analysis |
-| **momus** | `github-copilot/gpt-5.5` | xhigh | `github-copilot/gemini-3.1-pro-preview` | Code review, critique |
+| **momus** | `github-copilot/gpt-5.5` | xhigh | `google/antigravity-gemini-3-pro` | Code review, critique |
 | **hephaestus** | `github-copilot/gpt-5.3-codex` | xhigh | (none) | Infrastructure, deployment |
 
 ### Key Experimental Features

@@ -20,7 +20,7 @@
       "model": "github-copilot/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/gemini-3.1-pro-preview"
+        "google/antigravity-gemini-3-pro"
       ],
       "skills": [
         "wisdom"
@@ -45,7 +45,7 @@
       "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "multimodal-looker": {
-      "model": "google/gemini-3.1-pro-preview"
+      "model": "google/antigravity-gemini-3-pro"
     },
     "prometheus": {
       "model": "github-copilot/gpt-5.5",
@@ -73,7 +73,7 @@
       "model": "github-copilot/gpt-5.5",
       "variant": "xhigh",
       "fallback_models": [
-        "github-copilot/gemini-3.1-pro-preview"
+        "google/antigravity-gemini-3-pro"
       ],
       "skills": [
         "wisdom"
@@ -101,7 +101,7 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "github-copilot/gemini-3.1-pro-preview",
+      "model": "google/antigravity-gemini-3-pro",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
       ],
@@ -116,7 +116,7 @@
   },
   "categories": {
     "visual-engineering": {
-      "model": "github-copilot/gemini-3.1-pro-preview",
+      "model": "google/antigravity-gemini-3-pro",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
@@ -131,7 +131,7 @@
       ]
     },
     "artistry": {
-      "model": "github-copilot/gemini-3.1-pro-preview",
+      "model": "google/antigravity-gemini-3-pro",
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
