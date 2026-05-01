@@ -1587,6 +1587,10 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 		// HOOK: event — session lifecycle events
 		// =================================================================
 			event: async (input: EventInput) => {
+				if (process.env.OPENCODE_AUTO_CHECKPOINT_DISABLE_EVENT === "1") {
+					return
+				}
+
 				const { event } = input
 				const sessionID = extractSessionId(event)
 				if (!sessionID) return
