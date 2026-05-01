@@ -30,6 +30,7 @@ ITEMS=(
     "commands|commands/session-info.md|$HOME/.config/opencode/command/session-info.md"
     "configs|configs/opencode/opencode.json|$HOME/.config/opencode/opencode.json"
     "configs|configs/opencode/opencode.jsonc|$HOME/.opencode/opencode.jsonc"
+    "configs|configs/opencode/dcp.jsonc|$HOME/.config/opencode/dcp.jsonc"
     "configs|configs/opencode/provider-connect-retry.mjs|$HOME/.config/opencode/provider-connect-retry.mjs"
     "configs|configs/opencode/aspect-dynamics.mjs|$HOME/.config/opencode/aspect-dynamics.mjs"
     "configs|configs/opencode/aspect-dynamics|$HOME/.config/opencode/aspect-dynamics"

@@ -55,8 +55,8 @@ run_marker_case() {
 }
 
 run_marker_case "markers-reference-copy" "$REFERENCE_CONFIG_JS" "required"
-run_marker_case "markers-runtime-copy" "$RUNTIME_CONFIG_JS" "optional"
-run_marker_case "markers-package-cache-copy" "$PACKAGE_CACHE_CONFIG_JS" "optional"
+run_marker_case "markers-runtime-copy" "$RUNTIME_CONFIG_JS" "required"
+run_marker_case "markers-package-cache-copy" "$PACKAGE_CACHE_CONFIG_JS" "required"
 
 run_case "monotonic-summary-bound"
 run_case "archived-raw-stays-out-of-prompt"
