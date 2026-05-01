@@ -401,7 +401,7 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 					state.startedAt = new Date().toISOString()
 					state.lastVerifiedAt = new Date().toISOString()
 					log("info", `[${directory}] session.created: watcher started pid=${state.pid}`)
-				} else if (state.status === "indexed") {
+			} else if (state.status === "indexed") {
 				if (!veraAvailable()) {
 					state.status = "missing-binary"
 					state.lastFailureAt = new Date().toISOString()
