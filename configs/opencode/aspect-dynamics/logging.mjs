@@ -27,7 +27,8 @@ function ensureProofDir() {
 
 export function emitProof(eventType, payload = {}) {
   const ts = new Date().toISOString();
-  const record = { ts, event: eventType, ...payload };
+  const status = eventType === "failure" || eventType === "circuit_open" ? "failure" : "success";
+  const record = { ts, system: "aspect-dynamics", event: eventType, status, ...payload };
 
   if (__testProofOverride.value) {
     __testProofOverride.value.push(record);
@@ -48,8 +49,8 @@ export function emitProof(eventType, payload = {}) {
 
     // Retention cap: truncate to most recent MAX_PROOF_EVENTS lines
     truncateProofIfNeeded();
-  } catch {
-    // Silently ignore proof write failures — proof is best-effort
+  } catch (err) {
+    console.error("[aspect-dynamics proof] write failed:", err);
   }
 }
 
@@ -62,8 +63,8 @@ function truncateProofIfNeeded() {
       const kept = lines.slice(-MAX_PROOF_EVENTS);
       writeFileSync(PROOF_PATH, kept.join("\n") + "\n", "utf8");
     }
-  } catch {
-    // Ignore truncation errors
+  } catch (err) {
+    console.error("[aspect-dynamics proof] truncation failed:", err);
   }
 }
 
@@ -94,8 +95,8 @@ export function resetProofEvents() {
     if (existsSync(PROOF_PATH)) {
       writeFileSync(PROOF_PATH, "", "utf8");
     }
-  } catch {
-    // Ignore reset errors
+  } catch (err) {
+    console.error("[aspect-dynamics proof] reset failed:", err);
   }
 }
 
