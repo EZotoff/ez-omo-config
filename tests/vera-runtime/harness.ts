@@ -16,6 +16,18 @@ function setupTempHome(): string {
 	return _tempHome
 }
 
+function mockBunSpawnSyncForVeraMissing(): () => void {
+	const original = Bun.spawnSync
+	Bun.spawnSync = function (cmd: any, opts?: any) {
+		if (Array.isArray(cmd) && cmd[0] === "bash" && cmd[1] === "-c" && typeof cmd[2] === "string" && cmd[2].includes("command -v vera")) {
+			const buf = Buffer.from("")
+			return { success: false, exitCode: 1, stdout: buf, stderr: buf } as any
+		}
+		return original(cmd, opts)
+	}
+	return () => { Bun.spawnSync = original }
+}
+
 async function loadPluginModule() {
 	if (!_pluginModule) {
 		_pluginModule = await import(`${PLUGIN_PATH}?${Date.now()}`)
@@ -297,7 +309,10 @@ async function runMissingVeraFailsOpen() {
 	const wsDir = createTempWorkspace()
 
 	try {
-		const mod = await loadPluginModule()
+		const restoreSpawn = mockBunSpawnSyncForVeraMissing()
+		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
+		restoreSpawn()
+
 		const { computeWorkspaceKey, getStateFilePath, readWatcherState, writeWatcherState } = mod
 
 		const key = computeWorkspaceKey(wsDir)
@@ -324,15 +339,13 @@ async function runMissingVeraFailsOpen() {
 			fail(caseName, `expected status=missing-binary, got ${readBack.status}`)
 		}
 
-		const originalPath = process.env.PATH
-		process.env.PATH = "/usr/bin:/bin"
-
+		const restoreSpawn2 = mockBunSpawnSyncForVeraMissing()
 		let pluginResult: any
 		try {
 			const pluginFn = mod.default
 			pluginResult = await pluginFn({ directory: wsDir })
 		} finally {
-			process.env.PATH = originalPath
+			restoreSpawn2()
 		}
 
 		if (pluginResult === null || typeof pluginResult !== "object") {
