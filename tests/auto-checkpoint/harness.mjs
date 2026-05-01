@@ -774,6 +774,63 @@ async function runStructuredHelperResponseAccepted() {
 	pass("structured-helper-response-accepted");
 }
 
+async function runMissingRootSessionMetadataFallbacks() {
+	const { mod } = await loadPluginBundle();
+	if (typeof mod.resolveSemanticProposal !== "function") {
+		fail("plugin did not export resolveSemanticProposal helper");
+	}
+
+	const ctx = makeFakeCtx({
+		helperSessionIDs: ["helper-missing-metadata"],
+		defaultHelperMessageBatches: [
+			{
+				data: [
+					makeAssistantTextMessage(
+						'{"confidence":"high","files":["tracked.txt"],"summary":"metadata fallback update"}',
+					),
+				],
+			},
+		],
+	});
+
+	const result = await mod.resolveSemanticProposal({
+		client: ctx.client,
+		rootState: { cwd: process.cwd(), conflictPaths: new Set() },
+		rootSessionId: undefined,
+		rootTitle: undefined,
+		payload: makeSemanticPayload(["tracked.txt"]),
+	});
+
+	if (!result?.ok) {
+		fail(`expected semantic proposal accepted with missing metadata, got error=${result?.error ?? "unknown"}`);
+	}
+
+	const creates = ctx.__test.getHelperCreates();
+	if (creates.length !== 1) {
+		fail(`expected exactly one helper session create, got ${creates.length}`);
+	}
+	const helperTitle = String(creates[0].body?.title ?? "");
+	if (!helperTitle.includes("unknown") || !helperTitle.includes("checkpoint")) {
+		fail(`expected helper title to use unknown/checkpoint fallbacks, got: ${helperTitle}`);
+	}
+
+	const prompts = ctx.__test.getHelperPrompts();
+	if (prompts.length !== 1) {
+		fail(`expected exactly one helper prompt, got ${prompts.length}`);
+	}
+	const promptText = String(prompts[0].body?.parts?.[0]?.text ?? "");
+	if (!promptText.includes('rootSessionTitle=undefined') || !promptText.includes('rootShortId="unknown"')) {
+		fail("helper prompt missing undefined title and unknown short-id fallback markers");
+	}
+
+	const deletes = ctx.__test.getHelperDeletes();
+	if (deletes.length !== 1 || deletes[0].id !== "helper-missing-metadata") {
+		fail(`expected helper session deleted once, got ${JSON.stringify(deletes)}`);
+	}
+
+	pass("missing-root-session-metadata-fallbacks");
+}
+
 async function runMalformedLlmResponseSkips() {
 	const { mod } = await loadPluginBundle();
 	if (typeof mod.resolveSemanticProposal !== "function") {
@@ -1355,7 +1412,7 @@ async function main() {
 	if (!testCase) {
 		console.error("Usage: node tests/auto-checkpoint/harness.mjs --case <case-name>");
 		console.error(
-			"Cases: helper-sessions-ignored, child-activity-rolls-up-to-root, predirty-path-skipped, conflicting-root-ownership-skips, root-owned-file-remains-eligible, rename-delete-untracked-collected, binary-candidate-skips, diff-budget-overflow-skips, structured-helper-response-accepted, malformed-llm-response-skips, llm-out-of-scope-file-skips, staged-foreign-index-preserved, exact-validated-subset-committed, delete-and-rename-commit-via-temp-index, disjoint-root-commits, skip-does-not-advance-head, git-operation-in-progress-skips",
+			"Cases: helper-sessions-ignored, child-activity-rolls-up-to-root, predirty-path-skipped, conflicting-root-ownership-skips, root-owned-file-remains-eligible, rename-delete-untracked-collected, binary-candidate-skips, diff-budget-overflow-skips, structured-helper-response-accepted, missing-root-session-metadata-fallbacks, malformed-llm-response-skips, llm-out-of-scope-file-skips, staged-foreign-index-preserved, exact-validated-subset-committed, delete-and-rename-commit-via-temp-index, disjoint-root-commits, skip-does-not-advance-head, git-operation-in-progress-skips",
 		);
 		process.exit(1);
 	}
@@ -1387,6 +1444,9 @@ async function main() {
 				break;
 			case "structured-helper-response-accepted":
 				await runStructuredHelperResponseAccepted();
+				break;
+			case "missing-root-session-metadata-fallbacks":
+				await runMissingRootSessionMetadataFallbacks();
 				break;
 			case "malformed-llm-response-skips":
 				await runMalformedLlmResponseSkips();
