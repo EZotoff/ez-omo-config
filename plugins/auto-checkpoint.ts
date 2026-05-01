@@ -777,7 +777,8 @@ export async function createSemanticHelperSession(args: {
 	rootDirectory: string
 }): Promise<Result<SemanticHelperSession, string>> {
 	const compactRootTitle = (args.rootSessionTitle || "checkpoint").replace(/[\r\n\t]/g, " ").replace(/\s+/g, " ").trim() || "checkpoint"
-	const helperTitle = `${CONFIG.semantic.helperSessionTitlePrefix} ${args.rootSessionId.slice(0, 8)} ${compactRootTitle}`
+	const rootShortID = (args.rootSessionId || "unknown").slice(0, 8)
+	const helperTitle = `${CONFIG.semantic.helperSessionTitlePrefix} ${rootShortID} ${compactRootTitle}`
 
 	try {
 		const response = await args.client.session.create({
@@ -948,7 +949,7 @@ export async function resolveSemanticProposal(args: {
 			client: args.client,
 			helperSessionId: helperSession.value.id,
 			rootSessionTitle: args.rootTitle,
-			rootShortID: args.rootSessionId.slice(0, 8),
+			rootShortID: (args.rootSessionId || "unknown").slice(0, 8),
 			candidatePaths: args.payload.paths,
 			diffPayload: args.payload.diffText,
 		})

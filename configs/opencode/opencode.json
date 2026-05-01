@@ -1,8 +1,28 @@
 {
   "enabled_providers": [
-    "github-copilot"
+    "google",
+    "opencode-go",
+    "github-copilot",
+    "moonshot",
+    "kimi-code",
+    "kimi-for-coding-oauth",
+    "zai-coding-plan",
+    "deepseek",
+    "inception"
   ],
-  "plugin": [],
+  "plugin": [
+    "file:///home/ezotoff/.config/opencode/provider-connect-retry.mjs",
+    "file:///home/ezotoff/.config/opencode/aspect-dynamics.mjs",
+    "file:///home/ezotoff/.opencode/plugin/vera-runtime.ts",
+    "@tarquinen/opencode-dcp@latest",
+    "opencode-antigravity-auth@1.6.0",
+    "opencode-openai-codex-auth",
+    "opencode-anthropic-auth",
+    "@franlol/opencode-md-table-formatter@latest",
+    "opencode-kimi-full",
+    "file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs",
+    "file:///home/ezotoff/omo-hub/projects/oh-my-openagent"
+  ],
   "agent": {
     "compaction": {
       "model": "opencode-go/deepseek-v4-flash"
