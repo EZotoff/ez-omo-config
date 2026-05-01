@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 52 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 55 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -57,7 +57,10 @@ Complete inventory of 52 core artifacts for ez-omo-config repository scaffold.
 | 26 | wisdom-merge.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
+| 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
+| 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
+| 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 
 ## Directory Structure
 
@@ -97,9 +100,10 @@ ez-omo-config/
 │   ├── wisdom/             # Wisdom propagation scripts (9 files)
 │   └── worktree/           # Worktree lifecycle hooks (2 files)
 ├── extras/                 # Extra configurations (ocx.jsonc)
-├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, and observability contract
+├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, live deployment verification, and observability contract
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
+│   ├── live-deployment-verification.md  # Live Deployment Verification Gate documentation
 ├── tests/                  # Bash verification suite and helpers
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities
 │   └── audit-wisdom-first.sh  # Validates no contradictory dual-system language remains

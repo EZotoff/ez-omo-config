@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **54 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **57 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -58,7 +58,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 54 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 57 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -69,7 +69,7 @@ This repository contains 54 core artifacts + 1 external integration organized in
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
 | 32-33 | **Docker** | 2 files | Worktree container templates |
-| 34-37 | **Docs** | 4 files | Configuration, plugin, skills, worktree state, and live deployment verification documentation |
+| 34-37 | **Docs** | 5 files | Configuration, plugin, skills, worktree state, live deployment verification, and compatibility debt documentation |
 | 37 | **External** | 1 skill | [Vera](https://github.com/lemon07r/Vera) semantic code search (installed separately) |
 
 ### Complete Artifact Inventory
@@ -134,6 +134,9 @@ This repository contains 54 core artifacts + 1 external integration organized in
 | 46 | `aspect-dynamics/sets/emotions-v1.json` | `configs/opencode/` | Seed aspect set for emotional tone detection |
 | 47 | `tests/aspect-dynamics/harness.mjs` | `tests/aspect-dynamics/` | Test harness for aspect-dynamics unit tests |
 | 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
+| 49 | `scripts/verify-live-deployment.sh` | `scripts/` | Live deployment verifier with evidence-state validation |
+| 50 | `tests/test_live_deployment_contract.sh` | `tests/` | Repo-safe contract tests for live deployment verification |
+| 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 
 ---
 
@@ -357,6 +360,7 @@ For in-depth guides on specific components:
 | Vera Integration | [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md) |
 | Compatibility Debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
 | Observability Contract | [docs/configs.md](docs/configs.md) |
+| Live Deployment Verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
 
 ---
 

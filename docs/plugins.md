@@ -110,6 +110,32 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 - Ensures consistent review coverage across tasks
 - **Live Deployment Gate**: Agents must report evidence states accurately. Unverified live or runtime states must be flagged with `Not verified live: [missing state]`.
 
+**Live Deployment Gate Checklist (Inline)**:
+
+The plugin enforces the following inline checklist on agents after implementation work:
+
+1. **repo_implemented** — Confirm code exists in repository and is tracked by git
+2. **tests_passed** — Verify automated tests pass (unit, integration, build)
+3. **live_file_installed** — Check file is present at live target path (symlink or copy)
+4. **active_config_registered** — Verify artifact is referenced in active config (plugin array, skill list)
+5. **runtime_loaded** — Confirm runtime has loaded/invoked the artifact (handler called, skill dispatched)
+6. **real_project_behavior_proven** — Validate artifact's effect observed in real project with concrete evidence
+
+**Claim Language Enforcement**:
+
+At each evidence state, agents may only use approved claim language:
+
+| State | May Say | Must Not Say |
+|-------|---------|--------------|
+| repo_implemented | "implemented in repo" | "installed", "active", "working" |
+| tests_passed | "repo tests pass" | "deployed", "runtime verified" |
+| live_file_installed | "installed at live target" | "loaded" |
+| active_config_registered | "registered in active config" | "runtime loaded" |
+| runtime_loaded | "plugin loaded/handler invoked" | "end-to-end working" |
+| real_project_behavior_proven | "working for [project]" (with evidence) | — |
+
+**Unverified State Rule**: If any live/runtime state is unverified, output must include: `Not verified live: [missing state]`
+
 **Dependencies**: Works alongside `review-protocol/` skill
 
 **Install Target**: `$HOME/.opencode/plugin/review-enforcer.ts`
@@ -159,13 +185,25 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 **Active Registration Requirement**:
 
-`vera-runtime.ts` must be registered in the active `opencode.json` plugin array. The verifier checks this with:
+`vera-runtime.ts` must be registered in the active `opencode.json` plugin array. This is a distinct step from installing the file. The verifier checks registration with:
 
 ```bash
 grep -q 'vera-runtime' "$HOME/.config/opencode/opencode.json"
 ```
 
-If the plugin is present at the install target but not registered in the active config, OpenCode will not load it. After adding the plugin to `opencode.json` in the repo, the symlinked config makes the change immediately active.
+If the plugin file exists at the install target but is not registered in the active config's plugin array, OpenCode will not load it. Because `opencode.json` is symlinked to the repo, changes to the repo file are immediately active.
+
+**Registration vs Installation**:
+
+| Step | Evidence State | Verification |
+|------|----------------|--------------|
+| File in repo | repo_implemented | `test -f plugins/vera-runtime.ts` |
+| File installed | live_file_installed | `test -f ~/.opencode/plugin/vera-runtime.ts` |
+| Config updated | active_config_registered | `grep -q 'vera-runtime' ~/.config/opencode/opencode.json` |
+| Runtime loaded | runtime_loaded | Post-marker log entries in `vera-runtime.log` |
+| Proven working | real_project_behavior_proven | Vera index exists with post-marker timestamps |
+
+Until all six states are verified, agents must use "workflow requires" language, not "Vera is active/working".
 
 **Install Target**: `$HOME/.opencode/plugin/vera-runtime.ts`
 
