@@ -1,10 +1,6 @@
-// tests/vera-runtime/harness.ts
-// Bun-based behavioral test harness for the Vera runtime plugin.
-// Validates 4 key behaviors without requiring the vera binary.
-
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync } from "node:fs"
+import { mkdtempSync, rmSync, readdirSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join, basename } from "node:path"
+import { join } from "node:path"
 
 const PLUGIN_PATH = join(import.meta.dir, "..", "..", "plugins", "vera-runtime.ts")
 
@@ -31,9 +27,7 @@ function cleanup() {
 	if (_tempHome) {
 		try {
 			rmSync(_tempHome, { recursive: true, force: true })
-		} catch {
-			/* intentionally swallowed */
-		}
+		} catch {}
 		_tempHome = null
 	}
 	if (_originalHome !== undefined) {
@@ -74,9 +68,6 @@ function makeMockState(partial: Partial<any> = {}): any {
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Test: same-workspace-dedupe
-// ─────────────────────────────────────────────────────────────────
 async function runSameWorkspaceDedupe() {
 	const caseName = "same-workspace-dedupe"
 	const wsDir = createTempWorkspace()
@@ -120,7 +111,6 @@ async function runSameWorkspaceDedupe() {
 			fail(caseName, `expected status=running, got ${read1.status}`)
 		}
 
-		// Overwrite with different state
 		const state2 = makeMockState({
 			workspaceKey: key1,
 			workspacePath: wsDir,
@@ -145,7 +135,6 @@ async function runSameWorkspaceDedupe() {
 			fail(caseName, `expected 2 sessionIds after overwrite, got ${read2.sessionIds.length}`)
 		}
 
-		// Ensure no duplicate state files exist
 		const watchersDir = join(stateFile, "..")
 		const files = readdirSync(watchersDir)
 		const jsonFiles = files.filter((f: string) => f.endsWith(".json"))
@@ -159,9 +148,6 @@ async function runSameWorkspaceDedupe() {
 	pass(caseName)
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Test: cross-workspace-isolation
-// ─────────────────────────────────────────────────────────────────
 async function runCrossWorkspaceIsolation() {
 	const caseName = "cross-workspace-isolation"
 	const wsA = createTempWorkspace()
@@ -241,9 +227,6 @@ async function runCrossWorkspaceIsolation() {
 	pass(caseName)
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Test: stale-pid-recovery
-// ─────────────────────────────────────────────────────────────────
 async function runStalePidRecovery() {
 	const caseName = "stale-pid-recovery"
 	const wsDir = createTempWorkspace()
@@ -255,7 +238,6 @@ async function runStalePidRecovery() {
 		const key = computeWorkspaceKey(wsDir)
 		const statePath = getStateFilePath(wsDir)
 
-		// Write state with a fake/stale PID
 		const staleState = makeMockState({
 			workspaceKey: key,
 			workspacePath: wsDir,
@@ -280,7 +262,6 @@ async function runStalePidRecovery() {
 			fail(caseName, `expected status=running for stale state, got ${readStale.status}`)
 		}
 
-		// Write updated state simulating recovery
 		const recoveredState = makeMockState({
 			workspaceKey: key,
 			workspacePath: wsDir,
@@ -311,9 +292,6 @@ async function runStalePidRecovery() {
 	pass(caseName)
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Test: missing-vera-fails-open
-// ─────────────────────────────────────────────────────────────────
 async function runMissingVeraFailsOpen() {
 	const caseName = "missing-vera-fails-open"
 	const wsDir = createTempWorkspace()
@@ -325,7 +303,6 @@ async function runMissingVeraFailsOpen() {
 		const key = computeWorkspaceKey(wsDir)
 		const statePath = getStateFilePath(wsDir)
 
-		// Write state with missing-binary status
 		const state = makeMockState({
 			workspaceKey: key,
 			workspacePath: wsDir,
@@ -347,8 +324,6 @@ async function runMissingVeraFailsOpen() {
 			fail(caseName, `expected status=missing-binary, got ${readBack.status}`)
 		}
 
-		// Verify plugin initializes with empty object when vera is unavailable.
-		// We simulate vera being missing by restricting PATH so `command -v vera` fails.
 		const originalPath = process.env.PATH
 		process.env.PATH = "/usr/bin:/bin"
 
@@ -373,9 +348,6 @@ async function runMissingVeraFailsOpen() {
 	pass(caseName)
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Main entry point
-// ─────────────────────────────────────────────────────────────────
 async function main() {
 	const args = process.argv.slice(2)
 	const caseIdx = args.indexOf("--case")
