@@ -58,7 +58,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 52 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 54 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -69,7 +69,7 @@ This repository contains 52 core artifacts + 1 external integration organized in
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
 | 32-33 | **Docker** | 2 files | Worktree container templates |
-| 34-36 | **Docs** | 3 files | Configuration, plugin, and worktree state documentation |
+| 34-37 | **Docs** | 4 files | Configuration, plugin, skills, worktree state, and live deployment verification documentation |
 | 37 | **External** | 1 skill | [Vera](https://github.com/lemon07r/Vera) semantic code search (installed separately) |
 
 ### Complete Artifact Inventory

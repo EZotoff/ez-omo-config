@@ -250,8 +250,10 @@ log_cmd "test -f \"$WATCHER_STATE_FILE\""
 
 RUNTIME_PROVEN=0
 STALE_REASON=""
+EVIDENCE_FOUND=0
 
 if [[ -f "$RUNTIME_LOG" ]]; then
+    EVIDENCE_FOUND=1
     POST_MARKER_COUNT=$(grep -cE '\[2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}' "$RUNTIME_LOG" 2>/dev/null | awk '{print}')
     if [[ -n "$POST_MARKER_COUNT" && "$POST_MARKER_COUNT" -gt 0 ]]; then
         LAST_LOG_TIMESTAMP=$(grep -oE '2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z' "$RUNTIME_LOG" 2>/dev/null | tail -n 1)
@@ -265,10 +267,11 @@ if [[ -f "$RUNTIME_LOG" ]]; then
             fi
         fi
     fi
-    copy_evidence_snippets "$RUNTIME_LOG" "vera-runtime.log"
+    copy_evidence_snippets "$RUNTIME_LOG" "runtime-log-snippet.txt"
 fi
 
 if [[ -f "$WATCHER_STATE_FILE" ]]; then
+    EVIDENCE_FOUND=1
     LAST_VERIFIED=$(grep -oE '"lastVerifiedAt": "[^"]*"' "$WATCHER_STATE_FILE" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/' | head -n 1)
     LAST_INDEXED=$(grep -oE '"lastIndexedAt": "[^"]*"' "$WATCHER_STATE_FILE" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/' | head -n 1)
 
@@ -294,7 +297,7 @@ if [[ -f "$WATCHER_STATE_FILE" ]]; then
         fi
     fi
 
-    copy_evidence_snippets "$WATCHER_STATE_FILE" "watcher-state.json"
+    copy_evidence_snippets "$WATCHER_STATE_FILE" "watcher-state-snippet.json"
 fi
 
 if [[ "$RUNTIME_PROVEN" -eq 1 ]]; then
@@ -305,7 +308,11 @@ else
         STALE_REASON="No runtime log or watcher state found with post-marker timestamps"
     fi
     record_result "runtime_proven" "failed" "$STALE_REASON"
-    fail_with "runtime_not_proven"
+    if [[ "$EVIDENCE_FOUND" -eq 1 ]]; then
+        fail_with "stale_runtime_evidence"
+    else
+        fail_with "runtime_not_proven"
+    fi
 fi
 
 MISSING_BINARY=0
