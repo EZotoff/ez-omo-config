@@ -89,12 +89,12 @@ else
   FAILURES=$((FAILURES + 1))
 fi
 
-# Check skills/knowledge/SKILL.md for "Wisdom is the only runtime memory store"
-if grep -q "only runtime memory store" "$REPO_ROOT/skills/knowledge/SKILL.md"; then
-  echo "PASS: 'Wisdom is the only runtime memory store' found in skills/knowledge/SKILL.md"
-else
-  echo "FAIL: 'Wisdom is the only runtime memory store' not found in skills/knowledge/SKILL.md"
+# Check that no agent lists "knowledge" in its skills array
+if grep -q '"knowledge"' "$REPO_ROOT/configs/oh-my-openagent/oh-my-openagent.json"; then
+  echo "FAIL: 'knowledge' still found in oh-my-openagent.json agent skills arrays"
   FAILURES=$((FAILURES + 1))
+else
+  echo "PASS: No agent lists 'knowledge' in its skills array"
 fi
 
 echo ""
@@ -128,11 +128,10 @@ else
 
   if grep -q "knowledge-lookup.sh" "$DEBT_FILE" && \
      grep -q "knowledge-snapshot.sh" "$DEBT_FILE" && \
-     grep -q "knowledge-promote.sh" "$DEBT_FILE" && \
-     grep -q "knowledge/" "$DEBT_FILE"; then
-    echo "PASS: All four shims documented"
+     grep -q "knowledge-promote.sh" "$DEBT_FILE"; then
+    echo "PASS: All remaining shims documented"
   else
-    echo "FAIL: Not all four shims documented"
+    echo "FAIL: Not all remaining shims documented"
     FAILURES=$((FAILURES + 1))
   fi
 fi
