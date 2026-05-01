@@ -1231,6 +1231,49 @@ async function ensureRootBaselineSnapshot(rootState: SessionState): Promise<void
 	)
 }
 
+function captureRootBaselineSnapshotSync(rootState: SessionState): boolean {
+	if (rootState.baselineCaptured) {
+		return true
+	}
+
+	try {
+		const repoRootProc = Bun.spawnSync(["git", "rev-parse", "--show-toplevel"], {
+			cwd: rootState.cwd,
+			stdout: "pipe",
+			stderr: "pipe",
+		})
+		if (repoRootProc.exitCode !== 0) {
+			log("debug", `baseline snapshot skipped — root=${rootState.sessionId}, cwd=${rootState.cwd}, reason=not-in-git-repo`)
+			return false
+		}
+
+		const repoRoot = resolve(new TextDecoder().decode(repoRootProc.stdout).trim())
+		const statusProc = Bun.spawnSync(["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"], {
+			cwd: repoRoot,
+			stdout: "pipe",
+			stderr: "pipe",
+		})
+		if (statusProc.exitCode !== 0) {
+			const stderr = new TextDecoder().decode(statusProc.stderr).trim()
+			log("warn", `baseline snapshot skipped — root=${rootState.sessionId}, cwd=${rootState.cwd}, error=${stderr || "git status failed"}`)
+			return false
+		}
+
+		const parsedStatus = parsePorcelainV1Z(new TextDecoder().decode(statusProc.stdout))
+		rootState.repoRoot = repoRoot
+		rootState.baselineDirtyPaths = new Set(parsedStatus.paths)
+		rootState.baselineCaptured = true
+		log(
+			"debug",
+			`baseline snapshot captured — root=${rootState.sessionId}, repo=${repoRoot}, paths=${parsedStatus.paths.size}`,
+		)
+		return true
+	} catch (error) {
+		log("warn", `baseline snapshot skipped — root=${rootState.sessionId}, cwd=${rootState.cwd}, error=${error instanceof Error ? error.message : String(error)}`)
+		return false
+	}
+}
+
 async function resolveRootSession(client: RootSessionClient, sessionId: string): Promise<RootResolution> {
 	let currentId = sessionId
 	let immediateParentId: string | undefined
@@ -1577,6 +1620,9 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 						rootState.title = title
 					}
 					rootState.lastSemanticSkipReason = undefined
+					if (!parentId) {
+						captureRootBaselineSnapshotSync(rootState)
+					}
 
 					if (parentId) {
 						const parent = getSession(parentId, cwd, rootSessionId)
