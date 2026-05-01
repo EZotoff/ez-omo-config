@@ -277,6 +277,18 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 	if (!veraAvailable()) {
 		console.error("[vera-runtime] Vera binary not found; plugin disabled (fail-open).")
 		log("warn", `Vera binary not found for ${directory}; plugin disabled`)
+		try {
+			let state = readWatcherState(directory)
+			if (!state) {
+				state = createInitialState(directory)
+			}
+			state.status = "missing-binary"
+			state.lastFailureAt = new Date().toISOString()
+			state.lastFailureReason = "vera binary not available"
+			writeWatcherState(directory, state)
+		} catch {
+			/* fail-open */
+		}
 		return {}
 	}
 
@@ -389,7 +401,32 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 					state.startedAt = new Date().toISOString()
 					state.lastVerifiedAt = new Date().toISOString()
 					log("info", `[${directory}] session.created: watcher started pid=${state.pid}`)
-				} else if (state.status === "running") {
+				} else if (state.status === "indexed") {
+				if (!veraAvailable()) {
+					state.status = "missing-binary"
+					state.lastFailureAt = new Date().toISOString()
+					state.lastFailureReason = "vera binary not available"
+					writeWatcherState(directory, state)
+					log("warn", `[${directory}] session.created: vera not available, status=missing-binary`)
+					return
+				}
+
+				const watchResult = startVeraWatch(directory)
+				if (!watchResult) {
+					state.status = "watch-failed"
+					state.lastFailureAt = new Date().toISOString()
+					state.lastFailureReason = "vera watch . failed to start"
+					writeWatcherState(directory, state)
+					log("error", `[${directory}] session.created: vera watch failed to start`)
+					return
+				}
+
+				state.pid = watchResult.pid
+				state.status = "running"
+				state.startedAt = new Date().toISOString()
+				state.lastVerifiedAt = new Date().toISOString()
+				log("info", `[${directory}] session.created: watcher started pid=${state.pid}`)
+			} else if (state.status === "running") {
 					if (state.pid && isPidAlive(state.pid) && validatePidOwnership(state.pid, directory)) {
 						state.lastVerifiedAt = new Date().toISOString()
 						log("info", `[${directory}] session.created: watcher already running pid=${state.pid}`)

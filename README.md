@@ -62,7 +62,7 @@ This repository contains 52 core artifacts + 1 external integration organized in
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
-| 6-11 | **Plugins** | 9 files + library | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, and Vera runtime supervision |
+| 6-11 | **Plugins** | 10 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, and Vera runtime supervision |
 | 12-21 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
