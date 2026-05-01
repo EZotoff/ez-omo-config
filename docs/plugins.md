@@ -185,15 +185,9 @@ At each evidence state, agents may only use approved claim language:
 
 **Dependencies**: None (self-contained; falls open if `vera` binary absent)
 
-**Active Registration Requirement**:
+**Active Loading Requirement**:
 
-`vera-runtime.ts` must be registered in the active `opencode.json` plugin array. This is a distinct step from installing the file. The verifier checks registration with:
-
-```bash
-grep -q 'vera-runtime' "$HOME/.config/opencode/opencode.json"
-```
-
-If the plugin file exists at the install target but is not registered in the active config's plugin array, OpenCode will not load it. Because `opencode.json` is symlinked to the repo, changes to the repo file are immediately active.
+`vera-runtime.ts` is installed under `$HOME/.opencode/plugin/` and is auto-loaded by OpenCode from the HOME plugin directory. Do **not** also register it in `opencode.json`; explicit config registration can make OpenCode treat its test/helper exports as plugin entrypoints and break startup.
 
 **Registration vs Installation**:
 
@@ -201,7 +195,7 @@ If the plugin file exists at the install target but is not registered in the act
 |------|----------------|--------------|
 | File in repo | repo_implemented | `test -f plugins/vera-runtime.ts` |
 | File installed | live_file_installed | `test -f ~/.opencode/plugin/vera-runtime.ts` |
-| Config updated | active_config_registered | `grep -q 'vera-runtime' ~/.config/opencode/opencode.json` |
+| HOME plugin installed | active_config_registered | OpenCode auto-loads `~/.opencode/plugin/vera-runtime.ts` when the file is present |
 | Runtime loaded | runtime_loaded | Post-marker log entries in `vera-runtime.log` |
 | Proven working | real_project_behavior_proven | Vera index exists with post-marker timestamps |
 

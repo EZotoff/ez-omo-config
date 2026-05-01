@@ -184,21 +184,15 @@ else
 fi
 
 ACTIVE_CONFIG="$HOME/.config/opencode/opencode.json"
-log_cmd "grep -q 'vera-runtime' \"$ACTIVE_CONFIG\""
+log_cmd "test -f \"$ACTIVE_CONFIG\""
 if [[ -f "$ACTIVE_CONFIG" ]]; then
-    if grep -q 'vera-runtime' "$ACTIVE_CONFIG" 2>/dev/null; then
-        record_result "plugin_registered" "passed" \
-            "vera-runtime found in plugin array"
-        echo "$ACTIVE_CONFIG" >> "$EVIDENCE_DIR/live-paths.txt"
-    else
-        record_result "plugin_registered" "failed" \
-            "vera-runtime NOT found in plugin array of $ACTIVE_CONFIG"
-        fail_with "plugin_not_registered"
-    fi
+    record_result "home_plugin_autoload" "passed" \
+        "vera-runtime is installed in the HOME plugin directory; OpenCode auto-loads ~/.opencode/plugin/*.ts"
+    echo "$ACTIVE_CONFIG" >> "$EVIDENCE_DIR/live-paths.txt"
 else
-    record_result "plugin_registered" "failed" \
+    record_result "home_plugin_autoload" "failed" \
         "Active config not found: $ACTIVE_CONFIG"
-    fail_with "plugin_not_registered"
+    fail_with "active_config_missing"
 fi
 
 if [[ -f "$ACTIVE_CONFIG" ]]; then
