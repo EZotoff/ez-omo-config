@@ -29,6 +29,7 @@ run_case() {
 }
 
 run_case "helper-sessions-ignored"
+run_case "session-created-startup-safe"
 run_case "child-activity-rolls-up-to-root"
 run_case "predirty-path-skipped"
 run_case "conflicting-root-ownership-skips"

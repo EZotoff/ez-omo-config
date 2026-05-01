@@ -88,6 +88,7 @@ function makeFakeCtx(opts = {}) {
 	}
 
 	let sessionGetCallCount = 0;
+	let spawnSyncCallCount = 0;
 	let helperCounter = 0;
 
 	function nextHelperSessionID() {
@@ -149,6 +150,12 @@ function makeFakeCtx(opts = {}) {
 			},
 		},
 		__test: {
+			incrementSpawnSyncCallCount() {
+				spawnSyncCallCount++;
+			},
+			getSpawnSyncCallCount() {
+				return spawnSyncCallCount;
+			},
 			getSessionGetCallCount() {
 				return sessionGetCallCount;
 			},
@@ -445,6 +452,49 @@ async function createRootSession(hooks, sessionID, directory) {
 				directory,
 			},
 		},
+	});
+}
+
+async function runSessionCreatedStartupSafe() {
+	await withTempHome(async () => {
+		const { plugin } = await loadPluginBundle();
+		const ctx = makeFakeCtx({
+			directory: process.cwd(),
+			parents: [["root-1", null]],
+		});
+		const hooks = await plugin(ctx);
+
+		const originalSpawnSync = globalThis.Bun.spawnSync;
+		globalThis.Bun.spawnSync = (...args) => {
+			ctx.__test.incrementSpawnSyncCallCount();
+			return originalSpawnSync(...args);
+		};
+
+		try {
+			const beforeSessionGets = ctx.__test.getSessionGetCallCount();
+			const beforeSpawnSync = ctx.__test.getSpawnSyncCallCount();
+			await hooks.event({
+				event: {
+					type: "session.created",
+					properties: {
+						sessionID: "root-1",
+						title: "root",
+						directory: process.cwd(),
+					},
+				},
+			});
+
+			if (ctx.__test.getSessionGetCallCount() !== beforeSessionGets) {
+				fail("session.created should not query OpenCode session API");
+			}
+			if (ctx.__test.getSpawnSyncCallCount() !== beforeSpawnSync) {
+				fail("session.created should not run synchronous child processes before returning");
+			}
+		} finally {
+			globalThis.Bun.spawnSync = originalSpawnSync;
+		}
+
+		pass("session-created-startup-safe");
 	});
 }
 
@@ -1430,16 +1480,19 @@ async function main() {
 
 	if (!testCase) {
 		console.error("Usage: node tests/auto-checkpoint/harness.mjs --case <case-name>");
-		console.error(
-			"Cases: helper-sessions-ignored, child-activity-rolls-up-to-root, predirty-path-skipped, conflicting-root-ownership-skips, root-owned-file-remains-eligible, rename-delete-untracked-collected, binary-candidate-skips, diff-budget-overflow-skips, structured-helper-response-accepted, missing-root-session-metadata-fallbacks, malformed-llm-response-skips, llm-out-of-scope-file-skips, staged-foreign-index-preserved, exact-validated-subset-committed, delete-and-rename-commit-via-temp-index, disjoint-root-commits, skip-does-not-advance-head, git-operation-in-progress-skips",
-		);
+	console.error(
+		"Cases: helper-sessions-ignored, session-created-startup-safe, child-activity-rolls-up-to-root, predirty-path-skipped, conflicting-root-ownership-skips, root-owned-file-remains-eligible, rename-delete-untracked-collected, binary-candidate-skips, diff-budget-overflow-skips, structured-helper-response-accepted, missing-root-session-metadata-fallbacks, malformed-llm-response-skips, llm-out-of-scope-file-skips, staged-foreign-index-preserved, exact-validated-subset-committed, delete-and-rename-commit-via-temp-index, disjoint-root-commits, skip-does-not-advance-head, git-operation-in-progress-skips",
+	);
 		process.exit(1);
 	}
 
 		switch (testCase) {
-			case "helper-sessions-ignored":
-				await runHelperSessionsIgnored();
-				break;
+	case "helper-sessions-ignored":
+		await runHelperSessionsIgnored();
+		break;
+	case "session-created-startup-safe":
+		await runSessionCreatedStartupSafe();
+		break;
 			case "child-activity-rolls-up-to-root":
 				await runChildActivityRollsUpToRoot();
 				break;
