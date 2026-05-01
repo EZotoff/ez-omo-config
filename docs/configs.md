@@ -83,7 +83,14 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 **Local Patch Note**:
 
-The bounded retention mode is **not upstream standard behavior**. It is backed by a local patch to the installed `@tarquinen/opencode-dcp` package. The patch registry entry lives at `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`. If you update the DCP package, you may need to reapply or verify the patch.
+The bounded retention mode is **not upstream standard behavior**. It is backed by a local patch to the installed `@tarquinen/opencode-dcp` package. The patch registry entry lives at `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
+
+`install.sh --configs` includes a DCP patch sync step: it copies the 10 patched DCP files from the reference install at `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib` into both native cache copies when present:
+
+- `~/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib`
+- `~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib`
+
+This prevents package-cache refreshes from reintroducing unknown-key warnings for `compress.retentionMode` and `compress.maxArchivedSummaryTokens`.
 
 **Install Target**: `$HOME/.config/opencode/dcp.jsonc`
 

@@ -51,6 +51,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **Bounded DCP retention** — local patch that caps archived summary tokens during DCP range compression, keeping long-running sessions within a fixed token budget
+- **Durable DCP patch sync** — installer keeps both native runtime and package-cache `@tarquinen/opencode-dcp` copies aligned with local bounded-retention patch files
 
 ---
 
