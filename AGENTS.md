@@ -33,7 +33,39 @@ Live configs are symlinks pointing into this repo:
 4. **Machine-specific values are acceptable.** The store contains `file://` paths with absolute paths (e.g. `file:///home/ezotoff/...`). This is expected — new machines adapt these via `install.sh`.
 5. **Validate JSON after editing.** Run `python3 -c "import json; json.load(open('path'))"` on changed files.
 
-## Code Search Tool Selection
+## Live Deployment Claim Discipline
+
+When reporting what has been done, agents must distinguish between six evidence states. Each state permits and forbids specific claim language.
+
+### Evidence States
+
+| State | Definition |
+|-------|------------|
+| **repo_implemented** | Code exists in the repository and is tracked by git. |
+| **tests_passed** | Automated tests for the change pass in the repo (unit, integration, or build). |
+| **live_file_installed** | The file is present at its live target path (e.g. `~/.config/opencode/...`) via symlink or copy. |
+| **active_config_registered** | The live config file references or registers the artifact (e.g. plugin listed in `opencode.json`, skill listed in `oh-my-openagent.json`). |
+| **runtime_loaded** | The runtime has actually loaded or invoked the artifact (e.g. plugin handler called, skill dispatched). |
+| **real_project_behavior_proven** | The artifact's effect has been observed in a real project scenario with concrete evidence. |
+
+### Claim Language Table
+
+| Evidence State | May Say | Must Not Say |
+|----------------|---------|--------------|
+| **repo_implemented** | "implemented in repo" | "installed", "active", "working" |
+| **tests_passed** | "repo tests pass" | "deployed", "runtime verified" |
+| **live_file_installed** | "installed at live target" | "loaded" |
+| **active_config_registered** | "registered in active config" | "runtime loaded" |
+| **runtime_loaded** | "plugin loaded/handler invoked" | "end-to-end working" (without real-project proof) |
+| **real_project_behavior_proven** | "working for [specific project/scenario]" (with evidence path) | — |
+
+### Symlink Scope Caveat
+
+The symlinked config behavior described in the Config Locations table and How It Works section applies **only** to the listed symlinked config files (`opencode.json`, `oh-my-openagent.json`, `provider-connect-retry.mjs`, `retry-errors.json`). Installed plugin targets such as `$HOME/.opencode/plugin/*.ts` are **separate deployable artifacts** and do not share the "one file, not two" symlink property. Plugin files are copied or symlinked by `install.sh` and must be treated as distinct deployment targets.
+
+### Unverified State Rule
+
+If any live/runtime evidence state is unverified, final answers must say `Not verified live: [missing state]`.
 
 When searching for code or understanding codebase structure, follow this strict decision tree:
 

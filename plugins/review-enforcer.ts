@@ -40,6 +40,19 @@ Use your \`atlas-review-handler\` skill instructions:
 4. Maximum 2 review cycles, then proceed regardless
 
 Refer to your loaded \`atlas-review-handler\` skill for the complete protocol.
+
+🚦 **LIVE DEPLOYMENT GATE**
+
+For config/plugin/runtime changes, verify evidence states before claiming working/deployed/active:
+
+- [ ] repo_implemented — code changes committed and present in the branch
+- [ ] tests_passed — automated or manual tests confirm correctness
+- [ ] live_file_installed — built/config files copied/symlinked to their live locations
+- [ ] active_config_registered — the running system references the new configuration
+- [ ] runtime_loaded — the process/plugin/service has loaded without errors
+- [ ] real_project_behavior_proven — observed in a real session, not just theoretical
+
+If any live/runtime state is unverified, say \`Not verified live: [missing state]\` — do NOT claim working/deployed/active.
 ---
 `
 
@@ -54,6 +67,8 @@ const PLAN_COMPLETION_INSTRUCTION = `
 2. The review should cover ALL changes on this branch, not just the last task
 3. Use \`task(category="unspecified-low", load_skills=["review-protocol"], run_in_background=false)\`
 4. Process findings: CRITICAL → fix, WARNING → note, clean → finalize
+
+**Evidence-state consolidation required**: Before finalizing, report the highest proven evidence state and link evidence paths. For each deliverable, explicitly state which of the six evidence states are verified: repo_implemented, tests_passed, live_file_installed, active_config_registered, runtime_loaded, real_project_behavior_proven. If any live/runtime state is unverified, say \`Not verified live: [missing state]\` — do NOT claim working/deployed/active.
 
 This is the final quality gate before plan completion.
 ---

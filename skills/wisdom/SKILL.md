@@ -111,6 +111,7 @@ Every wisdom entry carries a canonical trust and lifecycle contract:
 - **ALWAYS qualify answers** with authority level (published/verified/candidate/unknown)
 - Prefer "unknown" over guessing
 - Maximum 3 knowledge captures per task (avoid over-capturing)
+- **Operational Reality Verification**: Operational facts about live config/runtime state are UNKNOWN until verified from live paths, active config, and runtime evidence.
 
 ## Example Workflows
 

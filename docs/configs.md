@@ -331,10 +331,21 @@ Existing configurations are backed up to `~/.ez-omo-backup/<timestamp>/` before 
 
 ---
 
-## See Also
+## Non-Wisdom Observability Contract
 
-- [Plugins Documentation](plugins.md) — Plugin configuration references
-- [Skills Documentation](skills.md) — Skill loading configuration
-- [MANIFEST.md](../MANIFEST.md) — Complete artifact inventory
-- `configs/opencode/README.md` — Quick reference
-- `install.sh` — Installation script with backup and idempotency
+This section defines the shared sanitized observability contract for config-layer systems in this repository. The contract applies to **Aspect Dynamics** and **DCP** (Dynamic Context Pruning). These systems emit events for debugging and health monitoring while never leaking sensitive conversation content.
+
+### Event Shape
+
+Every observability event produced by a config-layer system must include these fields where applicable:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ts` | string | ISO 8601 timestamp of the event |
+| `system` | string | System identifier. Values: `aspect-dynamics`, `dcp` |
+| `event` | string | Event type string (e.g., `session.scored`, `compress.range_archived`) |
+| `status` | string | Event outcome: `success`, `failure`, `idle`, `skipped` |
+| `session_id` | string | Correlation ID for the OpenCode session |
+| `duration_ms` | integer | Elapsed time for the operation, in milliseconds |
+| `reason` | string | Human-readable explanation when status is not `success` |
+| `counts` | object | Numeric aggregates (e.g., `{
