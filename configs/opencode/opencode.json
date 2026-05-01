@@ -347,6 +347,18 @@
         }
       }
     },
+    "moonshot": {
+      "name": "Moonshot",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://api.moonshot.ai/v1"
+      },
+      "models": {
+        "kimi-k2.5": {
+          "name": "Kimi K2.5"
+        }
+      }
+    },
     "kimi-code": {
       "name": "Kimi Code",
       "npm": "@ai-sdk/anthropic",
