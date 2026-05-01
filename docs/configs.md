@@ -283,12 +283,13 @@ The plugin accepts three deferred fields in config that are deliberately unused 
 - `polishingModel` — Reserved for nudge text polishing
 - `dreamAgent` — Reserved for background session analysis
 
-These fields are logged at startup for visibility but are otherwise inert.
+These fields are inert by default. They are logged only when `logLevel` is set to `info`, so normal startup stays quiet.
 
 **Key Fields**:
 
 - `enabled` — Master toggle for the plugin
 - `activeSets` — Array of aspect set IDs to load (e.g., `["emotions-v1"]`)
+- `logLevel` — Plugin terminal logging threshold. Defaults to `warn`; set `info` to show startup/info diagnostics, or `silent` to suppress all plugin terminal logging.
 - `heuristicPreFilter` — Whether to skip scoring when no heuristic phrases match
 - `contextWindowTurns` — Number of recent turns to include in context extraction
 
