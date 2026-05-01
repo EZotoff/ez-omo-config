@@ -115,12 +115,13 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 52 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 9 dirs + 1 external, scripts: 11, extras: 1)
+- **Total Artifacts**: 55 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 9 dirs + 1 external, scripts: 12, tests: 2, extras: 1, docs: 5)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 9 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
-- **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts
+- **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script
+- **Tests**: 2 test scripts (aspect-dynamics runtime test, live deployment contract test)
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

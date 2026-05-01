@@ -24,6 +24,18 @@ Two hook scripts automate worktree setup and teardown:
 
 These hooks are registered in `worktree.jsonc` and are invoked automatically by the worktree plugin. No manual intervention is needed.
 
+## Symlinked Config Behavior
+
+Several files in this directory are **symlinked** from `~/.config/opencode/` into this repo. Editing either path edits the same file:
+
+| File | Live Path | Notes |
+|------|-----------|-------|
+| `opencode.json` | `~/.config/opencode/opencode.json` | Main config with plugin array |
+| `provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` | Retry plugin |
+| `retry-errors.json` | `~/.config/opencode/retry-errors.json` | Error pattern registry |
+
+**Important**: Plugin files such as `$HOME/.opencode/plugin/*.ts` are **not** symlinked. They are copied by `install.sh` and require a separate install step after editing.
+
 ## Portability notes
 
 - Hardcoded personal paths were normalized to `$HOME` notation.
