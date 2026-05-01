@@ -597,7 +597,7 @@ async function collectCandidateDiffText(repoRoot: string, candidatePaths: string
 	return Result.ok(outputs.join("\n\n"))
 }
 
-export async function getCandidatePaths(rootSessionId: string): Promise<Result<CandidatePathCollection, string>> {
+async function getCandidatePaths(rootSessionId: string): Promise<Result<CandidatePathCollection, string>> {
 	const trackedRootId = resolveTrackedSessionId(rootSessionId)
 	const rootState = sessions.get(trackedRootId)
 	if (!rootState) {
@@ -620,7 +620,7 @@ export async function getCandidatePaths(rootSessionId: string): Promise<Result<C
 	})
 }
 
-export async function getCandidateDiffPayload(
+async function getCandidateDiffPayload(
 	rootSessionId: string,
 ): Promise<Result<CandidateDiffPayload, string>> {
 	const candidatePathsResult = await getCandidatePaths(rootSessionId)
@@ -1000,10 +1000,18 @@ async function resolveSemanticProposal(args: {
 	}
 }
 
-export function getAutoCheckpointTestHelpers(): {
-	resolveSemanticProposal: typeof resolveSemanticProposal
-} {
-	return {
+const testGlobal = globalThis as typeof globalThis & {
+	__AUTO_CHECKPOINT_TEST_HELPERS__?: {
+		getCandidatePaths: typeof getCandidatePaths
+		getCandidateDiffPayload: typeof getCandidateDiffPayload
+		resolveSemanticProposal: typeof resolveSemanticProposal
+	}
+}
+
+if (process.env.OPENCODE_AUTO_CHECKPOINT_EXPOSE_TEST_HELPERS === "1") {
+	testGlobal.__AUTO_CHECKPOINT_TEST_HELPERS__ = {
+		getCandidatePaths,
+		getCandidateDiffPayload,
 		resolveSemanticProposal,
 	}
 }
@@ -1587,7 +1595,7 @@ async function evaluateCheckpoint(
 // PLUGIN ENTRY
 // =============================================================================
 
-export const AutoCheckpointPlugin: Plugin = async (ctx) => {
+const AutoCheckpointPlugin: Plugin = async (ctx) => {
 	const { directory, client } = ctx
 	if (!PLUGIN_ENABLED) {
 		return {}

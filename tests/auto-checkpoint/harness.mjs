@@ -234,13 +234,14 @@ async function runToolCycle(hooks, sessionID, applyChanges) {
 
 async function loadPluginBundle() {
 	installBunShim();
+	process.env.OPENCODE_AUTO_CHECKPOINT_EXPOSE_TEST_HELPERS = "1";
 	const pluginUrl = pathToFileURL(PLUGIN_PATH).href;
 	const mod = await import(pluginUrl);
 	const plugin = mod.default ?? mod.AutoCheckpointPlugin;
 	if (typeof plugin !== "function") {
 		fail(`auto-checkpoint plugin export is not a function (got ${typeof plugin})`);
 	}
-	return { plugin, mod };
+	return { plugin, mod, helpers: globalThis.__AUTO_CHECKPOINT_TEST_HELPERS__ };
 }
 
 function writeTextFile(repoDir, relativePath, content) {
@@ -292,6 +293,7 @@ async function withTempHome(fn) {
 	const previousHome = process.env.HOME;
 	const previousEnabled = process.env.OPENCODE_AUTO_CHECKPOINT_ENABLE;
 	const previousFileLogging = process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG;
+	const previousExposeTestHelpers = process.env.OPENCODE_AUTO_CHECKPOINT_EXPOSE_TEST_HELPERS;
 	const tempHome = mkdtempSync(join(tmpdir(), "auto-checkpoint-harness-"));
 	process.env.HOME = tempHome;
 	process.env.OPENCODE_AUTO_CHECKPOINT_ENABLE = "1";
@@ -310,6 +312,11 @@ async function withTempHome(fn) {
 			delete process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG;
 		} else {
 			process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG = previousFileLogging;
+		}
+		if (previousExposeTestHelpers === undefined) {
+			delete process.env.OPENCODE_AUTO_CHECKPOINT_EXPOSE_TEST_HELPERS;
+		} else {
+			process.env.OPENCODE_AUTO_CHECKPOINT_EXPOSE_TEST_HELPERS = previousExposeTestHelpers;
 		}
 	}
 }
@@ -635,9 +642,9 @@ async function runRenameDeleteUntrackedCollected() {
 		runCommand(repoDir, ["git", "add", "delete-me.txt"]);
 		runCommand(repoDir, ["git", "commit", "-m", "add delete-me"]);
 
-		const { plugin, mod } = await loadPluginBundle();
-		if (typeof mod.getCandidatePaths !== "function") {
-			fail("plugin did not export getCandidatePaths helper");
+		const { plugin, helpers } = await loadPluginBundle();
+		if (typeof helpers?.getCandidatePaths !== "function") {
+			fail("plugin did not expose getCandidatePaths test helper");
 		}
 
 		const ctx = makeFakeCtx({
@@ -656,7 +663,7 @@ async function runRenameDeleteUntrackedCollected() {
 			appendFile(repoDir, untrackedPath, "new content\n");
 		});
 
-		const result = await mod.getCandidatePaths("root-1");
+		const result = await helpers.getCandidatePaths("root-1");
 		if (!result?.ok) {
 			fail(`getCandidatePaths failed: ${result?.error ?? "unknown error"}`);
 		}
@@ -689,9 +696,9 @@ async function runBinaryCandidateSkips() {
 		runCommand(repoDir, ["git", "add", "binary.bin"]);
 		runCommand(repoDir, ["git", "commit", "-m", "add binary"]);
 
-		const { plugin, mod } = await loadPluginBundle();
-		if (typeof mod.getCandidateDiffPayload !== "function") {
-			fail("plugin did not export getCandidateDiffPayload helper");
+		const { plugin, helpers } = await loadPluginBundle();
+		if (typeof helpers?.getCandidateDiffPayload !== "function") {
+			fail("plugin did not expose getCandidateDiffPayload test helper");
 		}
 
 		const ctx = makeFakeCtx({
@@ -705,7 +712,7 @@ async function runBinaryCandidateSkips() {
 			writeBinaryFile(repoDir, "binary.bin", [0x00, 0xff, 0xaa, 0xbb, 0xcc, 0xdd, 0xee]);
 		});
 
-		const result = await mod.getCandidateDiffPayload("root-1");
+		const result = await helpers.getCandidateDiffPayload("root-1");
 		if (!result?.ok) {
 			fail(`getCandidateDiffPayload failed: ${result?.error ?? "unknown error"}`);
 		}
@@ -731,9 +738,9 @@ async function runDiffBudgetOverflowSkips() {
 		runCommand(repoDir, ["git", "add", "large-diff.txt"]);
 		runCommand(repoDir, ["git", "commit", "-m", "add large-diff"]);
 
-		const { plugin, mod } = await loadPluginBundle();
-		if (typeof mod.getCandidateDiffPayload !== "function") {
-			fail("plugin did not export getCandidateDiffPayload helper");
+		const { plugin, helpers } = await loadPluginBundle();
+		if (typeof helpers?.getCandidateDiffPayload !== "function") {
+			fail("plugin did not expose getCandidateDiffPayload test helper");
 		}
 
 		const ctx = makeFakeCtx({
@@ -747,7 +754,7 @@ async function runDiffBudgetOverflowSkips() {
 			writeTextFile(repoDir, "large-diff.txt", makeLargeDiffContent());
 		});
 
-		const result = await mod.getCandidateDiffPayload("root-1");
+		const result = await helpers.getCandidateDiffPayload("root-1");
 		if (!result?.ok) {
 			fail(`getCandidateDiffPayload failed: ${result?.error ?? "unknown error"}`);
 		}
@@ -789,8 +796,8 @@ function makeAssistantTextMessage(text) {
 }
 
 async function runStructuredHelperResponseAccepted() {
-	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
+ 	const { helpers } = await loadPluginBundle();
+ const resolveSemanticProposal = helpers?.resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
@@ -861,8 +868,8 @@ async function runStructuredHelperResponseAccepted() {
 }
 
 async function runMissingRootSessionMetadataFallbacks() {
-	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
+ 	const { helpers } = await loadPluginBundle();
+ const resolveSemanticProposal = helpers?.resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
@@ -919,8 +926,8 @@ async function runMissingRootSessionMetadataFallbacks() {
 }
 
 async function runMalformedLlmResponseSkips() {
-	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
+ 	const { helpers } = await loadPluginBundle();
+ const resolveSemanticProposal = helpers?.resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
@@ -979,8 +986,8 @@ async function withImmediateTimersAndTimeAdvance(fn) {
 }
 
 async function runLlmOutOfScopeFileSkips() {
-	const { mod } = await loadPluginBundle();
- const resolveSemanticProposal = mod.getAutoCheckpointTestHelpers?.().resolveSemanticProposal;
+ 	const { helpers } = await loadPluginBundle();
+ const resolveSemanticProposal = helpers?.resolveSemanticProposal;
  if (typeof resolveSemanticProposal !== "function") {
   fail("plugin did not export resolveSemanticProposal test helper");
 	}
