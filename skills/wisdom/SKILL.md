@@ -111,7 +111,6 @@ Every wisdom entry carries a canonical trust and lifecycle contract:
 - **ALWAYS qualify answers** with authority level (published/verified/candidate/unknown)
 - Prefer "unknown" over guessing
 - Maximum 3 knowledge captures per task (avoid over-capturing)
-- The `knowledge` skill is a compatibility shim during deprecation. Use `wisdom` for all new work.
 
 ## Example Workflows
 

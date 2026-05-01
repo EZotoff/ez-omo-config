@@ -9,11 +9,6 @@ Primary runtime memory skill for institutional knowledge. The single source of t
 - **Dependencies**: None
 - **Use Case**: Searching and recording learnings from plan execution; operational knowledge queries
 
-### knowledge/ (Deprecated)
-Compatibility shim that delegates to Wisdom-backed behavior. Retained during a one-cycle deprecation period to avoid breaking existing workflows. Use `wisdom/` for all new work.
-- **Dependencies**: wisdom
-- **Use Case**: Backward compatibility only
-
 ### atlas-review-handler/
 Atlas-level review orchestration handler. Processes automated review results from sub-agents, triages findings, delegates critical fixes, and manages the complete review workflow (request → delegate → receive results → parse findings → fix loop → verify).
 - **Dependencies**: review-protocol

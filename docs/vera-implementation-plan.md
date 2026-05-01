@@ -126,7 +126,7 @@ Update `configs/oh-my-openagent/oh-my-openagent.json` to assign the `vera` skill
       "description": "Executor with semantic code search capabilities"
     },
     "librarian": {
-      "skills": ["wisdom", "knowledge", "vera"],
+      "skills": ["wisdom", "vera"],
       "description": "Documentation search with semantic code search"
     }
   }
