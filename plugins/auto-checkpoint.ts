@@ -94,6 +94,7 @@ interface SessionState {
 	}
 	lastSemanticSkipReason?: string
 	timer?: Timer
+	baselineCapturePromise?: Promise<void>
 }
 
 interface RootResolution {
@@ -1231,47 +1232,34 @@ async function ensureRootBaselineSnapshot(rootState: SessionState): Promise<void
 	)
 }
 
-function captureRootBaselineSnapshotSync(rootState: SessionState): boolean {
+function queueRootBaselineSnapshot(rootState: SessionState): void {
+	if (rootState.baselineCaptured || rootState.baselineCapturePromise) {
+		return
+	}
+
+	setTimeout(() => {
+		if (rootState.baselineCaptured || rootState.baselineCapturePromise) {
+			return
+		}
+
+		rootState.baselineCapturePromise = ensureRootBaselineSnapshot(rootState).finally(() => {
+			rootState.baselineCapturePromise = undefined
+		})
+	}, 0)
+}
+
+async function ensureRootBaselineReady(rootState: SessionState): Promise<void> {
 	if (rootState.baselineCaptured) {
-		return true
+		return
 	}
 
-	try {
-		const repoRootProc = Bun.spawnSync(["git", "rev-parse", "--show-toplevel"], {
-			cwd: rootState.cwd,
-			stdout: "pipe",
-			stderr: "pipe",
+	if (!rootState.baselineCapturePromise) {
+		rootState.baselineCapturePromise = ensureRootBaselineSnapshot(rootState).finally(() => {
+			rootState.baselineCapturePromise = undefined
 		})
-		if (repoRootProc.exitCode !== 0) {
-			log("debug", `baseline snapshot skipped — root=${rootState.sessionId}, cwd=${rootState.cwd}, reason=not-in-git-repo`)
-			return false
-		}
-
-		const repoRoot = resolve(new TextDecoder().decode(repoRootProc.stdout).trim())
-		const statusProc = Bun.spawnSync(["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"], {
-			cwd: repoRoot,
-			stdout: "pipe",
-			stderr: "pipe",
-		})
-		if (statusProc.exitCode !== 0) {
-			const stderr = new TextDecoder().decode(statusProc.stderr).trim()
-			log("warn", `baseline snapshot skipped — root=${rootState.sessionId}, cwd=${rootState.cwd}, error=${stderr || "git status failed"}`)
-			return false
-		}
-
-		const parsedStatus = parsePorcelainV1Z(new TextDecoder().decode(statusProc.stdout))
-		rootState.repoRoot = repoRoot
-		rootState.baselineDirtyPaths = new Set(parsedStatus.paths)
-		rootState.baselineCaptured = true
-		log(
-			"debug",
-			`baseline snapshot captured — root=${rootState.sessionId}, repo=${repoRoot}, paths=${parsedStatus.paths.size}`,
-		)
-		return true
-	} catch (error) {
-		log("warn", `baseline snapshot skipped — root=${rootState.sessionId}, cwd=${rootState.cwd}, error=${error instanceof Error ? error.message : String(error)}`)
-		return false
 	}
+
+	await rootState.baselineCapturePromise
 }
 
 async function resolveRootSession(client: RootSessionClient, sessionId: string): Promise<RootResolution> {
@@ -1621,7 +1609,7 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 					}
 					rootState.lastSemanticSkipReason = undefined
 					if (!parentId) {
-						captureRootBaselineSnapshotSync(rootState)
+						queueRootBaselineSnapshot(rootState)
 					}
 
 					if (parentId) {
@@ -1734,12 +1722,7 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 				rootState.repoRoot = snapshot.repoRoot
 
 				if (!rootState.baselineCaptured) {
-					rootState.baselineDirtyPaths = new Set(snapshot.paths)
-					rootState.baselineCaptured = true
-					log(
-						"debug",
-						`baseline snapshot captured — root=${rootState.sessionId}, repo=${snapshot.repoRoot}, paths=${snapshot.paths.size}`,
-					)
+					await ensureRootBaselineReady(rootState)
 				}
 
 				const now = Date.now()
@@ -1835,7 +1818,7 @@ export const AutoCheckpointPlugin: Plugin = async (ctx) => {
 						}
 					}
 				} else if (!rootState.baselineCaptured) {
-					await ensureRootBaselineSnapshot(rootState)
+					await ensureRootBaselineReady(rootState)
 				}
 
 				rootState.pendingToolSnapshot = undefined
