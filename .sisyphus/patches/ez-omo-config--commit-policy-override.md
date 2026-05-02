@@ -3,7 +3,7 @@ patch_id: "ez-omo-config--commit-policy-override"
 dependency: "ez-omo-config"
 target_file: "AGENTS.md"
 target_install_path: "/home/ezotoff/ez-omo-config"
-status: "active"
+status: "deprecated"
 applied_date: "2026-04-28"
 dep_version: "current"
 upstream_issue: "none"
@@ -52,4 +52,14 @@ The ideal fix would be upstream in OpenCode/OMO:
 - Option A: Remove the "commit early, commit often" advice from the git-master skill, or rephrase it as "commit when user requests"
 - Option B: Add a system-level policy mechanism where base instructions always override skill instructions for sensitive operations (commits, pushes, destructive actions)
 
-Status: not-yet-pursued
+Status: superseded
+
+## Supersession Note
+
+This patch is **deprecated**. It has been superseded by two new source-level patches that replace the absolute "never commit" AGENTS.md rule with a nuanced local-commit policy:
+
+1. **`opencode--commit-policy-unblock`** — Patches OpenCode system instructions (`bash.txt`, `trinity.txt`, `default.txt`) to replace the blanket "Only create commits when requested" with a safe local-commit policy that respects workflow-authorized commits.
+
+2. **`omo--commit-policy-alignment.md`** — Patches OMO agent instructions and git-master skill to align with the same safe local-commit policy.
+
+The old AGENTS.md rule was a band-aid that enforced an absolute no-commit stance, but it conflicted with active project/skill workflows (git-master, auto-checkpoint) that explicitly authorize local checkpoint/logical-task commits. The new source-level patches resolve the contradiction properly by updating the instructions at their source.
