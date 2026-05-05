@@ -59,7 +59,7 @@ These skills provide core functionality and are essential for the OhMyOpenCode w
 
 **Live Gate Enforcement Note**:
 
-`atlas-review-handler/` and `review-protocol/` are external skills. They are **not** the source of mandatory Live Deployment Verification Gate enforcement. The core live gate is enforced in tracked repo surfaces: `AGENTS.md` (evidence-state taxonomy), `plugins/review-enforcer.ts` (runtime gate), and `scripts/verify-live-deployment.sh` (canonical verifier). Skills may reference the gate, but the authoritative enforcement lives in the repo's tracked files.
+`atlas-review-handler/` and `review-protocol/` are **referenced external skills**. They are **not** the source of mandatory Live Deployment Verification Gate enforcement, unless they are later versioned in this repo. The core live gate is enforced in tracked repo surfaces: `AGENTS.md` (evidence-state taxonomy), `plugins/review-enforcer.ts` (runtime gate), and `scripts/verify-live-deployment.sh` (canonical verifier). Skills may reference the gate, but the authoritative enforcement lives in the repo's tracked files.
 
 **Use Case**: Managing review workflows and handling code review automation
 
@@ -84,7 +84,7 @@ These skills provide core functionality and are essential for the OhMyOpenCode w
 
 **Live Gate Enforcement Note**:
 
-Like `atlas-review-handler/`, this skill participates in review workflows but does **not** enforce the Live Deployment Verification Gate. The gate is enforced by tracked repo files: `AGENTS.md`, `plugins/review-enforcer.ts`, and `scripts/verify-live-deployment.sh`.
+Like `atlas-review-handler/`, this skill is a **referenced external skill** and participates in review workflows but does **not** enforce the Live Deployment Verification Gate, unless it is later versioned in this repo. The gate is enforced by tracked repo files: `AGENTS.md`, `plugins/review-enforcer.ts`, and `scripts/verify-live-deployment.sh`.
 
 **Use Case**: Conducting code reviews of uncommitted or recent changes
 

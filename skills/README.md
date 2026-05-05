@@ -13,11 +13,13 @@ Primary runtime memory skill for institutional knowledge. The single source of t
 Atlas-level review orchestration handler. Processes automated review results from sub-agents, triages findings, delegates critical fixes, and manages the complete review workflow (request → delegate → receive results → parse findings → fix loop → verify).
 - **Dependencies**: review-protocol
 - **Use Case**: Managing review workflows and handling code review automation
+- **Live Gate Note**: This is a **referenced external skill**. It does **not** enforce the Live Deployment Verification Gate, unless later versioned in this repo. The gate is enforced by tracked repo files: `AGENTS.md`, `plugins/review-enforcer.ts`, and `scripts/verify-live-deployment.sh`.
 
 ### review-protocol/
 Automated code review agent that analyzes git diffs and returns structured findings. Verifies code quality, catches issues, and provides structured feedback in CRITICAL/WARNING/INFO format.
 - **Dependencies**: None
 - **Use Case**: Conducting code reviews of uncommitted or recent changes
+- **Live Gate Note**: This is a **referenced external skill**. It does **not** enforce the Live Deployment Verification Gate, unless later versioned in this repo. The gate is enforced by tracked repo files: `AGENTS.md`, `plugins/review-enforcer.ts`, and `scripts/verify-live-deployment.sh`.
 
 ### playwright/
 Browser testing agent using playwright-cli. Verifies frontend functionality works correctly with actual user-visible behavior testing, not just error checking.
