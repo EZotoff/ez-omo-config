@@ -538,3 +538,430 @@ Output: `architecture-challenge.md`
 | Trusting agent TOTAL arithmetic | LLMs frequently miscompute sums | Recompute TOTAL mechanically from S1-S4 |
 | Retrying more than once per judge | Diminishing returns, context waste | One retry max, then skip |
 | Ad-hoc hang recovery | Burns context on improvised retry logic | Follow retry protocol: 10 min → cancel → retry once → skip |
+
+---
+
+## v2 Protocol — Structured Decision Review
+
+The v2 protocol replaces symmetric winner-picking debate with an asymmetric decision-review process. One agent proposes, one critiques, the proposer revises, and judges evaluate whether the revised proposal should be adopted. This design addresses the structural second-speaker advantage of v1 and produces actionable decision output instead of rhetorical winners.
+
+### Philosophy
+
+**v1 optimized for**: "Which argument wins?"  
+**v2 optimized for**: "Should we do this?"
+
+The continuous tone parameter (20-90%) from v1 is dropped. In its place, v2 uses discrete critique modes that match the stakes of the decision. Arguments are decomposed into blocks that can be independently critiqued and scored, so a single weak block does not sink an otherwise sound proposal, and a single strong block cannot carry a broken one.
+
+### Stage Flow
+
+Every v2 decision review follows four stages in sequence:
+
+```
+Stage 1: PROPOSAL
+  Proposer builds a thesis tree with blocks
+  Each block = claim + evidence + tradeoffs + risks
+
+Stage 2: CRITIQUE
+  Critic attacks each block independently
+  Critic stance is explicit: strict | generous-steelman | neutral
+
+Stage 3: REVISION
+  Proposer revises weak blocks
+  Must explicitly address each critique point
+  Output: revised thesis tree + change log
+
+Stage 4: EVALUATION
+  Judges score the revised proposal per block
+  Judges also score synthesis quality
+  Verdict is a decision action, not a winner
+```
+
+Stages 1-3 are sequential (one agent waits for the previous). Stage 4 runs judges in parallel.
+
+### Block-Level Thesis Tree
+
+Arguments are decomposed into typed blocks rather than scored holistically.
+
+**Thesis tree schema**:
+
+```yaml
+blocks:
+  - id: b1
+    type: claim
+    text: "<the claim>"
+    evidence: "<supporting evidence>"
+    tradeoffs: "<acknowledged tradeoffs>"
+    risks: "<identified risks>"
+
+  - id: b2
+    type: implementation
+    text: "<how to implement>"
+    evidence: "<supporting evidence>"
+    tradeoffs: "<acknowledged tradeoffs>"
+    risks: "<identified risks>"
+
+  - id: b3
+    type: fallback
+    text: "<what if this fails>"
+    evidence: "<supporting evidence>"
+    tradeoffs: "<acknowledged tradeoffs>"
+    risks: "<identified risks>"
+```
+
+**Critique format**: Each critique addresses a specific block.
+
+```yaml
+critiques:
+  - target_block: b1
+    flaw_type: assumption|evidence|risk|feasibility
+    severity: major|minor|note
+    description: "<specific critique>"
+```
+
+**Revision format**: Each revision references the critique it addresses.
+
+```yaml
+revisions:
+  - addresses_critique: c1
+    block_id: b1
+    change_type: strengthen|retract|replace|add_fallback
+    before: "<original text>"
+    after: "<revised text>"
+```
+
+### Discrete Critique Modes
+
+The continuous tone parameter from v1 is replaced with an explicit critique stance configured per run.
+
+| Mode | Behavior | When to use |
+|------|----------|-------------|
+| `strict` | Attack every weakness, no charity | High-stakes safety, security reviews |
+| `generous-steelman` | Present the strongest form of the opponent's argument first, then attack | Architecture decisions where missing a good idea is costly |
+| `neutral` | Balanced critique, note strengths and weaknesses | Routine reviews, comparative analysis |
+
+**Rationale**: The continuous dose-response hypothesis was falsified by the v1 experiment. Discrete modes are explicit, testable, and match user intent better than a percentage dial.
+
+### Decision-Action Verdicts
+
+Verdicts are decision actions, not winner labels.
+
+| Verdict | Meaning | Action |
+|---------|---------|--------|
+| `ADOPT` | Proposal is strong enough to proceed | Execute with confidence |
+| `REVISE` | Proposal has merit but needs changes | Return to Stage 3 with specific directives |
+| `REJECT` | Proposal is flawed beyond revision | Start over or consider alternatives |
+| `ESCALATE` | Insufficient information or high uncertainty | Gather more data before deciding |
+
+A verdict of `ADOPT` requires that all binding judges approve. A single binding rejection blocks adoption.
+
+### Judge Weight Configuration
+
+Judge influence is explicit per mode, not hard-coded.
+
+**Judge weight schema**:
+
+```yaml
+judges:
+  - role: analyst
+    weight: binding      # Analyst verdict is required for ADOPT
+    criteria: [correctness, feasibility, risk]
+
+  - role: stylist
+    weight: advisory     # Notes communication quality, no veto
+    criteria: [clarity, accessibility]
+
+  - role: aesthete
+    weight: advisory
+    criteria: [elegance, conceptual_harmony]
+```
+
+**Binding vs Advisory**: A binding judge can block `ADOPT`. An advisory judge cannot. This expresses "Analyst must agree" without hard-coding Analyst supremacy into the protocol itself.
+
+**Identity blinding**: During evaluation experiments, hide agent identity from judges. During operational use, judges may see role labels (proposer/critic) for accountability.
+
+### v2 Mode 1: Architecture Decision
+
+**When to use**: Choosing between design patterns, tech stacks, migration strategies.
+
+**Criteria tree** (judges score each block on these):
+
+| Criterion | Judge | Weight | Question |
+|-----------|-------|--------|----------|
+| Correctness | Analyst | binding | Does it solve the stated problem? |
+| Feasibility | Analyst | binding | Can it be built with available resources? |
+| Risk | Analyst | binding | What fails, and what happens then? |
+| Simplicity | Aesthete | advisory | Is it unnecessarily complex? |
+| Reversibility | Stylist | advisory | Can we undo this if wrong? |
+| Clarity | Stylist | advisory | Can the team understand and maintain it? |
+
+**Anti-overengineering guard**: A proposal that scores high on Correctness but low on Simplicity triggers `REVISE`, not `ADOPT`.
+
+**Output artifact**:
+```yaml
+decision: ADOPT|REVISE|REJECT|ESCALATE
+recommendation: "<what to do>"
+strongest_objection: "<the critique that was hardest to address>"
+what_changed: "<summary of revisions>"
+remaining_uncertainty: "<what we still don't know>"
+reversal_trigger: "<what would make us revisit this>"
+surviving_blocks: [b1, b3, b5]  # blocks that held up under critique
+```
+
+### v2 Mode 2: Comparative Analysis
+
+**When to use**: Comparing tools, vendors, frameworks, approaches.
+
+**Protocol difference**:
+- Each option gets the same criteria tree
+- Critique focuses on hidden assumptions, lock-in, migration cost, ops burden
+- Judges rank by criterion, not by global eloquence
+
+**Output artifact**:
+```yaml
+recommendation: "<option_id>"
+ranking:
+  - option: "<id>"
+    scores:
+      correctness: 4
+      maintainability: 3
+      ...
+    dealbreaker: "<if any>"
+
+conditional_recommendation: "<winner if constraint X matters most>"
+```
+
+### v2 Mode 3: Writing Refinement
+
+**When to use**: Technical writing, documentation, persuasive communication.
+
+**Protocol difference**:
+- Aesthete and Stylist have stronger influence
+- Judges produce revised text, not just scores
+- Output is a rewritten draft, not a decision verdict
+
+**Output artifact**:
+```yaml
+revised_draft: "<full text>"
+changes:
+  - location: "<paragraph/section>"
+    type: clarity|structure|tone|evidence
+    before: "<original>"
+    after: "<revised>"
+    rationale: "<why>"
+```
+
+### v2 Prompt Templates
+
+**Proposer Prompt**:
+```
+You are the proposer in a structured decision review.
+
+TOPIC: {topic}
+
+Your task: Build a thesis tree supporting the best option.
+
+For each block, provide:
+- CLAIM: The specific claim or recommendation
+- EVIDENCE: Supporting data, precedent, or reasoning
+- TRADEOFFS: What you give up by choosing this
+- RISKS: What could go wrong and how to detect it
+
+Return as a YAML list of blocks. Each block must have a unique id.
+```
+
+**Critic Prompt (Generous-Steelman Mode)**:
+```
+You are the critic in a structured decision review.
+CRITIQUE MODE: generous-steelman
+
+For each block in the proposer's thesis tree:
+1. First, present the STRONGEST possible version of this block (steel-man)
+2. Then, identify the most serious weakness in that strengthened version
+3. Classify the flaw: assumption | evidence | risk | feasibility
+4. Rate severity: major | minor | note
+
+Return as a YAML list of critiques. Each critique must reference a block id.
+```
+
+**Judge Prompt (Architecture Mode)**:
+```
+You are a judge evaluating a revised proposal.
+
+Your role: {role} ({focus})
+Your weight: {binding|advisory}
+
+Evaluate each block on these criteria:
+- CORRECTNESS: Does it solve the stated problem?
+- FEASIBILITY: Can it be built with available resources?
+- RISK: What fails, and what happens then?
+- SIMPLICITY: Is it unnecessarily complex?
+- REVERSIBILITY: Can we undo this if wrong?
+
+Score each block 1-5. Provide a 1-sentence rationale.
+Then score the overall synthesis: INTEGRATION, RISK_COVERAGE, REVISION_QUALITY.
+
+Return as YAML.
+```
+
+### Verdict Derivation
+
+Verdicts are derived mechanically from block scores, synthesis scores, and judge weights. The orchestrator must recompute; never trust agent arithmetic.
+
+```python
+# Pseudocode for verdict derivation
+
+def derive_verdict(block_scores, synthesis_scores, judge_weights):
+    # Step 1: Check binding judges
+    binding_pass = all(
+        min_score_for(block_scores, judge.role, judge.criteria) >= THRESHOLD
+        for judge in judges if judge.weight == "binding"
+    )
+
+    # Step 2: Check synthesis quality
+    synthesis_pass = mean(
+        s.score for s in synthesis_scores
+    ) >= SYNTHESIS_THRESHOLD
+
+    # Step 3: Check for dealbreakers
+    any_dealbreaker = any(
+        score.criterion == "risk" and score.score <= 1
+        for score in block_scores
+    )
+
+    if any_dealbreaker:
+        return "REJECT"
+    elif not binding_pass:
+        return "REVISE"
+    elif not synthesis_pass:
+        return "REVISE"
+    elif has_major_uncertainty(block_scores):
+        return "ESCALATE"
+    else:
+        return "ADOPT"
+```
+
+**Rules**:
+- `REJECT` is terminal. Do not return to Stage 3.
+- `REVISE` returns to Stage 3 with specific directives from binding judges.
+- `ESCALATE` is informational. The human decides what data to gather.
+- `ADOPT` requires unanimous binding-judge approval.
+
+### Output Artifact Schema
+
+Every v2 run produces a structured artifact at `.sisyphus/debates/{slug}/debate_v2.yaml`.
+
+**Top-level schema**:
+
+```yaml
+# debate_v2.yaml
+meta:
+  topic: "<decision topic>"
+  mode: architecture|comparative|writing
+  timestamp: "<ISO8601>"
+  critique_mode: strict|generous-steelman|neutral
+
+participants:
+  proposer:
+    agent: "<agent_id>"
+    role: oracle|general
+  critic:
+    agent: "<agent_id>"
+    role: mephistopheles
+  judges:
+    - role: analyst
+      agent: "<agent_id>"
+      weight: binding|advisory
+    ...
+
+stages:
+  proposal:
+    thesis_tree: [...]
+    raw_output: "<agent output>"
+
+  critique:
+    critiques: [...]
+    raw_output: "<agent output>"
+
+  revision:
+    revised_tree: [...]
+    change_log: [...]
+    raw_output: "<agent output>"
+
+  evaluation:
+    block_scores: [...]
+    synthesis_scores: [...]
+    verdict: ADOPT|REVISE|REJECT|ESCALATE
+    judge_outputs: [...]
+
+output:
+  # use-case-specific artifact (see v2 modes above)
+  recommendation: "..."
+  strongest_objection: "..."
+  what_changed: "..."
+  remaining_uncertainty: "..."
+  reversal_trigger: "..."
+  surviving_blocks: [...]
+```
+
+**Block score schema**:
+
+```yaml
+block_scores:
+  - block_id: b1
+    criterion: correctness
+    judge: analyst
+    score: 4  # 1-5 scale
+    rationale: "<why>"
+
+  - block_id: b1
+    criterion: simplicity
+    judge: aesthete
+    score: 2
+    rationale: "Over-engineered. Could achieve same with half the components."
+```
+
+**Synthesis score schema**:
+
+```yaml
+synthesis_scores:
+  - judge: analyst
+    integration: 4        # do blocks form a coherent whole?
+    risk_coverage: 3      # are major risks addressed?
+    revision_quality: 4   # did proposer address critiques well?
+```
+
+### What v2 Keeps From v1
+
+- Judge role definitions (Aesthete, Stylist, Analyst)
+- Persist-on-collect rule (write raw judge output to disk before parsing)
+- Retry and recovery protocol (10 min timeout, one retry, then skip)
+- Configurable judge counts
+- Mode concept (specialized behaviors per use case)
+
+### What v2 Drops From v1
+
+- Continuous tone parameter (20-90%)
+- Alpha/Beta winner-picking verdict
+- Alternating blinding in operational mode
+- S1-S4 segment scoring (replaced by block scoring)
+- Whole-argument competition structure
+
+### v2 Quick Start
+
+**Architecture Decision**:
+```
+/debate v2 architecture "Should we use CQRS for this service?"
+```
+Output: `debate_v2.yaml` with `decision: ADOPT|REVISE|REJECT|ESCALATE`
+
+**Comparative Analysis**:
+```
+/debate v2 comparative "GraphQL vs REST for public API"
+```
+Output: `debate_v2.yaml` with ranked options and dealbreakers
+
+**Writing Refinement**:
+```
+/debate v2 writing "Refactor this API documentation for clarity"
+```
+Output: `debate_v2.yaml` with `revised_draft` and change log
