@@ -71,6 +71,9 @@ write_summary() {
         overall="failed"
     fi
 
+    local highest_state
+    highest_state="$(compute_highest_state)"
+
     cat > "$EVIDENCE_DIR/summary.json" <<EOF
 {
   "component": "$COMPONENT",
@@ -80,9 +83,50 @@ write_summary() {
   "marker_timestamp": "$MARKER_TIMESTAMP",
   "overall": "$overall",
   "failure_code": "$FAILURE_CODE",
+  "highest_state": "$highest_state",
   "checks": $checks_json
 }
 EOF
+}
+
+compute_highest_state() {
+    # Determine the highest evidence state achieved based on which checks passed.
+    # Order (lowest to highest): repo_implemented < tests_passed < live_file_installed
+    #   < active_config_registered < runtime_loaded < real_project_behavior_proven
+    local runtime_passed=0
+    local config_passed=0
+    local live_file_passed=0
+
+    for result in "${CHECK_RESULTS[@]}"; do
+        # Extract check name
+        local name="${result#*\"check\":\"}"
+        name="${name%%\"*}"
+        # Extract status
+        local status="${result#*\"status\":\"}"
+        status="${status%%\"*}"
+
+        if [[ "$status" != "passed" ]]; then
+            continue
+        fi
+
+        case "$name" in
+            runtime_proven) runtime_passed=1 ;;
+            home_plugin_autoload|project_exists|project_is_git_repo) config_passed=1 ;;
+            config_symlink|plugin_file_exists|plugin_sha_match) live_file_passed=1 ;;
+        esac
+    done
+
+    if [[ -z "$FAILURE_CODE" ]]; then
+        echo "real_project_behavior_proven"
+    elif [[ "$runtime_passed" -eq 1 ]]; then
+        echo "runtime_loaded"
+    elif [[ "$config_passed" -eq 1 ]]; then
+        echo "active_config_registered"
+    elif [[ "$live_file_passed" -eq 1 ]]; then
+        echo "live_file_installed"
+    else
+        echo "repo_implemented"
+    fi
 }
 
 copy_evidence_snippets() {
