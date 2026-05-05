@@ -13,6 +13,7 @@
   "plugin": [
     "file:///home/ezotoff/.config/opencode/provider-connect-retry.mjs",
     "file:///home/ezotoff/.config/opencode/aspect-dynamics.mjs",
+    "file:///home/ezotoff/.opencode/plugin/vera-runtime.ts",
     "@tarquinen/opencode-dcp@latest",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
@@ -81,6 +82,27 @@
             "context": 128000,
             "input": 80000,
             "output": 64000
+          }
+        },
+        "gemini-3.1-pro-preview": {
+          "name": "Gemini 3.1 Pro Preview",
+          "limit": {
+            "context": 1048576,
+            "output": 65535
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {},
+            "high": {}
           }
         },
         "gpt-5.4": {
@@ -199,31 +221,6 @@
     "google": {
       "name": "Google",
       "models": {
-        "antigravity-gemini-3-pro": {
-          "name": "Gemini 3 Pro",
-          "limit": {
-            "context": 1048576,
-            "output": 65535
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image",
-              "pdf"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "low": {
-              "thinkingLevel": "low"
-            },
-            "high": {
-              "thinkingLevel": "high"
-            }
-          }
-        },
         "antigravity-gemini-3-flash": {
           "name": "Gemini 3 Flash",
           "limit": {

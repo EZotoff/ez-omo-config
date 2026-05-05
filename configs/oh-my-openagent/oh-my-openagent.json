@@ -10,7 +10,7 @@
         "wisdom",
         "vera"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, tests_passed, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "hephaestus": {
       "model": "github-copilot/gpt-5.3-codex",
@@ -20,12 +20,12 @@
       "model": "github-copilot/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "google/antigravity-gemini-3-pro"
+        "github-copilot/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, tests_passed, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "librarian": {
       "model": "opencode-go/minimax-m2.7",
@@ -45,7 +45,7 @@
       "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "multimodal-looker": {
-      "model": "google/antigravity-gemini-3-pro"
+      "model": "github-copilot/gemini-3.1-pro-preview"
     },
     "prometheus": {
       "model": "github-copilot/gpt-5.5",
@@ -57,7 +57,7 @@
         "wisdom",
         "vera"
       ],
-      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, tests_passed, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "metis": {
       "model": "github-copilot/gpt-5.5",
@@ -73,7 +73,7 @@
       "model": "github-copilot/gpt-5.5",
       "variant": "xhigh",
       "fallback_models": [
-        "google/antigravity-gemini-3-pro"
+        "github-copilot/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
@@ -88,7 +88,7 @@
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, tests_passed, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "sisyphus-junior": {
       "model": "zai-coding-plan/glm-5.1",
@@ -101,11 +101,11 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "github-copilot/gemini-3.1-pro-preview",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
       ],
-      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3 Pro for deeper reasoning. Use ui-quick for simple tasks instead."
+      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses GitHub Copilot Gemini 3.1 Pro Preview for deeper reasoning. Use ui-quick for simple tasks instead."
     },
     "document-writer": {
       "model": "kimi-for-coding-oauth/kimi-for-coding",
@@ -116,7 +116,7 @@
   },
   "categories": {
     "visual-engineering": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "github-copilot/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
@@ -131,7 +131,7 @@
       ]
     },
     "artistry": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "github-copilot/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
