@@ -8,9 +8,10 @@
       ],
       "skills": [
         "wisdom",
-        "vera"
+        "vera",
+        "vera-hygiene"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "hephaestus": {
       "model": "github-copilot/gpt-5.3-codex",
@@ -30,9 +31,10 @@
     "librarian": {
       "model": "opencode-go/minimax-m2.7",
       "skills": [
-        "vera"
+        "vera",
+        "vera-hygiene"
       ],
-      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
+      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill."
     },
     "explore": {
       "model": "opencode-go/minimax-m2.7",
@@ -40,9 +42,10 @@
         "github-copilot/grok-code-fast-1"
       ],
       "skills": [
-        "vera"
+        "vera",
+        "vera-hygiene"
       ],
-      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
+      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill."
     },
     "multimodal-looker": {
       "model": "google/antigravity-gemini-3-pro"
@@ -55,9 +58,10 @@
       ],
       "skills": [
         "wisdom",
-        "vera"
+        "vera",
+        "vera-hygiene"
       ],
-      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "metis": {
       "model": "github-copilot/gpt-5.5",
