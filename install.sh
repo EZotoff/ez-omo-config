@@ -55,6 +55,7 @@ ITEMS=(
     "skills|skills/merge-agent|$HOME/.config/opencode/skills/merge-agent"
     "skills|skills/parallel-dev|$HOME/.config/opencode/skills/parallel-dev"
     "skills|skills/worktree-coordinator|$HOME/.config/opencode/skills/worktree-coordinator"
+    "skills|skills/vera-hygiene|$HOME/.config/opencode/skills/vera-hygiene"
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"
     "scripts|scripts/wisdom/knowledge-constants.sh|$HOME/.sisyphus/scripts/knowledge-constants.sh"
     "scripts|scripts/wisdom/wisdom-search.sh|$HOME/.sisyphus/scripts/wisdom-search.sh"
@@ -77,6 +78,7 @@ ITEMS=(
     "scripts|scripts/worktree-post-create.sh|$HOME/.opencode/scripts/worktree-post-create.sh"
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
     "scripts|scripts/verify-live-deployment.sh|$HOME/.sisyphus/scripts/verify-live-deployment.sh"
+    "scripts|scripts/vera-hygiene.sh|$HOME/.sisyphus/scripts/vera-hygiene.sh"
 )
 
 DCP_PATCH_FILES=(

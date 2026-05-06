@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 57 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 59 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -46,6 +46,7 @@ Complete inventory of 57 core artifacts for ez-omo-config repository scaffold.
 | 28 | merge-agent/ | `~/.config/opencode/skills/merge-agent/` | `skills/merge-agent/` | `$HOME/.config/opencode/skills/` | Safe Merge | Optional |
 | 29 | parallel-dev/ | `~/.config/opencode/skills/parallel-dev/` | `skills/parallel-dev/` | `$HOME/.config/opencode/skills/` | Parallel Dev | Optional |
 | 30 | worktree-coordinator/ | `~/.config/opencode/skills/worktree-coordinator/` | `skills/worktree-coordinator/` | `$HOME/.config/opencode/skills/` | Worktree Coord | Optional |
+| 30a | vera-hygiene/ | `~/.config/opencode/skills/vera-hygiene/` | `skills/vera-hygiene/` | `$HOME/.config/opencode/skills/` | Vera Hygiene | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
@@ -58,10 +59,12 @@ Complete inventory of 57 core artifacts for ez-omo-config repository scaffold.
 | 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
+| 26d | vera-hygiene.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Vera Hygiene | Optional |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 | 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
 | 28a | test_dcp_bounded_range.sh | (repo only) | `tests/` | (repo only) | DCP Verification | Required |
 | 28b | test_dcp_startup_warning.sh | (repo only) | `tests/` | (repo only) | DCP Verification | Required |
+| 28c | test_vera_hygiene.sh | (repo only) | `tests/` | (repo only) | Vera Hygiene Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 
 ## Directory Structure
@@ -97,10 +100,12 @@ ez-omo-config/
 │   ├── frontend-ui-ux/     # Frontend/UX design skill
 │   ├── merge-agent/        # Safe branch merging with guardrails
 │   ├── parallel-dev/       # Multi-agent orchestration with decision framework
-│   └── worktree-coordinator/ # Worktree parallel development guide
+│   ├── worktree-coordinator/ # Worktree parallel development guide
+│   └── vera-hygiene/       # Vera index hygiene and .veraignore management
 ├── scripts/
 │   ├── wisdom/             # Wisdom propagation scripts (9 files)
-│   └── worktree/           # Worktree lifecycle hooks (2 files)
+│   ├── worktree/           # Worktree lifecycle hooks (2 files)
+│   └── vera-hygiene.sh     # Vera hygiene script
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, live deployment verification, and observability contract
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
@@ -117,13 +122,13 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 57 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 9 dirs + 1 external, scripts: 12, tests: 4, extras: 1, docs: 5)
+- **Total Artifacts**: 59 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 13, tests: 5, extras: 1, docs: 5)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
-- **Skills**: 9 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
-- **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script
-- **Tests**: 4 test scripts (aspect-dynamics runtime test, live deployment contract test, DCP bounded range test, DCP startup warning test)
+- **Skills**: 10 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
+- **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script
+- **Tests**: 5 test scripts (aspect-dynamics runtime test, live deployment contract test, DCP bounded range test, DCP startup warning test, vera hygiene test)
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
