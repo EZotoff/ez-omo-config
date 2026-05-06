@@ -7,11 +7,14 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPONENT=""
 PROJECT_PATH=""
 EVIDENCE_DIR=""
-ALLOW_EXISTING_INDEX=0
+PROBE_QUERY=""
+PROBE_EXPECT=""
 
 FAILURE_CODE=""
 CHECK_RESULTS=()
 MARKER_TIMESTAMP=""
+
+HIGHEST_STATE="repo_implemented"
 
 usage() {
     cat <<'EOF'
@@ -23,7 +26,8 @@ Required:
   --evidence-dir <path>    Directory to write evidence files
 
 Optional:
-  --allow-existing-index   Allow pre-existing .vera/ index as proof (default: false)
+  --probe-query <query>    Search query required to reach real_project_behavior_proven
+  --probe-expect <string>  Expected substring or path in search results
   --help                   Show this help text
 
 Exit codes:
@@ -80,6 +84,7 @@ write_summary() {
   "marker_timestamp": "$MARKER_TIMESTAMP",
   "overall": "$overall",
   "failure_code": "$FAILURE_CODE",
+  "highest_state": "$HIGHEST_STATE",
   "checks": $checks_json
 }
 EOF
@@ -107,9 +112,13 @@ while [[ $# -gt 0 ]]; do
             EVIDENCE_DIR="$2"
             shift 2
             ;;
-        --allow-existing-index)
-            ALLOW_EXISTING_INDEX=1
-            shift
+        --probe-query)
+            PROBE_QUERY="$2"
+            shift 2
+            ;;
+        --probe-expect)
+            PROBE_EXPECT="$2"
+            shift 2
             ;;
         --help)
             usage
@@ -133,15 +142,10 @@ mkdir -p "$EVIDENCE_DIR"
 : > "$EVIDENCE_DIR/commands.txt"
 : > "$EVIDENCE_DIR/live-paths.txt"
 
-EXPECTED_SYMLINK_TARGET="/home/ezotoff/ez-omo-config/configs/opencode/opencode.json"
+EXPECTED_SYMLINK_TARGET="$REPO_ROOT/configs/opencode/opencode.json"
 ACTUAL_SYMLINK_TARGET=""
-if [[ -L "$HOME/.config/opencode/opencode.json" ]]; then
-    ACTUAL_SYMLINK_TARGET="$(readlink -f "$HOME/.config/opencode/opencode.json" 2>/dev/null || true)"
-    log_cmd "readlink -f \"$HOME/.config/opencode/opencode.json\""
-else
-    ACTUAL_SYMLINK_TARGET="$(readlink -f "$HOME/.config/opencode/opencode.json" 2>/dev/null || true)"
-    log_cmd "readlink -f \"$HOME/.config/opencode/opencode.json\""
-fi
+ACTUAL_SYMLINK_TARGET="$(readlink -f "$HOME/.config/opencode/opencode.json" 2>/dev/null || true)"
+log_cmd "readlink -f \"$HOME/.config/opencode/opencode.json\""
 
 if [[ "$ACTUAL_SYMLINK_TARGET" != "$EXPECTED_SYMLINK_TARGET" ]]; then
     record_result "config_symlink" "failed" \
@@ -183,20 +187,44 @@ else
         "Live plugin missing, SHA check skipped"
 fi
 
+HIGHEST_STATE="live_file_installed"
+
 ACTIVE_CONFIG="$HOME/.config/opencode/opencode.json"
 log_cmd "test -f \"$ACTIVE_CONFIG\""
 if [[ -f "$ACTIVE_CONFIG" ]]; then
-    record_result "home_plugin_autoload" "passed" \
-        "vera-runtime is installed in the HOME plugin directory; OpenCode auto-loads ~/.opencode/plugin/*.ts"
+    record_result "active_config_exists" "passed" \
+        "Active config found: $ACTIVE_CONFIG"
     echo "$ACTIVE_CONFIG" >> "$EVIDENCE_DIR/live-paths.txt"
 else
-    record_result "home_plugin_autoload" "failed" \
+    record_result "active_config_exists" "failed" \
         "Active config not found: $ACTIVE_CONFIG"
     fail_with "active_config_missing"
 fi
 
-if [[ -f "$ACTIVE_CONFIG" ]]; then
-    python3 -c "import json; data=json.load(open('$ACTIVE_CONFIG')); print(json.dumps(data.get('plugins', [])))" > "$EVIDENCE_DIR/active-config-plugin-array.json" 2>/dev/null || true
+python3 -c "
+import json
+try:
+    with open('$ACTIVE_CONFIG', 'r', encoding='utf-8') as fh:
+        data = json.load(fh)
+    plugin = data.get('plugin', [])
+    if not isinstance(plugin, list):
+        raise ValueError('plugin is not a list')
+    with open('$EVIDENCE_DIR/active-config-plugin-array.json', 'w', encoding='utf-8') as out:
+        json.dump(plugin, out)
+    print('ok')
+except Exception as e:
+    print('error:', e)
+    raise SystemExit(1)
+" > "$EVIDENCE_DIR/active-config-extraction.log" 2>&1
+
+if [[ $? -eq 0 ]]; then
+    record_result "active_config_autoload" "passed" \
+        "Active config has valid 'plugin' list key"
+    HIGHEST_STATE="active_config_registered"
+else
+    record_result "active_config_autoload" "failed" \
+        "Active config missing valid 'plugin' list key"
+    fail_with "active_config_invalid"
 fi
 
 log_cmd "test -d \"$PROJECT_PATH\""
@@ -246,98 +274,225 @@ RUNTIME_PROVEN=0
 STALE_REASON=""
 EVIDENCE_FOUND=0
 
+: > "$EVIDENCE_DIR/runtime-project-evidence.txt"
+
 if [[ -f "$RUNTIME_LOG" ]]; then
     EVIDENCE_FOUND=1
     POST_MARKER_COUNT=$(grep -cE '\[2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}' "$RUNTIME_LOG" 2>/dev/null | awk '{print}')
     if [[ -n "$POST_MARKER_COUNT" && "$POST_MARKER_COUNT" -gt 0 ]]; then
-        LAST_LOG_TIMESTAMP=$(grep -oE '2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z' "$RUNTIME_LOG" 2>/dev/null | tail -n 1)
-        if [[ -n "$LAST_LOG_TIMESTAMP" ]]; then
-            MARKER_MIN="${MARKER_TIMESTAMP:0:16}"
-            LOG_MIN="${LAST_LOG_TIMESTAMP:0:16}"
-            if [[ "$LOG_MIN" > "$MARKER_MIN" || "$LOG_MIN" == "$MARKER_MIN" ]]; then
-                RUNTIME_PROVEN=1
-            else
-                STALE_REASON="Last log timestamp $LAST_LOG_TIMESTAMP is before marker $MARKER_TIMESTAMP"
+        MARKER_MIN="${MARKER_TIMESTAMP:0:16}"
+        while IFS= read -r line; do
+            log_ts=$(echo "$line" | grep -oE '2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z' | head -n1)
+            if [[ -n "$log_ts" ]]; then
+                log_min="${log_ts:0:16}"
+                if [[ "$log_min" > "$MARKER_MIN" || "$log_min" == "$MARKER_MIN" ]]; then
+                    if [[ "$line" == *"$REAL_PROJECT_PATH"* || "$line" == *"$WORKSPACE_KEY"* ]]; then
+                        RUNTIME_PROVEN=1
+                        echo "$line" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
+                    fi
+                fi
             fi
-        fi
+        done < "$RUNTIME_LOG"
     fi
     copy_evidence_snippets "$RUNTIME_LOG" "runtime-log-snippet.txt"
 fi
 
+WATCHER_STATUS=""
+WATCHER_PID=""
+WATCHER_WORKSPACE_KEY=""
+WATCHER_WORKSPACE_PATH=""
+LAST_VERIFIED=""
+LAST_INDEXED=""
+LAST_FAILURE_REASON=""
+
 if [[ -f "$WATCHER_STATE_FILE" ]]; then
     EVIDENCE_FOUND=1
-    LAST_VERIFIED=$(grep -oE '"lastVerifiedAt": "[^"]*"' "$WATCHER_STATE_FILE" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/' | head -n 1)
-    LAST_INDEXED=$(grep -oE '"lastIndexedAt": "[^"]*"' "$WATCHER_STATE_FILE" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/' | head -n 1)
+    WATCHER_JSON="$(python3 -c "
+import json, sys
+try:
+    with open('$WATCHER_STATE_FILE', 'r', encoding='utf-8') as fh:
+        data = json.load(fh)
+    result = {
+        'status': data.get('status', ''),
+        'pid': data.get('pid', ''),
+        'workspaceKey': data.get('workspaceKey', ''),
+        'workspacePath': data.get('workspacePath', ''),
+        'lastVerifiedAt': data.get('lastVerifiedAt', ''),
+        'lastIndexedAt': data.get('lastIndexedAt', ''),
+        'lastFailureReason': data.get('lastFailureReason', '')
+    }
+    print(json.dumps(result))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
+    sys.exit(1)
+" 2>/dev/null)" || WATCHER_JSON="{}"
+
+    WATCHER_STATUS="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',''))")"
+    WATCHER_PID="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('pid','')))")"
+    WATCHER_WORKSPACE_KEY="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('workspaceKey',''))")"
+    WATCHER_WORKSPACE_PATH="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('workspacePath',''))")"
+    LAST_VERIFIED="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('lastVerifiedAt',''))")"
+    LAST_INDEXED="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('lastIndexedAt',''))")"
+    LAST_FAILURE_REASON="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('lastFailureReason',''))")"
 
     MARKER_MIN="${MARKER_TIMESTAMP:0:16}"
 
-    if [[ -n "$LAST_VERIFIED" ]]; then
+    if [[ -n "$LAST_VERIFIED" && "$LAST_VERIFIED" != "null" ]]; then
         VERIFIED_MIN="${LAST_VERIFIED:0:16}"
         if [[ "$VERIFIED_MIN" > "$MARKER_MIN" || "$VERIFIED_MIN" == "$MARKER_MIN" ]]; then
-            RUNTIME_PROVEN=1
+            if [[ "$WATCHER_WORKSPACE_KEY" == "$WORKSPACE_KEY" || "$WATCHER_WORKSPACE_PATH" == "$REAL_PROJECT_PATH" ]]; then
+                RUNTIME_PROVEN=1
+                echo "watcher_state verified: workspaceKey=$WATCHER_WORKSPACE_KEY workspacePath=$WATCHER_WORKSPACE_PATH lastVerifiedAt=$LAST_VERIFIED" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
+            fi
         fi
     fi
 
-    if [[ -n "$LAST_INDEXED" && "$RUNTIME_PROVEN" -eq 0 ]]; then
+    if [[ -n "$LAST_INDEXED" && "$LAST_INDEXED" != "null" && "$RUNTIME_PROVEN" -eq 0 ]]; then
         INDEXED_MIN="${LAST_INDEXED:0:16}"
         if [[ "$INDEXED_MIN" > "$MARKER_MIN" || "$INDEXED_MIN" == "$MARKER_MIN" ]]; then
-            RUNTIME_PROVEN=1
-        fi
-    fi
-
-    if [[ "$RUNTIME_PROVEN" -eq 0 ]]; then
-        if [[ -z "$STALE_REASON" ]]; then
-            STALE_REASON="Watcher state lastVerifiedAt=$LAST_VERIFIED, lastIndexedAt=$LAST_INDEXED both before marker $MARKER_TIMESTAMP"
+            if [[ "$WATCHER_WORKSPACE_KEY" == "$WORKSPACE_KEY" || "$WATCHER_WORKSPACE_PATH" == "$REAL_PROJECT_PATH" ]]; then
+                RUNTIME_PROVEN=1
+                echo "watcher_state indexed: workspaceKey=$WATCHER_WORKSPACE_KEY workspacePath=$WATCHER_WORKSPACE_PATH lastIndexedAt=$LAST_INDEXED" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
+            fi
         fi
     fi
 
     copy_evidence_snippets "$WATCHER_STATE_FILE" "watcher-state-snippet.json"
 fi
 
-if [[ "$RUNTIME_PROVEN" -eq 1 ]]; then
-    record_result "runtime_proven" "passed" \
-        "Runtime proven by post-marker log or watcher state timestamp"
-else
-    if [[ -z "$STALE_REASON" ]]; then
-        STALE_REASON="No runtime log or watcher state found with post-marker timestamps"
-    fi
-    record_result "runtime_proven" "failed" "$STALE_REASON"
-    if [[ "$EVIDENCE_FOUND" -eq 1 ]]; then
-        fail_with "stale_runtime_evidence"
-    else
-        fail_with "runtime_not_proven"
-    fi
-fi
-
-MISSING_BINARY=0
-if [[ -f "$WATCHER_STATE_FILE" ]]; then
-    if grep -q '"status": "missing-binary"' "$WATCHER_STATE_FILE" 2>/dev/null; then
-        MISSING_BINARY=1
-        record_result "vera_index_exists" "passed" \
-            "Vera index check skipped: watcher state reports missing-binary (fail-open)"
-    fi
-fi
-
-if [[ "$MISSING_BINARY" -eq 0 ]]; then
-    VERA_INDEX_PATH="$REAL_PROJECT_PATH/.vera"
-    log_cmd "test -d \"$VERA_INDEX_PATH\""
-    if [[ -d "$VERA_INDEX_PATH" ]]; then
-        record_result "vera_index_exists" "passed" \
-            "Vera index directory exists: $VERA_INDEX_PATH"
-    else
-        if [[ "$ALLOW_EXISTING_INDEX" -eq 1 ]]; then
-            record_result "vera_index_exists" "passed" \
-                "Vera index missing but --allow-existing-index set; accepting"
-        else
-            record_result "vera_index_exists" "failed" \
-                "Vera index directory missing: $VERA_INDEX_PATH"
-            fail_with "vera_index_missing"
+PID_VALID=0
+if [[ -n "$WATCHER_PID" && "$WATCHER_PID" != "null" && "$WATCHER_PID" != "" ]]; then
+    log_cmd "test -d /proc/$WATCHER_PID"
+    if [[ -d "/proc/$WATCHER_PID" ]]; then
+        PID_OWNER="$(stat -c '%U' "/proc/$WATCHER_PID" 2>/dev/null || true)"
+        CURRENT_USER="$(id -un)"
+        if [[ "$PID_OWNER" == "$CURRENT_USER" ]]; then
+            PID_CMDLINE=""
+            if [[ -f "/proc/$WATCHER_PID/cmdline" ]]; then
+                PID_CMDLINE="$(tr '\0' ' ' < "/proc/$WATCHER_PID/cmdline" 2>/dev/null || true)"
+            fi
+            if [[ "$PID_CMDLINE" == *"vera"* && "$PID_CMDLINE" == *"watch"* && "$PID_CMDLINE" == *"$REAL_PROJECT_PATH"* ]]; then
+                PID_VALID=1
+                echo "$WATCHER_PID" > "$EVIDENCE_DIR/watcher-pid.txt"
+            fi
         fi
     fi
+fi
+
+if [[ "$RUNTIME_PROVEN" -eq 1 ]]; then
+    record_result "runtime_project_log" "passed" \
+        "Runtime proven by post-marker log or watcher state with exact project/workspace match"
+else
+    if [[ -z "$STALE_REASON" ]]; then
+        if [[ "$EVIDENCE_FOUND" -eq 1 ]]; then
+            STALE_REASON="No post-marker runtime evidence found with exact project path ($REAL_PROJECT_PATH) or workspace key ($WORKSPACE_KEY)"
+        else
+            STALE_REASON="No runtime log or watcher state found"
+        fi
+    fi
+    record_result "runtime_project_log" "failed" "$STALE_REASON"
+    fail_with "runtime_not_proven"
+fi
+
+if [[ "$PID_VALID" -eq 1 ]]; then
+    record_result "watcher_pid_owned" "passed" \
+        "Watcher PID $WATCHER_PID is alive, owned by current user, and cmdline contains 'vera watch' with project path"
+    HIGHEST_STATE="runtime_loaded"
+else
+    record_result "watcher_pid_owned" "failed" \
+        "Watcher PID is missing, dead, not owned by current user, or cmdline does not contain 'vera watch' with exact project path"
+    fail_with "watcher_pid_invalid"
+fi
+
+VERA_OVERVIEW=""
+VERA_FILES=0
+VERA_CHUNKS=0
+
+if command -v vera >/dev/null 2>&1; then
+    log_cmd "vera overview (in $REAL_PROJECT_PATH)"
+    if VERA_OVERVIEW="$(cd "$REAL_PROJECT_PATH" && vera overview 2>/dev/null)"; then
+        echo "$VERA_OVERVIEW" > "$EVIDENCE_DIR/vera-overview.txt"
+        VERA_FILES="$(echo "$VERA_OVERVIEW" | grep -oE 'Files:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1)"
+        VERA_CHUNKS="$(echo "$VERA_OVERVIEW" | grep -oE 'Chunks:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1)"
+        VERA_FILES="${VERA_FILES:-0}"
+        VERA_CHUNKS="${VERA_CHUNKS:-0}"
+    else
+        echo "vera overview command failed" > "$EVIDENCE_DIR/vera-overview.txt"
+    fi
+else
+    echo "vera binary not found in PATH" > "$EVIDENCE_DIR/vera-overview.txt"
+fi
+
+if [[ -d "$REAL_PROJECT_PATH/.vera" ]]; then
+    if [[ "$VERA_FILES" -gt 0 && "$VERA_CHUNKS" -gt 0 ]]; then
+        record_result "vera_root_index_nonempty" "passed" \
+            "Root .vera index is non-hollow (Files: $VERA_FILES, Chunks: $VERA_CHUNKS)"
+    else
+        record_result "vera_root_index_nonempty" "failed" \
+            "Root .vera index is hollow or missing (Files: ${VERA_FILES:-0}, Chunks: ${VERA_CHUNKS:-0})"
+        fail_with "vera_index_hollow"
+    fi
+else
+    record_result "vera_root_index_nonempty" "failed" \
+        "Root .vera directory missing: $REAL_PROJECT_PATH/.vera"
+    fail_with "vera_index_missing"
+fi
+
+NESTED_VERA_FOUND=0
+while IFS= read -r -d '' nested_vera; do
+    NESTED_VERA_FOUND=1
+    break
+done < <(find "$REAL_PROJECT_PATH" -mindepth 2 -type d -name '.vera' -print0 2>/dev/null)
+
+if [[ "$NESTED_VERA_FOUND" -eq 1 ]]; then
+    record_result "vera_nested_index" "failed" \
+        "Nested .vera index found; only root .vera is accepted"
+    fail_with "vera_index_nested"
+else
+    record_result "vera_nested_index" "passed" \
+        "No nested .vera indexes found"
+fi
+
+SEARCH_HIT=0
+if [[ -n "$PROBE_QUERY" ]]; then
+    log_cmd "vera search '$PROBE_QUERY' (in $REAL_PROJECT_PATH)"
+    if command -v vera >/dev/null 2>&1; then
+        SEARCH_OUTPUT="$(cd "$REAL_PROJECT_PATH" && vera search "$PROBE_QUERY" 2>/dev/null || true)"
+        echo "$SEARCH_OUTPUT" > "$EVIDENCE_DIR/vera-search.txt"
+
+        if [[ -n "$PROBE_EXPECT" ]]; then
+            if echo "$SEARCH_OUTPUT" | grep -qF "$PROBE_EXPECT"; then
+                SEARCH_HIT=1
+            fi
+        else
+            if echo "$SEARCH_OUTPUT" | grep -qF "$REAL_PROJECT_PATH"; then
+                SEARCH_HIT=1
+            elif echo "$SEARCH_OUTPUT" | grep -qE '^```[a-zA-Z0-9_./-]+:'; then
+                SEARCH_HIT=1
+            fi
+        fi
+    else
+        echo "vera binary not found in PATH" > "$EVIDENCE_DIR/vera-search.txt"
+    fi
+
+    if [[ "$SEARCH_HIT" -eq 1 ]]; then
+        record_result "vera_project_search" "passed" \
+            "Search probe '$PROBE_QUERY' returned result under project root"
+        HIGHEST_STATE="real_project_behavior_proven"
+    else
+        record_result "vera_project_search" "failed" \
+            "Search probe '$PROBE_QUERY' did not return expected result"
+        fail_with "vera_search_probe_failed"
+    fi
+else
+    record_result "vera_project_search" "skipped" \
+        "No --probe-query provided; highest_state capped at runtime_loaded"
+    echo "No --probe-query provided" > "$EVIDENCE_DIR/vera-search.txt"
 fi
 
 write_summary
 
 echo "All checks passed for component '$COMPONENT'."
+echo "Highest state earned: $HIGHEST_STATE"
 echo "Evidence written to: $EVIDENCE_DIR"
 exit 0
