@@ -31,6 +31,10 @@ export interface VeraWatcherState {
 	lastVerifiedAt: string | null
 	lastFailureAt: string | null
 	lastFailureReason: string | null
+	restartAttempts?: number
+	lastRestartAttemptAt?: string | null
+	hygieneStatus?: string | null
+	lastHygieneCheckAt?: string | null
 }
 
 const STATE_BASE = `${process.env.HOME}/.local/share/opencode/worktree-state`
@@ -38,6 +42,8 @@ const LOG_PATH = `${process.env.HOME}/.opencode/plugin/vera-runtime.log`
 const STALENESS_MS = 5 * 60 * 1000
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000
 const KILL_WAIT_SECONDS = 5
+const MAX_RESTART_ATTEMPTS = 3
+const RESTART_WINDOW_MS = 10 * 60 * 1000
 const watcherStateWriteLocks = new Set<string>()
 const healthCheckTimers = new Map<string, ReturnType<typeof setInterval>>()
 
@@ -205,6 +211,83 @@ function validatePidOwnership(pid: number, workspacePath: string): boolean {
 	}
 }
 
+function isVeraIndexNonEmpty(workspacePath: string): boolean {
+	try {
+		log("info", `[${workspacePath}] Checking vera index non-empty`)
+		const proc = Bun.spawnSync(["vera", "overview"], {
+			cwd: workspacePath,
+			stdout: "pipe",
+			stderr: "pipe",
+		})
+		if (!proc.success) {
+			log("warn", `[${workspacePath}] vera overview failed`)
+			return false
+		}
+		const output = proc.stdout.toString()
+		const filesMatch = output.match(/Files:\s*(\d+)/)
+		const chunksMatch = output.match(/Chunks:\s*(\d+)/)
+		if (!filesMatch || !chunksMatch) {
+			log("warn", `[${workspacePath}] vera overview parse failure`)
+			return false
+		}
+		const files = parseInt(filesMatch[1], 10)
+		const chunks = parseInt(chunksMatch[1], 10)
+		const nonEmpty = files > 0 && chunks > 0
+		log("info", `[${workspacePath}] index non-empty=${nonEmpty} (files=${files}, chunks=${chunks})`)
+		return nonEmpty
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : String(err)
+		log("error", `[${workspacePath}] isVeraIndexNonEmpty exception: ${reason}`)
+		return false
+	}
+}
+
+function runVeraHygieneCheck(workspacePath: string): boolean {
+	const scriptPath = `${process.env.HOME}/.sisyphus/scripts/vera-hygiene.sh`
+	try {
+		log("info", `[${workspacePath}] hygiene check`)
+		const proc = Bun.spawnSync(["bash", scriptPath, "--project", workspacePath, "--check"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		})
+		if (proc.success) {
+			log("info", `[${workspacePath}] hygiene check passed`)
+			return true
+		}
+		const err = proc.stderr?.toString().trim() || "hygiene check failed"
+		log("warn", `[${workspacePath}] hygiene check failed: ${err}`)
+		return false
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : String(err)
+		log("warn", `[${workspacePath}] hygiene check unavailable (${scriptPath}): ${reason}`)
+		return false
+	}
+}
+
+function canAttemptRestart(state: VeraWatcherState): boolean {
+	const now = Date.now()
+	const attempts = state.restartAttempts ?? 0
+	const lastAttempt = state.lastRestartAttemptAt ? new Date(state.lastRestartAttemptAt).getTime() : 0
+	if (attempts >= MAX_RESTART_ATTEMPTS && lastAttempt && now - lastAttempt < RESTART_WINDOW_MS) {
+		log("warn", `[${state.workspacePath}] restart cooldown: attempts=${attempts}, last=${state.lastRestartAttemptAt}`)
+		return false
+	}
+	if (lastAttempt && now - lastAttempt >= RESTART_WINDOW_MS) {
+		state.restartAttempts = 0
+	}
+	return true
+}
+
+function recordRestartAttempt(state: VeraWatcherState): void {
+	state.restartAttempts = (state.restartAttempts ?? 0) + 1
+	state.lastRestartAttemptAt = new Date().toISOString()
+}
+
+function resetRestartAttempts(state: VeraWatcherState): void {
+	state.restartAttempts = 0
+	state.lastRestartAttemptAt = null
+}
+
 function runVeraIndex(workspacePath: string): boolean {
 	try {
 		log("info", `[${workspacePath}] Running vera index .`)
@@ -240,7 +323,7 @@ function startVeraWatch(workspacePath: string): { pid: number } | null {
 			log("error", `[${workspacePath}] vera watch ${workspacePath} spawned but no pid returned`)
 			return null
 		}
-		log("info", `[${workspacePath}] vera watch ${workspacePath} started with pid=${pid}`)
+		log("info", `[${workspacePath}] watcher started pid=${pid}`)
 		return { pid }
 	} catch (err) {
 		const reason = err instanceof Error ? err.message : String(err)
@@ -271,11 +354,71 @@ function runVeraUpdate(workspacePath: string): boolean {
 	}
 }
 
+function performSafeRestart(workspacePath: string, state: VeraWatcherState): boolean {
+	if (!canAttemptRestart(state)) {
+		state.status = "watch-failed"
+		state.lastFailureAt = new Date().toISOString()
+		state.lastFailureReason = `Restart limit reached (${MAX_RESTART_ATTEMPTS} attempts in ${RESTART_WINDOW_MS / 60000} minutes). Run vera-hygiene --apply if blockers persist.`
+		writeWatcherState(workspacePath, state)
+		log("error", `[${workspacePath}] safe restart aborted: limit reached`)
+		return false
+	}
+
+	recordRestartAttempt(state)
+
+	if (!isVeraIndexNonEmpty(workspacePath)) {
+		const hygienePassed = runVeraHygieneCheck(workspacePath)
+		state.hygieneStatus = hygienePassed ? "passed" : "failed"
+		state.lastHygieneCheckAt = new Date().toISOString()
+
+		if (!hygienePassed) {
+			state.status = "index-failed"
+			state.lastFailureAt = new Date().toISOString()
+			state.lastFailureReason = "Vera index is hollow/has blockers. Run vera-hygiene --apply to resolve."
+			writeWatcherState(workspacePath, state)
+			log("error", `[${workspacePath}] safe restart aborted: hollow index with hygiene blockers`)
+			return false
+		}
+
+		const indexed = runVeraIndex(workspacePath)
+		if (!indexed) {
+			state.status = "index-failed"
+			state.lastFailureAt = new Date().toISOString()
+			state.lastFailureReason = "vera index . failed during safe restart"
+			writeWatcherState(workspacePath, state)
+			log("error", `[${workspacePath}] safe restart aborted: vera index failed`)
+			return false
+		}
+		state.lastIndexedAt = new Date().toISOString()
+	}
+
+	const watchResult = startVeraWatch(workspacePath)
+	if (!watchResult) {
+		state.status = "watch-failed"
+		state.lastFailureAt = new Date().toISOString()
+		state.lastFailureReason = "vera watch . failed to start during safe restart"
+		writeWatcherState(workspacePath, state)
+		log("error", `[${workspacePath}] safe restart aborted: vera watch failed`)
+		return false
+	}
+
+	state.pid = watchResult.pid
+	state.status = "running"
+	state.startedAt = new Date().toISOString()
+	state.lastVerifiedAt = new Date().toISOString()
+	state.lastFailureAt = null
+	state.lastFailureReason = null
+	resetRestartAttempts(state)
+	writeWatcherState(workspacePath, state)
+	log("info", `[${workspacePath}] safe restart succeeded pid=${state.pid}`)
+	return true
+}
+
 const VeraRuntimePlugin: Plugin = async (ctx) => {
 	const { directory } = ctx
 
 	if (!veraAvailable()) {
-		console.error("[vera-runtime] Vera binary not found; plugin disabled (fail-open).")
+		log("error", "[vera-runtime] Vera binary not found; plugin disabled (fail-open).")
 		log("warn", `Vera binary not found for ${directory}; plugin disabled`)
 		try {
 			let state = readWatcherState(directory)
@@ -316,19 +459,14 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 			const owned = alive ? validatePidOwnership(state.pid, directory) : false
 			if (alive && owned) {
 				state.lastVerifiedAt = new Date().toISOString()
+				resetRestartAttempts(state)
 				writeWatcherState(directory, state)
-				log("debug", `[${directory}] Health check: pid=${state.pid} alive`)
+				log("debug", `[${directory}] health check pid=${state.pid} alive`)
 			} else {
-				state.status = "stale"
-				state.lastFailureAt = new Date().toISOString()
-				state.lastFailureReason = alive
-					? `PID ${state.pid} not owned by workspace ${directory} (health check)`
-					: "PID no longer alive (health check)"
-				writeWatcherState(directory, state)
-				if (!owned && alive) {
-					log("warn", `[${directory}] Health check: pid=${state.pid} ownership validation failed, marked stale`)
-				} else {
-					log("warn", `[${directory}] Health check: pid=${state.pid} dead, marked stale`)
+				log("warn", `[${directory}] health check: pid=${state.pid} ${alive ? "unowned" : "dead"}, attempting safe restart`)
+				const restarted = performSafeRestart(directory, state)
+				if (!restarted) {
+					log("error", `[${directory}] health check: safe restart failed, status=${state.status}`)
 				}
 			}
 		} catch (err) {
@@ -358,6 +496,8 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 					state.sessionIds.push(sessionId)
 				}
 
+				log("info", `[${directory}] session.created`)
+
 				const needsBootstrap =
 					state.status === "stopped" ||
 					state.status === "missing-binary" ||
@@ -386,6 +526,30 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 					}
 					state.lastIndexedAt = new Date().toISOString()
 
+					if (!isVeraIndexNonEmpty(directory)) {
+						const hygienePassed = runVeraHygieneCheck(directory)
+						state.hygieneStatus = hygienePassed ? "passed" : "failed"
+						state.lastHygieneCheckAt = new Date().toISOString()
+						if (!hygienePassed) {
+							state.status = "index-failed"
+							state.lastFailureAt = new Date().toISOString()
+							state.lastFailureReason = "Vera index is hollow/has blockers. Run vera-hygiene --apply to resolve."
+							writeWatcherState(directory, state)
+							log("error", `[${directory}] session.created: hollow index with hygiene blockers`)
+							return
+						}
+						const reindexed = runVeraIndex(directory)
+						if (!reindexed || !isVeraIndexNonEmpty(directory)) {
+							state.status = "index-failed"
+							state.lastFailureAt = new Date().toISOString()
+							state.lastFailureReason = "vera index . still hollow after hygiene and reindex"
+							writeWatcherState(directory, state)
+							log("error", `[${directory}] session.created: index still hollow after reindex`)
+							return
+						}
+						state.lastIndexedAt = new Date().toISOString()
+					}
+
 					const watchResult = startVeraWatch(directory)
 					if (!watchResult) {
 						state.status = "watch-failed"
@@ -400,76 +564,75 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 					state.status = "running"
 					state.startedAt = new Date().toISOString()
 					state.lastVerifiedAt = new Date().toISOString()
-					log("info", `[${directory}] session.created: watcher started pid=${state.pid}`)
-			} else if (state.status === "indexed") {
-				if (!veraAvailable()) {
-					state.status = "missing-binary"
-					state.lastFailureAt = new Date().toISOString()
-					state.lastFailureReason = "vera binary not available"
-					writeWatcherState(directory, state)
-					log("warn", `[${directory}] session.created: vera not available, status=missing-binary`)
-					return
-				}
+					resetRestartAttempts(state)
+					log("info", `[${directory}] watcher started pid=${state.pid}`)
+				} else if (state.status === "indexed") {
+					if (!veraAvailable()) {
+						state.status = "missing-binary"
+						state.lastFailureAt = new Date().toISOString()
+						state.lastFailureReason = "vera binary not available"
+						writeWatcherState(directory, state)
+						log("warn", `[${directory}] session.created: vera not available, status=missing-binary`)
+						return
+					}
 
-				const watchResult = startVeraWatch(directory)
-				if (!watchResult) {
-					state.status = "watch-failed"
-					state.lastFailureAt = new Date().toISOString()
-					state.lastFailureReason = "vera watch . failed to start"
-					writeWatcherState(directory, state)
-					log("error", `[${directory}] session.created: vera watch failed to start`)
-					return
-				}
+					if (!isVeraIndexNonEmpty(directory)) {
+						const hygienePassed = runVeraHygieneCheck(directory)
+						state.hygieneStatus = hygienePassed ? "passed" : "failed"
+						state.lastHygieneCheckAt = new Date().toISOString()
+						if (!hygienePassed) {
+							state.status = "index-failed"
+							state.lastFailureAt = new Date().toISOString()
+							state.lastFailureReason = "Vera index is hollow/has blockers. Run vera-hygiene --apply to resolve."
+							writeWatcherState(directory, state)
+							log("error", `[${directory}] session.created: hollow index with hygiene blockers`)
+							return
+						}
+						const reindexed = runVeraIndex(directory)
+						if (!reindexed || !isVeraIndexNonEmpty(directory)) {
+							state.status = "index-failed"
+							state.lastFailureAt = new Date().toISOString()
+							state.lastFailureReason = "vera index . still hollow after hygiene and reindex"
+							writeWatcherState(directory, state)
+							log("error", `[${directory}] session.created: index still hollow after reindex`)
+							return
+						}
+						state.lastIndexedAt = new Date().toISOString()
+					}
 
-				state.pid = watchResult.pid
-				state.status = "running"
-				state.startedAt = new Date().toISOString()
-				state.lastVerifiedAt = new Date().toISOString()
-				log("info", `[${directory}] session.created: watcher started pid=${state.pid}`)
-			} else if (state.status === "running") {
+					const watchResult = startVeraWatch(directory)
+					if (!watchResult) {
+						state.status = "watch-failed"
+						state.lastFailureAt = new Date().toISOString()
+						state.lastFailureReason = "vera watch . failed to start"
+						writeWatcherState(directory, state)
+						log("error", `[${directory}] session.created: vera watch failed to start`)
+						return
+					}
+
+					state.pid = watchResult.pid
+					state.status = "running"
+					state.startedAt = new Date().toISOString()
+					state.lastVerifiedAt = new Date().toISOString()
+					resetRestartAttempts(state)
+					log("info", `[${directory}] watcher started pid=${state.pid}`)
+				} else if (state.status === "running") {
 					if (state.pid && isPidAlive(state.pid) && validatePidOwnership(state.pid, directory)) {
 						state.lastVerifiedAt = new Date().toISOString()
+						resetRestartAttempts(state)
 						log("info", `[${directory}] session.created: watcher already running pid=${state.pid}`)
 					} else {
-						state.status = "stale"
-						state.lastFailureAt = new Date().toISOString()
-						state.lastFailureReason = state.pid && isPidAlive(state.pid)
-							? `PID ${state.pid} ownership validation failed on session.created`
-							: `PID ${state.pid} not alive on session.created`
-						log("warn", `[${directory}] session.created: existing pid=${state.pid} unavailable or unowned, marked stale`)
-						if (veraAvailable()) {
-							const indexed = runVeraIndex(directory)
-							if (indexed) {
-								state.lastIndexedAt = new Date().toISOString()
-								const watchResult = startVeraWatch(directory)
-								if (watchResult) {
-									state.pid = watchResult.pid
-									state.status = "running"
-									state.startedAt = new Date().toISOString()
-									state.lastVerifiedAt = new Date().toISOString()
-									state.lastFailureAt = null
-									state.lastFailureReason = null
-									log("info", `[${directory}] session.created: restarted watcher pid=${state.pid}`)
-								}
-							}
+						log("warn", `[${directory}] session.created: existing pid=${state.pid} unavailable or unowned, attempting safe restart`)
+						const restarted = performSafeRestart(directory, state)
+						if (!restarted) {
+							log("error", `[${directory}] session.created: safe restart failed, status=${state.status}`)
 						}
 					}
 				} else if (state.status === "stale") {
-					if (veraAvailable()) {
-						const indexed = runVeraIndex(directory)
-						if (indexed) {
-							state.lastIndexedAt = new Date().toISOString()
-							const watchResult = startVeraWatch(directory)
-							if (watchResult) {
-								state.pid = watchResult.pid
-								state.status = "running"
-								state.startedAt = new Date().toISOString()
-								state.lastVerifiedAt = new Date().toISOString()
-								state.lastFailureAt = null
-								state.lastFailureReason = null
-								log("info", `[${directory}] session.created: recovered stale watcher pid=${state.pid}`)
-							}
-						}
+					log("info", `[${directory}] session.created: recovering stale watcher`)
+					const restarted = performSafeRestart(directory, state)
+					if (!restarted) {
+						log("error", `[${directory}] session.created: stale recovery failed, status=${state.status}`)
 					}
 				}
 

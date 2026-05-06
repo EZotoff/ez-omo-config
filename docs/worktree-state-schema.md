@@ -217,6 +217,10 @@ File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<worksp
 | `lastVerifiedAt` | string (ISO 8601) \| null | no | Timestamp of the last health/verification check. |
 | `lastFailureAt` | string (ISO 8601) \| null | no | Timestamp of the last watcher failure, if any. |
 | `lastFailureReason` | string \| null | no | Reason for the last failure (stderr excerpt or message). |
+| `restartAttempts` | number | no | Count of restart attempts within the current retry window. Resets on successful health verification. |
+| `lastRestartAttemptAt` | string (ISO 8601) \| null | no | Timestamp of the most recent restart attempt. |
+| `hygieneStatus` | string \| null | no | Result of the last vera-hygiene check (`passed` or `failed`). |
+| `lastHygieneCheckAt` | string (ISO 8601) \| null | no | Timestamp of the most recent hygiene check. |
 
 ### Status Enum
 
@@ -227,8 +231,8 @@ File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<worksp
 | `stale` | Previously running watcher PID is no longer valid. |
 | `stopped` | Watcher was explicitly stopped. |
 | `missing-binary` | Vera binary not found on PATH. |
-| `index-failed` | Index operation failed. |
-| `watch-failed` | Watcher start/operation failed. |
+| `index-failed` | Index operation failed, or root index is hollow and hygiene could not resolve it. |
+| `watch-failed` | Watcher start/operation failed, or safe restart limit reached (3 attempts in 10 minutes). |
 
 ### Example
 
@@ -246,7 +250,11 @@ File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<worksp
   "startedAt": "2026-05-01T09:00:00.000Z",
   "lastVerifiedAt": "2026-05-01T10:30:00.000Z",
   "lastFailureAt": null,
-  "lastFailureReason": null
+  "lastFailureReason": null,
+  "restartAttempts": 0,
+  "lastRestartAttemptAt": null,
+  "hygieneStatus": null,
+  "lastHygieneCheckAt": null
 }
 ```
 
@@ -255,3 +263,5 @@ File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<worksp
 - These files are runtime state only.
 - Do not commit them to the repository.
 - Do not replace this layout with SQLite or any other database.
+- `restartAttempts` resets to `0` on successful health verification or watcher start.
+- `hygieneStatus` is set by the runtime's preflight check (`vera-hygiene.sh --check`) before indexing or restarting a watcher.
