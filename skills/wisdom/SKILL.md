@@ -108,7 +108,7 @@ Every wisdom entry carries a canonical trust and lifecycle contract:
 
 ## Operational Reality Verification
 
-Operational facts about live config or runtime state are **UNKNOWN** until verified from:
+Operational facts about live config/runtime state are **UNKNOWN** until verified from:
 - Live file paths (does the file exist at its deployment target?)
 - Active config registration (is the artifact referenced by the running system's config?)
 - Runtime evidence (has the process/plugin/service actually loaded and executed?)
