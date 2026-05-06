@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **57 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **59 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -50,6 +50,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
+- **Vera index hygiene** — automatic `.veraignore` management that detects unreadable dirs, heavy generated artifacts, and prevents self-indexing before Vera root-indexes a project
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **Bounded DCP retention** — local patch that caps archived summary tokens during DCP range compression, keeping long-running sessions within a fixed token budget
 - **Durable DCP patch sync** — installer keeps both native runtime and package-cache `@tarquinen/opencode-dcp` copies aligned with local bounded-retention patch files
@@ -58,19 +59,19 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 57 core artifacts + 1 external integration organized into 8 categories:
+This repository contains 59 core artifacts + 1 external integration organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
 | 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, Vera runtime supervision, and semantic checkpointing |
-| 12-21 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
-| 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
-| 31 | **Extras** | 1 file | Additional registry configuration |
-| 32-33 | **Docker** | 2 files | Worktree container templates |
-| 34-37 | **Docs** | 5 files | Configuration, plugin, skills, worktree state, live deployment verification, and compatibility debt documentation |
-| 37 | **External** | 1 skill | [Vera](https://github.com/lemon07r/Vera) semantic code search (installed separately) |
+| 12-22 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, parallel development, and Vera hygiene |
+| 22-31 | **Scripts** | 13 shell scripts | Wisdom propagation, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
+| 32 | **Extras** | 1 file | Additional registry configuration |
+| 33-34 | **Docker** | 2 files | Worktree container templates |
+| 35-38 | **Docs** | 5 files | Configuration, plugin, skills, worktree state, live deployment verification, and compatibility debt documentation |
+| 39 | **External** | 1 skill | [Vera](https://github.com/lemon07r/Vera) semantic code search (installed separately) |
 
 ### Complete Artifact Inventory
 
@@ -116,8 +117,10 @@ This repository contains 57 core artifacts + 1 external integration organized in
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
 | 30 | `worktree-coordinator/` | `skills/` | Worktree parallel development guide |
+| 30a | `vera-hygiene/` | `skills/` | Vera index hygiene skill — `.veraignore` management and pre-indexing cleanup |
 | 31 | `worktree-post-create.sh` | `scripts/worktree/` | State creation, port allocation, Docker start, Vera bootstrap. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
 | 32 | `worktree-pre-delete.sh` | `scripts/worktree/` | Container stop, port free, state cleanup, Vera watcher cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
+| 32a | `vera-hygiene.sh` | `scripts/` | Vera hygiene script — detects unreadable dirs, heavy artifacts, and updates `.veraignore`. Install: `$HOME/.sisyphus/scripts/vera-hygiene.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
 | 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
 | 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
@@ -136,6 +139,7 @@ This repository contains 57 core artifacts + 1 external integration organized in
 | 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
 | 49 | `scripts/verify-live-deployment.sh` | `scripts/` | Live deployment verifier with evidence-state validation |
 | 50 | `tests/test_live_deployment_contract.sh` | `tests/` | Repo-safe contract tests for live deployment verification |
+| 50a | `tests/test_vera_hygiene.sh` | `tests/` | Vera hygiene verification — idempotency, safety, and blocker detection tests |
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 
 ---
@@ -186,8 +190,8 @@ This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenAgent** 
 - **Commands**: Slash command prompts for repeatable OpenCode workflows
 - **Configs**: Provider definitions, model configurations, and retry logic
 - **Plugins**: TypeScript extensions that add worktree management, git safety checks, and review enforcement
-- **Skills**: Specialized agent capabilities for browser testing, deployment, and UI/UX design
-- **Scripts**: Shell utilities for the wisdom propagation system (learning management)
+- **Skills**: Specialized agent capabilities for browser testing, deployment, UI/UX design, and Vera index hygiene
+- **Scripts**: Shell utilities for the wisdom propagation system, worktree lifecycle, live deployment verification, and Vera hygiene
 - **Extras**: Optional registry and utility configurations
 
 ---

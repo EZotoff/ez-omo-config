@@ -36,6 +36,12 @@ Designer-turned-developer UI/UX specialist that crafts stunning UI/UX with multi
 - **Dependencies**: None
 - **Use Case**: Visual engineering, UI design improvements, UX enhancements
 
+### vera-hygiene/
+Vera index hygiene and `.veraignore` management. Detects unreadable directories, heavy/generated dirs, and safely updates `.veraignore` with a marker-managed block. Must be run before indexing large or external projects, or after Vera indexing failures.
+- **Dependencies**: `vera-hygiene.sh` script
+- **Use Case**: Pre-indexing hygiene, fixing permission-denied indexing failures, preventing self-indexing
+- **Install**: `install.sh --skills` (installs both skill and script)
+
 ### vera/ (External)
 Semantic code search and discovery using hybrid BM25+vector retrieval with cross-encoder reranking. Local-first Rust binary with ONNX embeddings — no API keys needed. Provides 70%+ token reduction during codebase discovery compared to brute-force grep.
 - **Dependencies**: `vera` binary (install: `bunx @vera-ai/cli install`)
