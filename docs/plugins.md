@@ -136,6 +136,8 @@ At each evidence state, agents may only use approved claim language:
 
 **Unverified State Rule**: If any live/runtime state is unverified, output must include: `Not verified live: [missing state]`
 
+**Plan Completion Closeout Summary**: When all plan tasks are complete, the plugin injects a `PLAN_COMPLETION_INSTRUCTION` requiring a response-only `Closeout Summary` covering TLDR of functionality created, expected behavior, user testing follow-up, and an evidence caveat (`Not verified live: [missing state]`). The closeout must not be written to `.sisyphus/`, notepads, evidence files, or wisdom — it is response-only.
+
 **Dependencies**: Works alongside `review-protocol/` skill
 
 **Install Target**: `$HOME/.opencode/plugin/review-enforcer.ts`

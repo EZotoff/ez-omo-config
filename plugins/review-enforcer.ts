@@ -70,6 +70,21 @@ const PLAN_COMPLETION_INSTRUCTION = `
 
 **Evidence-state consolidation required**: Before finalizing, report the highest proven evidence state and link evidence paths. For each deliverable, explicitly state which of the six evidence states are verified: repo_implemented, tests_passed, live_file_installed, active_config_registered, runtime_loaded, real_project_behavior_proven. If any live/runtime state is unverified, say \`Not verified live: [missing state]\` — do NOT claim working/deployed/active.
 
+**Closeout Summary**: Before finalizing, provide a concise closeout summary covering what this plan accomplished.
+
+**TLDR of functionality created**:
+- [1-3 bullets summarizing what the completed plan added/changed]
+
+**Expected behavior**:
+- [1-3 bullets describing what the user should now observe]
+
+**User testing follow-up**:
+- [1-5 concrete manual checks the user can perform after approval]
+
+**Evidence caveat**: Whenever any live/runtime evidence state is missing, include \`Not verified live: [missing state]\`.
+
+This closeout is response-only — do NOT write it to \`.sisyphus/\`, notepads, evidence files, or wisdom.
+
 This is the final quality gate before plan completion.
 ---
 `
