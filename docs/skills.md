@@ -162,6 +162,32 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
+### vera-hygiene/
+
+**Purpose**: Vera index hygiene and `.veraignore` management. Prevents indexing failures by excluding unreadable, heavy, or generated paths.
+
+**Features**:
+
+- Detects unreadable directories (e.g., container-owned data dirs)
+- Detects heavy/generated directories (`node_modules/`, `.next/`, `build/`, etc.)
+- Prevents Vera self-indexing (always excludes `.vera/`)
+- Preserves all existing user `.veraignore` content
+- Marker-managed block (`# BEGIN OMO VERA HYGIENE` / `# END OMO VERA HYGIENE`)
+- Tracked-file safety: skips broad parent dirs if git-tracked files exist underneath
+- Three modes: `--check`, `--dry-run`, `--apply`
+
+**Dependencies**: `scripts/vera-hygiene.sh`
+
+**Use Case**: Pre-indexing hygiene for large/external projects, fixing permission-denied or zero-files indexing failures
+
+**Status**: Optional (Recommended)
+
+**Install Target**: `$HOME/.config/opencode/skills/vera-hygiene/` (skill), `$HOME/.sisyphus/scripts/vera-hygiene.sh` (script)
+
+**Install Method**: `install.sh --skills` or `install.sh --scripts`
+
+---
+
 ### vera/
 
 **Purpose**: Semantic code search and discovery for efficient codebase navigation.
@@ -214,6 +240,7 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | playwright/ | Optional | `$HOME/.config/opencode/skills/playwright/` | `install.sh` |
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
 | frontend-ui-ux/ | Optional | `$HOME/.config/opencode/skills/frontend-ui-ux/` | `install.sh` |
+| vera-hygiene/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera-hygiene/` | `install.sh` |
 | vera/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera/` | `vera agent install --client opencode` |
 
 ---

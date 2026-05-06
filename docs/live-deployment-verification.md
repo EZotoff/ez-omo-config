@@ -50,8 +50,8 @@ bash scripts/verify-live-deployment.sh \
 3. **Plugin SHA match** — Compares SHA256 of the repo copy against the live copy.
 4. **HOME plugin autoload path** — Confirms the plugin is installed under `~/.opencode/plugin/`, where OpenCode auto-loads plugin files. Vera runtime is intentionally not listed in `opencode.json`.
 5. **Project exists and is a git repo** — Validates the project path.
-6. **Runtime proven** — Uses a timestamp marker to determine whether post-marker log entries or watcher state timestamps exist.
-7. **Vera index exists** — Checks for the `.vera/` index directory (skips if watcher state reports `missing-binary` in fail-open mode).
+6. **Runtime proven** — Requires post-marker log entries or watcher state timestamps that match the exact project path (`$REAL_PROJECT_PATH`) or workspace key (`$WORKSPACE_KEY`). Generic timestamps without project-specific evidence are rejected.
+7. **Vera root index non-empty** — Runs `vera overview` from the project root and requires `Files > 0` and `Chunks > 0`. A `.vera/` directory alone is not accepted. Nested `.vera` directories (found with `find -mindepth 2`) are explicitly rejected.
 
 ### Output
 
@@ -77,14 +77,16 @@ The verifier defends against stale evidence with timestamp markers.
 
 1. A marker timestamp is recorded at the start of verification (`date -u +%Y-%m-%dT%H:%M:%SZ`).
 2. The script looks for log entries or watcher state timestamps that are **at or after** the marker.
-3. If all found timestamps are **before** the marker, the evidence is considered stale and the check fails.
+3. Post-marker evidence must also contain the exact project path (`$REAL_PROJECT_PATH`) or workspace key (`$WORKSPACE_KEY`). Generic timestamps without project-specific context are treated as stale.
+4. If all found timestamps are **before** the marker, or if post-marker evidence lacks exact project/workspace matching, the check fails.
 
 ### Pre-existing Index Handling
 
-By default, a pre-existing `.vera/` directory alone is not accepted as proof. The `--allow-existing-index` flag relaxes this for cases where you intentionally want to trust an already-built index. Without the flag, the verifier requires either:
+The `--allow-existing-index` flag has been removed (it was dead code). A pre-existing `.vera/` directory alone is never accepted as proof of a non-empty index. The verifier always requires:
 
-- A post-marker log entry in `vera-runtime.log`, or
-- A post-marker `lastVerifiedAt` or `lastIndexedAt` in the watcher state file.
+- A non-empty root `.vera/` index (`vera overview` reports `Files > 0` and `Chunks > 0`).
+- No nested `.vera/` indexes (only the root project `.vera/` is accepted).
+- Either a post-marker log entry in `vera-runtime.log` with exact project path or workspace key, or a post-marker `lastVerifiedAt` / `lastIndexedAt` in the watcher state file with matching workspace key or path.
 
 ## Vera/ANIA Regression Probe
 
@@ -93,9 +95,12 @@ The first concrete use case for the Live Deployment Verification Gate is the **V
 ### What the Probe Validates
 
 - Vera watcher is supervised by `vera-runtime.ts`
-- The watcher PID is alive and health-checked every 60 seconds
+- The watcher PID is alive, owned by the current user, and its cmdline contains `vera watch` with the exact project path
+- Health checks occur every 60 seconds; dead or unowned PIDs trigger bounded safe restart (max 3 attempts in 10 minutes)
 - Index updates happen automatically after file-modifying tool executions
-- The `.vera/` directory contains a fresh index for the project
+- The root `.vera/` directory contains a non-empty index (`Files > 0`, `Chunks > 0`)
+- No nested `.vera/` indexes exist anywhere under the project
+- A search probe (`--probe-query`) succeeds and returns results under the project root
 
 ### How to Run the Probe
 
@@ -112,13 +117,15 @@ cat /tmp/vera-probe-evidence/summary.json
 
 ### Interpreting Results
 
-- **Passed with runtime proven**: The Vera watcher has produced post-marker evidence. The pipeline is active.
-- **Failed with stale evidence**: The watcher may be running, but it has not produced new evidence since the marker. Check `vera-runtime.log` for errors.
+- **Passed with runtime proven**: The Vera watcher has produced post-marker evidence with exact project path or workspace key match. The pipeline is active.
+- **Failed with stale evidence**: The watcher may be running, but it has not produced new evidence since the marker, or post-marker evidence lacks exact project/workspace matching. Check `vera-runtime.log` for errors.
+- **Failed with hollow index**: The `.vera/` directory exists but `vera overview` reports `Files: 0` or `Chunks: 0`. Run `vera-hygiene --apply` to exclude unreadable or heavy directories, then reindex.
+- **Failed with nested index**: A nested `.vera/` directory was found under the project. Only the root `.vera/` is accepted. Remove nested indexes or add them to `.veraignore`.
 - **Failed with missing binary**: The `vera` binary is not installed. Install it with `vera agent install --client opencode`. The plugin fails open, so normal operation continues.
 
 ### Note on Unverified Behavior
 
-The workflow requires the verifier to confirm live deployment, but concrete proof that Vera produces correct search results in a real project is tracked separately. Until Task 9 proves live behavior, agents should report `Not verified live: real_project_behavior_proven` when search accuracy has not been validated end to end.
+The workflow requires the verifier to confirm live deployment, but concrete proof that Vera produces correct search results in a real project requires a search probe (`--probe-query`). Without `--probe-query`, the highest state earned is `runtime_loaded`. Agents must provide `--probe-query` (and optionally `--probe-expect`) to reach `real_project_behavior_proven`. Until a search probe passes, agents should report `Not verified live: real_project_behavior_proven`.
 
 ## See Also
 

@@ -172,14 +172,17 @@ At each evidence state, agents may only use approved claim language:
 - **Fail-open behavior**: If the `vera` binary is missing, the plugin logs a warning and continues normal operation without error
 - **Automatic watcher lifecycle**: Hooks into `session.created` to start watchers, `session.deleted` to stop them
 - **Tool execution guard**: `tool.execute.before` hook verifies watcher health before file-modifying tools run
-- **Health checks**: Every 60 seconds verifies the watcher PID is still alive
+- **Health checks**: Every 60 seconds verifies the watcher PID is still alive and owned by the current user with `vera watch` in its cmdline
 - **State persistence**: Tracks watcher state per project in `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/`
+- **Runtime recovery**: Detects hollow indexes (`Files: 0` or `Chunks: 0`) and triggers `vera-hygiene --check` followed by reindex before starting the watcher
+- **Safe restart boundaries**: Bounded restart with `MAX_RESTART_ATTEMPTS=3` and `RESTART_WINDOW_MS=10` minutes. Exceeded attempts set `status=watch-failed` and log actionable advice to run `vera-hygiene --apply`
+- **Hygiene preflight**: Before starting or restarting a watcher, validates the root index is non-empty via `vera overview`. Hollow indexes trigger an automatic hygiene check and reindex cycle.
 
 **Event Hooks**:
 
 | Hook | When Fired | Action |
 |------|-----------|--------|
-| `session.created` | New session starts | Start or verify Vera watcher for the project |
+| `session.created` | New session starts | Start or verify Vera watcher; recover stale watchers; validate non-empty root index |
 | `session.deleted` | Session ends | Stop Vera watcher if no other sessions need it |
 | `tool.execute.before` | Before any tool executes | If tool modifies files, trigger `vera update .` |
 
@@ -195,9 +198,9 @@ At each evidence state, agents may only use approved claim language:
 |------|----------------|--------------|
 | File in repo | repo_implemented | `test -f plugins/vera-runtime.ts` |
 | File installed | live_file_installed | `test -f ~/.opencode/plugin/vera-runtime.ts` |
-| HOME plugin installed | active_config_registered | OpenCode auto-loads `~/.opencode/plugin/vera-runtime.ts` when the file is present |
-| Runtime loaded | runtime_loaded | Post-marker log entries in `vera-runtime.log` |
-| Proven working | real_project_behavior_proven | Vera index exists with post-marker timestamps |
+| HOME plugin installed | active_config_registered | OpenCode auto-loads `~/.opencode/plugin/vera-runtime.ts` when the file is present; **must NOT** be listed in `opencode.json` |
+| Runtime loaded | runtime_loaded | Watcher PID is alive, owned by current user, and cmdline contains `vera watch` with exact project path |
+| Proven working | real_project_behavior_proven | Search probe returns expected result under project root; root `.vera/` index is non-empty (Files > 0, Chunks > 0) with no nested indexes |
 
 Until all six states are verified, agents must use "workflow requires" language, not "Vera is active/working".
 
