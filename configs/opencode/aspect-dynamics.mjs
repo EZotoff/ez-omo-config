@@ -18,7 +18,7 @@ import {
   setLastHandledAssistantMessageId,
   updateSessionState,
 } from "./aspect-dynamics/session-state.mjs";
-import { loadSets } from "./aspect-dynamics/sets.mjs";
+import { loadSets, selectActiveSets } from "./aspect-dynamics/sets.mjs";
 
 export default async function aspectDynamicsPlugin(ctx) {
   const config = await loadConfig();
@@ -31,7 +31,15 @@ export default async function aspectDynamicsPlugin(ctx) {
 
   setLogLevel(config.logLevel);
 
-  const sets = await loadSets();
+  const loadedSets = await loadSets();
+  const sets = selectActiveSets(loadedSets, config.activeSets);
+
+  if (sets.length === 0) {
+    logWarn("No active sets available; plugin running in no-op mode");
+    return {
+      event: async () => {},
+    };
+  }
 
   logInfo("Plugin loaded");
   emitProof("plugin_loaded", { version: "1.0.0" });
@@ -85,7 +93,7 @@ export default async function aspectDynamicsPlugin(ctx) {
           if (!canProcess(sessionID)) {
             const state = getSessionState(sessionID);
             if (state.circuitBroken) {
-              logWarn(`Session ${sessionID} skipped — circuit breaker open`);
+              logInfo(`Session ${sessionID} skipped — circuit breaker open`);
               emitProof("circuit_open", { session_id: sessionID, failure_count: state.failureCount });
             } else if (state.inFlight) {
               logInfo(`Session ${sessionID} skipped — action already in flight`);
@@ -105,7 +113,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             }
 
             if (hasRecursionGuard(context)) {
-              logWarn(`Session ${sessionID} skipped — recursion guard detected aspect-dynamics nudge`);
+              logInfo(`Session ${sessionID} skipped — recursion guard detected aspect-dynamics nudge`);
               recordSuccess(sessionID);
               return;
             }
@@ -122,7 +130,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             const latestAssistantId = context.latestAssistantMessageId;
             const lastHandled = getLastHandledAssistantMessageId(sessionID);
             if (latestAssistantId && latestAssistantId === lastHandled) {
-              logWarn(`Session ${sessionID} skipped — already handled assistant message ${latestAssistantId}`);
+              logInfo(`Session ${sessionID} skipped — already handled assistant message ${latestAssistantId}`);
               return;
             }
 

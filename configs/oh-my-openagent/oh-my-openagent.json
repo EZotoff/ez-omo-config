@@ -201,7 +201,7 @@
     ]
   },
   "aspectDynamics": {
-    "activeSets": ["emotions-v1"],
+    "activeSets": ["emotions-v2"],
     "heuristicPreFilter": true,
     "contextWindowTurns": 10,
     "scoringModel": {

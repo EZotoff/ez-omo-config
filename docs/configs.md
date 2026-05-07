@@ -263,7 +263,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 
 **What it Configures**:
 
-- Aspect set loading and resolution (e.g., `emotions-v1`)
+- Aspect set loading and resolution (e.g., `emotions-v1`, `emotions-v2`)
 - Heuristic phrase matching against the recent conversation context
 - Deterministic scoring (no model-backed inference in MVP)
 - Transcript-visible advisory nudge dispatch when a score crosses the configured threshold
@@ -298,7 +298,7 @@ These fields are inert by default. They are logged only when `logLevel` is set t
 **Key Fields**:
 
 - `enabled` — Master toggle for the plugin
-- `activeSets` — Array of aspect set IDs to load (e.g., `["emotions-v1"]`)
+- `activeSets` — Array of aspect set IDs to load (e.g., `["emotions-v1", "emotions-v2"]`). This field is now fully implemented. Previously documented but non-functional, it now resolves and loads the specified aspect sets at runtime.
 - `logLevel` — Plugin terminal logging threshold. Defaults to `warn`; set `info` to show startup/info diagnostics, or `silent` to suppress all plugin terminal logging.
 - `heuristicPreFilter` — Whether to skip scoring when no heuristic phrases match
 - `contextWindowTurns` — Number of recent turns to include in context extraction
@@ -343,7 +343,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 | `retry-errors.json` | Retryable error pattern registry with backoff and fallback rules | `$HOME/.config/opencode/retry-errors.json` | Required |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |
 | `aspect-dynamics/*.mjs` | 7 support modules (config, context, heuristics, session-state, sets, nudge, logging) | `$HOME/.config/opencode/aspect-dynamics/` | Optional |
-| `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`) | `$HOME/.config/opencode/aspect-dynamics/sets/` | Optional |
+| `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`, `emotions-v2`) | `$HOME/.config/opencode/aspect-dynamics/sets/` | Optional |
 | `oh-my-openagent.json` | OMO agent/category model overrides and skill loading | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
 | `extras/ocx.jsonc` | OCX registry configuration pointer | `$HOME/.opencode/ocx.jsonc` | Optional |
 
