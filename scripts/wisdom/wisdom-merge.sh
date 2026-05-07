@@ -5,6 +5,111 @@ set -euo pipefail
 # Usage: wisdom-merge.sh --ids ID1,ID2,... --scope SCOPE [OPTIONS]
 
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
+
+_WISDOM_MERGE_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+_WISDOM_MERGE_SCOPE=""
+_WISDOM_MERGE_PROJECT_ID=""
+_WISDOM_MERGE_DRY_RUN="false"
+_WISDOM_MERGE_SOURCE_IDS='[]'
+_WISDOM_MERGE_SOURCE_STATUS_BEFORE='[]'
+_WISDOM_MERGE_SOURCE_AUTHORITY_BEFORE='[]'
+_WISDOM_MERGE_SOURCE_STATUS_AFTER='[]'
+_WISDOM_MERGE_MERGED_ID=""
+_WISDOM_MERGE_IDS_CSV=""
+_WISDOM_MERGE_STORE_PATH=""
+
+collect_source_metrics() {
+    local ids_csv="${1:-}"
+    local store_path="${2:-}"
+
+    _WISDOM_MERGE_SOURCE_IDS='[]'
+    _WISDOM_MERGE_SOURCE_STATUS_BEFORE='[]'
+    _WISDOM_MERGE_SOURCE_AUTHORITY_BEFORE='[]'
+
+    [[ -n "$ids_csv" && -n "$store_path" && -f "$store_path" ]] || return 0
+
+    local IFS=','
+    local -a ids_arr
+    read -ra ids_arr <<< "$ids_csv"
+    [[ ${#ids_arr[@]} -gt 0 ]] || return 0
+
+    _WISDOM_MERGE_SOURCE_IDS=$(jq -nc --args "${ids_arr[@]}" '$ARGS.positional' 2>/dev/null || echo '[]')
+
+    local -a source_statuses=()
+    local -a source_authorities=()
+    local eid entry_json
+    for eid in "${ids_arr[@]}"; do
+        if entry_json=$(wisdom_read_entry "$eid" "$store_path" 2>/dev/null); then
+            source_statuses+=("$(printf '%s' "$entry_json" | jq -r '.status // "active"' 2>/dev/null || echo "")")
+            source_authorities+=("$(printf '%s' "$entry_json" | jq -r '.authority // "candidate"' 2>/dev/null || echo "")")
+        fi
+    done
+
+    _WISDOM_MERGE_SOURCE_STATUS_BEFORE=$(jq -nc --args "${source_statuses[@]}" '$ARGS.positional' 2>/dev/null || echo '[]')
+    _WISDOM_MERGE_SOURCE_AUTHORITY_BEFORE=$(jq -nc --args "${source_authorities[@]}" '$ARGS.positional' 2>/dev/null || echo '[]')
+}
+
+_wisdom_merge_emit_observability() {
+    local rc=$?
+    local status="ok"
+    [[ "$rc" -ne 0 ]] && status="error"
+
+    if [[ "${_WISDOM_MERGE_SOURCE_IDS:-[]}" == '[]' && -n "${_WISDOM_MERGE_IDS_CSV:-}" ]]; then
+        local IFS=','
+        local -a _ids_fallback
+        read -ra _ids_fallback <<< "$_WISDOM_MERGE_IDS_CSV"
+        if [[ ${#_ids_fallback[@]} -gt 0 ]]; then
+            _WISDOM_MERGE_SOURCE_IDS=$(jq -nc --args "${_ids_fallback[@]}" '$ARGS.positional' 2>/dev/null || echo '[]')
+        fi
+    fi
+
+    if [[ "${_WISDOM_MERGE_SOURCE_STATUS_BEFORE:-[]}" == '[]' && -n "${_WISDOM_MERGE_IDS_CSV:-}" && -n "${_WISDOM_MERGE_STORE_PATH:-}" ]]; then
+        collect_source_metrics "$_WISDOM_MERGE_IDS_CSV" "$_WISDOM_MERGE_STORE_PATH"
+    fi
+
+    if [[ "${_WISDOM_MERGE_SOURCE_STATUS_AFTER:-[]}" == '[]' && "${_WISDOM_MERGE_SOURCE_IDS:-[]}" != '[]' && -n "${_WISDOM_MERGE_MERGED_ID:-}" ]]; then
+        _WISDOM_MERGE_SOURCE_STATUS_AFTER=$(jq -nc --argjson ids "${_WISDOM_MERGE_SOURCE_IDS:-[]}" '($ids | map("deleted"))' 2>/dev/null || echo '[]')
+    fi
+
+    local duration_ms_json="null"
+    if [[ -n "${_WISDOM_MERGE_START_MS:-}" ]]; then
+        local now_ms
+        now_ms=$(date +%s%3N 2>/dev/null || echo "")
+        if [[ -n "$now_ms" ]]; then
+            duration_ms_json=$((now_ms - _WISDOM_MERGE_START_MS))
+        fi
+    fi
+
+    local payload='{}'
+    payload=$(jq -nc \
+        --arg scope "${_WISDOM_MERGE_SCOPE:-}" \
+        --arg project_id "${_WISDOM_MERGE_PROJECT_ID:-}" \
+        --arg dry_run "${_WISDOM_MERGE_DRY_RUN:-false}" \
+        --arg merged_id "${_WISDOM_MERGE_MERGED_ID:-}" \
+        --arg affected_ids_json "${_WISDOM_MERGE_SOURCE_IDS:-[]}" \
+        --arg source_status_before_json "${_WISDOM_MERGE_SOURCE_STATUS_BEFORE:-[]}" \
+        --arg source_authority_before_json "${_WISDOM_MERGE_SOURCE_AUTHORITY_BEFORE:-[]}" \
+        --arg source_status_after_json "${_WISDOM_MERGE_SOURCE_STATUS_AFTER:-[]}" \
+        --argjson duration_ms "$duration_ms_json" \
+        '{
+            affected_ids: (($affected_ids_json | fromjson?) // []),
+            source_status_before: (($source_status_before_json | fromjson?) // []),
+            source_authority_before: (($source_authority_before_json | fromjson?) // []),
+            source_status_after: (($source_status_after_json | fromjson?) // []),
+            scope: (if $scope == "" then null else $scope end),
+            project_id: (if $project_id == "" then null else $project_id end),
+            dry_run: ($dry_run == "true"),
+            affected_count: ((($affected_ids_json | fromjson?) // []) | length),
+            merged_record_id: (if $merged_id == "" then null else $merged_id end),
+            merged_record_status_after: (if $merged_id == "" then null else "active" end),
+            duration_ms: $duration_ms
+        }' 2>/dev/null) || payload='{}'
+
+    wisdom_emit_event "wisdom.lifecycle.merge" "$status" "$payload"
+}
+
+trap _wisdom_merge_emit_observability EXIT
 
 # --------------------------------------------------------------------------
 # Help/usage
@@ -63,6 +168,7 @@ main() {
     local type_override=""
     local tags_override=""
     local dry_run=false
+    local pre_ids=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -72,6 +178,8 @@ main() {
                 ;;
             --ids)
                 ids="$2"
+                pre_ids="$2"
+                _WISDOM_MERGE_IDS_CSV="$2"
                 shift 2
                 ;;
             --scope)
@@ -124,8 +232,14 @@ main() {
         exit 2
     fi
 
+    _WISDOM_MERGE_SCOPE="$scope"
+    _WISDOM_MERGE_PROJECT_ID="$project_id"
+    _WISDOM_MERGE_DRY_RUN="$dry_run"
+
     local id_array
     IFS=',' read -ra id_array <<< "$ids"
+
+    _WISDOM_MERGE_SOURCE_IDS=$(jq -nc --args "${id_array[@]}" '$ARGS.positional' 2>/dev/null || echo '[]')
 
     if [[ ${#id_array[@]} -lt 2 ]]; then
         wisdom_log ERROR "At least 2 IDs required for merge (got ${#id_array[@]})"
@@ -134,6 +248,8 @@ main() {
 
     local store_path
     store_path=$(wisdom_get_store_path "$scope" "$project_id") || exit 2
+    _WISDOM_MERGE_STORE_PATH="$store_path"
+    collect_source_metrics "$pre_ids" "$store_path"
 
     if [[ ! -f "$store_path" ]]; then
         wisdom_log ERROR "Store file not found: $store_path"
@@ -250,6 +366,11 @@ main() {
     fi
 
     if [[ "$dry_run" == true ]]; then
+        local -a dry_status_after=()
+        for _ in "${id_array[@]}"; do
+            dry_status_after+=("deleted")
+        done
+        _WISDOM_MERGE_SOURCE_STATUS_AFTER=$(jq -nc --args "${dry_status_after[@]}" '$ARGS.positional' 2>/dev/null || echo '[]')
         wisdom_log INFO "[DRY-RUN] Merged entry:"
         printf '%s\n' "$merged_entry" | jq . >&2
         wisdom_log INFO "[DRY-RUN] Would delete source entries:"
@@ -273,14 +394,20 @@ main() {
     fi
 
     local delete_failed=false
+    local -a source_status_after=()
     for eid in "${id_array[@]}"; do
         if ! wisdom_remove_entry "$eid" "$store_path"; then
             wisdom_log ERROR "Failed to delete source entry '$eid'"
             delete_failed=true
+            source_status_after+=("active")
         else
             wisdom_log INFO "Deleted source entry: $eid"
+            source_status_after+=("deleted")
         fi
     done
+
+    _WISDOM_MERGE_SOURCE_STATUS_AFTER=$(jq -nc --args "${source_status_after[@]}" '$ARGS.positional' 2>/dev/null || echo '[]')
+    _WISDOM_MERGE_MERGED_ID="$new_id"
 
     if [[ "$delete_failed" == true ]]; then
         wisdom_log ERROR "Some source entries could not be deleted (merged entry $new_id was created)"

@@ -23,6 +23,8 @@ WISDOM_METADATA_KEYS=(
     "source_kind"
     "published_artifacts"
 )
+WISDOM_EVENT_SCHEMA_VERSION="1.0"
+WISDOM_EVENTS_MAX_LINES="${WISDOM_EVENTS_MAX_LINES:-1000}"
 
 # Global error flag for wisdom_log ERROR
 _WISDOM_ERROR=0
@@ -898,6 +900,244 @@ wisdom_atomic_write() {
         flock -w 10 200 || { echo "ERROR: Could not acquire lock on $file" >&2; return 1; }
         echo "$content" > "$file"
     ) 200>"$lockfile"
+}
+
+# --------------------------------------------------------------------------
+# 29. wisdom_events_path — Return the path to the events file
+# --------------------------------------------------------------------------
+wisdom_events_path() {
+    printf '%s\n' "${WISDOM_EVENTS_PATH:-${WISDOM_ROOT}/events.jsonl}"
+}
+
+# --------------------------------------------------------------------------
+# 30. wisdom_generate_observe_id — Generate a shell-safe lowercase token
+#     Format: {PREFIX}-{timestamp}-{random}
+# --------------------------------------------------------------------------
+wisdom_generate_observe_id() {
+    local prefix="$1"
+    local ts rand
+    ts=$(date +%s)
+    rand=$(dd if=/dev/urandom bs=1 count=32 2>/dev/null | base64 | tr -dc 'a-z0-9' | cut -c1-8)
+    printf '%s-%s-%s\n' "$prefix" "$ts" "$rand"
+}
+
+# --------------------------------------------------------------------------
+# 31. wisdom_now_iso — Output ISO-8601 UTC timestamp
+# --------------------------------------------------------------------------
+wisdom_now_iso() {
+    date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+# --------------------------------------------------------------------------
+# 32. wisdom_hash_text — SHA-256 hex digest of a value
+# --------------------------------------------------------------------------
+wisdom_hash_text() {
+    local value="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$value" | sha256sum | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        printf '%s' "$value" | shasum -a 256 | awk '{print $1}'
+    else
+        echo "ERROR: no sha256sum or shasum available" >&2
+        return 1
+    fi
+}
+
+# --------------------------------------------------------------------------
+# 33. wisdom_redact_preview — Redact secret-like substrings for safe preview
+# --------------------------------------------------------------------------
+wisdom_redact_preview() {
+    local value="$1"
+    local redacted
+
+    redacted=$(printf '%s' "$value" | sed 's/SECRET_SENTINEL_DO_NOT_LOG/[REDACTED]/g')
+    redacted=$(printf '%s' "$redacted" | sed -E 's/(API_KEY|APIKEY|API_SECRET|SECRET_KEY|SECRET|PASSWORD|PASSWD|PRIVATE_KEY|ACCESS_TOKEN|AUTH_TOKEN)=[^[:space:]]+/[REDACTED]/g')
+    redacted=$(printf '%s' "$redacted" | sed -E 's/sk-[a-zA-Z0-9]{20,}/[REDACTED]/g')
+    redacted=$(printf '%s' "$redacted" | sed -E 's/ghp_[a-zA-Z0-9]{36}/[REDACTED]/g')
+    redacted=$(printf '%s' "$redacted" | sed -E 's/xoxb-[a-zA-Z0-9-]{24,}/[REDACTED]/g')
+    redacted=$(printf '%s' "$redacted" | sed -E 's/Bearer[[:space:]]+[^[:space:]]+/[REDACTED]/g')
+
+    if command -v perl >/dev/null 2>&1; then
+        redacted=$(printf '%s' "$redacted" | perl -0777 -pe 's/-----BEGIN.*?PRIVATE KEY-----.*?-----END.*?PRIVATE KEY-----/[REDACTED]/gs')
+    else
+        redacted=$(printf '%s' "$redacted" | sed -E 's/-----BEGIN.*PRIVATE KEY-----.*-----END.*PRIVATE KEY-----/[REDACTED]/g')
+    fi
+
+    redacted=$(printf '%s' "$redacted" | sed -E 's/[Pp]assword[[:space:]]*[=:][[:space:]]*[^[:space:]]{8,}/[REDACTED]/g')
+    redacted=$(printf '%s' "$redacted" | sed -E 's/[Tt]oken[[:space:]]*[=:][[:space:]]*[^[:space:]]{8,}/[REDACTED]/g')
+
+    redacted=$(printf '%s' "$redacted" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+    if [[ ${#redacted} -gt 80 ]]; then
+        printf '%s' "${redacted:0:77}..."
+    else
+        printf '%s' "$redacted"
+    fi
+}
+
+# --------------------------------------------------------------------------
+# 34. wisdom_init_observability — Initialize observability context
+#     Args: $1=SCRIPT_NAME
+# --------------------------------------------------------------------------
+wisdom_init_observability() {
+    local script_name="$1"
+
+    if [[ "${WISDOM_OBSERVABILITY:-1}" == "0" ]]; then
+        return 0
+    fi
+
+    if [[ -z "${WISDOM_TRACE_ID:-}" ]]; then
+        WISDOM_TRACE_ID=$(wisdom_generate_observe_id "trace")
+    fi
+
+    if [[ -n "${WISDOM_INVOCATION_ID:-}" ]]; then
+        WISDOM_PARENT_INVOCATION_ID="$WISDOM_INVOCATION_ID"
+    fi
+
+    WISDOM_INVOCATION_ID=$(wisdom_generate_observe_id "inv-${script_name}")
+    WISDOM_OBSERVE_SCRIPT="$script_name"
+    _WISDOM_OBSERVE_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+
+    export WISDOM_TRACE_ID WISDOM_INVOCATION_ID WISDOM_PARENT_INVOCATION_ID WISDOM_OBSERVE_SCRIPT _WISDOM_OBSERVE_START_MS
+}
+
+# --------------------------------------------------------------------------
+# 35. wisdom_append_event_line — Internal append under flock lock
+#     Caller must hold the lock on the events file.
+# --------------------------------------------------------------------------
+wisdom_append_event_line() {
+    local line="$1"
+    local event_file
+    event_file=$(wisdom_events_path)
+    local dir
+    dir=$(dirname "$event_file")
+    mkdir -p "$dir" 2>/dev/null || true
+    printf '%s\n' "$line" >> "$event_file"
+}
+
+# --------------------------------------------------------------------------
+# 36. wisdom_emit_event — Emit a structured event to events.jsonl
+#     Args: $1=EVENT, $2=STATUS, $3=PAYLOAD_JSON (object only)
+# --------------------------------------------------------------------------
+wisdom_emit_event() {
+    local event="$1"
+    local status="$2"
+    local payload="${3:-}"
+
+    if [[ "${WISDOM_OBSERVABILITY:-1}" == "0" ]]; then
+        return 0
+    fi
+
+    local event_file
+    event_file=$(wisdom_events_path)
+    local lockfile="${event_file}.lock"
+    local ts duration_ms=""
+
+    ts=$(wisdom_now_iso)
+
+    if [[ -n "${_WISDOM_OBSERVE_START_MS:-}" ]]; then
+        local now_ms
+        now_ms=$(date +%s%3N 2>/dev/null || echo "")
+        if [[ -n "$now_ms" ]]; then
+            duration_ms=$((now_ms - _WISDOM_OBSERVE_START_MS))
+        fi
+    fi
+
+    local payload_obj="{}"
+    if [[ -n "$payload" ]]; then
+        if printf '%s' "$payload" | jq -e 'type == "object"' >/dev/null 2>&1; then
+            payload_obj="$payload"
+        fi
+    fi
+
+    local json_line
+    json_line=$(jq -nc \
+        --arg schema_version "$WISDOM_EVENT_SCHEMA_VERSION" \
+        --arg ts "$ts" \
+        --arg system "wisdom" \
+        --arg event "$event" \
+        --arg status "$status" \
+        --arg trace_id "${WISDOM_TRACE_ID:-}" \
+        --arg invocation_id "${WISDOM_INVOCATION_ID:-}" \
+        --arg parent_invocation_id "${WISDOM_PARENT_INVOCATION_ID:-null}" \
+        --arg script "${WISDOM_OBSERVE_SCRIPT:-unknown}" \
+        --arg pid "$$" \
+        --arg duration_ms "$duration_ms" \
+        --argjson payload "$payload_obj" \
+        '{
+            schema_version: $schema_version,
+            ts: $ts,
+            system: $system,
+            event: $event,
+            status: $status,
+            trace_id: $trace_id,
+            invocation_id: $invocation_id,
+            parent_invocation_id: (if $parent_invocation_id == "null" then null else $parent_invocation_id end),
+            script: $script,
+            pid: ($pid | tonumber),
+            duration_ms: (if $duration_ms == "" then null else ($duration_ms | tonumber) end)
+        } + $payload') 2>/dev/null
+
+    if [[ -z "$json_line" ]]; then
+        if [[ "${WISDOM_OBSERVABILITY_DEBUG:-0}" == "1" ]]; then
+            echo "WARNING: wisdom_emit_event jq failed for event=$event" >&2
+        fi
+        return 0
+    fi
+
+    if ! command -v flock >/dev/null 2>&1; then
+        wisdom_append_event_line "$json_line"
+        return 0
+    fi
+
+    # Ensure parent directory exists before flock creates the lockfile
+    mkdir -p "$(dirname "$lockfile")" 2>/dev/null || true
+
+    (
+        flock -w 10 200 || {
+            if [[ "${WISDOM_OBSERVABILITY_DEBUG:-0}" == "1" ]]; then
+                echo "WARNING: wisdom_emit_event could not acquire lock on $event_file" >&2
+            fi
+            return 0
+        }
+        wisdom_append_event_line "$json_line"
+
+        local count
+        count=$(wc -l < "$event_file" 2>/dev/null || echo 0)
+        if [[ "$count" -gt "$WISDOM_EVENTS_MAX_LINES" ]]; then
+            tail -n "$WISDOM_EVENTS_MAX_LINES" "$event_file" > "${event_file}.tmp" 2>/dev/null
+            if [[ -f "${event_file}.tmp" ]]; then
+                mv "${event_file}.tmp" "$event_file" 2>/dev/null || true
+            fi
+        fi
+    ) 200>"$lockfile"
+}
+
+# --------------------------------------------------------------------------
+# 37. wisdom_read_events — Read events.jsonl, optionally limited
+#     Args: $1=limit (optional)
+# --------------------------------------------------------------------------
+wisdom_read_events() {
+    local limit="${1:-}"
+    local event_file
+    event_file=$(wisdom_events_path)
+    if [[ -n "$limit" ]]; then
+        tail -n "$limit" "$event_file" 2>/dev/null
+    else
+        cat "$event_file" 2>/dev/null
+    fi
+}
+
+# --------------------------------------------------------------------------
+# 38. wisdom_reset_events — Truncate events file
+# --------------------------------------------------------------------------
+wisdom_reset_events() {
+    local event_file
+    event_file=$(wisdom_events_path)
+    : > "$event_file"
+    if [[ "${WISDOM_OBSERVABILITY:-1}" != "0" ]]; then
+        wisdom_emit_event "wisdom.observe.reset" "ok" '{}'
+    fi
 }
 
 # Backward-compatible alias for knowledge subsystem

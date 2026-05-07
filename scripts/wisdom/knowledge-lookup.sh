@@ -11,6 +11,7 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
 source "${SCRIPT_DIR}/wisdom-common.sh" || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
+wisdom_init_observability "$(basename "$0")"
 
 # --------------------------------------------------------------------------
 # Deprecation warning
@@ -102,6 +103,9 @@ if [[ -z "$QUERY" ]]; then
     log ERROR "QUERY is required"
     usage
 fi
+
+query_hash=$(wisdom_hash_text "$QUERY") || query_hash=""
+query_preview=$(wisdom_redact_preview "$QUERY") || query_preview=""
 
 # Validate --scope
 if [[ -n "$SCOPE" ]]; then
@@ -215,6 +219,18 @@ total_count=$wisdom_count
 printf '## Results for: "%s"\n\n' "$QUERY"
 
 if [[ $total_count -eq 0 ]]; then
+    payload=$(jq -n \
+        --arg legacy_authority_min "${AUTHORITY_MIN:-}" \
+        --arg query_hash "${query_hash:-}" \
+        --arg query_preview "${query_preview:-}" \
+        --arg reason "unknown" \
+        '{
+            legacy_authority_min: $legacy_authority_min,
+            query_hash: $query_hash,
+            query_preview: $query_preview,
+            reason: $reason
+        }' 2>/dev/null) || payload="{}"
+    wisdom_emit_event "wisdom.lookup" "skipped" "$payload" 2>/dev/null || true
     printf '### UNKNOWN\n'
     printf 'No documented knowledge found for this query.\n'
     printf 'This topic is undocumented — do NOT infer from code.\n'
@@ -238,5 +254,16 @@ if [[ $wisdom_candidate_count -gt 0 ]]; then
 fi
 
 printf 'Found: %s\n' "$(IFS=', '; printf '%s' "${summary_parts[*]}")"
+
+payload=$(jq -n \
+    --arg legacy_authority_min "${AUTHORITY_MIN:-}" \
+    --arg query_hash "${query_hash:-}" \
+    --arg query_preview "${query_preview:-}" \
+    '{
+        legacy_authority_min: $legacy_authority_min,
+        query_hash: $query_hash,
+        query_preview: $query_preview
+    }' 2>/dev/null) || payload="{}"
+wisdom_emit_event "wisdom.lookup" "success" "$payload" 2>/dev/null || true
 
 exit 0

@@ -7,6 +7,7 @@ set -euo pipefail
 # wisdom-write.sh and lifecycle updates through wisdom-edit.sh.
 
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
 wisdom_require_jq
 
 WRITE_SCRIPT="$(dirname "$0")/wisdom-write.sh"
@@ -44,6 +45,34 @@ Exit codes:
   4  lifecycle update failed after write
 EOF
     exit 2
+}
+
+_emit_closeout_event() {
+    local status="$1"
+    local lifecycle_decision="${2:-}"
+    local match_score="${3:-}"
+    local record_id="${4:-}"
+    local matched_id="${5:-}"
+    local origin_session="${6:-}"
+
+    local payload
+    payload=$(jq -n \
+        --arg lifecycle_decision "$lifecycle_decision" \
+        --arg match_score "$match_score" \
+        --arg record_id "$record_id" \
+        --arg matched_id "$matched_id" \
+        --arg origin_session "$origin_session" \
+        '{
+            lifecycle_decision: (if $lifecycle_decision == "" then null else $lifecycle_decision end),
+            match_score: (if $match_score == "" then null else ($match_score | tonumber) end),
+            match_score_bucket: (if $match_score == "" then null elif ($match_score | tonumber) >= 0.70 then "high" elif ($match_score | tonumber) >= 0.30 then "medium" else "low" end),
+            record_id: (if $record_id == "" then null else $record_id end),
+            superseded_ids: (if $lifecycle_decision == "replace" and $matched_id != "" then [$matched_id] else [] end),
+            contradicted_ids: (if $lifecycle_decision == "conflict" and $matched_id != "" then [$matched_id] else [] end),
+            origin_session: (if $origin_session == "" then null else $origin_session end)
+        }' 2>/dev/null) || payload="{}"
+
+    wisdom_emit_event "wisdom.capture.closeout" "$status" "$payload"
 }
 
 closeout_secret_check() {
@@ -183,11 +212,13 @@ fi
 
 if [[ -z "$CONTENT" || -z "${CONTENT// /}" ]]; then
     wisdom_log ERROR "Closeout content must not be empty"
+    _emit_closeout_event "failed" "skipped" "" "" "" "$SESSION_ID"
     exit 2
 fi
 
 if ! closeout_secret_check "$CONTENT"; then
     wisdom_log ERROR "Closeout entry blocked: secret-like content detected"
+    _emit_closeout_event "failed" "skipped" "" "" "" "$SESSION_ID"
     exit 3
 fi
 
@@ -229,6 +260,7 @@ if [[ "$action" == "replace" && -n "$matched_id" ]]; then
     fi
     if ! "$EDIT_SCRIPT" "${edit_args[@]}" >/dev/null; then
         wisdom_log ERROR "Closeout write succeeded but supersession failed for $matched_id"
+        _emit_closeout_event "failed" "replace" "$_score" "$new_id" "$matched_id" "$SESSION_ID"
         exit 4
     fi
 fi
@@ -240,9 +272,12 @@ if [[ "$action" == "conflict" && -n "$matched_id" ]]; then
     fi
     if ! "$EDIT_SCRIPT" "${edit_args[@]}" >/dev/null; then
         wisdom_log ERROR "Closeout write succeeded but contradicts update failed for $new_id"
+        _emit_closeout_event "failed" "conflict" "$_score" "$new_id" "$matched_id" "$SESSION_ID"
         exit 4
     fi
 fi
+
+_emit_closeout_event "success" "$action" "$_score" "$new_id" "$matched_id" "$SESSION_ID"
 
 printf '%s\n' "$new_id"
 exit 0

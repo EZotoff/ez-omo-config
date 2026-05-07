@@ -6,6 +6,7 @@ set -euo pipefail
 
 # Source shared library
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
 wisdom_require_jq
 
 # --------------------------------------------------------------------------
@@ -56,6 +57,49 @@ Exit codes:
   2  Bad arguments
 EOF
     exit 2
+}
+
+emit_wisdom_search_event() {
+    local evt_status="$1"
+    local evt_reason="${2:-}"
+    local evt_returned="${3:-0}"
+
+    local payload
+    payload=$(jq -n \
+        --arg query_hash "${query_hash:-}" \
+        --arg query_preview "${query_preview:-}" \
+        --arg scope "$SCOPE" \
+        --arg project_id "${PROJECT_ID:-}" \
+        --arg type "${TYPE:-}" \
+        --arg authority "${AUTHORITY_FILTER:-}" \
+        --arg provenance "${PROVENANCE_FILTER:-}" \
+        --arg include_status "${INCLUDE_STATUS:-}" \
+        --argjson touch "$([[ "$TOUCH" == true ]] && echo true || echo false)" \
+        --argjson scanned "${scanned_count:-0}" \
+        --argjson matched "${matched_count:-0}" \
+        --argjson returned "$evt_returned" \
+        '{
+            query_hash: $query_hash,
+            query_preview: $query_preview,
+            scope: $scope,
+            project_id: $project_id,
+            type: $type,
+            authority: $authority,
+            provenance: $provenance,
+            include_status: $include_status,
+            touch: $touch,
+            counts: {
+                scanned: $scanned,
+                matched: $matched,
+                returned: $returned
+            }
+        }' 2>/dev/null) || payload="{}"
+
+    if [[ -n "$evt_reason" ]]; then
+        payload=$(printf '%s' "$payload" | jq --arg reason "$evt_reason" '. + {reason: $reason}' 2>/dev/null) || true
+    fi
+
+    wisdom_emit_event "wisdom.search" "$evt_status" "$payload" 2>/dev/null || true
 }
 
 trim_whitespace() {
@@ -200,6 +244,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+query_hash=$(wisdom_hash_text "$QUERY") || query_hash=""
+query_preview=$(wisdom_redact_preview "$QUERY") || query_preview=""
+
 # QUERY is optional - if empty, show all entries
 # No error if QUERY is empty
 
@@ -310,8 +357,15 @@ case "$SCOPE" in
         ;;
 esac
 
+scanned_count=0
+for store_file in "${STORE_FILES[@]}"; do
+    local_file_count=$(wc -l < "$store_file" 2>/dev/null | tr -d ' ' || echo 0)
+    scanned_count=$((scanned_count + local_file_count))
+done
+
 # If no store files found, exit with no results
 if [[ ${#STORE_FILES[@]} -eq 0 ]]; then
+    emit_wisdom_search_event "success" "no_results" 0
     if [[ "$JSON_OUTPUT" == true ]]; then
         echo "[]"
     else
@@ -402,8 +456,14 @@ done
 
 ALL_RESULTS=$(printf '%s' "$ALL_RESULTS" | sed '/^$/d')
 
+matched_count=0
+if [[ -n "$ALL_RESULTS" ]]; then
+    matched_count=$(printf '%s' "$ALL_RESULTS" | sed '/^$/d' | wc -l | tr -d ' ' || echo 0)
+fi
+
 # If no results, exit
 if [[ -z "$ALL_RESULTS" ]]; then
+    emit_wisdom_search_event "success" "no_results" 0
     if [[ "$JSON_OUTPUT" == true ]]; then
         echo "[]"
     else
@@ -445,6 +505,7 @@ if [[ "$TOP_TWO_COUNT" -eq 2 ]]; then
     if [[ "$(entries_share_conflict_rank "$first_ranked" "$second_ranked")" == "true" ]] && [[ "$(entry_has_mutual_contradiction "$first_entry" "$second_entry")" == "true" ]]; then
         if contradiction_result=$(wisdom_check_contradiction "$first_entry" "$second_entry"); then
             wisdom_log WARN "Equal-rank contradictory wisdom detected; returning ${contradiction_result}"
+            emit_wisdom_search_event "success" "conflict_unknown" 0
             if [[ "$JSON_OUTPUT" == true ]]; then
                 printf '%s\n' '"UNKNOWN"'
             else
@@ -461,6 +522,7 @@ SORTED_LIMITED=$(printf '%s' "$SORTED_RESULTS" | jq '.[0:'"$LIMIT"']')
 RESULT_COUNT=$(printf '%s' "$SORTED_LIMITED" | jq 'length')
 
 if [[ "$RESULT_COUNT" -eq 0 ]]; then
+    emit_wisdom_search_event "success" "no_results" 0
     if [[ "$JSON_OUTPUT" == true ]]; then
         echo "[]"
     else
@@ -468,6 +530,8 @@ if [[ "$RESULT_COUNT" -eq 0 ]]; then
     fi
     exit 1
 fi
+
+emit_wisdom_search_event "success" "" "$RESULT_COUNT"
 
 # --------------------------------------------------------------------------
 # Access tracking: bump accessed+1 and set last_accessed for matched entries

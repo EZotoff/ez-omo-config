@@ -46,4 +46,4 @@ Latest proof command outputs: `.sisyphus/evidence/task-11-final-commands.txt`
 
 ## Exclusion Rationale
 
-Wisdom is excluded from this page because it already has its own dedicated observability system, documented in [docs/wisdom.md](wisdom.md) and implemented across `scripts/wisdom/`, `skills/wisdom/`, and the notepad integration layer.
+Wisdom has its own dedicated observability system documented in [docs/wisdom.md](wisdom.md).

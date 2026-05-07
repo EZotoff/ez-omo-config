@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 source "${SCRIPT_DIR}/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
 wisdom_require_jq
 
 SISYPHUS_HOME="${SISYPHUS_HOME:-${HOME}/.sisyphus}"
@@ -39,6 +40,65 @@ IMPORT_CREATED=0
 IMPORT_MERGED=0
 IMPORT_REPLACED=0
 IMPORT_SKIPPED=0
+IMPORT_MANIFESTS_SCANNED=0
+
+wisdom_migrate_emit_phase_event() {
+    local phase="$1"
+    local status="$2"
+    local payload="${3:-{}}"
+
+    local payload_obj='{}'
+    if [[ -n "$payload" ]] && printf '%s' "$payload" | jq -e 'type == "object"' >/dev/null 2>&1; then
+        payload_obj="$payload"
+    fi
+
+    local merged_payload
+    merged_payload=$(jq -nc \
+        --arg phase "$phase" \
+        --arg backup_tarball "${LAST_BACKUP_TARBALL:-}" \
+        --arg canonical_root "$CANONICAL_WISDOM_ROOT" \
+        --arg legacy_root "$LEGACY_WISDOM_ROOT" \
+        --arg manifest_root "$MANIFEST_ROOT" \
+        --argjson normalized_files "$NORMALIZED_FILES" \
+        --argjson normalized_records "$NORMALIZED_RECORDS" \
+        --argjson import_created "$IMPORT_CREATED" \
+        --argjson import_merged "$IMPORT_MERGED" \
+        --argjson import_replaced "$IMPORT_REPLACED" \
+        --argjson import_skipped "$IMPORT_SKIPPED" \
+        --argjson import_manifests_scanned "$IMPORT_MANIFESTS_SCANNED" \
+        --argjson payload "$payload_obj" \
+        '{
+            phase: $phase,
+            backup_tarball: (if $backup_tarball == "" then null else $backup_tarball end),
+            canonical_wisdom_root: (if $canonical_root == "" then null else $canonical_root end),
+            legacy_wisdom_root: (if $legacy_root == "" then null else $legacy_root end),
+            manifest_root: (if $manifest_root == "" then null else $manifest_root end),
+            counts: {
+                normalized_files: $normalized_files,
+                normalized_records: $normalized_records,
+                import_manifests_scanned: $import_manifests_scanned,
+                import_created: $import_created,
+                import_merged: $import_merged,
+                import_replaced: $import_replaced,
+                import_skipped: $import_skipped
+            }
+        } + $payload' 2>/dev/null) || merged_payload='{}'
+
+    wisdom_emit_event "wisdom.lifecycle.migrate" "$status" "$merged_payload"
+}
+
+_wisdom_migrate_emit_final_event() {
+    local rc=$?
+    if [[ "$rc" -eq 0 ]]; then
+        wisdom_migrate_emit_phase_event "success" "ok" '{}'
+    else
+        local payload
+        payload=$(jq -nc --arg exit_code "$rc" '{exit_code: ($exit_code | tonumber)}' 2>/dev/null || echo '{}')
+        wisdom_migrate_emit_phase_event "failure" "error" "$payload"
+    fi
+}
+
+trap _wisdom_migrate_emit_final_event EXIT
 
 usage() {
     cat >&2 <<'EOF'
@@ -931,7 +991,10 @@ import_phase() {
     local manifest_file
     while IFS= read -r manifest_file; do
         [[ -f "$manifest_file" ]] || continue
-        import_one_manifest "$manifest_file"
+        IMPORT_MANIFESTS_SCANNED=$((IMPORT_MANIFESTS_SCANNED + 1))
+        if ! import_one_manifest "$manifest_file"; then
+            return 1
+        fi
         imported_any=1
     done < <(find "$MANIFEST_ROOT" -type f -name '*.md' | sort)
 
@@ -1004,20 +1067,82 @@ main() {
     choose_primary_wisdom_root
 
     if [[ -n "$restore_tarball" ]]; then
-        restore_phase "$restore_tarball" "$restore_target"
+        if restore_phase "$restore_tarball" "$restore_target"; then
+            local restore_payload
+            restore_payload=$(jq -nc \
+                --arg restore_tarball "$restore_tarball" \
+                --arg restore_target "$restore_target" \
+                '{restore_tarball:(if $restore_tarball == "" then null else $restore_tarball end),restore_target:(if $restore_target == "" then null else $restore_target end)}' 2>/dev/null || echo '{}')
+            wisdom_migrate_emit_phase_event "restore" "ok" "$restore_payload"
+        else
+            local restore_error_payload
+            restore_error_payload=$(jq -nc \
+                --arg restore_tarball "$restore_tarball" \
+                --arg restore_target "$restore_target" \
+                '{restore_tarball:(if $restore_tarball == "" then null else $restore_tarball end),restore_target:(if $restore_target == "" then null else $restore_target end)}' 2>/dev/null || echo '{}')
+            wisdom_migrate_emit_phase_event "restore" "error" "$restore_error_payload"
+            exit 1
+        fi
         exit 0
     fi
 
     if [[ "$do_backup" -eq 1 ]]; then
-        backup_phase
+        if backup_phase; then
+            local backup_payload
+            backup_payload=$(jq -nc \
+                --arg backup_ref_file "$BACKUP_REF_FILE" \
+                --arg backup_tarball "$LAST_BACKUP_TARBALL" \
+                '{backup_ref_file:(if $backup_ref_file == "" then null else $backup_ref_file end),backup_tarball:(if $backup_tarball == "" then null else $backup_tarball end)}' 2>/dev/null || echo '{}')
+            wisdom_migrate_emit_phase_event "backup" "ok" "$backup_payload"
+        else
+            wisdom_migrate_emit_phase_event "backup" "error" '{}'
+            exit 1
+        fi
+    else
+        wisdom_migrate_emit_phase_event "backup" "ok" '{"skipped":true}'
     fi
 
     if [[ "$do_normalize" -eq 1 ]]; then
-        normalize_phase
+        if normalize_phase; then
+            local normalize_payload
+            normalize_payload=$(jq -nc \
+                --argjson normalized_files "$NORMALIZED_FILES" \
+                --argjson normalized_records "$NORMALIZED_RECORDS" \
+                '{normalized_files:$normalized_files,normalized_records:$normalized_records}' 2>/dev/null || echo '{}')
+            wisdom_migrate_emit_phase_event "normalize" "ok" "$normalize_payload"
+        else
+            wisdom_migrate_emit_phase_event "normalize" "error" '{}'
+            exit 1
+        fi
+    else
+        wisdom_migrate_emit_phase_event "normalize" "ok" '{"skipped":true}'
     fi
 
     if [[ "$do_import" -eq 1 ]]; then
-        import_phase
+        if import_phase; then
+            local import_payload
+            import_payload=$(jq -nc \
+                --argjson manifests_scanned "$IMPORT_MANIFESTS_SCANNED" \
+                --argjson created "$IMPORT_CREATED" \
+                --argjson merged "$IMPORT_MERGED" \
+                --argjson replaced "$IMPORT_REPLACED" \
+                --argjson skipped "$IMPORT_SKIPPED" \
+                '{manifests_scanned:$manifests_scanned,created:$created,merged:$merged,replaced:$replaced,skipped:$skipped}' 2>/dev/null || echo '{}')
+            wisdom_migrate_emit_phase_event "import" "ok" "$import_payload"
+        else
+            local import_error_payload
+            import_error_payload=$(jq -nc \
+                --argjson manifests_scanned "$IMPORT_MANIFESTS_SCANNED" \
+                --argjson created "$IMPORT_CREATED" \
+                --argjson merged "$IMPORT_MERGED" \
+                --argjson replaced "$IMPORT_REPLACED" \
+                --argjson skipped "$IMPORT_SKIPPED" \
+                '{manifests_scanned:$manifests_scanned,created:$created,merged:$merged,replaced:$replaced,skipped:$skipped}' 2>/dev/null || echo '{}')
+            wisdom_migrate_emit_phase_event "import" "error" "$import_error_payload"
+            exit 1
+        fi
+    else
+        wisdom_migrate_emit_phase_event "import" "ok" '{"skipped":true}'
     fi
 
     log_info "Migration complete"

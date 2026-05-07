@@ -74,6 +74,7 @@ ITEMS=(
     "scripts|scripts/wisdom/knowledge-snapshot.sh|$HOME/.sisyphus/scripts/knowledge-snapshot.sh"
     "scripts|scripts/knowledge-promote.sh|$HOME/.sisyphus/scripts/knowledge-promote.sh"
     "scripts|scripts/wisdom/wisdom-publish.sh|$HOME/.sisyphus/scripts/wisdom-publish.sh"
+    "scripts|scripts/wisdom/wisdom-observe.sh|$HOME/.sisyphus/scripts/wisdom-observe.sh"
     "scripts|scripts/wisdom/manifest-write.sh|$HOME/.sisyphus/scripts/manifest-write.sh"
     "scripts|scripts/worktree-post-create.sh|$HOME/.opencode/scripts/worktree-post-create.sh"
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"

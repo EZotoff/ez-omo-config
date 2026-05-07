@@ -64,10 +64,10 @@ This repository contains 61 core artifacts + 1 external integration organized in
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
+| 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
 | 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, Vera runtime supervision, and semantic checkpointing |
 | 12-22 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, parallel development, and Vera hygiene |
-| 22-31 | **Scripts** | 13 shell scripts | Wisdom propagation, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
+| 22-31 | **Scripts** | 24 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
 | 32 | **Tests** | 6 test scripts | Regression tests for config, DCP, and plugin verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
@@ -114,6 +114,7 @@ This repository contains 61 core artifacts + 1 external integration organized in
 | 24 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
 | 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
 | 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
+| 26a | `wisdom-observe.sh` | `scripts/wisdom/` | Operator-facing observability CLI for wisdom events |
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
@@ -136,7 +137,6 @@ This repository contains 61 core artifacts + 1 external integration organized in
 | 44 | `aspect-dynamics/nudge.mjs` | `configs/opencode/` | Transcript-visible advisory nudge formatter |
 | 45 | `aspect-dynamics/logging.mjs` | `configs/opencode/` | Structured logging utilities |
 | 46 | `aspect-dynamics/sets/emotions-v1.json` | `configs/opencode/` | Seed aspect set for emotional tone detection |
-| 46b | `aspect-dynamics/sets/emotions-v2.json` | `configs/opencode/` | Extended seed aspect set for emotional tone detection |
 | 47 | `tests/aspect-dynamics/harness.mjs` | `tests/aspect-dynamics/` | Test harness for aspect-dynamics unit tests |
 | 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
 | 49 | `scripts/verify-live-deployment.sh` | `scripts/` | Live deployment verifier with evidence-state validation |

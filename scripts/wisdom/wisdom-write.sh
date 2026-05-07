@@ -2,6 +2,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
 wisdom_require_jq
 
 SCOPE="system"
@@ -38,6 +39,36 @@ EOF
     exit 2
 }
 
+_emit_write_event() {
+    local _event_status="$1"
+    local record_id="${2:-}"
+    local content_hash="${3:-}"
+    local content_preview="${4:-}"
+    local payload
+    payload=$(jq -n \
+        --arg scope "$SCOPE" \
+        --arg project_id "$PROJECT_ID" \
+        --arg type "$TYPE" \
+        --arg authority "$AUTHORITY" \
+        --arg entry_status "$STATUS" \
+        --arg provenance "$PROVENANCE" \
+        --arg record_id "$record_id" \
+        --arg content_hash "$content_hash" \
+        --arg content_preview "$content_preview" \
+        '{
+            scope: $scope,
+            project_id: (if $project_id == "" then null else $project_id end),
+            type: (if $type == "" then null else $type end),
+            authority: (if $authority == "" then null else $authority end),
+            entry_status: (if $entry_status == "" then null else $entry_status end),
+            provenance: (if $provenance == "" then null else $provenance end),
+            record_id: (if $record_id == "" then null else $record_id end),
+            content_hash: $content_hash,
+            content_preview: $content_preview
+        }' 2>/dev/null) || payload="{}"
+    wisdom_emit_event "wisdom.write" "$_event_status" "$payload"
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --scope)          SCOPE="$2";          shift 2 ;;
@@ -66,21 +97,33 @@ fi
 
 if [[ -z "$CONTENT" || -z "${CONTENT// /}" ]]; then
     wisdom_log ERROR "Content must not be empty or whitespace-only"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$CONTENT" 2>/dev/null || echo "")
+    _emit_write_event "failed" "" "$_hash" "$_preview"
     exit 2
 fi
 
 if [[ "${#CONTENT}" -lt 20 ]]; then
     wisdom_log ERROR "Content too short (${#CONTENT} chars, minimum 20)"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$CONTENT" 2>/dev/null || echo "")
+    _emit_write_event "failed" "" "$_hash" "$_preview"
     exit 2
 fi
 
 if [[ "$SCOPE" == "project" || "$SCOPE" == "plan" ]] && [[ -z "$PROJECT_ID" ]]; then
     wisdom_log ERROR "--project-id is required when scope=$SCOPE"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$CONTENT" 2>/dev/null || echo "")
+    _emit_write_event "failed" "" "$_hash" "$_preview"
     exit 2
 fi
 
 if ! wisdom_check_secret "$CONTENT"; then
     wisdom_log ERROR "Entry blocked: secret detected in content"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$CONTENT" 2>/dev/null || echo "")
+    _emit_write_event "failed" "" "$_hash" "$_preview"
     exit 3
 fi
 
@@ -137,25 +180,41 @@ entry=$(jq -nc \
 
 normalized=$(wisdom_normalize_record "$entry") || {
     wisdom_log ERROR "Failed to normalize entry"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$entry" 2>/dev/null || echo "")
+    _emit_write_event "failed" "$id" "$_hash" "$_preview"
     exit 3
 }
 
 if ! wisdom_validate_jsonl_line "$normalized"; then
     wisdom_log ERROR "Generated entry failed validation"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$normalized" 2>/dev/null || echo "")
+    _emit_write_event "failed" "$id" "$_hash" "$_preview"
     exit 3
 fi
 
 if ! wisdom_append_entry "$normalized" "$store_path"; then
     wisdom_log ERROR "Failed to write entry to store"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$normalized" 2>/dev/null || echo "")
+    _emit_write_event "failed" "$id" "$_hash" "$_preview"
     exit 3
 fi
 
 if ! wisdom_read_entry "$id" "$store_path" >/dev/null 2>&1; then
     wisdom_log ERROR "Verification failed: entry not found after write"
+    _preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+    _hash=$(wisdom_hash_text "$normalized" 2>/dev/null || echo "")
+    _emit_write_event "failed" "$id" "$_hash" "$_preview"
     exit 3
 fi
 
 wisdom_log INFO "Entry written to $store_path"
+
+_preview=$(wisdom_redact_preview "$CONTENT" 2>/dev/null || echo "")
+_hash=$(wisdom_hash_text "$normalized" 2>/dev/null || echo "")
+_emit_write_event "success" "$id" "$_hash" "$_preview"
 
 printf '%s\n' "$id"
 exit 0

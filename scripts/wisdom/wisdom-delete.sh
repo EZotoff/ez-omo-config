@@ -6,6 +6,63 @@ set -euo pipefail
 
 # Source common functions
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
+
+_WISDOM_DELETE_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+_WISDOM_DELETE_ID=""
+_WISDOM_DELETE_SCOPE=""
+_WISDOM_DELETE_PROJECT_ID=""
+_WISDOM_DELETE_DRY_RUN="false"
+_WISDOM_DELETE_FORCE="false"
+_WISDOM_DELETE_STORE_PATH=""
+_WISDOM_DELETE_STATUS_BEFORE=""
+_WISDOM_DELETE_AUTHORITY_BEFORE=""
+
+_wisdom_delete_emit_observability() {
+    local rc=$?
+    local status="ok"
+    [[ "$rc" -ne 0 ]] && status="error"
+
+    local duration_ms_json="null"
+    if [[ -n "${_WISDOM_DELETE_START_MS:-}" ]]; then
+        local now_ms
+        now_ms=$(date +%s%3N 2>/dev/null || echo "")
+        if [[ -n "$now_ms" ]]; then
+            duration_ms_json=$((now_ms - _WISDOM_DELETE_START_MS))
+        fi
+    fi
+
+    local payload='{}'
+    payload=$(jq -nc \
+        --arg record_id "${_WISDOM_DELETE_ID:-}" \
+        --arg scope "${_WISDOM_DELETE_SCOPE:-}" \
+        --arg project_id "${_WISDOM_DELETE_PROJECT_ID:-}" \
+        --arg dry_run "${_WISDOM_DELETE_DRY_RUN:-false}" \
+        --arg force "${_WISDOM_DELETE_FORCE:-false}" \
+        --arg store_path "${_WISDOM_DELETE_STORE_PATH:-}" \
+        --arg status_before "${_WISDOM_DELETE_STATUS_BEFORE:-}" \
+        --arg status_after "deleted" \
+        --arg authority_before "${_WISDOM_DELETE_AUTHORITY_BEFORE:-}" \
+        --argjson duration_ms "$duration_ms_json" \
+        '{
+            affected_count: (if $record_id == "" then 0 else 1 end),
+            affected_ids: (if $record_id == "" then [] else [$record_id] end),
+            scope: (if $scope == "" then null else $scope end),
+            project_id: (if $project_id == "" then null else $project_id end),
+            dry_run: ($dry_run == "true"),
+            force: ($force == "true"),
+            store_path: (if $store_path == "" then null else $store_path end),
+            status_before: (if $status_before == "" then null else $status_before end),
+            status_after: $status_after,
+            authority_before: (if $authority_before == "" then null else $authority_before end),
+            authority_after: null,
+            duration_ms: $duration_ms
+        }' 2>/dev/null) || payload='{}'
+
+    wisdom_emit_event "wisdom.lifecycle.delete" "$status" "$payload"
+}
+
+trap _wisdom_delete_emit_observability EXIT
 
 # --------------------------------------------------------------------------
 # Help/usage
@@ -120,6 +177,12 @@ main() {
         exit 2
     fi
 
+    _WISDOM_DELETE_ID="$id"
+    _WISDOM_DELETE_SCOPE="$scope"
+    _WISDOM_DELETE_PROJECT_ID="$project_id"
+    _WISDOM_DELETE_DRY_RUN="$dry_run"
+    _WISDOM_DELETE_FORCE="$force"
+
     # Validate project_id requirement for project/plan scope
     if [[ "$scope" == "project" || "$scope" == "plan" ]] && [[ -z "$project_id" ]]; then
         wisdom_log "ERROR" "Scope '$scope' requires --project-id"
@@ -133,6 +196,7 @@ main() {
     # Get store path
     local store_path
     store_path=$(wisdom_get_store_path "$scope" "$project_id") || exit 2
+    _WISDOM_DELETE_STORE_PATH="$store_path"
 
     # Check if store exists
     if [[ ! -f "$store_path" ]]; then
@@ -146,6 +210,9 @@ main() {
         wisdom_log "ERROR" "Entry '$id' not found in $store_path"
         exit 1
     fi
+
+    _WISDOM_DELETE_STATUS_BEFORE=$(printf '%s' "$entry_json" | jq -r '.status // "active"' 2>/dev/null || echo "")
+    _WISDOM_DELETE_AUTHORITY_BEFORE=$(printf '%s' "$entry_json" | jq -r '.authority // "candidate"' 2>/dev/null || echo "")
 
     # Extract entry details for display
     local entry_type entry_body entry_created

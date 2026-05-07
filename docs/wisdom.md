@@ -442,6 +442,187 @@ wisdom-restore.sh --backup /path/to/backup.tar.gz
 wisdom-restore.sh --backup /path/to/backup.tar.gz --target-root /tmp/restore-root
 ```
 
+## Wisdom Observability
+
+The wisdom subsystem emits structured observability events to a JSONL event store. Every wisdom script initializes an observability context on startup and emits events for capture, query, promotion, and lifecycle operations. This gives operators a complete audit trail of what the wisdom system is doing.
+
+### Event Store Path
+
+Events are written to:
+
+```
+${WISDOM_EVENTS_PATH:-${WISDOM_ROOT:-$HOME/.sisyphus/wisdom}/events.jsonl}
+```
+
+The default path is `~/.sisyphus/wisdom/events.jsonl`. Override with `WISDOM_EVENTS_PATH` for test isolation or custom locations.
+
+### Event Schema
+
+Every event is a single JSON line with the following required fields:
+
+```json
+{
+  "schema_version": "1.0",
+  "ts": "2025-03-15T14:32:10Z",
+  "system": "wisdom",
+  "event": "wisdom.write",
+  "status": "success",
+  "trace_id": "trace-1742051530-a1b2c3d4",
+  "invocation_id": "inv-wisdom-write.sh-1742051530-e5f6g7h8",
+  "parent_invocation_id": null,
+  "script": "wisdom-write.sh",
+  "pid": 12345,
+  "duration_ms": 42
+}
+```
+
+**Field Descriptions**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `schema_version` | string | Fixed at `"1.0"` |
+| `ts` | string | ISO8601 UTC timestamp of emission |
+| `system` | string | Fixed at `"wisdom"` |
+| `event` | string | Event name (see Event Names below) |
+| `status` | string | One of `started`, `success`, `skipped`, `failed`, `ok` |
+| `trace_id` | string | Shared across all scripts in a call tree |
+| `invocation_id` | string | Unique per script invocation |
+| `parent_invocation_id` | string or null | Parent script's invocation_id when nested |
+| `script` | string | Name of the emitting script |
+| `pid` | integer | Process ID of the emitting process |
+| `duration_ms` | integer or null | Milliseconds since observability init, or null |
+
+Events may also carry additional payload fields specific to the operation (for example, `scope`, `type`, or `entry_id`).
+
+### Schema Version
+
+The current schema version is `1.0`, defined by `WISDOM_EVENT_SCHEMA_VERSION` in `wisdom-common.sh`. All events emitted by the subsystem use this version. Future schema changes will bump this version and include migration notes here.
+
+### Event Names
+
+| Event Name | Emitted By | Description |
+|-----------|------------|-------------|
+| `wisdom.write` | `wisdom-write.sh` | A new wisdom entry was written |
+| `wisdom.search` | `wisdom-search.sh` | A search was executed against wisdom stores |
+| `wisdom.capture.closeout` | `wisdom-closeout.sh` | A closeout capture was processed |
+| `wisdom.capture.nomination` | `wisdom-nominate.sh` | A passive nomination was accepted or rejected |
+| `wisdom.capture.sync` | `wisdom-sync.sh` | A sync run completed |
+| `wisdom.lookup` | `knowledge-lookup.sh` | A legacy lookup shim was invoked |
+| `wisdom.snapshot` | `knowledge-snapshot.sh` | A legacy snapshot shim was invoked |
+| `wisdom.promote.publish` | `wisdom-publish.sh` | An entry was promoted to published authority |
+| `wisdom.lifecycle.edit` | `wisdom-edit.sh` | An entry was modified |
+| `wisdom.lifecycle.authority_change` | `wisdom-edit.sh` | An entry's authority level changed |
+| `wisdom.lifecycle.archive` | `wisdom-archive.sh` | An entry was moved to archive |
+| `wisdom.lifecycle.delete` | `wisdom-delete.sh` | An entry was deleted |
+| `wisdom.lifecycle.gc` | `wisdom-gc.sh` | Garbage collection run completed |
+| `wisdom.lifecycle.merge` | `wisdom-merge.sh` | Entries were merged |
+| `wisdom.lifecycle.migrate` | `wisdom-migrate.sh` | A migration run completed |
+| `wisdom.observe.reset` | `wisdom-observe.sh` | The event store was truncated |
+
+### Status Values
+
+- `started` — The operation began (used sparingly)
+- `success` — The operation completed normally
+- `skipped` — The operation was skipped (for example, no results, or disabled)
+- `failed` — The operation encountered an error
+- `ok` — Generic affirmative status (used for reset confirmation)
+
+### Trace ID Semantics
+
+A `trace_id` is generated once per top-level script invocation and propagated to all nested calls:
+
+1. The first script in a call chain calls `wisdom_init_observability`, which generates a fresh `trace_id` if `WISDOM_TRACE_ID` is not already set.
+2. Child scripts inherit the same `WISDOM_TRACE_ID` via environment export.
+3. Each script gets its own `invocation_id`, but records the parent's `invocation_id` in `parent_invocation_id`.
+
+This lets you follow a complete operation across `wisdom-closeout.sh` → `wisdom-write.sh` → `wisdom-edit.sh` as a single trace.
+
+### Redaction Rules
+
+Event payloads are redacted before emission to prevent secret leakage:
+
+- **80-character preview cap**: Long values are truncated to 77 characters plus "..."
+- **Secret replacement**: Known secret patterns are replaced with `[REDACTED]`:
+  - OpenAI-style API keys (`sk-...`)
+  - GitHub tokens (`ghp_...`)
+  - Slack tokens (`xoxb-...`)
+  - Bearer tokens
+  - Private keys (`-----BEGIN...PRIVATE KEY-----`)
+  - Credential assignments (`API_KEY=...`, `PASSWORD=...`, `TOKEN=...`)
+  - `SECRET_SENTINEL_DO_NOT_LOG` markers
+- **Whitespace normalization**: Multiple spaces are collapsed, leading/trailing whitespace is trimmed
+- **SHA-256 hashes**: Content hashes may be used for correlation without exposing raw values
+
+### Retention Policy
+
+The event store enforces a **hard limit of 1000 events** (`WISDOM_EVENTS_MAX_LINES`). When a new event pushes the count over this limit, the oldest events are truncated automatically. This happens inside the same `flock` lock that appends the new event, so concurrent writes cannot interleave with truncation.
+
+Override the limit:
+```bash
+export WISDOM_EVENTS_MAX_LINES=5000
+```
+
+### Disabled Mode
+
+Set `WISDOM_OBSERVABILITY=0` to disable all event emission. In this mode:
+
+- `wisdom_init_observability` returns immediately without generating IDs
+- `wisdom_emit_event` returns immediately without writing
+- `wisdom_reset_events` truncates the file but does not emit a reset event
+- All wisdom scripts continue to function normally; only observability is silenced
+- The `wisdom-observe.sh status` command reports `observability: no`
+
+Use this for performance-sensitive batch operations or when you want to avoid event noise.
+
+### wisdom-observe.sh CLI
+
+The `wisdom-observe.sh` script is the operator-facing CLI for inspecting events.
+
+**Subcommands**:
+
+#### `status`
+Print event file metadata: path, existence, line count, newest/oldest timestamps, retention limit, and whether observability is enabled.
+
+```bash
+wisdom-observe.sh status
+```
+
+#### `read`
+Read events with optional filtering. Default human output is compact and deterministic (one line per event).
+
+```bash
+# Read all events
+wisdom-observe.sh read
+
+# Read with filters and JSON output
+wisdom-observe.sh read --limit 10 --event wisdom.search --status success --json
+```
+
+**Options**:
+- `--limit N`: Limit to N most recent events
+- `--event EVENT`: Filter by event name
+- `--status STATUS`: Filter by status
+- `--json`: Output as JSON array
+
+#### `trace TRACE_ID`
+Print all events for a specific trace ID in timestamp order.
+
+```bash
+wisdom-observe.sh trace trace-1234567890-abc123 --json
+```
+
+**Options**:
+- `--json`: Output as JSON array
+
+#### `reset --yes`
+Truncate the events file safely. Preserves the parent directory. Emits a `wisdom.observe.reset` event after truncation (unless `WISDOM_OBSERVABILITY=0`). Requires `--yes` flag — without it, exits non-zero with usage text.
+
+```bash
+wisdom-observe.sh reset --yes
+```
+
+**Safety**: Without `--yes`, the command exits with code 2 and makes no changes.
+
 ## Skill Integration
 
 The `wisdom/` skill provides OpenCode integration for the wisdom system. It wraps the scripts and provides a high-level interface for agents.

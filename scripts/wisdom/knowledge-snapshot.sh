@@ -8,6 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
 source "${SCRIPT_DIR}/wisdom-common.sh" || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
+wisdom_init_observability "$(basename "$0")"
 
 printf '[DEPRECATION] knowledge-snapshot.sh is deprecated; use wisdom-search.sh directly\n' >&2
 
@@ -79,7 +80,9 @@ else
     OUTPUT+="(none)"$'\n'
 fi
 
+snapshot_truncation=false
 if [[ ${#OUTPUT} -gt ${KNOWLEDGE_SNAPSHOT_CHAR_LIMIT} ]]; then
+    snapshot_truncation=true
     STALE_LEN=${#STALE_SECTION}
     WISDOM_LEN=${#WISDOM_SECTION}
 
@@ -102,5 +105,16 @@ if [[ ${#OUTPUT} -gt ${KNOWLEDGE_SNAPSHOT_CHAR_LIMIT} ]]; then
         OUTPUT="${OUTPUT:0:${KNOWLEDGE_SNAPSHOT_CHAR_LIMIT}}"
     fi
 fi
+
+payload=$(jq -n \
+    --argjson returned "${count:-0}" \
+    --argjson truncation "$snapshot_truncation" \
+    --argjson char_budget "${KNOWLEDGE_SNAPSHOT_CHAR_LIMIT}" \
+    '{
+        counts: { returned: $returned },
+        truncation: $truncation,
+        char_budget: $char_budget
+    }' 2>/dev/null) || payload="{}"
+wisdom_emit_event "wisdom.snapshot" "success" "$payload" 2>/dev/null || true
 
 printf '%s' "$OUTPUT"

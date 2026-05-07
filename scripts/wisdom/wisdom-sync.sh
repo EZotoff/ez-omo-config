@@ -4,6 +4,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -30,6 +31,13 @@ SYNCED_COUNT=0
 SKIPPED_COUNT=0
 REJECTED_COUNT=0
 ERROR_COUNT=0
+CANDIDATE_COUNT=0
+ACCEPTED_COUNT=0
+SKIPPED_SHORT_COUNT=0
+SKIPPED_DEDUP_COUNT=0
+SKIPPED_SECRET_COUNT=0
+SKIPPED_LLM_COUNT=0
+WRITTEN_COUNT=0
 
 # ---------------------------------------------------------------------------
 # usage — Print help text
@@ -188,11 +196,14 @@ process_section() {
     local notepad_name="$3"
     local notepad_path="$4"
 
+    CANDIDATE_COUNT=$((CANDIDATE_COUNT + 1))
+
     # --- Stage 3: Filter short bodies ---
     local body_length=${#body}
     if (( body_length < MIN_BODY_LENGTH )); then
         vlog "FILTER: Skipped (body ${body_length} chars < ${MIN_BODY_LENGTH}): ${header:0:60}"
         SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+        SKIPPED_SHORT_COUNT=$((SKIPPED_SHORT_COUNT + 1))
         return
     fi
 
@@ -203,6 +214,7 @@ process_section() {
     if is_already_synced "$hash"; then
         vlog "DEDUP: Already synced (hash=${hash:0:12}…): ${header:0:60}"
         SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+        SKIPPED_DEDUP_COUNT=$((SKIPPED_DEDUP_COUNT + 1))
         return
     fi
 
@@ -215,6 +227,7 @@ process_section() {
     if ! wisdom_check_secret "$body"; then
         log "BLOCKED: Secret detected in section: ${header:0:60}"
         SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+        SKIPPED_SECRET_COUNT=$((SKIPPED_SECRET_COUNT + 1))
         return
     fi
 
@@ -226,6 +239,7 @@ process_section() {
         if (( score < 3 )); then
             log "REJECTED: LLM score=${score} < 3 for: ${header:0:60}"
             REJECTED_COUNT=$((REJECTED_COUNT + 1))
+            SKIPPED_LLM_COUNT=$((SKIPPED_LLM_COUNT + 1))
             return
         fi
     fi
@@ -237,6 +251,7 @@ process_section() {
     if [[ "$DRY_RUN" == true ]]; then
         log "DRY-RUN: Would sync [type=${entry_type}, score=${score}, tags=${tags}]: ${header:0:80}"
         SYNCED_COUNT=$((SYNCED_COUNT + 1))
+        ACCEPTED_COUNT=$((ACCEPTED_COUNT + 1))
         return
     fi
 
@@ -255,6 +270,8 @@ process_section() {
         # --- Stage 8: Update state ---
         printf '%s\n' "$hash" >> "$SYNC_STATE_FILE"
         SYNCED_COUNT=$((SYNCED_COUNT + 1))
+        ACCEPTED_COUNT=$((ACCEPTED_COUNT + 1))
+        WRITTEN_COUNT=$((WRITTEN_COUNT + 1))
         log "SYNCED: [type=${entry_type}, score=${score}] ${header:0:80}"
     else
         ERROR_COUNT=$((ERROR_COUNT + 1))
@@ -376,6 +393,35 @@ main() {
 
     # Summary
     log "=== SYNC RUN END: synced=${SYNCED_COUNT} skipped=${SKIPPED_COUNT} rejected=${REJECTED_COUNT} errors=${ERROR_COUNT} ==="
+
+    local _sync_status="success"
+    if (( ERROR_COUNT > 0 )); then
+        _sync_status="failed"
+    fi
+
+    local _sync_payload
+    _sync_payload=$(jq -n \
+        --argjson candidate_sections "$CANDIDATE_COUNT" \
+        --argjson accepted "$ACCEPTED_COUNT" \
+        --argjson skipped_short "$SKIPPED_SHORT_COUNT" \
+        --argjson skipped_duplicate "$SKIPPED_DEDUP_COUNT" \
+        --argjson skipped_llm "$SKIPPED_LLM_COUNT" \
+        --argjson written "$WRITTEN_COUNT" \
+        --argjson dry_run "$DRY_RUN" \
+        --argjson skip_llm "$SKIP_LLM" \
+        '{
+            counts: {
+                candidate_sections: $candidate_sections,
+                accepted: $accepted,
+                skipped_short: $skipped_short,
+                skipped_duplicate: $skipped_duplicate,
+                skipped_llm: $skipped_llm,
+                written: $written
+            },
+            dry_run: $dry_run,
+            skip_llm: $skip_llm
+        }' 2>/dev/null) || _sync_payload="{}"
+    wisdom_emit_event "wisdom.capture.sync" "$_sync_status" "$_sync_payload"
 
     if (( ERROR_COUNT > 0 )); then
         exit 2

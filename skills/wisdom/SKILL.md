@@ -78,6 +78,15 @@ echo "CONTENT" | ~/.sisyphus/scripts/wisdom-write.sh --type TYPE --tags "tag1,ta
 ```
 Syncs entries from notepad learnings into the wisdom store.
 
+### Observe (inspect subsystem events)
+```bash
+~/.sisyphus/scripts/wisdom-observe.sh status
+~/.sisyphus/scripts/wisdom-observe.sh read [--limit N] [--event EVENT] [--status STATUS] [--json]
+~/.sisyphus/scripts/wisdom-observe.sh trace TRACE_ID [--json]
+~/.sisyphus/scripts/wisdom-observe.sh reset --yes
+```
+Inspect structured observability events emitted by wisdom scripts. Use `status` to check the event file, `read` to filter events, `trace` to follow a specific trace ID, and `reset --yes` to safely truncate the event log.
+
 ## Canonical Contract
 
 Every wisdom entry carries a canonical trust and lifecycle contract:
