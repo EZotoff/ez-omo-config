@@ -85,7 +85,7 @@ export default async function aspectDynamicsPlugin(ctx) {
           if (!canProcess(sessionID)) {
             const state = getSessionState(sessionID);
             if (state.circuitBroken) {
-              logInfo(`Session ${sessionID} skipped — circuit breaker open`);
+              logWarn(`Session ${sessionID} skipped — circuit breaker open`);
               emitProof("circuit_open", { session_id: sessionID, failure_count: state.failureCount });
             } else if (state.inFlight) {
               logInfo(`Session ${sessionID} skipped — action already in flight`);
@@ -105,7 +105,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             }
 
             if (hasRecursionGuard(context)) {
-              logInfo(`Session ${sessionID} skipped — recursion guard detected aspect-dynamics nudge`);
+              logWarn(`Session ${sessionID} skipped — recursion guard detected aspect-dynamics nudge`);
               recordSuccess(sessionID);
               return;
             }
@@ -122,7 +122,7 @@ export default async function aspectDynamicsPlugin(ctx) {
             const latestAssistantId = context.latestAssistantMessageId;
             const lastHandled = getLastHandledAssistantMessageId(sessionID);
             if (latestAssistantId && latestAssistantId === lastHandled) {
-              logInfo(`Session ${sessionID} skipped — already handled assistant message ${latestAssistantId}`);
+              logWarn(`Session ${sessionID} skipped — already handled assistant message ${latestAssistantId}`);
               return;
             }
 
