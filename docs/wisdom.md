@@ -484,7 +484,7 @@ Every event is a single JSON line with the following required fields:
 | `ts` | string | ISO8601 UTC timestamp of emission |
 | `system` | string | Fixed at `"wisdom"` |
 | `event` | string | Event name (see Event Names below) |
-| `status` | string | One of `started`, `success`, `skipped`, `failed`, `ok` |
+| `status` | string | One of `started`, `success`, `skipped`, `failed` |
 | `trace_id` | string | Shared across all scripts in a call tree |
 | `invocation_id` | string | Unique per script invocation |
 | `parent_invocation_id` | string or null | Parent script's invocation_id when nested |
@@ -525,7 +525,6 @@ The current schema version is `1.0`, defined by `WISDOM_EVENT_SCHEMA_VERSION` in
 - `success` — The operation completed normally
 - `skipped` — The operation was skipped (for example, no results, or disabled)
 - `failed` — The operation encountered an error
-- `ok` — Generic affirmative status (used for reset confirmation)
 
 ### Trace ID Semantics
 

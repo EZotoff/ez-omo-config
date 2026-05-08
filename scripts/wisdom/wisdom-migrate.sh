@@ -90,11 +90,11 @@ wisdom_migrate_emit_phase_event() {
 _wisdom_migrate_emit_final_event() {
     local rc=$?
     if [[ "$rc" -eq 0 ]]; then
-        wisdom_migrate_emit_phase_event "success" "ok" '{}'
+        wisdom_migrate_emit_phase_event "success" "success" '{}'
     else
         local payload
         payload=$(jq -nc --arg exit_code "$rc" '{exit_code: ($exit_code | tonumber)}' 2>/dev/null || echo '{}')
-        wisdom_migrate_emit_phase_event "failure" "error" "$payload"
+        wisdom_migrate_emit_phase_event "failure" "failed" "$payload"
     fi
 }
 
@@ -1073,14 +1073,14 @@ main() {
                 --arg restore_tarball "$restore_tarball" \
                 --arg restore_target "$restore_target" \
                 '{restore_tarball:(if $restore_tarball == "" then null else $restore_tarball end),restore_target:(if $restore_target == "" then null else $restore_target end)}' 2>/dev/null || echo '{}')
-            wisdom_migrate_emit_phase_event "restore" "ok" "$restore_payload"
+            wisdom_migrate_emit_phase_event "restore" "success" "$restore_payload"
         else
             local restore_error_payload
             restore_error_payload=$(jq -nc \
                 --arg restore_tarball "$restore_tarball" \
                 --arg restore_target "$restore_target" \
                 '{restore_tarball:(if $restore_tarball == "" then null else $restore_tarball end),restore_target:(if $restore_target == "" then null else $restore_target end)}' 2>/dev/null || echo '{}')
-            wisdom_migrate_emit_phase_event "restore" "error" "$restore_error_payload"
+            wisdom_migrate_emit_phase_event "restore" "failed" "$restore_error_payload"
             exit 1
         fi
         exit 0
@@ -1093,13 +1093,13 @@ main() {
                 --arg backup_ref_file "$BACKUP_REF_FILE" \
                 --arg backup_tarball "$LAST_BACKUP_TARBALL" \
                 '{backup_ref_file:(if $backup_ref_file == "" then null else $backup_ref_file end),backup_tarball:(if $backup_tarball == "" then null else $backup_tarball end)}' 2>/dev/null || echo '{}')
-            wisdom_migrate_emit_phase_event "backup" "ok" "$backup_payload"
+            wisdom_migrate_emit_phase_event "backup" "success" "$backup_payload"
         else
-            wisdom_migrate_emit_phase_event "backup" "error" '{}'
+            wisdom_migrate_emit_phase_event "backup" "failed" '{}'
             exit 1
         fi
     else
-        wisdom_migrate_emit_phase_event "backup" "ok" '{"skipped":true}'
+        wisdom_migrate_emit_phase_event "backup" "success" '{"skipped":true}'
     fi
 
     if [[ "$do_normalize" -eq 1 ]]; then
@@ -1109,13 +1109,13 @@ main() {
                 --argjson normalized_files "$NORMALIZED_FILES" \
                 --argjson normalized_records "$NORMALIZED_RECORDS" \
                 '{normalized_files:$normalized_files,normalized_records:$normalized_records}' 2>/dev/null || echo '{}')
-            wisdom_migrate_emit_phase_event "normalize" "ok" "$normalize_payload"
+            wisdom_migrate_emit_phase_event "normalize" "success" "$normalize_payload"
         else
-            wisdom_migrate_emit_phase_event "normalize" "error" '{}'
+            wisdom_migrate_emit_phase_event "normalize" "failed" '{}'
             exit 1
         fi
     else
-        wisdom_migrate_emit_phase_event "normalize" "ok" '{"skipped":true}'
+        wisdom_migrate_emit_phase_event "normalize" "success" '{"skipped":true}'
     fi
 
     if [[ "$do_import" -eq 1 ]]; then
@@ -1128,7 +1128,7 @@ main() {
                 --argjson replaced "$IMPORT_REPLACED" \
                 --argjson skipped "$IMPORT_SKIPPED" \
                 '{manifests_scanned:$manifests_scanned,created:$created,merged:$merged,replaced:$replaced,skipped:$skipped}' 2>/dev/null || echo '{}')
-            wisdom_migrate_emit_phase_event "import" "ok" "$import_payload"
+            wisdom_migrate_emit_phase_event "import" "success" "$import_payload"
         else
             local import_error_payload
             import_error_payload=$(jq -nc \
@@ -1138,11 +1138,11 @@ main() {
                 --argjson replaced "$IMPORT_REPLACED" \
                 --argjson skipped "$IMPORT_SKIPPED" \
                 '{manifests_scanned:$manifests_scanned,created:$created,merged:$merged,replaced:$replaced,skipped:$skipped}' 2>/dev/null || echo '{}')
-            wisdom_migrate_emit_phase_event "import" "error" "$import_error_payload"
+            wisdom_migrate_emit_phase_event "import" "failed" "$import_error_payload"
             exit 1
         fi
     else
-        wisdom_migrate_emit_phase_event "import" "ok" '{"skipped":true}'
+        wisdom_migrate_emit_phase_event "import" "success" '{"skipped":true}'
     fi
 
     log_info "Migration complete"
