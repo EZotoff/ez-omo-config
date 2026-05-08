@@ -6,6 +6,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$0")"
 
+# Find wisdom-common.sh
+WISDOM_COMMON="${SCRIPT_DIR}/wisdom-common.sh"
+if [[ ! -f "$WISDOM_COMMON" ]]; then
+  WISDOM_COMMON="${SCRIPT_DIR}/wisdom/wisdom-common.sh"
+fi
+source "$WISDOM_COMMON" 2>/dev/null || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
+wisdom_init_observability "$(basename "$0")"
+
 # Find wisdom-publish.sh: same dir at runtime, or scripts/wisdom/ in repo
 WISDOM_PUBLISH="${SCRIPT_DIR}/wisdom-publish.sh"
 if [[ ! -f "$WISDOM_PUBLISH" ]]; then
@@ -57,6 +65,21 @@ done
 
 WP_ARGS=("--id" "$WISDOM_ID" "--type" "$MANIFEST_TYPE" "--reason" "$REASON" "--emit-manifest")
 [[ -n "$SCOPE_OVERRIDE" ]] && WP_ARGS+=("--manifest-scope" "$SCOPE_OVERRIDE")
+
+# Emit shim event before delegating; child inherits trace via WISDOM_TRACE_ID
+reason_preview=$(wisdom_redact_preview "$REASON")
+emit_payload=$(jq -nc \
+  --arg wisdom_id "$WISDOM_ID" \
+  --arg manifest_type "$MANIFEST_TYPE" \
+  --arg reason_preview "$reason_preview" \
+  --arg scope_override "${SCOPE_OVERRIDE:-}" \
+  '{
+    wisdom_id: $wisdom_id,
+    manifest_type: $manifest_type,
+    reason_preview: $reason_preview,
+    scope_override: (if $scope_override == "" then null else $scope_override end)
+  }' 2>/dev/null) || emit_payload='{}'
+wisdom_emit_event "wisdom.promote.knowledge" "success" "$emit_payload"
 
 "$WISDOM_PUBLISH" "${WP_ARGS[@]}"
 exit $?

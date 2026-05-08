@@ -1136,7 +1136,7 @@ wisdom_reset_events() {
     event_file=$(wisdom_events_path)
     : > "$event_file"
     if [[ "${WISDOM_OBSERVABILITY:-1}" != "0" ]]; then
-        wisdom_emit_event "wisdom.observe.reset" "ok" '{}'
+        wisdom_emit_event "wisdom.observe.reset" "success" '{}'
     fi
 }
 

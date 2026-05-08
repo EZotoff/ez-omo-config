@@ -92,8 +92,8 @@ collect_gc_metrics() {
 
 _wisdom_gc_emit_observability() {
     local rc=$?
-    local status="ok"
-    [[ "$rc" -ne 0 ]] && status="error"
+    local status="success"
+    [[ "$rc" -ne 0 ]] && status="failed"
 
     if [[ "${_WISDOM_GC_AFFECTED_COUNT:-0}" -eq 0 ]]; then
         local stale_days_for_metrics="90"

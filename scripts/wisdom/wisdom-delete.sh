@@ -20,8 +20,8 @@ _WISDOM_DELETE_AUTHORITY_BEFORE=""
 
 _wisdom_delete_emit_observability() {
     local rc=$?
-    local status="ok"
-    [[ "$rc" -ne 0 ]] && status="error"
+    local status="success"
+    [[ "$rc" -ne 0 ]] && status="failed"
 
     local duration_ms_json="null"
     if [[ -n "${_WISDOM_DELETE_START_MS:-}" ]]; then

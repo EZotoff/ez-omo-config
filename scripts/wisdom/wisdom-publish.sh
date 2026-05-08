@@ -40,8 +40,8 @@ _PUBLISH_EVENT_DRY_RUN="false"
 
 _wisdom_publish_emit_observability() {
   local rc=$?
-  local status="ok"
-  [[ "$rc" -ne 0 ]] && status="error"
+  local status="success"
+  [[ "$rc" -ne 0 ]] && status="failed"
 
   local duration_ms_json="null"
   if [[ -n "${_PUBLISH_EVENT_START_MS:-}" ]]; then

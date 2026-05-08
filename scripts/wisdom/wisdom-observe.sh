@@ -95,57 +95,82 @@ cmd_read() {
     local event_file
     event_file=$(wisdom_events_path)
 
+    local returned_count=0
+    local read_status="success"
+
     if [[ ! -f "$event_file" ]]; then
         if [[ "$JSON_OUTPUT" == true ]]; then
             echo "[]"
         else
             echo "No events file found."
         fi
-        exit 1
-    fi
-
-    local events
-    events=$(wisdom_read_events "${LIMIT:-}")
-
-    if [[ -z "$events" ]]; then
-        if [[ "$JSON_OUTPUT" == true ]]; then
-            echo "[]"
-        else
-            echo "No events found."
-        fi
-        exit 1
-    fi
-
-    # Apply filters
-    if [[ -n "$EVENT_FILTER" ]]; then
-        events=$(printf '%s\n' "$events" | jq -c --arg ev "$EVENT_FILTER" 'select(.event == $ev)' 2>/dev/null)
-    fi
-
-    if [[ -n "$STATUS_FILTER" ]]; then
-        events=$(printf '%s\n' "$events" | jq -c --arg st "$STATUS_FILTER" 'select(.status == $st)' 2>/dev/null)
-    fi
-
-    if [[ -z "$events" ]]; then
-        if [[ "$JSON_OUTPUT" == true ]]; then
-            echo "[]"
-        else
-            echo "No events matched filters."
-        fi
-        exit 1
-    fi
-
-    if [[ "$JSON_OUTPUT" == true ]]; then
-        printf '%s\n' "$events" | jq -s '.'
+        returned_count=0
     else
-        printf '%s\n' "$events" | while IFS= read -r line; do
-            [[ -z "$line" ]] && continue
-            local ts ev st trid
-            ts=$(printf '%s' "$line" | jq -r '.ts // "-"')
-            ev=$(printf '%s' "$line" | jq -r '.event // "-"')
-            st=$(printf '%s' "$line" | jq -r '.status // "-"')
-            trid=$(printf '%s' "$line" | jq -r '.trace_id // "-"')
-            printf '%s | %s | %s | %s\n' "$ts" "$ev" "$st" "$trid"
-        done
+        local events
+        events=$(wisdom_read_events "${LIMIT:-}")
+
+        if [[ -z "$events" ]]; then
+            if [[ "$JSON_OUTPUT" == true ]]; then
+                echo "[]"
+            else
+                echo "No events found."
+            fi
+            returned_count=0
+        else
+            # Apply filters
+            if [[ -n "$EVENT_FILTER" ]]; then
+                events=$(printf '%s\n' "$events" | jq -c --arg ev "$EVENT_FILTER" 'select(.event == $ev)' 2>/dev/null)
+            fi
+
+            if [[ -n "$STATUS_FILTER" ]]; then
+                events=$(printf '%s\n' "$events" | jq -c --arg st "$STATUS_FILTER" 'select(.status == $st)' 2>/dev/null)
+            fi
+
+            if [[ -z "$events" ]]; then
+                if [[ "$JSON_OUTPUT" == true ]]; then
+                    echo "[]"
+                else
+                    echo "No events matched filters."
+                fi
+                returned_count=0
+            else
+                returned_count=$(printf '%s\n' "$events" | wc -l | tr -d ' ')
+
+                if [[ "$JSON_OUTPUT" == true ]]; then
+                    printf '%s\n' "$events" | jq -s '.'
+                else
+                    printf '%s\n' "$events" | while IFS= read -r line; do
+                        [[ -z "$line" ]] && continue
+                        local ts ev st trid
+                        ts=$(printf '%s' "$line" | jq -r '.ts // "-"')
+                        ev=$(printf '%s' "$line" | jq -r '.event // "-"')
+                        st=$(printf '%s' "$line" | jq -r '.status // "-"')
+                        trid=$(printf '%s' "$line" | jq -r '.trace_id // "-"')
+                        printf '%s | %s | %s | %s\n' "$ts" "$ev" "$st" "$trid"
+                    done
+                fi
+            fi
+        fi
+    fi
+
+    local payload
+    payload=$(jq -nc \
+        --argjson limit "${LIMIT:-null}" \
+        --arg event "${EVENT_FILTER:-}" \
+        --arg status "${STATUS_FILTER:-}" \
+        --argjson returned "$returned_count" \
+        '{
+            filters: {
+                limit: (if $limit == null then null else ($limit | tonumber) end),
+                event: (if $event == "" then null else $event end),
+                status: (if $status == "" then null else $status end)
+            },
+            counts: { returned: $returned }
+        }' 2>/dev/null) || payload='{"filters":{},"counts":{"returned":0}}'
+    wisdom_emit_event "wisdom.observe.read" "$read_status" "$payload"
+
+    if [[ "$returned_count" -eq 0 ]]; then
+        exit 1
     fi
 }
 
@@ -161,39 +186,58 @@ cmd_trace() {
     local event_file
     event_file=$(wisdom_events_path)
 
+    local returned_count=0
+    local trace_status="success"
+
     if [[ ! -f "$event_file" ]]; then
         if [[ "$JSON_OUTPUT" == true ]]; then
             echo "[]"
         else
             echo "No events file found."
         fi
-        exit 1
-    fi
-
-    local events
-    events=$(jq -c --arg tid "$TRACE_ID_ARG" 'select(.trace_id == $tid)' "$event_file" 2>/dev/null | sort -t'"' -k4,4)
-
-    if [[ -z "$events" ]]; then
-        if [[ "$JSON_OUTPUT" == true ]]; then
-            echo "[]"
-        else
-            echo "No events found for trace_id: $TRACE_ID_ARG"
-        fi
-        exit 1
-    fi
-
-    if [[ "$JSON_OUTPUT" == true ]]; then
-        printf '%s\n' "$events" | jq -s '.'
+        returned_count=0
     else
-        printf '%s\n' "$events" | while IFS= read -r line; do
-            [[ -z "$line" ]] && continue
-            local ts ev st inv
-            ts=$(printf '%s' "$line" | jq -r '.ts // "-"')
-            ev=$(printf '%s' "$line" | jq -r '.event // "-"')
-            st=$(printf '%s' "$line" | jq -r '.status // "-"')
-            inv=$(printf '%s' "$line" | jq -r '.invocation_id // "-"')
-            printf '%s | %s | %s | %s\n' "$ts" "$ev" "$st" "$inv"
-        done
+        local events
+        events=$(jq -c --arg tid "$TRACE_ID_ARG" 'select(.trace_id == $tid)' "$event_file" 2>/dev/null | sort -t'"' -k4,4)
+
+        if [[ -z "$events" ]]; then
+            if [[ "$JSON_OUTPUT" == true ]]; then
+                echo "[]"
+            else
+                echo "No events found for trace_id: $TRACE_ID_ARG"
+            fi
+            returned_count=0
+        else
+            returned_count=$(printf '%s\n' "$events" | wc -l | tr -d ' ')
+
+            if [[ "$JSON_OUTPUT" == true ]]; then
+                printf '%s\n' "$events" | jq -s '.'
+            else
+                printf '%s\n' "$events" | while IFS= read -r line; do
+                    [[ -z "$line" ]] && continue
+                    local ts ev st inv
+                    ts=$(printf '%s' "$line" | jq -r '.ts // "-"')
+                    ev=$(printf '%s' "$line" | jq -r '.event // "-"')
+                    st=$(printf '%s' "$line" | jq -r '.status // "-"')
+                    inv=$(printf '%s' "$line" | jq -r '.invocation_id // "-"')
+                    printf '%s | %s | %s | %s\n' "$ts" "$ev" "$st" "$inv"
+                done
+            fi
+        fi
+    fi
+
+    local payload
+    payload=$(jq -nc \
+        --arg trace_id "$TRACE_ID_ARG" \
+        --argjson returned "$returned_count" \
+        '{
+            trace_id: $trace_id,
+            counts: { returned: $returned }
+        }' 2>/dev/null) || payload='{"trace_id":"'"$TRACE_ID_ARG"'","counts":{"returned":0}}'
+    wisdom_emit_event "wisdom.observe.trace" "$trace_status" "$payload"
+
+    if [[ "$returned_count" -eq 0 ]]; then
+        exit 1
     fi
 }
 

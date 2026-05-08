@@ -52,8 +52,8 @@ collect_source_metrics() {
 
 _wisdom_merge_emit_observability() {
     local rc=$?
-    local status="ok"
-    [[ "$rc" -ne 0 ]] && status="error"
+    local status="success"
+    [[ "$rc" -ne 0 ]] && status="failed"
 
     if [[ "${_WISDOM_MERGE_SOURCE_IDS:-[]}" == '[]' && -n "${_WISDOM_MERGE_IDS_CSV:-}" ]]; then
         local IFS=','
