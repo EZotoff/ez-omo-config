@@ -264,7 +264,7 @@ cd ez-omo-config
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
 | **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `github-copilot/claude-sonnet-4.6`, `github-copilot/gpt-5.4` | Orchestrator with wisdom injection |
-| **prometheus** | `github-copilot/gpt-5.5` | high | `zai-coding-plan/glm-5.1` | Planner, deep reasoning |
+| **prometheus** | `github-copilot/gpt-5.5` | high | `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
 | **sisyphus** | `zai-coding-plan/glm-5.1` | default | `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
 | **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `github-copilot/claude-sonnet-4.6` | Category task executor |
 | **librarian** | `opencode-go/minimax-m2.7` | default | (none) | Search, documentation |
@@ -276,6 +276,16 @@ cd ez-omo-config
 | **metis** | `github-copilot/gpt-5.5` | high | `github-copilot/claude-sonnet-4.6` | Deep analysis |
 | **momus** | `github-copilot/gpt-5.5` | xhigh | `github-copilot/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `github-copilot/gpt-5.3-codex` | xhigh | (none) | Infrastructure, deployment |
+
+#### Prometheus planning artifact flow
+
+For complex multi-step work, Prometheus produces an HTML Proposal+Design Packet before generating the executable Markdown plan. The flow is:
+
+```
+User request → Prometheus HTML Proposal+Design Packet → pre-plan checkpoint → .sisyphus/plans/*.md → Atlas/Sisyphus execution
+```
+
+The HTML packet is for human review and discussion. The Markdown plan remains canonical for execution. Simple or single-step work stays lean and autonomous and does not require reusable HTML template or generator infrastructure.
 
 ### Key Experimental Features
 

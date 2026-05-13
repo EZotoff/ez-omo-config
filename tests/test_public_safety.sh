@@ -54,8 +54,8 @@ while IFS= read -r relative_path; do
     [[ -n "$relative_path" ]] || continue
     absolute_path="$REPO_ROOT/$relative_path"
 
-    # Skip test files from secret scans (they contain test fixtures)
-    if [[ "$relative_path" == tests/* || "$relative_path" == */test-* ]]; then
+    # Skip test files and secret-detection utilities from secret scans
+    if [[ "$relative_path" == tests/* || "$relative_path" == */test-* || "$relative_path" == "scripts/wisdom/wisdom-common.sh" ]]; then
         continue
     fi
 

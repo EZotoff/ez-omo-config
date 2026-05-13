@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 60 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 62 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -67,6 +67,7 @@ Complete inventory of 60 core artifacts for ez-omo-config repository scaffold.
 | 28b | test_dcp_startup_warning.sh | (repo only) | `tests/` | (repo only) | DCP Verification | Required |
 | 28c | test_vera_hygiene.sh | (repo only) | `tests/` | (repo only) | Vera Hygiene Verification | Required |
 | 28d | test_review_enforcer_completion_instruction.sh | (repo only) | `tests/` | (repo only) | Review Enforcer Verification | Required |
+| 28e | test_prometheus_planning_contract.sh | (repo only) | `tests/` | (repo only) | Prometheus Planning Contract | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 
 ## Directory Structure
@@ -124,13 +125,13 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 61 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 14, tests: 6, extras: 1, docs: 5)
+- **Total Artifacts**: 62 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 14, tests: 20, extras: 1, docs: 5)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 10 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
 - **Scripts**: 20 wisdom shell scripts (including 3 deprecated compatibility shims) + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script
-- **Tests**: 6 test scripts (aspect-dynamics runtime test, live deployment contract test, DCP bounded range test, DCP startup warning test, vera hygiene test, review enforcer instruction test)
+- **Tests**: 20 test scripts
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

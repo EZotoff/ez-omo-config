@@ -235,6 +235,27 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - OMO workflow integrations
 - Extension point configurations
 
+### Prometheus HTML Proposal+Design Packet Contract
+
+The `prometheus` agent is configured via `prompt_append` to produce a human-facing proposal artifact before emitting the executable Markdown plan. This is a **prompt contract**, not runtime infrastructure.
+
+**HTML Packet** (default): For Standard or Architecture planning work, Prometheus creates a human-facing proposal/checkpoint artifact at `.sisyphus/drafts/<topic-slug>-proposal.html`. The packet includes an objective, user-visible outcome, non-goals, chosen implementation slice, design assumptions, risks, and a checkpoint question.
+
+**Markdown Fallback / Source**: When HTML cannot be produced, the same-content fallback is used as a Markdown-formatted proposal.
+
+**Markdown Plan** (canonical): `.sisyphus/plans/*.md` remains the canonical execution source for Atlas/Sisyphus. The HTML packet is a checkpoint that happens before Prometheus writes the executable plan.
+
+**Checkpoint**: If proceeding by default because no blocking decision exists, Prometheus records the assumption in the plan. If a user decision materially changes scope or acceptance criteria, Prometheus asks before continuing.
+
+**Goal Coverage Map**: The packet includes a Goal Coverage Map showing how the proposed implementation slice advances the high-level goal using these labels:
+
+- `FULL` — the slice completely covers the goal
+- `PARTIAL` — the slice covers part of the goal, with the remainder deferred or handled separately
+- `DEFERRED` — the goal is intentionally postponed to a later phase
+- `DELTA` — the goal represents a change from a prior state; the slice addresses the delta
+
+**Scope (v1)**: This is a prompt contract only. There is no template or generator infrastructure in v1. The artifact format and path conventions are enforced via the agent's configured prompt instructions.
+
 **Install Target**: `$HOME/.config/opencode/oh-my-openagent.json`
 
 **Status**: Required
@@ -344,7 +365,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |
 | `aspect-dynamics/*.mjs` | 7 support modules (config, context, heuristics, session-state, sets, nudge, logging) | `$HOME/.config/opencode/aspect-dynamics/` | Optional |
 | `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`, `emotions-v2`) | `$HOME/.config/opencode/aspect-dynamics/sets/` | Optional |
-| `oh-my-openagent.json` | OMO agent/category model overrides and skill loading | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
+| `oh-my-openagent.json` | OMO agent/category model overrides, skill loading, and Prometheus HTML proposal planning contract | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
 | `extras/ocx.jsonc` | OCX registry configuration pointer | `$HOME/.opencode/ocx.jsonc` | Optional |
 
 ---
