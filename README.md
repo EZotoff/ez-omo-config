@@ -4,9 +4,9 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **61 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **63 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -46,7 +46,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Git safety guardrails** — automatic prevention of destructive git operations
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
-- **Runtime fallback** — automatic model switching across 7 providers when APIs fail or rate-limit
+- **Runtime fallback** — automatic model switching across 10 providers when APIs fail or rate-limit
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
@@ -59,7 +59,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 61 core artifacts + 1 external integration organized into 9 categories:
+This repository contains 63 core artifacts + 1 external integration organized into 9 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -68,7 +68,7 @@ This repository contains 61 core artifacts + 1 external integration organized in
 | 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, Vera runtime supervision, and semantic checkpointing |
 | 12-22 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, parallel development, and Vera hygiene |
 | 22-31 | **Scripts** | 24 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
-| 32 | **Tests** | 6 test scripts | Regression tests for config, DCP, and plugin verification |
+| 32 | **Tests** | 7 test scripts | Regression tests for config, DCP, and plugin verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
 | 36-39 | **Docs** | 5 files | Configuration, plugin, skills, worktree state, live deployment verification, and compatibility debt documentation |
@@ -143,6 +143,7 @@ This repository contains 61 core artifacts + 1 external integration organized in
 | 50 | `tests/test_live_deployment_contract.sh` | `tests/` | Repo-safe contract tests for live deployment verification |
 | 50a | `tests/test_vera_hygiene.sh` | `tests/` | Vera hygiene verification — idempotency, safety, and blocker detection tests |
 | 50b | `tests/test_review_enforcer_completion_instruction.sh` | `tests/` | Regression test for PLAN_COMPLETION_INSTRUCTION block extraction and content verification |
+| 50c | `tests/test_openai_provider.sh` | `tests/` | Regression test for Codex display provider presence in opencode.json (`openai` key) |
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 
 ---
@@ -245,11 +246,12 @@ cd ez-omo-config
 
 ## Configuration Highlights
 
-### 9 Enabled Providers
+### 10 Enabled Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
 | **Google** | Gemini and Antigravity-hosted models | Gemini 3 Flash, Claude Sonnet/Opus Thinking |
+| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.2, GPT 5.4, GPT 5.3 Codex, GPT 5.1 Codex Max |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M2.7, DeepSeek V4 Flash |
 | **GitHub Copilot** | Claude, GPT, Grok, and Gemini via Copilot | Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.1 Pro, GPT 5.4, GPT 5.5, GPT 5.3 Codex, Grok Code Fast 1 |
 | **Moonshot** | Kimi models via OpenAI-compatible API | Kimi K2.5 |

@@ -14,7 +14,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 **What it Configures**:
 
-- **Providers**: 9 provider configurations for different AI services
+- **Providers**: 10 provider configurations for different AI services
 - **Plugins**: 10 plugin registrations and their settings
 - **Model Settings**: Provider model catalogs, default models, limits, and timeouts
 - **Runtime Defaults**: Agent behavior, output preferences
@@ -357,7 +357,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
-| `opencode.json` | Main config: 9 providers, 10 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
+| `opencode.json` | Main config: 10 providers, 10 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `dcp.jsonc` | DCP plugin configuration with bounded range archive retention (local patch) | `$HOME/.config/opencode/dcp.jsonc` | Optional |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
