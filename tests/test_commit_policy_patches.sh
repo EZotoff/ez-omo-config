@@ -43,10 +43,23 @@ OMO_GITMASTER_TARGETS=(
     "/home/ezotoff/oh-my-openagent/src/features/builtin-skills/skills/git-master-sections/commit-workflow.ts"
 )
 
+PROMETHEUS_TARGETS=(
+    "/home/ezotoff/oh-my-openagent/src/agents/prometheus/plan-template.ts"
+    "/home/ezotoff/oh-my-openagent/src/agents/prometheus/gpt.ts"
+    "/home/ezotoff/oh-my-openagent/src/agents/prometheus/identity-constraints.ts"
+)
+
 ALL_TARGETS=(
     "${OPENCODE_TARGETS[@]}"
     "${OMO_AGENT_TARGETS[@]}"
     "${OMO_GITMASTER_TARGETS[@]}"
+    "${PROMETHEUS_TARGETS[@]}"
+)
+
+CANONICAL_POLICY_TARGETS=(
+    "${OPENCODE_TARGETS[@]}"
+    "${OMO_AGENT_TARGETS[@]}"
+    "${PROMETHEUS_TARGETS[@]}"
 )
 
 SAFETY_TARGETS=(
@@ -57,15 +70,25 @@ SAFETY_TARGETS=(
 
 echo "=== Checking old commit-policy strings are ABSENT ==="
 
-OLD_STRINGS=(
+COMMON_STALE_STRINGS=(
     "Only create commits when requested by the user"
     "NEVER commit changes unless the user explicitly asks"
     "Never commit unless explicitly requested"
     "Never commit unless asked"
 )
 
+PROMETHEUS_STALE_STRINGS=(
+    "Do not commit automatically unless the user explicitly requests a commit"
+)
+
 for target in "${ALL_TARGETS[@]}"; do
-    for old_str in "${OLD_STRINGS[@]}"; do
+    for old_str in "${COMMON_STALE_STRINGS[@]}"; do
+        assert_file_or_skip "$target" assert_no_grep "$old_str" "$target"
+    done
+done
+
+for target in "${PROMETHEUS_TARGETS[@]}"; do
+    for old_str in "${PROMETHEUS_STALE_STRINGS[@]}"; do
         assert_file_or_skip "$target" assert_no_grep "$old_str" "$target"
     done
 done
@@ -75,7 +98,7 @@ echo "=== Checking canonical replacement policy is PRESENT ==="
 CANONICAL_POLICY="Git commits: follow the active git workflow"
 GITMASTER_POLICY="Local commits are workflow-authorized"
 
-for target in "${OPENCODE_TARGETS[@]}" "${OMO_AGENT_TARGETS[@]}"; do
+for target in "${CANONICAL_POLICY_TARGETS[@]}"; do
     assert_file_or_skip "$target" assert_grep "$CANONICAL_POLICY" "$target"
 done
 
@@ -119,7 +142,7 @@ echo "=== Checking installed OpenCode binary ==="
 OPENCODE_BINARY="/home/ezotoff/.opencode/bin/opencode"
 
 if [[ -f "$OPENCODE_BINARY" ]]; then
-    for old_str in "${OLD_STRINGS[@]}"; do
+    for old_str in "${COMMON_STALE_STRINGS[@]}"; do
         if strings "$OPENCODE_BINARY" 2>/dev/null | grep -qF "$old_str"; then
             echo "FAIL: Old string found in binary $OPENCODE_BINARY: $old_str"
             TESTS_FAILED=$((TESTS_FAILED + 1))

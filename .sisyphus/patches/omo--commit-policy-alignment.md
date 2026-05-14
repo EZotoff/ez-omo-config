@@ -14,9 +14,10 @@ verification_pattern: "Git commits: follow the active git workflow"
 
 ## Problem
 
-Oh-My-OpenAgent has contradictory commit instructions across multiple agent definitions and the built-in git-master skill:
+Oh-My-OpenAgent has contradictory or under-constrained commit instructions across multiple agent definitions, Prometheus plan-generation sources, and the built-in git-master skill:
 
 - **Agent instructions** (`sisyphus.ts`, `sisyphus/default.ts`, `sisyphus/gpt-5-4.ts`): Contain blanket "Never commit without explicit user direction" rules inherited from `AGENTS.md`.
+- **Prometheus plan-generation sources** (`prometheus/plan-template.ts`, `prometheus/gpt.ts`, `prometheus/identity-constraints.ts`): Leave `## Commit Strategy` bare or skeletal, allowing the planner model to invent stale blanket no-commit wording such as `Do not commit automatically unless the user explicitly requests a commit.`
 - **git-master skill** (`builtin-skills/git-master/SKILL.md`, `features/builtin-skills/skills/git-master-sections/commit-workflow.ts`): Instructs agents to "Commit early, commit often" and "Commit and push on every completed todo item or logical task unit."
 - **AGENTS.md**: Contains `Rule 6` that says "Never commit without explicit user direction."
 
@@ -24,7 +25,7 @@ These contradictions must be resolved by aligning all instructions with a consis
 
 ## Patch Description
 
-Six OMO source files are modified to replace absolute no-commit rules with the canonical safe local-commit policy.
+Nine OMO source files are modified to replace absolute no-commit rules or unconstrained commit-strategy placeholders with the canonical safe local-commit policy.
 
 ### Source file 1: `src/agents/sisyphus.ts`
 
@@ -51,6 +52,21 @@ Six OMO source files are modified to replace absolute no-commit rules with the c
 
 - Same alignment as SKILL.md: replace aggressive commit advice with policy-aligned guidance.
 
+### Source file 7: `src/agents/prometheus/plan-template.ts`
+
+- Replace the bare `## Commit Strategy` example block with the canonical policy text.
+- Preserve per-task `**Commit**` YES/NO fields, but constrain `YES` to workflow-authorized local checkpoint/logical-task commits only.
+
+### Source file 8: `src/agents/prometheus/gpt.ts`
+
+- Replace the bare `## Commit Strategy` skeleton in the planner prompt with the canonical policy text.
+- Explicitly forbid using the section to invent a blanket user-request-only commit rule.
+
+### Source file 9: `src/agents/prometheus/identity-constraints.ts`
+
+- Replace the `## Commit Strategy` placeholder with the canonical policy text.
+- Preserve task-level `**Commit**` YES/NO lines while constraining `YES` to workflow-authorized commits.
+
 ### Canonical Replacement Text
 
 > Git commits: follow the active git workflow. A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
@@ -58,15 +74,18 @@ Six OMO source files are modified to replace absolute no-commit rules with the c
 ## Verification
 
 ```bash
-# Verify agent instructions contain the replacement text
+# Verify agent instructions and Prometheus templates contain the replacement text
 grep -E "Git commits: follow the active git workflow" \
   /home/ezotoff/oh-my-openagent/src/agents/sisyphus.ts \
   /home/ezotoff/oh-my-openagent/src/agents/sisyphus/default.ts \
   /home/ezotoff/oh-my-openagent/src/agents/sisyphus/gpt-5-4.ts \
-  /home/ezotoff/oh-my-openagent/AGENTS.md
+  /home/ezotoff/oh-my-openagent/AGENTS.md \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/plan-template.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/gpt.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/identity-constraints.ts
 ```
 
-Expected: matches in all four files.
+Expected: matches in all seven files.
 
 ```bash
 # Verify git-master skill files reference the policy
@@ -87,6 +106,23 @@ grep -cE "Never commit without explicit user direction" \
 
 Expected: 0 matches in each file.
 
+```bash
+# Verify Prometheus sources do not permit the stale blanket no-commit wording
+grep -cF "Do not commit automatically unless the user explicitly requests a commit" \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/plan-template.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/gpt.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/identity-constraints.ts
+```
+
+Expected: 0 matches in each file.
+
+```bash
+# Rebuild and verify the bundled output keeps the canonical policy and excludes the stale wording
+cd /home/ezotoff/oh-my-openagent && bun run build && grep -F "Git commits: follow the active git workflow" dist/index.js && ! grep -F "Do not commit automatically unless the user explicitly requests a commit" dist/index.js
+```
+
+Expected: build succeeds, canonical policy is present in `dist/index.js`, stale wording is absent.
+
 ## Reapply Instructions
 
 If this patch is lost after an OMO update (git pull, rebase):
@@ -96,7 +132,7 @@ If this patch is lost after an OMO update (git pull, rebase):
    ls /home/ezotoff/oh-my-openagent/src/agents/sisyphus.ts
    ```
 
-2. For each of the six target files, find the old absolute no-commit text and replace it with the canonical safe local-commit policy.
+2. For each of the nine target files, find the old absolute no-commit text or bare `## Commit Strategy` placeholder and replace it with the canonical safe local-commit policy.
 
 3. Agent instruction files (`src/agents/sisyphus.ts`, `default.ts`, `gpt-5-4.ts`): Find the "Never commit without explicit user direction" sentence and replace the entire block with the canonical text.
 
@@ -104,7 +140,14 @@ If this patch is lost after an OMO update (git pull, rebase):
 
 5. git-master skill files (`SKILL.md`, `commit-workflow.ts`): Find "Commit early, commit often" / "Commit and push on every completed todo item" and replace with guidance that allows local checkpoint commits but restricts pushing.
 
-6. No rebuild is needed — these are source files loaded at session start. Restart OpenCode for changes to take effect.
+6. Prometheus files (`src/agents/prometheus/plan-template.ts`, `gpt.ts`, `identity-constraints.ts`): Replace the bare `## Commit Strategy` section with the canonical policy text, preserve task-level `**Commit**` YES/NO fields, and forbid blanket user-request-only wording.
+
+7. Rebuild OMO so the bundled planner prompt updates:
+   ```bash
+   cd /home/ezotoff/oh-my-openagent && bun run build
+   ```
+
+8. Verify `dist/index.js` contains the canonical policy and does not contain `Do not commit automatically unless the user explicitly requests a commit`.
 
 ### Canonical Replacement Text
 
