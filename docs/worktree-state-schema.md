@@ -179,6 +179,77 @@ Two-tier system:
 - Keys are port numbers as strings, values are branch names
 - Registry only contains currently active allocations
 
+## Vera Watchers JSON Schema
+
+File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<workspaceKey>.json`
+
+### Directory Layout
+
+```text
+~/.local/share/opencode/worktree-state/<project-id>/
+├── worktrees/
+│   └── <branch>.json
+├── vera-watchers/
+│   └── <workspaceKey>.json
+│   └── <workspaceKey>.log
+├── merge-queue.json
+├── merge.lock
+└── ports.json
+```
+
+- `vera-watchers/` stores one JSON state file and one log file per watched workspace.
+- `workspaceKey` is computed as `<basename>-<sha1-8(realpath(path))>`.
+
+### Fields
+
+| Field | Type | Required | Description |
+|---|---|---:|---|
+| `workspaceKey` | string | yes | Stable key derived from the realpath of the workspace. |
+| `workspacePath` | string | yes | Absolute path to the watched workspace directory. |
+| `projectId` | string | yes | Project identifier (basename of git top-level). |
+| `pid` | number \| null | no | Process ID of the active vera watcher process, if running. |
+| `status` | string | yes | Current watcher state. See status enum below. |
+| `sessionIds` | string[] | yes | OpenCode session IDs currently associated with this workspace. |
+| `indexPath` | string | yes | Absolute path to the Vera index directory for this workspace. |
+| `watchLogPath` | string | yes | Absolute path to the watcher log file. |
+| `lastIndexedAt` | string (ISO 8601) \| null | no | Timestamp of the last successful index. |
+| `startedAt` | string (ISO 8601) \| null | no | When the watcher was first started. |
+| `lastVerifiedAt` | string (ISO 8601) \| null | no | Timestamp of the last health/verification check. |
+| `lastFailureAt` | string (ISO 8601) \| null | no | Timestamp of the last watcher failure, if any. |
+| `lastFailureReason` | string \| null | no | Reason for the last failure (stderr excerpt or message). |
+
+### Status Enum
+
+| Value | Meaning |
+|---|---|
+| `indexed` | Workspace has been indexed but watcher is not running. |
+| `running` | Watcher is actively monitoring the workspace. |
+| `stale` | Previously running watcher PID is no longer valid. |
+| `stopped` | Watcher was explicitly stopped. |
+| `missing-binary` | Vera binary not found on PATH. |
+| `index-failed` | Index operation failed. |
+| `watch-failed` | Watcher start/operation failed. |
+
+### Example
+
+```json
+{
+  "workspaceKey": "my-repo-3f8a2b1c",
+  "workspacePath": "/home/ezotoff/projects/my-repo",
+  "projectId": "my-repo",
+  "pid": 12345,
+  "status": "running",
+  "sessionIds": ["ses_abc123"],
+  "indexPath": "/home/ezotoff/projects/my-repo/.vera",
+  "watchLogPath": "/home/ezotoff/.local/share/opencode/worktree-state/my-repo/vera-watchers/my-repo-3f8a2b1c.log",
+  "lastIndexedAt": "2026-05-01T10:15:00.000Z",
+  "startedAt": "2026-05-01T09:00:00.000Z",
+  "lastVerifiedAt": "2026-05-01T10:30:00.000Z",
+  "lastFailureAt": null,
+  "lastFailureReason": null
+}
+```
+
 ## Notes
 
 - These files are runtime state only.

@@ -86,3 +86,55 @@ fi
 
 echo "Worktree state created: $STATE_FILE"
 echo "Port allocated: $PORT"
+
+# --- Vera Bootstrap ---
+if command -v vera &> /dev/null; then
+  WORKSPACE_KEY="$(basename "$(pwd)")-$(echo -n "$(realpath "$(pwd)")" | sha1sum | cut -c1-8)"
+  WATCHERS_DIR="$HOME/.local/share/opencode/worktree-state/$PROJECT_ID/vera-watchers"
+  mkdir -p "$WATCHERS_DIR"
+  WATCHER_STATE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
+  TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  echo "Running vera index for workspace: $WORKSPACE_KEY"
+  if vera index . > /dev/null 2>&1; then
+    cat > "$WATCHER_STATE" << EOF
+{
+  "workspaceKey": "$WORKSPACE_KEY",
+  "workspacePath": "$(pwd)",
+  "projectId": "$PROJECT_ID",
+  "pid": null,
+  "status": "indexed",
+  "sessionIds": [],
+  "indexPath": "$(realpath .)/.vera",
+  "watchLogPath": "$WATCHERS_DIR/$WORKSPACE_KEY.log",
+  "lastIndexedAt": "$TIMESTAMP",
+  "startedAt": null,
+  "lastVerifiedAt": null,
+  "lastFailureAt": null,
+  "lastFailureReason": null
+}
+EOF
+
+  else
+    cat > "$WATCHER_STATE" << EOF
+{
+  "workspaceKey": "$WORKSPACE_KEY",
+  "workspacePath": "$(pwd)",
+  "projectId": "$PROJECT_ID",
+  "pid": null,
+  "status": "index-failed",
+  "sessionIds": [],
+  "indexPath": "$(realpath .)/.vera",
+  "watchLogPath": "$WATCHERS_DIR/$WORKSPACE_KEY.log",
+  "lastIndexedAt": null,
+  "startedAt": null,
+  "lastVerifiedAt": null,
+  "lastFailureAt": "$TIMESTAMP",
+  "lastFailureReason": "vera index . failed"
+}
+EOF
+    echo "WARN: vera index failed for workspace: $WORKSPACE_KEY"
+  fi
+else
+  echo "INFO: vera not found; skipping Vera bootstrap"
+fi
