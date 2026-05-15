@@ -246,6 +246,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - Deterministic scoring (no model-backed inference in MVP)
 - Transcript-visible advisory nudge dispatch when a score crosses the configured threshold
 - Per-session deduplication, circuit breaker, and recursion guard
+- Optional non-Wisdom proof-event sink for local observability and verification
 
 **How it Works**:
 
@@ -279,6 +280,8 @@ These fields are logged at startup for visibility but are otherwise inert.
 - `activeSets` — Array of aspect set IDs to load (e.g., `["emotions-v1"]`)
 - `heuristicPreFilter` — Whether to skip scoring when no heuristic phrases match
 - `contextWindowTurns` — Number of recent turns to include in context extraction
+- `proofEnabled` — Optional toggle for JSONL proof-event emission (enabled by default when unset)
+- `proofPath` — Optional override for the JSONL proof-event sink path (defaults under `~/.local/share/opencode/aspect-dynamics/`)
 
 **Install Target**: `$HOME/.config/opencode/aspect-dynamics.mjs`
 
