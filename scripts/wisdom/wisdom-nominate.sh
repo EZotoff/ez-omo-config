@@ -2,6 +2,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
 wisdom_require_jq
 
 WRITE_SCRIPT="$(dirname "$0")/wisdom-write.sh"
@@ -32,6 +33,28 @@ Infra-only nomination policy (v1):
     infra, config, deployment, setup
 EOF
     exit 2
+}
+
+_emit_nomination_event() {
+    local status="$1"
+    local reason="${2:-}"
+    local payload
+    payload=$(jq -n \
+        --arg scope "$SCOPE" \
+        --arg project_id "$PROJECT_ID" \
+        --arg type "$TYPE" \
+        --arg tags "$TAGS" \
+        --arg reason "$reason" \
+        --arg origin_session "$SESSION_ID" \
+        '{
+            scope: $scope,
+            project_id: (if $project_id == "" then null else $project_id end),
+            type: (if $type == "" then null else $type end),
+            tags: (if $tags == "" then null else $tags end),
+            reason: (if $reason == "" then null else $reason end),
+            origin_session: (if $origin_session == "" then null else $origin_session end)
+        }' 2>/dev/null) || payload="{}"
+    wisdom_emit_event "wisdom.capture.nomination" "$status" "$payload"
 }
 
 has_infra_tag() {
@@ -77,6 +100,7 @@ fi
 
 if [[ -z "$CONTENT" || -z "${CONTENT// /}" ]]; then
     wisdom_log ERROR "Nomination content must not be empty"
+    _emit_nomination_event "skipped" "empty content"
     exit 2
 fi
 
@@ -87,6 +111,7 @@ if [[ "$SCOPE" != "system" ]] && ! has_infra_tag "$TAGS"; then
     wisdom_log WARN "Nomination rejected: passive nomination is infra-only in v1"
     wisdom_log WARN "Allowed when scope=system OR tags include one of: infra, config, deployment, setup"
     wisdom_log WARN "Received scope='${SCOPE}', tags='${TAGS:-<none>}'"
+    _emit_nomination_event "skipped" "infra-only policy v1"
     exit 4
 fi
 
@@ -116,3 +141,4 @@ if [[ -n "$SESSION_ID" ]]; then
 fi
 
 "$WRITE_SCRIPT" "${write_args[@]}"
+_emit_nomination_event "success" ""
