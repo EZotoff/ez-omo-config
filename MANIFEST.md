@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 60 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 61 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -25,6 +25,7 @@ Complete inventory of 60 core artifacts for ez-omo-config repository scaffold.
 | 4j | aspect-dynamics/nudge.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
 | 4k | aspect-dynamics/logging.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
 | 4l | aspect-dynamics/sets/emotions-v1.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4m | aspect-dynamics/sets/emotions-v2.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
 | 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
 | 6 | worktree.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Worktree Plugin | Required |
 | 7 | worktree/state.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
@@ -123,9 +124,9 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 60 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 13, tests: 6, extras: 1, docs: 5)
+- **Total Artifacts**: 61 core + 1 external (commands: 4, configs: 17, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 13, tests: 6, extras: 1, docs: 5)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
-- **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
+- **Core Configs**: 17 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 10 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
 - **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script
@@ -144,4 +145,4 @@ ez-omo-config/
 2. **Vera Runtime Cluster**: vera-runtime.ts → (self-contained, fails open if vera binary absent)
 3. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by all 8 other wisdom scripts)
 4. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
-5. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json
+5. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json + sets/emotions-v2.json
