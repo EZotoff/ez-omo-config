@@ -644,6 +644,8 @@ async function runNoNetworkCalls() {
 }
 
 async function runBelowThreshold() {
+  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
   const { __testSetsOverride } = await import(SETS_PATH);
@@ -672,6 +674,7 @@ async function runBelowThreshold() {
       );
     }
   } finally {
+    await clearTestConfig();
     __testSetsOverride.value = null;
   }
 
@@ -679,6 +682,8 @@ async function runBelowThreshold() {
 }
 
 async function runThresholdCrossed() {
+  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
   const { __testSetsOverride } = await import(SETS_PATH);
@@ -717,6 +722,7 @@ async function runThresholdCrossed() {
       fail("Expected dispatched nudge payload to be a non-empty array");
     }
   } finally {
+    await clearTestConfig();
     __testSetsOverride.value = null;
   }
 
@@ -1017,6 +1023,8 @@ async function runProofSkip() {
 }
 
 async function runProofNudge() {
+  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+
   const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
     join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
   );
@@ -1063,6 +1071,7 @@ async function runProofNudge() {
       fail("Expected nudge_sent proof to include numeric score");
     }
   } finally {
+    await clearTestConfig();
     __testProofOverride.value = null;
     __testSetsOverride.value = null;
   }

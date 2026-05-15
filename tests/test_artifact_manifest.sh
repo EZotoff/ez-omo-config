@@ -54,6 +54,7 @@ assert_manifest_row 'aspect-dynamics/sets.mjs.*configs/opencode/'
 assert_manifest_row 'aspect-dynamics/nudge.mjs.*configs/opencode/'
 assert_manifest_row 'aspect-dynamics/logging.mjs.*configs/opencode/'
 assert_manifest_row 'aspect-dynamics/sets/emotions-v1.json.*configs/opencode/'
+assert_manifest_row 'aspect-dynamics/sets/emotions-v2.json.*configs/opencode/'
 assert_manifest_row 'oh-my-openagent.json.*configs/oh-my-openagent/'
 assert_manifest_row 'worktree.ts.*plugins/'
 assert_manifest_row 'git-safety.ts.*plugins/'
@@ -82,6 +83,7 @@ assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/sets.mjs"
 assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/nudge.mjs"
 assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/logging.mjs"
 assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/sets/emotions-v1.json"
+assert_file_exists "$REPO_ROOT/configs/opencode/aspect-dynamics/sets/emotions-v2.json"
 assert_file_exists "$REPO_ROOT/configs/opencode/README.md"
 assert_file_exists "$REPO_ROOT/configs/oh-my-openagent/oh-my-openagent.json"
 assert_file_exists "$REPO_ROOT/extras/ocx.jsonc"

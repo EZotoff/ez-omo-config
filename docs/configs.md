@@ -319,7 +319,7 @@ These fields are inert by default. They are logged only when `logLevel` is set t
 **Key Fields**:
 
 - `enabled` — Master toggle for the plugin
-- `activeSets` — Array of aspect set IDs to load (e.g., `["emotions-v1", "emotions-v2"]`). This field is now fully implemented. Previously documented but non-functional, it now resolves and loads the specified aspect sets at runtime.
+- `activeSets` — Ordered array of aspect set IDs to load (e.g., `["emotions-v1"]`, `["emotions-v2"]`, or both). This field resolves and loads the specified aspect sets at runtime; unknown IDs fail closed and put the plugin in no-op mode.
 - `logLevel` — Plugin terminal logging threshold. Defaults to `warn`; set `info` to show startup/info diagnostics, or `silent` to suppress all plugin terminal logging.
 - `heuristicPreFilter` — Whether to skip scoring when no heuristic phrases match
 - `contextWindowTurns` — Number of recent turns to include in context extraction
