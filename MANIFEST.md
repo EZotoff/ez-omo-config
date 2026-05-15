@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 41 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 52 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -12,17 +12,19 @@ Complete inventory of 41 core artifacts for ez-omo-config repository scaffold.
 | 1d | session-info.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
 | 2 | opencode.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 3 | opencode.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
+| 3b | dcp.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
 | 4 | provider-connect-retry.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 4b | retry-errors.json | `~/.config/opencode/` | `configs/` | `$HOME/.config/opencode/` | Core Config | Required |
-| 4c | aspect-dynamics.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4d | aspect-dynamics/config.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4e | aspect-dynamics/context.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4f | aspect-dynamics/heuristics.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4g | aspect-dynamics/session-state.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4h | aspect-dynamics/sets.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4i | aspect-dynamics/nudge.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4j | aspect-dynamics/logging.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
-| 4k | aspect-dynamics/sets/emotions-v1.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4c | worktree.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Worktree Config | Required |
+| 4d | aspect-dynamics.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4e | aspect-dynamics/config.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4f | aspect-dynamics/context.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4g | aspect-dynamics/heuristics.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4h | aspect-dynamics/session-state.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4i | aspect-dynamics/sets.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4j | aspect-dynamics/nudge.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4k | aspect-dynamics/logging.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4l | aspect-dynamics/sets/emotions-v1.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
 | 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
 | 6 | worktree.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Worktree Plugin | Required |
 | 7 | worktree/state.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
@@ -33,6 +35,7 @@ Complete inventory of 41 core artifacts for ez-omo-config repository scaffold.
 | 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
 | 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
+| 11e | vera-runtime.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Vera Watcher Supervision | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 12b | knowledge/ | `~/.config/opencode/skills/knowledge/` | `skills/knowledge/` | `$HOME/.config/opencode/skills/` | Wisdom Shim (Deprecated) | Required |
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
@@ -40,6 +43,9 @@ Complete inventory of 41 core artifacts for ez-omo-config repository scaffold.
 | 15 | playwright/ | `~/.config/opencode/skills/playwright/` | `skills/playwright/` | `$HOME/.config/opencode/skills/` | Browser Testing | Optional |
 | 16 | deployment/ | `~/.config/opencode/skills/deployment/` | `skills/deployment/` | `$HOME/.config/opencode/skills/` | Deployment | Optional |
 | 17 | frontend-ui-ux/ | `~/.config/opencode/skills/frontend-ui-ux/` | `skills/frontend-ui-ux/` | `$HOME/.config/opencode/skills/` | Frontend/UX | Optional |
+| 28 | merge-agent/ | `~/.config/opencode/skills/merge-agent/` | `skills/merge-agent/` | `$HOME/.config/opencode/skills/` | Safe Merge | Optional |
+| 29 | parallel-dev/ | `~/.config/opencode/skills/parallel-dev/` | `skills/parallel-dev/` | `$HOME/.config/opencode/skills/` | Parallel Dev | Optional |
+| 30 | worktree-coordinator/ | `~/.config/opencode/skills/worktree-coordinator/` | `skills/worktree-coordinator/` | `$HOME/.config/opencode/skills/` | Worktree Coord | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
@@ -49,6 +55,8 @@ Complete inventory of 41 core artifacts for ez-omo-config repository scaffold.
 | 24 | wisdom-edit.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 25 | wisdom-gc.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26 | wisdom-merge.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
+| 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 
 ## Directory Structure
@@ -61,7 +69,7 @@ ez-omo-config/
 │   └── session-id.md       # Session ID clipboard (handled by plugin, no LLM)
 │   └── session-info.md     # Session info clipboard (handled by plugin, no LLM)
 ├── configs/
-│   ├── opencode/           # Main OpenCode configuration (3 files + aspect-dynamics)
+│   ├── opencode/           # Main OpenCode configuration (4 files + aspect-dynamics)
 │   ├── oh-my-openagent/     # Oh-My-OpenAgent configuration (1 file)
 │   └── retry-errors.json    # Retry registry for provider-connect-retry plugin
 ├── plugins/
@@ -71,6 +79,7 @@ ez-omo-config/
 │   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
 │   ├── session-id.ts       # Session ID clipboard plugin (intercepts /session-id command)
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
+│   ├── vera-runtime.ts     # Vera watcher supervision plugin
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
 ├── skills/
@@ -80,9 +89,13 @@ ez-omo-config/
 │   ├── review-protocol/    # Review protocol skill
 │   ├── playwright/         # Browser testing skill
 │   ├── deployment/         # Deployment helper skill
-│   └── frontend-ui-ux/     # Frontend/UX design skill
+│   ├── frontend-ui-ux/     # Frontend/UX design skill
+│   ├── merge-agent/        # Safe branch merging with guardrails
+│   ├── parallel-dev/       # Multi-agent orchestration with decision framework
+│   └── worktree-coordinator/ # Worktree parallel development guide
 ├── scripts/
-│   └── wisdom/             # Wisdom propagation scripts (9 files)
+│   ├── wisdom/             # Wisdom propagation scripts (9 files)
+│   └── worktree/           # Worktree lifecycle hooks (2 files)
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
@@ -97,23 +110,24 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 41 core + 1 external (commands: 3, configs: 14, plugins: 6 + kdco-primitives dir, skills: 6 dirs + 1 external, scripts: 9, extras: 1)
+- **Total Artifacts**: 52 core + 1 external (commands: 4, configs: 16, plugins: 10 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 11, extras: 1)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
-- **Core Configs**: 14 files (opencode.json, opencode.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
-- **Plugins**: 3 main files + vscode.ts + session-id.ts + session-info.ts + worktree/ (2 files) + kdco-primitives/ directory
-- **Skills**: 7 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
-- **Scripts**: 9 wisdom shell scripts
+- **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
+- **Plugins**: 7 main files + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
+- **Skills**: 10 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
+- **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
 
 | # | Artifact | Path | Purpose | Install Command |
 |---|----------|------|---------|-----------------|
-| 31 | vera/ | `~/.config/opencode/skills/vera/` | Semantic code search skill | `vera agent install --client opencode` |
+| 28 | vera/ | `~/.config/opencode/skills/vera/` | Semantic code search skill | `vera agent install --client opencode --scope global` |
 
 ## Dependency Clusters
 
 1. **Worktree Plugin Cluster**: worktree.ts → worktree/state.ts, worktree/terminal.ts, kdco-primitives/
-2. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by all 8 other wisdom scripts)
-3. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
-4. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json
+2. **Vera Runtime Cluster**: vera-runtime.ts → (self-contained, fails open if vera binary absent)
+3. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by all 8 other wisdom scripts)
+4. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
+5. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json
