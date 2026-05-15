@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 63 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 64 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -47,6 +47,7 @@ Complete inventory of 63 core artifacts for ez-omo-config repository scaffold.
 | 29 | parallel-dev/ | `~/.config/opencode/skills/parallel-dev/` | `skills/parallel-dev/` | `$HOME/.config/opencode/skills/` | Parallel Dev | Optional |
 | 30 | worktree-coordinator/ | `~/.config/opencode/skills/worktree-coordinator/` | `skills/worktree-coordinator/` | `$HOME/.config/opencode/skills/` | Worktree Coord | Optional |
 | 30a | vera-hygiene/ | `~/.config/opencode/skills/vera-hygiene/` | `skills/vera-hygiene/` | `$HOME/.config/opencode/skills/` | Vera Hygiene | Optional |
+| 30b | update-to-latest/ | `~/.config/opencode/skills/update-to-latest/` | `skills/update-to-latest/` | `$HOME/.config/opencode/skills/` | Update Pipeline | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
@@ -69,6 +70,7 @@ Complete inventory of 63 core artifacts for ez-omo-config repository scaffold.
 | 28d | test_review_enforcer_completion_instruction.sh | (repo only) | `tests/` | (repo only) | Review Enforcer Verification | Required |
 | 28e | test_prometheus_planning_contract.sh | (repo only) | `tests/` | (repo only) | Prometheus Planning Contract | Required |
 | 28f | test_openai_provider.sh | (repo only) | `tests/` | (repo only) | Codex Provider Verification | Required |
+| 28g | test_update_to_latest_skill.sh | (repo only) | `tests/` | (repo only) | Update Pipeline Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 
 ## Directory Structure
@@ -105,7 +107,8 @@ ez-omo-config/
 │   ├── merge-agent/        # Safe branch merging with guardrails
 │   ├── parallel-dev/       # Multi-agent orchestration with decision framework
 │   ├── worktree-coordinator/ # Worktree parallel development guide
-│   └── vera-hygiene/       # Vera index hygiene and .veraignore management
+│   ├── vera-hygiene/       # Vera index hygiene and .veraignore management
+│   └── update-to-latest/   # Safe OpenCode/OMO update pipeline with approval gate
 ├── scripts/
 │   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
@@ -126,13 +129,13 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 63 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 14, tests: 21, extras: 1, docs: 5)
+- **Total Artifacts**: 64 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 11 dirs + 1 external, scripts: 14, tests: 22, extras: 1, docs: 5)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
-- **Skills**: 10 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
+- **Skills**: 11 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
 - **Scripts**: 20 wisdom shell scripts (including 3 deprecated compatibility shims) + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script
-- **Tests**: 21 test scripts
+- **Tests**: 22 test scripts
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

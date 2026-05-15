@@ -36,6 +36,12 @@ Designer-turned-developer UI/UX specialist that crafts stunning UI/UX with multi
 - **Dependencies**: None
 - **Use Case**: Visual engineering, UI design improvements, UX enhancements
 
+### update-to-latest/
+Safe OpenCode/OMO update pipeline with explicit human approval gate, patch-tracker integration, rollback capability, and evidence-state claim discipline. A 13-phase guided operational pipeline that analyzes available updates, produces a go/no-go recommendation, and only executes after explicit human approval.
+- **Dependencies**: `patch-tracker` skill (referenced)
+- **Use Case**: Analyzing whether to update OpenCode or OMO, executing updates safely with full rollback capability
+- **Install**: `install.sh --skills`
+
 ### vera-hygiene/
 Vera index hygiene and `.veraignore` management. Detects unreadable directories, heavy/generated dirs, and safely updates `.veraignore` with a marker-managed block. Must be run before indexing large or external projects, or after Vera indexing failures.
 - **Dependencies**: `vera-hygiene.sh` script
