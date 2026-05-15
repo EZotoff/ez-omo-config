@@ -4,7 +4,7 @@
 import { loadConfig } from "./aspect-dynamics/config.mjs";
 import { extractContext, getEventSessionID, hasRecursionGuard, prefilterContext } from "./aspect-dynamics/context.mjs";
 import { rankAspects, scoreAspects, shouldNudge } from "./aspect-dynamics/heuristics.mjs";
-import { logEvent, logInfo, logWarn } from "./aspect-dynamics/logging.mjs";
+import { emitProofEvent, initProofSink, logEvent, logInfo, logWarn } from "./aspect-dynamics/logging.mjs";
 import { buildNudge } from "./aspect-dynamics/nudge.mjs";
 import {
   canProcess,
@@ -31,7 +31,10 @@ export default async function aspectDynamicsPlugin(ctx) {
 
   const sets = await loadSets();
 
+  initProofSink(config);
+
   logInfo("Plugin loaded");
+  emitProofEvent("plugin_loaded", { status: "success" });
 
   // Deferred-field safeguard: scoringModel, polishingModel, dreamAgent are
   // accepted from config but deliberately unused in MVP. Zero network calls
@@ -51,9 +54,15 @@ export default async function aspectDynamicsPlugin(ctx) {
       switch (event?.type) {
         case "session.created": {
           logEvent("session.created", sessionID);
+          emitProofEvent("session_created", { status: "success", session_id: sessionID });
           const child = await isChildSession(ctx, sessionID);
           if (child) {
             logWarn(`Child session ${sessionID} ignored — no aspect-dynamics tracking`);
+            emitProofEvent("child_session_ignored", {
+              status: "skipped",
+              session_id: sessionID,
+              reason: "Child session",
+            });
             return;
           }
           getSessionState(sessionID);
@@ -62,16 +71,25 @@ export default async function aspectDynamicsPlugin(ctx) {
 
         case "session.deleted": {
           logEvent("session.deleted", sessionID);
+          emitProofEvent("session_deleted", { status: "success", session_id: sessionID });
           deleteSessionState(sessionID);
           break;
         }
 
         case "session.idle": {
           logEvent("session.idle", sessionID);
+          const idleStartMs = Date.now();
+          emitProofEvent("idle_seen", { status: "idle", session_id: sessionID });
 
           const child = await isChildSession(ctx, sessionID);
           if (child) {
             logWarn(`Session ${sessionID} skipped — child session`);
+            emitProofEvent("skip", {
+              status: "skipped",
+              session_id: sessionID,
+              reason: "Child session",
+              duration_ms: Date.now() - idleStartMs,
+            });
             return;
           }
 
@@ -79,8 +97,20 @@ export default async function aspectDynamicsPlugin(ctx) {
             const state = getSessionState(sessionID);
             if (state.circuitBroken) {
               logWarn(`Session ${sessionID} skipped — circuit breaker open`);
+              emitProofEvent("circuit_open", {
+                status: "skipped",
+                session_id: sessionID,
+                reason: "Circuit breaker open",
+                duration_ms: Date.now() - idleStartMs,
+              });
             } else if (state.inFlight) {
               logWarn(`Session ${sessionID} skipped — action already in flight`);
+              emitProofEvent("skip", {
+                status: "skipped",
+                session_id: sessionID,
+                reason: "Action already in flight",
+                duration_ms: Date.now() - idleStartMs,
+              });
             }
             return;
           }
@@ -92,11 +122,23 @@ export default async function aspectDynamicsPlugin(ctx) {
             if (!context) {
               logWarn(`No context for session ${sessionID}`);
               recordFailure(sessionID);
+              emitProofEvent("failure", {
+                status: "failure",
+                session_id: sessionID,
+                error: "No context extracted",
+                duration_ms: Date.now() - idleStartMs,
+              });
               return;
             }
 
             if (hasRecursionGuard(context)) {
               logWarn(`Session ${sessionID} skipped — recursion guard detected aspect-dynamics nudge`);
+              emitProofEvent("skip", {
+                status: "skipped",
+                session_id: sessionID,
+                reason: "Recursion guard detected aspect-dynamics nudge",
+                duration_ms: Date.now() - idleStartMs,
+              });
               recordSuccess(sessionID);
               return;
             }
@@ -104,6 +146,12 @@ export default async function aspectDynamicsPlugin(ctx) {
             // Prefilter: skip scoring if no heuristic phrases match
             if (!prefilterContext(context, sets, config)) {
               logEvent("session.idle", sessionID, "prefilter=skip");
+              emitProofEvent("skip", {
+                status: "skipped",
+                session_id: sessionID,
+                reason: "Prefilter miss",
+                duration_ms: Date.now() - idleStartMs,
+              });
               recordSuccess(sessionID);
               return;
             }
@@ -113,11 +161,27 @@ export default async function aspectDynamicsPlugin(ctx) {
             const lastHandled = getLastHandledAssistantMessageId(sessionID);
             if (latestAssistantId && latestAssistantId === lastHandled) {
               logWarn(`Session ${sessionID} skipped — already handled assistant message ${latestAssistantId}`);
+              emitProofEvent("skip", {
+                status: "skipped",
+                session_id: sessionID,
+                reason: "Already handled assistant message",
+                duration_ms: Date.now() - idleStartMs,
+              });
               return;
             }
 
             const scoring = scoreAspects(context, sets);
             const ranked = rankAspects(scoring.allScores);
+
+            const scoreEventData = {
+              status: "success",
+              session_id: sessionID,
+              duration_ms: Date.now() - idleStartMs,
+            };
+            if (scoring.topScore >= 0) {
+              scoreEventData.counts = { top_score: scoring.topScore };
+            }
+            emitProofEvent("score", scoreEventData);
 
             if (scoring.topScore >= 0) {
               const topSet = sets.find(s =>
@@ -139,6 +203,16 @@ export default async function aspectDynamicsPlugin(ctx) {
                     body: nudge,
                   });
                   logEvent("nudge", sessionID, `aspect=${topEntry.aspectId}, score=${scoring.topScore.toFixed(2)}`);
+                  emitProofEvent("nudge_sent", {
+                    status: "success",
+                    session_id: sessionID,
+                    counts: {
+                      score: scoring.topScore,
+                      aspect_id: topEntry.aspectId,
+                      set_id: topEntry.setId,
+                    },
+                    duration_ms: Date.now() - idleStartMs,
+                  });
                 }
               }
             }
@@ -155,6 +229,12 @@ export default async function aspectDynamicsPlugin(ctx) {
             }
           } catch (err) {
             logWarn(`Error processing session.idle for ${sessionID}: ${err.message}`);
+            emitProofEvent("failure", {
+              status: "failure",
+              session_id: sessionID,
+              error: `${err.name}: ${err.message}`,
+              duration_ms: Date.now() - idleStartMs,
+            });
             recordFailure(sessionID);
           } finally {
             markInFlight(sessionID, false);
