@@ -6,6 +6,78 @@ set -euo pipefail
 
 # Source common functions
 source "$(dirname "$0")/wisdom-common.sh"
+wisdom_init_observability "$(basename "$0")"
+
+_WISDOM_EDIT_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+_WISDOM_EDIT_RECORD_ID=""
+_WISDOM_EDIT_SCOPE=""
+_WISDOM_EDIT_PROJECT_ID=""
+_WISDOM_EDIT_DRY_RUN="false"
+_WISDOM_EDIT_CHANGED_FIELDS='[]'
+_WISDOM_EDIT_AUTHORITY_BEFORE=""
+_WISDOM_EDIT_AUTHORITY_AFTER=""
+
+_wisdom_edit_emit_observability() {
+    local rc=$?
+    local status="ok"
+    [[ "$rc" -ne 0 ]] && status="error"
+
+    local duration_ms_json="null"
+    if [[ -n "${_WISDOM_EDIT_START_MS:-}" ]]; then
+        local now_ms
+        now_ms=$(date +%s%3N 2>/dev/null || echo "")
+        if [[ -n "$now_ms" ]]; then
+            duration_ms_json=$((now_ms - _WISDOM_EDIT_START_MS))
+        fi
+    fi
+
+    local payload='{}'
+    payload=$(jq -nc \
+        --arg record_id "${_WISDOM_EDIT_RECORD_ID:-}" \
+        --arg scope "${_WISDOM_EDIT_SCOPE:-}" \
+        --arg project_id "${_WISDOM_EDIT_PROJECT_ID:-}" \
+        --arg dry_run "${_WISDOM_EDIT_DRY_RUN:-false}" \
+        --arg authority_before "${_WISDOM_EDIT_AUTHORITY_BEFORE:-}" \
+        --arg authority_after "${_WISDOM_EDIT_AUTHORITY_AFTER:-}" \
+        --arg changed_fields_json "${_WISDOM_EDIT_CHANGED_FIELDS:-[]}" \
+        --argjson duration_ms "$duration_ms_json" \
+        '{
+            record_id: (if $record_id == "" then null else $record_id end),
+            scope: (if $scope == "" then null else $scope end),
+            project_id: (if $project_id == "" then null else $project_id end),
+            dry_run: ($dry_run == "true"),
+            changed_fields: (($changed_fields_json | fromjson?) // []),
+            authority_before: (if $authority_before == "" then null else $authority_before end),
+            authority_after: (if $authority_after == "" then null else $authority_after end),
+            duration_ms: $duration_ms
+        }' 2>/dev/null) || payload='{}'
+
+    wisdom_emit_event "wisdom.lifecycle.edit" "$status" "$payload"
+
+    if [[ -n "${_WISDOM_EDIT_AUTHORITY_BEFORE:-}" && -n "${_WISDOM_EDIT_AUTHORITY_AFTER:-}" && "${_WISDOM_EDIT_AUTHORITY_BEFORE}" != "${_WISDOM_EDIT_AUTHORITY_AFTER}" ]]; then
+        local authority_payload='{}'
+        authority_payload=$(jq -nc \
+            --arg record_id "${_WISDOM_EDIT_RECORD_ID:-}" \
+            --arg scope "${_WISDOM_EDIT_SCOPE:-}" \
+            --arg project_id "${_WISDOM_EDIT_PROJECT_ID:-}" \
+            --arg authority_before "${_WISDOM_EDIT_AUTHORITY_BEFORE}" \
+            --arg authority_after "${_WISDOM_EDIT_AUTHORITY_AFTER}" \
+            --arg dry_run "${_WISDOM_EDIT_DRY_RUN:-false}" \
+            --argjson duration_ms "$duration_ms_json" \
+            '{
+                record_id: (if $record_id == "" then null else $record_id end),
+                scope: (if $scope == "" then null else $scope end),
+                project_id: (if $project_id == "" then null else $project_id end),
+                authority_before: $authority_before,
+                authority_after: $authority_after,
+                dry_run: ($dry_run == "true"),
+                duration_ms: $duration_ms
+            }' 2>/dev/null) || authority_payload='{}'
+        wisdom_emit_event "wisdom.lifecycle.authority_change" "$status" "$authority_payload"
+    fi
+}
+
+trap _wisdom_edit_emit_observability EXIT
 
 # --------------------------------------------------------------------------
 # Helper functions
@@ -147,6 +219,7 @@ main() {
     local set_contradicts=""
     local set_verified_at=""
     local set_review_due=""
+    local -a changed_fields=()
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -247,6 +320,11 @@ main() {
         usage >&2
         return 2
     fi
+
+    _WISDOM_EDIT_RECORD_ID="$entry_id"
+    _WISDOM_EDIT_SCOPE="$scope"
+    _WISDOM_EDIT_PROJECT_ID="$project_id"
+    _WISDOM_EDIT_DRY_RUN="$dry_run"
     
     # Validate at least one edit flag is provided
     if [[ -z "$set_body" && -z "$set_type" && -z "$set_tags" && -z "$add_tags" && -z "$set_score" && \
@@ -299,12 +377,15 @@ main() {
         echo "Error: entry '$entry_id' not found in scope '$scope'" >&2
         return 1
     fi
+
+    _WISDOM_EDIT_AUTHORITY_BEFORE=$(printf '%s' "$current_json" | jq -r '.authority // "candidate"' 2>/dev/null || echo "")
     
     # Start building updated JSON
     local updated_json="$current_json"
     
     # Apply --set-body
     if [[ -n "$set_body" ]]; then
+        changed_fields+=("body")
         local escaped_body
         escaped_body=$(wisdom_escape_json "$set_body")
         # escaped_body already has quotes, so use --argjson to pass as JSON string
@@ -313,11 +394,13 @@ main() {
     
     # Apply --set-type
     if [[ -n "$set_type" ]]; then
+        changed_fields+=("type")
         updated_json=$(echo "$updated_json" | jq --arg type "$set_type" '.type = $type')
     fi
     
     # Apply --set-tags
     if [[ -n "$set_tags" ]]; then
+        changed_fields+=("tags")
         local tags_json
         tags_json=$(parse_tags_to_json "$set_tags")
         updated_json=$(echo "$updated_json" | jq --argjson tags "$tags_json" '.tags = $tags')
@@ -325,6 +408,7 @@ main() {
     
     # Apply --add-tags
     if [[ -n "$add_tags" ]]; then
+        changed_fields+=("tags")
         local add_tags_json
         add_tags_json=$(parse_tags_to_json "$add_tags")
         updated_json=$(echo "$updated_json" | jq --argjson new_tags "$add_tags_json" '.tags = (.tags + $new_tags | unique)')
@@ -332,51 +416,67 @@ main() {
     
     # Apply --set-score
     if [[ -n "$set_score" ]]; then
+        changed_fields+=("quality_score")
         updated_json=$(echo "$updated_json" | jq --argjson score "$set_score" '.quality_score = $score')
     fi
     
     # Apply --set-authority
     if [[ -n "$set_authority" ]]; then
+        changed_fields+=("authority")
         updated_json=$(echo "$updated_json" | jq --arg authority "$set_authority" '.authority = $authority')
     fi
 
     # Apply --set-status
     if [[ -n "$set_status" ]]; then
+        changed_fields+=("status")
         updated_json=$(echo "$updated_json" | jq --arg status "$set_status" '.status = $status')
     fi
 
     # Apply --set-provenance
     if [[ -n "$set_provenance" ]]; then
+        changed_fields+=("provenance")
         updated_json=$(echo "$updated_json" | jq --arg provenance "$set_provenance" '.provenance = $provenance')
     fi
 
     # Apply --set-origin-session
     if [[ -n "$set_origin_session" ]]; then
+        changed_fields+=("origin_session")
         updated_json=$(echo "$updated_json" | jq --arg origin_session "$set_origin_session" '.origin_session = $origin_session')
     fi
     
     # Apply --set-superseded-by
     if [[ -n "$set_superseded_by" ]]; then
+        changed_fields+=("superseded_by")
         updated_json=$(echo "$updated_json" | jq --arg superseded_by "$set_superseded_by" '.superseded_by = $superseded_by')
     fi
 
     # Apply --set-contradicts
     if [[ -n "$set_contradicts" ]]; then
+        changed_fields+=("contradicts")
         updated_json=$(echo "$updated_json" | jq --arg contradicts_id "$set_contradicts" '.contradicts = ((.contradicts // []) + [$contradicts_id] | unique)')
     fi
     
     # Apply --set-verified-at
     if [[ -n "$set_verified_at" ]]; then
+        changed_fields+=("verified_at")
         updated_json=$(echo "$updated_json" | jq --arg verified_at "$set_verified_at" '.verified_at = $verified_at')
     fi
     
     # Apply --set-review-due
     if [[ -n "$set_review_due" ]]; then
+        changed_fields+=("review_due")
         updated_json=$(echo "$updated_json" | jq --arg review_due "$set_review_due" '.review_due = $review_due')
     fi
 
     updated_json=$(printf '%s' "$updated_json" | jq -c '.')
     updated_json=$(wisdom_normalize_record "$updated_json") || return 2
+
+    _WISDOM_EDIT_AUTHORITY_AFTER=$(printf '%s' "$updated_json" | jq -r '.authority // "candidate"' 2>/dev/null || echo "")
+    _WISDOM_EDIT_CHANGED_FIELDS=$(jq -nc \
+      --argjson before "$current_json" \
+      --argjson after "$updated_json" \
+      '["body","type","tags","quality_score","authority","status","provenance","origin_session","superseded_by","contradicts","verified_at","review_due"]
+       | map(select((($before[.] // null)) != (($after[.] // null))))' 2>/dev/null || echo '[]')
 
     if ! wisdom_validate_jsonl_line "$updated_json"; then
         return 2
