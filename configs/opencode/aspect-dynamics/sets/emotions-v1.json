@@ -1,0 +1,71 @@
+{
+  "setId": "emotions-v1",
+  "version": 1,
+  "defaultThreshold": 0.75,
+  "aspects": [
+    {
+      "id": "frustration",
+      "heuristicPhrases": [
+        "this is frustrating",
+        "why doesn't this work",
+        "I've tried everything",
+        "this is so annoying",
+        "nothing is working",
+        "this is ridiculous",
+        "I'm stuck on this",
+        "this keeps failing",
+        "I can't figure this out",
+        "this is driving me crazy"
+      ],
+      "nudgeInstruction": "The user appears frustrated. Acknowledge their frustration briefly, then offer a clear next step or alternative approach. Avoid lengthy explanations."
+    },
+    {
+      "id": "uncertainty",
+      "heuristicPhrases": [
+        "I'm not sure",
+        "maybe",
+        "I think",
+        "not certain",
+        "could be",
+        "I don't know",
+        "perhaps",
+        "I'm confused",
+        "not clear",
+        "I wonder"
+      ],
+      "nudgeInstruction": "The user seems uncertain. Provide clarifying information or ask a focused question to narrow down the ambiguity. Offer concrete options."
+    },
+    {
+      "id": "urgency",
+      "heuristicPhrases": [
+        "asap",
+        "urgent",
+        "right now",
+        "immediately",
+        "hurry",
+        "quickly",
+        "as soon as possible",
+        "critical",
+        "deadline",
+        "emergency"
+      ],
+      "nudgeInstruction": "The user is expressing urgency. Prioritize speed and directness. Provide the most actionable answer first, then offer to expand."
+    },
+    {
+      "id": "momentum-drop",
+      "heuristicPhrases": [
+        "let's move on",
+        "this is taking too long",
+        "can we skip this",
+        "I'm losing patience",
+        "this is dragging",
+        "too slow",
+        "wasting time",
+        "let's just get this done",
+        "I'm over this",
+        "enough already"
+      ],
+      "nudgeInstruction": "The user is losing momentum. Offer to simplify, defer, or fast-track the current task. Suggest a concrete path to resolution."
+    }
+  ]
+}
