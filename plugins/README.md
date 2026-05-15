@@ -12,12 +12,14 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `auto-checkpoint.ts` — automatically creates git checkpoint commits when sessions become idle or tasks complete, with quiescence-based safety guards.
 - `session-id.ts` — copies the invoking session ID to clipboard via `/session-id`, no LLM round-trip.
 - `session-info.ts` — copies `Project <path>:<branch>; Session <title>; ID <session-id>` to clipboard via `/session-info` command, no LLM round-trip.
+- `vera-runtime.ts` — supervises per-workspace Vera indexes and watchers, records watcher state under worktree-state, and fails open when the `vera` binary is unavailable.
 - `kdco-primitives/` — shared helpers used by the plugin bundle, including project ID lookup, shell escaping, tmux detection, temp paths, logging, timeout helpers, and shared types.
 
 ## Dependency notes
 
 - `worktree.ts` depends on `./worktree/state` and `./worktree/terminal`, so those files must stay alongside it under `plugins/worktree/`.
 - `worktree.ts`, `worktree/state.ts`, and `worktree/terminal.ts` all depend on `plugins/kdco-primitives/`.
+- `vera-runtime.ts` is self-contained but coordinates with `scripts/worktree-post-create.sh`, `scripts/worktree-pre-delete.sh`, and `docs/worktree-state-schema.md` through the shared `vera-watchers/` state contract.
 - `kdco-primitives/` should be installed with the rest of the plugin bundle; moving or removing it breaks worktree-related imports.
 
 ## Portability

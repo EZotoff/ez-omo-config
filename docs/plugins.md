@@ -115,6 +115,36 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ---
 
+## vera-runtime.ts
+
+**Purpose**: Supervises Vera semantic search watchers during active OpenCode sessions, ensuring indexes stay fresh without manual intervention.
+
+**Features**:
+
+- **Fail-open behavior**: If the `vera` binary is missing, the plugin logs a warning and continues normal operation without error
+- **Automatic watcher lifecycle**: Hooks into `session.created` to start watchers, `session.deleted` to stop them
+- **Tool execution guard**: `tool.execute.before` hook verifies watcher health before file-modifying tools run
+- **Health checks**: Every 60 seconds verifies the watcher PID is still alive
+- **State persistence**: Tracks watcher state per project in `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/`
+
+**Event Hooks**:
+
+| Hook | When Fired | Action |
+|------|-----------|--------|
+| `session.created` | New session starts | Start or verify Vera watcher for the project |
+| `session.deleted` | Session ends | Stop Vera watcher if no other sessions need it |
+| `tool.execute.before` | Before any tool executes | If tool modifies files, trigger `vera update .` |
+
+**Dependencies**: None (self-contained; falls open if `vera` binary absent)
+
+**Install Target**: `$HOME/.opencode/plugin/vera-runtime.ts`
+
+**Log Location**: `$HOME/.opencode/plugin/vera-runtime.log`
+
+**State Location**: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/`
+
+---
+
 ## kdco-primitives/
 
 **Purpose**: Shared library used by all plugins in the bundle. Provides common utilities and type definitions.
