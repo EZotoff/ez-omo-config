@@ -62,7 +62,7 @@ This repository contains 51 core artifacts + 1 external integration organized in
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
-| 6-11 | **Plugins** | 10 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, and Vera runtime supervision |
+| 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, auto-checkpoint, VS Code launcher, session clipboard commands, and Vera runtime supervision |
 | 12-21 | **Skills** | 9 directories | Specialized agent skills for testing, deployment, UX, and parallel development |
 | 21-30 | **Scripts** | 11 shell scripts | Wisdom propagation and worktree lifecycle scripts |
 | 31 | **Extras** | 1 file | Additional registry configuration |
@@ -89,6 +89,7 @@ This repository contains 51 core artifacts + 1 external integration organized in
 | 8 | `worktree/terminal.ts` | `plugins/worktree/` | Terminal integration for worktrees |
 | 9 | `git-safety.ts` | `plugins/` | Git safety protocol enforcement |
 | 10 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
+| 10b | `auto-checkpoint.ts` | `plugins/` | Auto-checkpoint semantic scaffolding |
 | 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
 | 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
 | 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id, no LLM round-trip) |

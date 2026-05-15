@@ -115,6 +115,29 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ---
 
+## auto-checkpoint.ts
+
+**Purpose**: Creates semantic checkpoint commits for the root session tree after tool activity settles, so long-running work can recover from interruptions without scooping unrelated files into history.
+
+**Features**:
+
+- Tracks root-session ownership and rolls child session activity up to the correct checkpoint scope
+- Uses a helper-session proposal flow to validate exact file subsets before staging
+- Builds commits through a temporary git index so staged foreign changes remain untouched
+- Skips risky states such as pre-dirty paths, in-progress git operations, binary-heavy diffs, and oversize diff budgets
+- Collects rename and delete operations alongside tracked and untracked file edits when they belong to the same semantic checkpoint
+
+**Dependencies**: Git CLI, OpenCode session APIs, and helper-session messaging for semantic file proposals
+
+**Install Target**: `$HOME/.opencode/plugin/auto-checkpoint.ts`
+
+**Verification**:
+
+- `bash tests/test_auto_checkpoint_semantic.sh`
+- `node tests/auto-checkpoint/harness.mjs --case exact-validated-subset-committed`
+
+---
+
 ## vera-runtime.ts
 
 **Purpose**: Supervises Vera semantic search watchers during active OpenCode sessions, ensuring indexes stay fresh without manual intervention.
