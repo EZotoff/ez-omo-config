@@ -142,11 +142,11 @@ File: `~/.local/share/opencode/worktree-state/<project-id>/merge.lock`
 
 ## Port Registry
 
-Two-tier system:
+Three-tier system:
 
-### 1. Deployment Registry (Ranges)
+### 1. Deployment Registry — Ranges (Project Ownership)
 
-`~/.sisyphus/ports.json` reserves **ranges** per project. Managed by deployment skill.
+`~/.sisyphus/ports.json` `ranges` reserves a **contiguous port range** per project. This establishes project ownership of the range.
 
 ```json
 {
@@ -156,26 +156,42 @@ Two-tier system:
 }
 ```
 
-### 2. Worktree State (Allocations)
+### 2. Deployment Registry — Ports (Service Reservations)
 
-`~/.local/share/opencode/worktree-state/<project>/ports.json` tracks **individual port allocations** within the project's range.
+`~/.sisyphus/ports.json` `ports` reserves **individual service ports** within a project's range for project-owned host-bound services. These ports are unavailable for worktree allocation.
 
 ```json
 {
-  "3000": "feature/search-index",
-  "3001": "fix/api-timeout"
+  "ports": {
+    "3000": { "service": "next-web", "project": "omo-hub", "allocated": "2026-03-20" }
+  }
+}
+```
+
+### 3. Worktree State (Allocations)
+
+`~/.local/share/opencode/worktree-state/<project>/ports.json` tracks **dynamic worktree port allocations** within the project's range.
+
+```json
+{
+  "3004": "feature/search-index",
+  "3005": "fix/api-timeout"
 }
 ```
 
 ### Workflow
 
-1. Project reserves range via `/deploy` → stored in deployment registry
-2. Worktree created → hook allocates next free port from range → stored locally
-3. Worktree deleted → hook frees port in local registry
+1. Project reserves range via `/deploy` → stored in deployment registry `ranges`
+2. Project registers service ports → stored in deployment registry `ports`
+3. Worktree created → hook allocates next free port from range, **excluding** both registered service ports and existing worktree allocations → stored locally
+4. Worktree deleted → hook frees port in local registry
 
 ### Rules
 
 - No port allocation if project has no reserved range (port stays null)
+- Worktree allocation skips ports listed in global `ports` for the same project
+- Worktree allocation skips ports already allocated in local worktree state
+- If no free port remains in the range, allocation fails with an error (does not select outside the range)
 - Keys are port numbers as strings, values are branch names
 - Registry only contains currently active allocations
 
