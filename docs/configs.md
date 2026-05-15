@@ -289,6 +289,7 @@ The `prometheus` agent is configured via `prompt_append` to produce a human-faci
 - Deterministic scoring (no model-backed inference in MVP)
 - Transcript-visible advisory nudge dispatch when a score crosses the configured threshold
 - Per-session deduplication, circuit breaker, and recursion guard
+- Optional non-Wisdom proof-event sink for local observability and verification
 
 **How it Works**:
 
@@ -323,6 +324,8 @@ These fields are inert by default. They are logged only when `logLevel` is set t
 - `logLevel` — Plugin terminal logging threshold. Defaults to `warn`; set `info` to show startup/info diagnostics, or `silent` to suppress all plugin terminal logging.
 - `heuristicPreFilter` — Whether to skip scoring when no heuristic phrases match
 - `contextWindowTurns` — Number of recent turns to include in context extraction
+- `proofEnabled` — Optional toggle for JSONL proof-event emission (enabled by default when unset)
+- `proofPath` — Optional override for the JSONL proof-event sink path (defaults under `~/.local/share/opencode/aspect-dynamics/`)
 
 **Install Target**: `$HOME/.config/opencode/aspect-dynamics.mjs`
 
