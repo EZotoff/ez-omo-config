@@ -644,7 +644,7 @@ async function runNoNetworkCalls() {
 }
 
 async function runBelowThreshold() {
-  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+  await setTestConfig({ activeSets: ["emotions-v2"], logLevel: "info" });
 
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
@@ -682,7 +682,7 @@ async function runBelowThreshold() {
 }
 
 async function runThresholdCrossed() {
-  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+  await setTestConfig({ activeSets: ["emotions-v2"], logLevel: "info" });
 
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
@@ -1023,7 +1023,7 @@ async function runProofSkip() {
 }
 
 async function runProofNudge() {
-  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+  await setTestConfig({ activeSets: ["emotions-v2"], logLevel: "info" });
 
   const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
     join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
