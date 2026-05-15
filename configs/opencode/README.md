@@ -19,10 +19,18 @@ This directory contains the portable OpenCode config bundle copied from the loca
 
 Two hook scripts automate worktree setup and teardown:
 
-- **`scripts/worktree-post-create.sh`** — Runs after a worktree is created. Handles state creation, port allocation, Docker container start, and Vera index bootstrapping.
+- **`scripts/worktree-post-create.sh`** — Runs after a worktree is created. Handles state creation, port allocation from the deployment registry, Docker container start, and Vera index bootstrapping.
 - **`scripts/worktree-pre-delete.sh`** — Runs before a worktree is deleted. Handles container stop, port freeing, state cleanup, and Vera watcher cleanup.
 
 These hooks are registered in `worktree.jsonc` and are invoked automatically by the worktree plugin. No manual intervention is needed.
+
+Port allocation now follows a three-tier contract:
+
+1. `~/.sisyphus/ports.json` `ranges` reserves a contiguous range per project.
+2. `~/.sisyphus/ports.json` `ports` reserves project-owned service ports inside that range.
+3. `~/.local/share/opencode/worktree-state/<project>/ports.json` records dynamic worktree allocations.
+
+When a worktree is created, `worktree-post-create.sh` picks the next free port inside the reserved range, skipping both globally reserved service ports and already-allocated worktree ports.
 
 ## Symlinked Config Behavior
 

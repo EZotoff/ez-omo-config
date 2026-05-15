@@ -33,17 +33,26 @@ else
     PORTS_FILE="$STATE_DIR/ports.json"
     [ ! -f "$PORTS_FILE" ] && echo "{}" > "$PORTS_FILE"
 
+    # Build set of reserved service ports from global registry for this project
+    RESERVED_PORTS=$(jq -r ".ports // {} | to_entries[] | select(.value.project == \"$PROJECT_ID\") | .key" "$DEPLOYMENT_PORTS" 2>/dev/null | tr '\n' ' ')
+
     PORT=""
     for P in $(seq "$RANGE_START" "$RANGE_END"); do
-      if ! jq -e ".[\"$P\"]" "$PORTS_FILE" > /dev/null 2>&1; then
-        PORT=$P
-        break
+      # Skip if allocated in worktree-state
+      if jq -e ".[\"$P\"]" "$PORTS_FILE" > /dev/null 2>&1; then
+        continue
       fi
+      # Skip if reserved as a service port in global registry for this project
+      if echo "$RESERVED_PORTS" | grep -qw "$P"; then
+        continue
+      fi
+      PORT=$P
+      break
     done
 
     if [ -z "$PORT" ]; then
-      echo "WARN: No available ports in project range $RANGE_START-$RANGE_END"
-      PORT="null"
+      echo "ERROR: No available ports in project range $RANGE_START-$RANGE_END (all ports allocated or reserved)"
+      exit 1
     else
       TEMP_FILE=$(mktemp)
       jq --arg port "$PORT" --arg branch "$BRANCH" '.[$port] = $branch' "$PORTS_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$PORTS_FILE"

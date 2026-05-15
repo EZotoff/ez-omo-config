@@ -62,11 +62,13 @@ Runtime state lives at `~/.local/share/opencode/worktree-state/<project-id>/`:
 
 ### Port Range
 
-Default: 3100-3199. Modify in `worktree-post-create.sh` if conflicts occur:
+Port allocation is registry-driven, not hardcoded in the hook.
 
-```bash
-for PORT in $(seq 3100 3199); do
-```
+- Reserve a contiguous project range in `~/.sisyphus/ports.json` via `/deploy`
+- Register any long-lived project service ports in the same global registry
+- Let `worktree-post-create.sh` allocate the next free port from that reserved range while skipping globally reserved service ports and already-allocated worktree ports
+
+If no range exists for the project, worktrees stay on `port: null` until the deployment registry is populated.
 
 ### MAX_PARALLEL
 
