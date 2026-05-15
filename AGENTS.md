@@ -94,33 +94,34 @@ When entering a new repository for the first time:
    vera stats          # Show index statistics
    ```
 
-4. **Start watcher for session**:
-   ```bash
-   # Check if watcher already running
-   pgrep -f "vera watch" && echo "watcher active" || vera watch . &
-   ```
+4. **Proceed with semantic search**
 
-5. **Proceed with semantic search**
+### Vera Lifecycle Automation
 
-### Session Start Protocol
+Vera watcher management is now fully automated. Manual `pgrep` checks and manual `vera watch` invocations are no longer needed.
 
-At the start of every coding session:
+**Worktree hooks** (`scripts/worktree-post-create.sh` / `scripts/worktree-pre-delete.sh`):
+- Automatically bootstrap a Vera index when a worktree is created
+- Automatically stop and cleanup the Vera watcher when a worktree is deleted
+- State file locations are documented in `docs/worktree-state-schema.md`
 
-1. **Ensure index exists**: `test -d .vera || vera index .`
-2. **Start background watcher** (if not already running):
-   ```bash
-   pgrep -f "vera watch" > /dev/null || vera watch . &
-   ```
-3. **Verify watcher is active**:
-   ```bash
-   pgrep -f "vera watch" && echo "watcher running" || echo "watcher failed to start"
-   ```
+**Runtime plugin** (`plugins/vera-runtime.ts`):
+- Supervises Vera watchers during active sessions
+- Health checks every 60 seconds verify watcher PID
+- Restarts watchers if they die unexpectedly
+- Fails open: if the `vera` binary is missing, normal operation continues without error
+
+**Manual fallback** (only when automated systems are unavailable):
+```bash
+vera update .        # One-time incremental update
+vera watch . &       # Start background watcher manually
+```
 
 ### Index Freshness Checklist
 
 Before running semantic search after significant edits:
-- [ ] Watcher running? `pgrep -f "vera watch"`
-- [ ] If not running: `vera watch . &` (or `vera update .` for one-time sync)
+- [ ] Watcher active? Check `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/` for PID files
+- [ ] If watcher missing: `vera update .` (or `vera watch . &` for continuous monitoring)
 - [ ] If index corrupted: `vera repair` → `vera index .`
 
 ### Anti-Patterns

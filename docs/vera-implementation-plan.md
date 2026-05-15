@@ -250,8 +250,18 @@ When entering a new repository for the first time:
 
 4. **Start watcher for session**:
    ```bash
-   # Check if watcher already running
-   pgrep -f "vera watch" && echo "watcher active" || vera watch . &
+    # Check if watcher already running via state file
+    WATCHER_STATE="$HOME/.local/share/opencode/worktree-state/$(basename $(pwd))/vera-watchers/$(echo $(pwd) | md5sum | cut -c1-8).json"
+    if [ -f "$WATCHER_STATE" ]; then
+      WATCHER_PID=$(python3 -c "import json; print(json.load(open('$WATCHER_STATE'))['pid'])")
+      if [ -d "/proc/$WATCHER_PID" ] && grep -q "vera watch" /proc/$WATCHER_PID/cmdline 2>/dev/null; then
+        echo "watcher active (PID: $WATCHER_PID)"
+      else
+        vera watch . &
+      fi
+    else
+      vera watch . &
+    fi
    ```
 
 5. **Proceed with semantic search**
@@ -309,11 +319,31 @@ At the start of every coding session:
 1. **Ensure index exists**: `test -d .vera || vera index .`
 2. **Start background watcher** (if not already running):
    ```bash
-   pgrep -f "vera watch" > /dev/null || vera watch . &
+   # Check state file for existing watcher PID
+   WATCHER_STATE="$HOME/.local/share/opencode/worktree-state/$(basename $(pwd))/vera-watchers/$(echo $(pwd) | md5sum | cut -c1-8).json"
+   if [ -f "$WATCHER_STATE" ]; then
+     WATCHER_PID=$(python3 -c "import json; print(json.load(open('$WATCHER_STATE'))['pid'])")
+     if [ ! -d "/proc/$WATCHER_PID" ] || ! grep -q "vera watch" /proc/$WATCHER_PID/cmdline 2>/dev/null; then
+       vera watch . &
+     fi
+   else
+     vera watch . &
+   fi
    ```
 3. **Verify watcher is active**:
    ```bash
-   pgrep -f "vera watch" && echo "watcher running" || echo "watcher failed to start"
+   # Validate watcher via state file + /proc
+   WATCHER_STATE="$HOME/.local/share/opencode/worktree-state/$(basename $(pwd))/vera-watchers/$(echo $(pwd) | md5sum | cut -c1-8).json"
+   if [ -f "$WATCHER_STATE" ]; then
+     WATCHER_PID=$(python3 -c "import json; print(json.load(open('$WATCHER_STATE'))['pid'])")
+     if [ -d "/proc/$WATCHER_PID" ] && grep -q "vera watch" /proc/$WATCHER_PID/cmdline 2>/dev/null; then
+       echo "watcher running (PID: $WATCHER_PID)"
+     else
+       echo "watcher failed to start (stale PID in state file)"
+     fi
+   else
+     echo "watcher failed to start (no state file)"
+   fi
    ```
 ```
 
@@ -355,7 +385,7 @@ vera index .         # Full reindex (if update fails)
 ### Index Freshness Checklist
 
 Before running semantic search after significant edits:
-- [ ] Watcher running? `pgrep -f "vera watch"`
+- [ ] Watcher running? Check state file: `ls ~/.local/share/opencode/worktree-state/*/vera-watchers/*.json` and validate PID via `/proc/<pid>/cmdline`
 - [ ] If not running: `vera watch . &` (or `vera update .` for one-time sync)
 - [ ] If index corrupted: `vera repair` → `vera index .`
 ```
@@ -442,7 +472,16 @@ Before running semantic search after significant edits:
 **Mitigation**:
 1. AGENTS.md rule: Check before starting:
    ```bash
-   pgrep -f "vera watch" || vera watch . &
+   # Check state file for existing watcher PID
+   WATCHER_STATE="$HOME/.local/share/opencode/worktree-state/$(basename $(pwd))/vera-watchers/$(echo $(pwd) | md5sum | cut -c1-8).json"
+   if [ -f "$WATCHER_STATE" ]; then
+     WATCHER_PID=$(python3 -c "import json; print(json.load(open('$WATCHER_STATE'))['pid'])")
+     if [ ! -d "/proc/$WATCHER_PID" ] || ! grep -q "vera watch" /proc/$WATCHER_PID/cmdline 2>/dev/null; then
+       vera watch . &
+     fi
+   else
+     vera watch . &
+   fi
    ```
 2. Watcher is lightweight; duplicate instances are wasteful but not harmful
 
@@ -491,7 +530,7 @@ vera overview
 
 # Test 6: Watcher
 vera watch . &
-pkill -f "vera watch"
+# Stop via PID from state file (precise, no broad process matching)
 ```
 
 ### 7.3 Agent Workflow Testing
@@ -553,7 +592,7 @@ Compare token usage with/without Vera:
 If Vera causes issues:
 
 1. **Remove skill assignment** from `oh-my-openagent.json`
-2. **Stop watcher**: `pkill -f "vera watch"`
+2. **Stop watcher**: Read PID from `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<workspace-key>.json`, validate via `/proc/<pid>/cmdline`, then `kill <pid>`
 3. **Remove index** (optional): `rm -rf .vera/`
 4. **Remove skill files**: `rm -rf ~/.config/opencode/skills/vera/`
 5. **Revert AGENTS.md** to pre-Vera version
