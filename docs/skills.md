@@ -162,6 +162,33 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
+### update-to-latest/
+
+**Purpose**: Safe OpenCode/OMO update pipeline with explicit human approval gate, patch-tracker integration, rollback capability, and evidence-state claim discipline.
+
+**Features**:
+
+- 13-phase guided operational pipeline for analyzing and executing updates
+- Explicit human approval gate before any update commands run
+- Patch registry review and overlap detection with upstream changes
+- Timestamped backup bundle creation with restore commands
+- Adaptive regression testing: Light, Standard, or Deep suites
+- Evidence-state claim discipline using exact AGENTS.md taxonomy
+- Rollback policy with automatic restore on critical test failures
+- Patch lifecycle classifications: unaffected, reapplied-cleanly, conflicted, obsolete-upstreamed, obsolete-replaced-by-config-or-plugin, missing-target, needs-redesign
+
+**Dependencies**: `patch-tracker` skill (referenced)
+
+**Use Case**: Analyzing whether to update OpenCode or OMO, producing a go/no-go recommendation, and executing updates safely with full rollback capability
+
+**Status**: Optional
+
+**Install Target**: `$HOME/.config/opencode/skills/update-to-latest/`
+
+**Install Method**: `install.sh --skills`
+
+---
+
 ### vera-hygiene/
 
 **Purpose**: Vera index hygiene and `.veraignore` management. Prevents indexing failures by excluding unreadable, heavy, or generated paths.
@@ -240,6 +267,7 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | playwright/ | Optional | `$HOME/.config/opencode/skills/playwright/` | `install.sh` |
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
 | frontend-ui-ux/ | Optional | `$HOME/.config/opencode/skills/frontend-ui-ux/` | `install.sh` |
+| update-to-latest/ | Optional | `$HOME/.config/opencode/skills/update-to-latest/` | `install.sh` |
 | vera-hygiene/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera-hygiene/` | `install.sh` |
 | vera/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera/` | `vera agent install --client opencode` |
 

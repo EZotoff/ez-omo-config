@@ -56,6 +56,7 @@ ITEMS=(
     "skills|skills/parallel-dev|$HOME/.config/opencode/skills/parallel-dev"
     "skills|skills/worktree-coordinator|$HOME/.config/opencode/skills/worktree-coordinator"
     "skills|skills/vera-hygiene|$HOME/.config/opencode/skills/vera-hygiene"
+    "skills|skills/update-to-latest|$HOME/.config/opencode/skills/update-to-latest"
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"
     "scripts|scripts/wisdom/knowledge-constants.sh|$HOME/.sisyphus/scripts/knowledge-constants.sh"
     "scripts|scripts/wisdom/wisdom-search.sh|$HOME/.sisyphus/scripts/wisdom-search.sh"
