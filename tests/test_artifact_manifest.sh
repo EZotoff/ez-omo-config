@@ -58,6 +58,7 @@ assert_manifest_row 'oh-my-openagent.json.*configs/oh-my-openagent/'
 assert_manifest_row 'worktree.ts.*plugins/'
 assert_manifest_row 'git-safety.ts.*plugins/'
 assert_manifest_row 'review-enforcer.ts.*plugins/'
+assert_manifest_row 'auto-checkpoint.ts.*plugins/'
 assert_manifest_row 'kdco-primitives/.*plugins/kdco-primitives/'
 assert_manifest_row 'ocx.jsonc.*extras/'
 assert_manifest_row 'vera-runtime.ts.*plugins/'
@@ -83,6 +84,9 @@ assert_file_exists "$REPO_ROOT/configs/oh-my-openagent/oh-my-openagent.json"
 assert_file_exists "$REPO_ROOT/extras/ocx.jsonc"
 assert_file_exists "$REPO_ROOT/tests/aspect-dynamics/harness.mjs"
 assert_file_exists "$REPO_ROOT/tests/test_aspect_dynamics_runtime.sh"
+assert_file_exists "$REPO_ROOT/tests/auto-checkpoint/harness.mjs"
+assert_file_exists "$REPO_ROOT/tests/test_auto_checkpoint_semantic.sh"
+assert_file_exists "$REPO_ROOT/plugins/auto-checkpoint.ts"
 assert_file_exists "$REPO_ROOT/plugins/vera-runtime.ts"
 assert_file_exists "$REPO_ROOT/configs/opencode/worktree.jsonc"
 assert_file_exists "$REPO_ROOT/scripts/worktree-post-create.sh"
