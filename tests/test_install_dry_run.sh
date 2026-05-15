@@ -8,15 +8,17 @@ TEST_HOME="$(mktemp -d)"
 OUTPUT_FILE="$(mktemp)"
 COMMANDS_OUTPUT="$(mktemp)"
 SCRIPTS_OUTPUT="$(mktemp)"
+CONFIGS_SCRIPTS_OUTPUT="$(mktemp)"
 
 cleanup() {
-    rm -rf "$TEST_HOME" "$OUTPUT_FILE" "$COMMANDS_OUTPUT" "$SCRIPTS_OUTPUT"
+    rm -rf "$TEST_HOME" "$OUTPUT_FILE" "$COMMANDS_OUTPUT" "$SCRIPTS_OUTPUT" "$CONFIGS_SCRIPTS_OUTPUT"
 }
 trap cleanup EXIT
 
 HOME="$TEST_HOME" bash "$REPO_ROOT/install.sh" --dry-run >"$OUTPUT_FILE"
 HOME="$TEST_HOME" bash "$REPO_ROOT/install.sh" --dry-run --commands >"$COMMANDS_OUTPUT"
 HOME="$TEST_HOME" bash "$REPO_ROOT/install.sh" --dry-run --scripts >"$SCRIPTS_OUTPUT"
+HOME="$TEST_HOME" bash "$REPO_ROOT/install.sh" --dry-run --configs --scripts >"$CONFIGS_SCRIPTS_OUTPUT"
 
 assert_grep 'DRY-RUN' "$OUTPUT_FILE"
 assert_grep 'commands/models-preset.md' "$OUTPUT_FILE"
@@ -31,6 +33,10 @@ assert_grep '\.config/opencode/command/models-preset\.md' "$COMMANDS_OUTPUT"
 assert_no_grep 'configs/opencode/opencode.json' "$COMMANDS_OUTPUT"
 assert_grep 'scripts/wisdom/wisdom-common.sh' "$SCRIPTS_OUTPUT"
 assert_no_grep 'configs/opencode/opencode.json' "$SCRIPTS_OUTPUT"
+
+assert_grep 'worktree.jsonc' "$CONFIGS_SCRIPTS_OUTPUT"
+assert_grep 'worktree-post-create.sh' "$CONFIGS_SCRIPTS_OUTPUT"
+assert_grep 'worktree-pre-delete.sh' "$CONFIGS_SCRIPTS_OUTPUT"
 
 if [[ -e "$TEST_HOME/.config/opencode/opencode.json" ]]; then
     echo "FAIL: dry run created config target"
