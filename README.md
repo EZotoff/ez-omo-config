@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **60 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **65 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -59,7 +59,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 60 core artifacts + 1 external integration organized into 9 categories:
+This repository contains 64 core artifacts + 1 external integration organized into 9 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -67,8 +67,8 @@ This repository contains 60 core artifacts + 1 external integration organized in
 | 2-5 | **Configs** | 16 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin and its support modules |
 | 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, Vera runtime supervision, and semantic checkpointing |
 | 12-22 | **Skills** | 10 directories | Specialized agent skills for testing, deployment, UX, parallel development, and Vera hygiene |
-| 22-31 | **Scripts** | 13 shell scripts | Wisdom propagation, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
-| 32 | **Tests** | 6 test scripts | Regression tests for config, DCP, and plugin verification |
+| 22-31 | **Scripts** | 17 shell scripts | Wisdom propagation, observability, compatibility shims, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
+| 32 | **Tests** | 7 test scripts | Regression tests for config, DCP, plugin, and wisdom observability verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
 | 36-39 | **Docs** | 5 files | Configuration, plugin, skills, worktree state, live deployment verification, and compatibility debt documentation |
@@ -114,6 +114,10 @@ This repository contains 60 core artifacts + 1 external integration organized in
 | 24 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
 | 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
 | 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
+| 26a | `wisdom-observe.sh` | `scripts/wisdom/` | Operator-facing observability CLI for wisdom events |
+| 26b | `knowledge-lookup.sh` | `scripts/wisdom/` | Deprecated compatibility shim that delegates legacy knowledge lookups to Wisdom search |
+| 26c | `knowledge-snapshot.sh` | `scripts/wisdom/` | Deprecated compatibility shim that emits session orientation snapshots from Wisdom only |
+| 26d | `knowledge-promote.sh` | `scripts/` | Deprecated compatibility shim that delegates legacy promote flows to `wisdom-publish.sh` |
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
@@ -142,6 +146,7 @@ This repository contains 60 core artifacts + 1 external integration organized in
 | 50 | `tests/test_live_deployment_contract.sh` | `tests/` | Repo-safe contract tests for live deployment verification |
 | 50a | `tests/test_vera_hygiene.sh` | `tests/` | Vera hygiene verification — idempotency, safety, and blocker detection tests |
 | 50b | `tests/test_review_enforcer_completion_instruction.sh` | `tests/` | Regression test for PLAN_COMPLETION_INSTRUCTION block extraction and content verification |
+| 50c | `scripts/wisdom/test-wisdom-observability.sh` | `scripts/wisdom/` | Wisdom observability regression suite for event schema, tracing, retention, CLI behavior, and non-interference |
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 
 ---

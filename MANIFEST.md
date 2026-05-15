@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 60 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 64 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -56,6 +56,10 @@ Complete inventory of 60 core artifacts for ez-omo-config repository scaffold.
 | 24 | wisdom-edit.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 25 | wisdom-gc.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26 | wisdom-merge.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26e | wisdom-observe.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Observability | Required |
+| 26f | knowledge-lookup.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Compatibility Shim | Required |
+| 26g | knowledge-snapshot.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Compatibility Shim | Required |
+| 26h | knowledge-promote.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Wisdom Compatibility Shim | Required |
 | 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
@@ -66,6 +70,7 @@ Complete inventory of 60 core artifacts for ez-omo-config repository scaffold.
 | 28b | test_dcp_startup_warning.sh | (repo only) | `tests/` | (repo only) | DCP Verification | Required |
 | 28c | test_vera_hygiene.sh | (repo only) | `tests/` | (repo only) | Vera Hygiene Verification | Required |
 | 28d | test_review_enforcer_completion_instruction.sh | (repo only) | `tests/` | (repo only) | Review Enforcer Verification | Required |
+| 28e | test-wisdom-observability.sh | (repo only) | `scripts/wisdom/` | (repo only) | Wisdom Observability Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 
 ## Directory Structure
@@ -104,7 +109,7 @@ ez-omo-config/
 │   ├── worktree-coordinator/ # Worktree parallel development guide
 │   └── vera-hygiene/       # Vera index hygiene and .veraignore management
 ├── scripts/
-│   ├── wisdom/             # Wisdom propagation scripts (9 files)
+│   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
 │   └── vera-hygiene.sh     # Vera hygiene script
 ├── extras/                 # Extra configurations (ocx.jsonc)
@@ -123,13 +128,13 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 60 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 13, tests: 6, extras: 1, docs: 5)
+- **Total Artifacts**: 64 core + 1 external (commands: 4, configs: 16, plugins: 11 files + kdco-primitives dir, skills: 10 dirs + 1 external, scripts: 17, tests: 7, extras: 1, docs: 5)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 16 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 1 seed set)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 10 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`)
-- **Scripts**: 9 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script
-- **Tests**: 6 test scripts (aspect-dynamics runtime test, live deployment contract test, DCP bounded range test, DCP startup warning test, vera hygiene test, review enforcer instruction test)
+- **Scripts**: 13 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script
+- **Tests**: 7 test scripts (aspect-dynamics runtime test, live deployment contract test, DCP bounded range test, DCP startup warning test, vera hygiene test, review enforcer instruction test, wisdom observability test)
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
