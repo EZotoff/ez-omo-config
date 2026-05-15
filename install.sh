@@ -36,6 +36,7 @@ ITEMS=(
     "configs|configs/retry-errors.json|$HOME/.config/opencode/retry-errors.json"
     "configs|configs/oh-my-openagent/oh-my-openagent.json|$HOME/.config/opencode/oh-my-openagent.json"
     "configs|extras/ocx.jsonc|$HOME/.opencode/ocx.jsonc"
+    "configs|configs/opencode/worktree.jsonc|$HOME/.opencode/worktree.jsonc"
     "plugins|plugins/worktree.ts|$HOME/.opencode/plugin/worktree.ts"
     "plugins|plugins/worktree|$HOME/.opencode/plugin/worktree"
     "plugins|plugins/git-safety.ts|$HOME/.opencode/plugin/git-safety.ts"
@@ -44,6 +45,7 @@ ITEMS=(
     "plugins|plugins/vscode.ts|$HOME/.opencode/plugin/vscode.ts"
     "plugins|plugins/session-id.ts|$HOME/.opencode/plugin/session-id.ts"
     "plugins|plugins/session-info.ts|$HOME/.opencode/plugin/session-info.ts"
+    "plugins|plugins/vera-runtime.ts|$HOME/.opencode/plugin/vera-runtime.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
     "skills|skills/knowledge|$HOME/.config/opencode/skills/knowledge"
@@ -72,6 +74,8 @@ ITEMS=(
     "scripts|scripts/knowledge-promote.sh|$HOME/.sisyphus/scripts/knowledge-promote.sh"
     "scripts|scripts/wisdom/wisdom-publish.sh|$HOME/.sisyphus/scripts/wisdom-publish.sh"
     "scripts|scripts/wisdom/manifest-write.sh|$HOME/.sisyphus/scripts/manifest-write.sh"
+    "scripts|scripts/worktree-post-create.sh|$HOME/.opencode/scripts/worktree-post-create.sh"
+    "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
 )
 
 usage() {
@@ -88,7 +92,7 @@ Selective install flags:
   --configs   Install configuration files only
   --plugins   Install plugins only
   --skills    Install skills only
-  --scripts   Install wisdom scripts only
+  --scripts   Install scripts only
   --all       Install everything (default)
   --help      Show this help text
 EOF

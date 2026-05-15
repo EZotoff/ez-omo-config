@@ -11,7 +11,7 @@
         "knowledge",
         "vera"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery: Use `vera search` for conceptual queries ('how does X work', 'where is Y logic'). Use `vera grep` for exact strings and regex. Use LSP tools for goto-definition and find-references. Follow the AGENTS.md tool selection decision tree."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "hephaestus": {
       "model": "github-copilot/gpt-5.3-codex",
@@ -34,7 +34,7 @@
       "skills": [
         "vera"
       ],
-      "prompt_append": "For code search and documentation lookup: Use `vera search` for conceptual queries ('how does X work', 'where is Y logic'). Use `vera grep` for exact strings and regex. Use LSP tools for goto-definition and find-references. Follow the AGENTS.md tool selection decision tree."
+      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "explore": {
       "model": "opencode-go/minimax-m2.7",
@@ -44,7 +44,7 @@
       "skills": [
         "vera"
       ],
-      "prompt_append": "For codebase discovery and exploration: Use `vera search` for conceptual queries ('how does X work', 'where is Y logic'). Use `vera grep` for exact strings and regex. Use LSP tools for goto-definition and find-references. Follow the AGENTS.md tool selection decision tree."
+      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "multimodal-looker": {
       "model": "google/gemini-3.1-pro-preview"
@@ -57,9 +57,10 @@
       ],
       "skills": [
         "wisdom",
-        "knowledge"
+        "knowledge",
+        "vera"
       ],
-      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries."
+      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "metis": {
       "model": "github-copilot/gpt-5.4",
