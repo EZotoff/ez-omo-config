@@ -14,6 +14,7 @@
 - `wisdom-migrate.sh` — creates migration backups, normalizes legacy wisdom records, and imports manifests into Wisdom idempotently.
 - `wisdom-restore.sh` — restores a backup tarball produced by `wisdom-migrate.sh`.
 - `wisdom-publish.sh` — publishes a Wisdom entry as a derivative artifact. Updates canonical record (authority=published, verified_at=now) but NEVER supersedes the source. Tracks emitted artifacts in metadata.published_artifacts with source digests for staleness detection.
+- `wisdom-observe.sh` — operator-facing observability CLI. Subcommands: `status` (event file metadata), `read` (filtered event inspection), `trace TRACE_ID` (per-trace event timeline), `reset --yes` (safe truncation with reset event).
 - `knowledge-lookup.sh` — **DEPRECATED compatibility shim**. Delegates to `wisdom-search.sh` for backward-compatible knowledge queries.
 - `knowledge-snapshot.sh` — **DEPRECATED compatibility shim**. Generates session orientation snapshot from Wisdom store only.
 - `knowledge-promote.sh` — **DEPRECATED compatibility shim**. Delegates to `wisdom-publish.sh` while preserving legacy CLI interface (`--wisdom-id`, `--type`, `--reason`, `--scope`).

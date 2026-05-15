@@ -442,6 +442,55 @@ wisdom-restore.sh --backup /path/to/backup.tar.gz
 wisdom-restore.sh --backup /path/to/backup.tar.gz --target-root /tmp/restore-root
 ```
 
+### wisdom-observe.sh
+
+**Purpose**: Operator-facing observability CLI for inspecting structured events emitted by the wisdom subsystem.
+
+**Subcommands**:
+
+#### `status`
+Print event file metadata: path, existence, line count, newest/oldest timestamps, retention limit, and whether observability is enabled.
+
+```bash
+wisdom-observe.sh status
+```
+
+#### `read`
+Read events with optional filtering. Default human output is compact and deterministic (one line per event).
+
+```bash
+# Read all events
+wisdom-observe.sh read
+
+# Read with filters and JSON output
+wisdom-observe.sh read --limit 10 --event wisdom.search --status success --json
+```
+
+**Options**:
+- `--limit N`: Limit to N most recent events
+- `--event EVENT`: Filter by event name
+- `--status STATUS`: Filter by status
+- `--json`: Output as JSON array
+
+#### `trace TRACE_ID`
+Print all events for a specific trace ID in timestamp order.
+
+```bash
+wisdom-observe.sh trace trace-1234567890-abc123 --json
+```
+
+**Options**:
+- `--json`: Output as JSON array
+
+#### `reset --yes`
+Truncate the events file safely. Preserves the parent directory. Emits a `wisdom.observe.reset` event after truncation (unless `WISDOM_OBSERVABILITY=0`). Requires `--yes` flag — without it, exits non-zero with usage text.
+
+```bash
+wisdom-observe.sh reset --yes
+```
+
+**Safety**: Without `--yes`, the command exits with code 2 and makes no changes.
+
 ## Skill Integration
 
 The `wisdom/` skill provides OpenCode integration for the wisdom system. It wraps the scripts and provides a high-level interface for agents.
