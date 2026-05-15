@@ -18,7 +18,7 @@ import {
   setLastHandledAssistantMessageId,
   updateSessionState,
 } from "./aspect-dynamics/session-state.mjs";
-import { loadSets } from "./aspect-dynamics/sets.mjs";
+import { loadSets, selectActiveSets } from "./aspect-dynamics/sets.mjs";
 
 export default async function aspectDynamicsPlugin(ctx) {
   const config = await loadConfig();
@@ -31,7 +31,15 @@ export default async function aspectDynamicsPlugin(ctx) {
 
   setLogLevel(config.logLevel);
 
-  const sets = await loadSets();
+  const loadedSets = await loadSets();
+  const sets = selectActiveSets(loadedSets, config.activeSets);
+
+  if (sets.length === 0) {
+    logWarn("No active sets available; plugin running in no-op mode");
+    return {
+      event: async () => {},
+    };
+  }
 
   logInfo("Plugin loaded");
   emitProof("plugin_loaded", { version: "1.0.0" });
