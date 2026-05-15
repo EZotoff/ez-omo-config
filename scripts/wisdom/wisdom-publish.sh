@@ -10,6 +10,77 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Failed to source knowledge-constants.sh" >&2; exit 1; }
 source "${SCRIPT_DIR}/wisdom-common.sh" || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
+wisdom_init_observability "$(basename "$0")"
+
+hash_text_sha256() {
+  local value="${1:-}"
+  if [[ -z "$value" ]]; then
+    printf ''
+    return 0
+  fi
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s' "$value" | sha256sum | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$value" | shasum -a 256 | awk '{print $1}'
+  else
+    printf ''
+  fi
+}
+
+_PUBLISH_EVENT_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+_PUBLISH_EVENT_RECORD_ID=""
+_PUBLISH_EVENT_AUTHORITY_BEFORE=""
+_PUBLISH_EVENT_AUTHORITY_AFTER=""
+_PUBLISH_EVENT_SOURCE_DIGEST=""
+_PUBLISH_EVENT_ARTIFACT_PATH=""
+_PUBLISH_EVENT_ARTIFACT_DIGEST=""
+_PUBLISH_EVENT_REASON_HASH=""
+_PUBLISH_EVENT_REASON_PREVIEW=""
+_PUBLISH_EVENT_DRY_RUN="false"
+
+_wisdom_publish_emit_observability() {
+  local rc=$?
+  local status="ok"
+  [[ "$rc" -ne 0 ]] && status="error"
+
+  local duration_ms_json="null"
+  if [[ -n "${_PUBLISH_EVENT_START_MS:-}" ]]; then
+    local now_ms
+    now_ms=$(date +%s%3N 2>/dev/null || echo "")
+    if [[ -n "$now_ms" ]]; then
+      duration_ms_json=$((now_ms - _PUBLISH_EVENT_START_MS))
+    fi
+  fi
+
+  local payload='{}'
+  payload=$(jq -nc \
+    --arg record_id "${_PUBLISH_EVENT_RECORD_ID:-}" \
+    --arg authority_before "${_PUBLISH_EVENT_AUTHORITY_BEFORE:-}" \
+    --arg authority_after "${_PUBLISH_EVENT_AUTHORITY_AFTER:-}" \
+    --arg source_digest "${_PUBLISH_EVENT_SOURCE_DIGEST:-}" \
+    --arg artifact_path "${_PUBLISH_EVENT_ARTIFACT_PATH:-}" \
+    --arg artifact_digest "${_PUBLISH_EVENT_ARTIFACT_DIGEST:-}" \
+    --arg reason_hash "${_PUBLISH_EVENT_REASON_HASH:-}" \
+    --arg reason_preview "${_PUBLISH_EVENT_REASON_PREVIEW:-}" \
+    --arg dry_run "${_PUBLISH_EVENT_DRY_RUN:-false}" \
+    --argjson duration_ms "$duration_ms_json" \
+    '{
+      record_id: (if $record_id == "" then null else $record_id end),
+      authority_before: (if $authority_before == "" then null else $authority_before end),
+      authority_after: (if $authority_after == "" then null else $authority_after end),
+      source_digest: (if $source_digest == "" then null else $source_digest end),
+      artifact_path: (if $artifact_path == "" then null else $artifact_path end),
+      artifact_digest: (if $artifact_digest == "" then null else $artifact_digest end),
+      reason_hash: (if $reason_hash == "" then null else $reason_hash end),
+      reason_preview: (if $reason_preview == "" then null else $reason_preview end),
+      duration_ms: $duration_ms,
+      dry_run: ($dry_run == "true")
+    }' 2>/dev/null) || payload='{}'
+
+  wisdom_emit_event "wisdom.promote.publish" "$status" "$payload"
+}
+
+trap _wisdom_publish_emit_observability EXIT
 
 usage() {
   cat >&2 <<'EOF'
@@ -73,6 +144,13 @@ done
 
 [[ -z "$WISDOM_ID" ]] && { echo "ERROR: --id is required" >&2; usage; }
 
+_PUBLISH_EVENT_RECORD_ID="$WISDOM_ID"
+_PUBLISH_EVENT_DRY_RUN="$DRY_RUN"
+
+reason_for_event="${REASON:-published}"
+_PUBLISH_EVENT_REASON_HASH=$(hash_text_sha256 "$reason_for_event")
+_PUBLISH_EVENT_REASON_PREVIEW=$(wisdom_redact_preview "$reason_for_event")
+
 STORE_PATH=""
 if [[ -n "$SCOPE" ]]; then
   if [[ "$SCOPE" == "project" || "$SCOPE" == "plan" ]] && [[ -z "$PROJECT_ID" ]]; then
@@ -121,6 +199,7 @@ fi
 
 ENTRY_AUTHORITY=$(echo "$ENTRY_JSON" | jq -r '.authority // "candidate"')
 ENTRY_STATUS=$(echo "$ENTRY_JSON" | jq -r '.status // "active"')
+_PUBLISH_EVENT_AUTHORITY_BEFORE="$ENTRY_AUTHORITY"
 
 if [[ "$ENTRY_STATUS" == "superseded" || "$ENTRY_STATUS" == "retracted" ]]; then
   echo "ERROR: Entry has status='$ENTRY_STATUS', cannot publish" >&2
@@ -136,6 +215,8 @@ elif [[ "$ENTRY_AUTHORITY" == "published" ]]; then
   echo "INFO: Entry is already published; updating publication metadata" >&2
 fi
 
+_PUBLISH_EVENT_AUTHORITY_AFTER="published"
+
 compute_source_digest() {
   local record="$1"
   echo "$record" | jq -r '
@@ -145,6 +226,7 @@ compute_source_digest() {
 }
 
 SOURCE_DIGEST=$(compute_source_digest "$ENTRY_JSON")
+_PUBLISH_EVENT_SOURCE_DIGEST="$SOURCE_DIGEST"
 
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -222,6 +304,11 @@ if [[ "$EMIT_MANIFEST" == true ]]; then
   fi
 else
   ARTIFACT_PATH="knowledge://wisdom/${WISDOM_ID}/published/${NOW}"
+fi
+
+_PUBLISH_EVENT_ARTIFACT_PATH="$ARTIFACT_PATH"
+if [[ -n "$ARTIFACT_PATH" && -f "$ARTIFACT_PATH" ]]; then
+  _PUBLISH_EVENT_ARTIFACT_DIGEST=$(wisdom_sha256_file "$ARTIFACT_PATH" 2>/dev/null || true)
 fi
 
 PUBLISHED_ARTIFACT=$(jq -n \
