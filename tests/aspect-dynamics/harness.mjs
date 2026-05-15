@@ -208,6 +208,8 @@ async function runChildSessionIgnored() {
 }
 
 async function runDedupSameAssistant() {
+  await setTestConfig({ logLevel: "info" });
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
   const { getLastHandledAssistantMessageId } = await import(SESSION_STATE_PATH);
@@ -231,6 +233,7 @@ async function runDedupSameAssistant() {
   logCapture.restore();
 
   if (getLastHandledAssistantMessageId("sess-dedup-1") !== "msg-2") {
+    await clearTestConfig();
     fail(`Expected lastHandledAssistantMessageId to be 'msg-2' after first idle, got ${getLastHandledAssistantMessageId("sess-dedup-1")}`);
   }
 
@@ -244,7 +247,10 @@ async function runDedupSameAssistant() {
   });
   logCapture2.restore();
 
-  if (!logCapture2.hasWarn("already handled assistant message")) {
+  await clearTestConfig();
+
+  const dedupFound = logCapture2.logs.some((l) => l.msg.includes("already handled assistant message"));
+  if (!dedupFound) {
     fail("Second idle with same assistant message should be skipped with dedup warning");
   }
 
@@ -252,44 +258,51 @@ async function runDedupSameAssistant() {
 }
 
 async function runCircuitBreaker() {
-  const mod = await import(PLUGIN_PATH);
-  const plugin = mod.default;
-  const { getSessionState } = await import(SESSION_STATE_PATH);
+  await setTestConfig({ logLevel: "info" });
 
-  // Make messages() throw for first 3 calls to force failures
-  const ctx = makeFakeCtx({ messagesShouldThrow: 3 });
-  const result = await plugin(ctx);
+  try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+    const { getSessionState } = await import(SESSION_STATE_PATH);
 
-  // Trigger 3 failures
-  for (let i = 0; i < 3; i++) {
+    // Make messages() throw for first 3 calls to force failures
+    const ctx = makeFakeCtx({ messagesShouldThrow: 3 });
+    const result = await plugin(ctx);
+
+    // Trigger 3 failures
+    for (let i = 0; i < 3; i++) {
+      await result.event({
+        event: {
+          type: "session.idle",
+          properties: { sessionID: "sess-cb-1" },
+        },
+      });
+    }
+
+    const stateAfter3 = getSessionState("sess-cb-1");
+    if (!stateAfter3.circuitBroken) {
+      fail(`Expected circuitBroken=true after 3 failures, got ${stateAfter3.circuitBroken}`);
+    }
+    if (stateAfter3.failureCount !== 3) {
+      fail(`Expected failureCount=3 after 3 failures, got ${stateAfter3.failureCount}`);
+    }
+
+    // 4th idle should be skipped due to open circuit breaker
+    const logCapture = captureLogs();
     await result.event({
       event: {
         type: "session.idle",
         properties: { sessionID: "sess-cb-1" },
       },
     });
-  }
+    logCapture.restore();
 
-  const stateAfter3 = getSessionState("sess-cb-1");
-  if (!stateAfter3.circuitBroken) {
-    fail(`Expected circuitBroken=true after 3 failures, got ${stateAfter3.circuitBroken}`);
-  }
-  if (stateAfter3.failureCount !== 3) {
-    fail(`Expected failureCount=3 after 3 failures, got ${stateAfter3.failureCount}`);
-  }
-
-  // 4th idle should be skipped due to open circuit breaker
-  const logCapture = captureLogs();
-  await result.event({
-    event: {
-      type: "session.idle",
-      properties: { sessionID: "sess-cb-1" },
-    },
-  });
-  logCapture.restore();
-
-  if (!logCapture.hasWarn("circuit breaker open")) {
-    fail("4th idle should be skipped with circuit breaker warning");
+    const cbFound = logCapture.logs.some((l) => l.msg.includes("circuit breaker open"));
+    if (!cbFound) {
+      fail("4th idle should be skipped with circuit breaker warning");
+    }
+  } finally {
+    await clearTestConfig();
   }
 
   pass("circuit-breaker — circuit opens after 3 failures and skips subsequent events");
@@ -335,20 +348,38 @@ async function runSeedSetLoad() {
     fail("Expected loadSets() to return non-empty array");
   }
 
-  const emotions = sets.find((set) => set.id === "emotions-v1");
-  if (!emotions) {
+  const emotionsV1 = sets.find((set) => set.id === "emotions-v1");
+  if (!emotionsV1) {
     fail("Expected emotions-v1 set to be loaded from seed JSON");
   }
 
-  if (emotions.defaultThreshold !== 0.75) {
-    fail(`Expected emotions-v1 defaultThreshold=0.75, got ${emotions.defaultThreshold}`);
+  if (emotionsV1.defaultThreshold !== 0.75) {
+    fail(`Expected emotions-v1 defaultThreshold=0.75, got ${emotionsV1.defaultThreshold}`);
   }
 
-  if (!Array.isArray(emotions.aspects) || emotions.aspects.length !== 4) {
-    fail(`Expected emotions-v1 to include 4 aspects, got ${emotions.aspects?.length ?? "invalid"}`);
+  if (!Array.isArray(emotionsV1.aspects) || emotionsV1.aspects.length !== 4) {
+    fail(`Expected emotions-v1 to include 4 aspects, got ${emotionsV1.aspects?.length ?? "invalid"}`);
   }
 
-  pass("seed-set-load — emotions-v1 loads with threshold 0.75 and 4 aspects");
+  const emotionsV2 = sets.find((set) => set.id === "emotions-v2");
+  if (!emotionsV2) {
+    fail("Expected emotions-v2 set to be loaded from seed JSON");
+  }
+
+  if (emotionsV2.defaultThreshold !== 0.5) {
+    fail(`Expected emotions-v2 defaultThreshold=0.5, got ${emotionsV2.defaultThreshold}`);
+  }
+
+  if (!Array.isArray(emotionsV2.aspects) || emotionsV2.aspects.length !== 4) {
+    fail(`Expected emotions-v2 to include 4 aspects, got ${emotionsV2.aspects?.length ?? "invalid"}`);
+  }
+
+  // Verify deterministic order: emotions-v1 (sorted before emotions-v2)
+  if (sets[0].id !== "emotions-v1" || sets[1].id !== "emotions-v2") {
+    fail(`Expected deterministic order emotions-v1 then emotions-v2, got ${sets.map((s) => s.id).join(", ")}`);
+  }
+
+  pass("seed-set-load — emotions-v1 and emotions-v2 load with correct thresholds, aspects, and order");
 }
 
 async function runMissingSet() {
@@ -361,6 +392,56 @@ async function runMissingSet() {
   }
 
   pass("missing-set — getSetById returns null for unknown set ID");
+}
+
+async function runUnknownActiveSet() {
+  await setTestConfig({
+    activeSets: ["non-existent-set"],
+    logLevel: "warn",
+  });
+
+  const mod = await import(PLUGIN_PATH);
+  const plugin = mod.default;
+  const ctx = makeFakeCtx();
+  const logCapture = captureLogs();
+
+  try {
+    const result = await plugin(ctx);
+
+    // Plugin should return event handler (no crash)
+    if (!result || typeof result.event !== "function") {
+      fail("Plugin should return event handler even with unknown active set");
+    }
+
+    // Event handler should be no-op
+    await result.event({
+      event: {
+        type: "session.created",
+        properties: { sessionID: "sess-unknown-set-1" },
+      },
+    });
+
+    await result.event({
+      event: {
+        type: "session.idle",
+        properties: { sessionID: "sess-unknown-set-1" },
+      },
+    });
+
+    // Verify no dispatch occurred
+    if (ctx.__test.getPromptAsyncCallCount() !== 0) {
+      fail(`Expected no dispatches with unknown active set, got ${ctx.__test.getPromptAsyncCallCount()}`);
+    }
+  } finally {
+    logCapture.restore();
+    await clearTestConfig();
+  }
+
+  if (!logCapture.hasWarn("Unknown active set ID")) {
+    fail("Expected warning about unknown active set ID: non-existent-set");
+  }
+
+  pass("unknown-active-set — unknown activeSet ID warns, returns empty sets, no dispatch");
 }
 
 async function runPrefilterSkip() {
@@ -563,6 +644,8 @@ async function runNoNetworkCalls() {
 }
 
 async function runBelowThreshold() {
+  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
   const { __testSetsOverride } = await import(SETS_PATH);
@@ -591,6 +674,7 @@ async function runBelowThreshold() {
       );
     }
   } finally {
+    await clearTestConfig();
     __testSetsOverride.value = null;
   }
 
@@ -598,6 +682,8 @@ async function runBelowThreshold() {
 }
 
 async function runThresholdCrossed() {
+  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+
   const mod = await import(PLUGIN_PATH);
   const plugin = mod.default;
   const { __testSetsOverride } = await import(SETS_PATH);
@@ -636,6 +722,7 @@ async function runThresholdCrossed() {
       fail("Expected dispatched nudge payload to be a non-empty array");
     }
   } finally {
+    await clearTestConfig();
     __testSetsOverride.value = null;
   }
 
@@ -699,25 +786,29 @@ async function runTieBreak() {
 }
 
 async function runRecursiveNudge() {
-  const mod = await import(PLUGIN_PATH);
-  const plugin = mod.default;
-  const { __testSetsOverride } = await import(SETS_PATH);
+  await setTestConfig({ logLevel: "info" });
 
-  const messages = [
-    {
-      id: "msg-1",
-      info: {
-        role: "user",
-        text: "this is frustrating and I'm stuck on this",
-      },
-    },
-    { id: "msg-2", info: { role: "assistant", text: "I understand" } },
-  ];
-
-  const ctx = makeFakeCtx({ messages });
-  __testSetsOverride.value = NUDGE_TEST_SETS;
+  const setsMod = await import(SETS_PATH);
+  const __testSetsOverride = setsMod.__testSetsOverride;
 
   try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+
+    const messages = [
+      {
+        id: "msg-1",
+        info: {
+          role: "user",
+          text: "this is frustrating and I'm stuck on this",
+        },
+      },
+      { id: "msg-2", info: { role: "assistant", text: "I understand" } },
+    ];
+
+    const ctx = makeFakeCtx({ messages });
+    __testSetsOverride.value = NUDGE_TEST_SETS;
+
     const result = await plugin(ctx);
 
     // First idle should dispatch a nudge
@@ -755,11 +846,13 @@ async function runRecursiveNudge() {
       fail(`Expected recursion guard to prevent second dispatch, got ${ctx.__test.getPromptAsyncCallCount()} total dispatches`);
     }
 
-    if (!logCapture.hasWarn("recursion guard")) {
+    const rgFound = logCapture.logs.some((l) => l.msg.includes("recursion guard"));
+    if (!rgFound) {
       fail("Expected recursion guard warning on second idle");
     }
   } finally {
     __testSetsOverride.value = null;
+    await clearTestConfig();
   }
 
   pass("recursive-nudge — plugin ignores its own nudge on subsequent idle");
@@ -930,6 +1023,8 @@ async function runProofSkip() {
 }
 
 async function runProofNudge() {
+  await setTestConfig({ activeSets: ["emotions-v1"], logLevel: "info" });
+
   const { __testProofOverride, readProofEvents, resetProofEvents } = await import(
     join(__dirname, "..", "..", "configs", "opencode", "aspect-dynamics", "logging.mjs")
   );
@@ -976,6 +1071,7 @@ async function runProofNudge() {
       fail("Expected nudge_sent proof to include numeric score");
     }
   } finally {
+    await clearTestConfig();
     __testProofOverride.value = null;
     __testSetsOverride.value = null;
   }
@@ -1111,6 +1207,146 @@ async function runInvalidConfig() {
   pass("invalid-config — malformed config logs warning and behaves as no-op");
 }
 
+async function runActiveSetSelection() {
+  await setTestConfig({
+    activeSets: ["emotions-v2"],
+    logLevel: "info",
+  });
+
+  try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+
+    const messages = [
+      { id: "msg-1", info: { role: "user", text: "what the fuck is going on" } },
+      { id: "msg-2", info: { role: "assistant", text: "Let me help you figure that out." } },
+    ];
+
+    const ctx = makeFakeCtx({ messages });
+    const result = await plugin(ctx);
+
+    await result.event({
+      event: { type: "session.created", properties: { sessionID: "sess-active-set-1" } },
+    });
+
+    await result.event({
+      event: { type: "session.idle", properties: { sessionID: "sess-active-set-1" } },
+    });
+
+    if (ctx.__test.getPromptAsyncCallCount() < 1) {
+      fail(`Expected at least 1 dispatch with emotions-v2 active, got ${ctx.__test.getPromptAsyncCallCount()}`);
+    }
+
+    // Switch to emotions-v1 — should NOT dispatch for v2-only phrase
+    await setTestConfig({
+      activeSets: ["emotions-v1"],
+      logLevel: "info",
+    });
+
+    const messagesV1 = [
+      { id: "msg-3", info: { role: "user", text: "what the fuck is going on" } },
+      { id: "msg-4", info: { role: "assistant", text: "Let me help you figure that out." } },
+    ];
+
+    const ctxV1 = makeFakeCtx({ messages: messagesV1 });
+    const resultV1 = await plugin(ctxV1);
+
+    await resultV1.event({
+      event: { type: "session.created", properties: { sessionID: "sess-active-set-2" } },
+    });
+
+    await resultV1.event({
+      event: { type: "session.idle", properties: { sessionID: "sess-active-set-2" } },
+    });
+
+    if (ctxV1.__test.getPromptAsyncCallCount() !== 0) {
+      fail(`Expected 0 dispatches with emotions-v1 active, got ${ctxV1.__test.getPromptAsyncCallCount()}`);
+    }
+  } finally {
+    await clearTestConfig();
+  }
+
+  pass("active-set-selection — emotions-v2 dispatches for v2-only phrase, emotions-v1 does not");
+}
+
+async function runSingleDistressHit() {
+  await setTestConfig({
+    activeSets: ["emotions-v2"],
+    logLevel: "info",
+  });
+
+  try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+
+    const messages = [
+      { id: "msg-1", info: { role: "user", text: "what the fuck is going on" } },
+      { id: "msg-2", info: { role: "assistant", text: "Let me help you." } },
+    ];
+
+    const ctx = makeFakeCtx({ messages });
+    const result = await plugin(ctx);
+
+    await result.event({
+      event: { type: "session.created", properties: { sessionID: "sess-single-distress-1" } },
+    });
+
+    await result.event({
+      event: { type: "session.idle", properties: { sessionID: "sess-single-distress-1" } },
+    });
+
+    const dispatches = ctx.__test.getPromptAsyncCallCount();
+    if (dispatches !== 1) {
+      fail(`Expected exactly 1 dispatch, got ${dispatches}`);
+    }
+
+    const lastBody = ctx.__test.getLastPromptBody();
+    if (!Array.isArray(lastBody) || lastBody.length === 0) {
+      fail("Expected nudge payload to be a non-empty array");
+    }
+  } finally {
+    await clearTestConfig();
+  }
+
+  pass("single-distress-hit — one latest-user contextual distress phrase dispatches exactly one nudge");
+}
+
+async function runQuotedProfanityNoNudge() {
+  await setTestConfig({
+    activeSets: ["emotions-v2"],
+    logLevel: "info",
+  });
+
+  try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+
+    const messages = [
+      { id: "msg-1", info: { role: "user", text: "please grep for the word fuck in fixtures" } },
+      { id: "msg-2", info: { role: "assistant", text: "Sure, let me search for that." } },
+    ];
+
+    const ctx = makeFakeCtx({ messages });
+    const result = await plugin(ctx);
+
+    await result.event({
+      event: { type: "session.created", properties: { sessionID: "sess-quoted-1" } },
+    });
+
+    await result.event({
+      event: { type: "session.idle", properties: { sessionID: "sess-quoted-1" } },
+    });
+
+    if (ctx.__test.getPromptAsyncCallCount() !== 0) {
+      fail(`Expected 0 dispatches for quoted profanity, got ${ctx.__test.getPromptAsyncCallCount()}`);
+    }
+  } finally {
+    await clearTestConfig();
+  }
+
+  pass("quoted-profanity-no-nudge — quoted/code-search profanity does not trigger nudge");
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const caseIdx = args.indexOf("--case");
@@ -1118,7 +1354,7 @@ async function main() {
 
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
-    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break, seed-set-load, missing-set, recursive-nudge, disabled, invalid-config, proof-disabled, proof-created, proof-skip, proof-nudge, proof-circuit, proof-retention");
+    console.error("Cases: registration-ok, registration-missing, child-session-ignored, dedup-same-assistant, circuit-breaker, context-window-respected, prefilter-skip, prefilter-hit, reserved-fields-idle, no-network-calls, below-threshold, threshold-crossed, tie-break, seed-set-load, missing-set, unknown-active-set, recursive-nudge, disabled, invalid-config, proof-disabled, proof-created, proof-skip, proof-nudge, proof-circuit, proof-retention, active-set-selection, single-distress-hit, quoted-profanity-no-nudge");
     process.exit(1);
   }
 
@@ -1168,6 +1404,9 @@ async function main() {
     case "missing-set":
       await runMissingSet();
       break;
+    case "unknown-active-set":
+      await runUnknownActiveSet();
+      break;
     case "recursive-nudge":
       await runRecursiveNudge();
       break;
@@ -1194,6 +1433,15 @@ async function main() {
       break;
     case "proof-retention":
       await runProofRetention();
+      break;
+    case "active-set-selection":
+      await runActiveSetSelection();
+      break;
+    case "single-distress-hit":
+      await runSingleDistressHit();
+      break;
+    case "quoted-profanity-no-nudge":
+      await runQuotedProfanityNoNudge();
       break;
     default:
       console.error(`Unknown test case: ${testCase}`);
