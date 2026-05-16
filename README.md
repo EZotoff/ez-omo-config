@@ -54,7 +54,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **Bounded DCP retention** — local patch that caps archived summary tokens during DCP range compression, keeping long-running sessions within a fixed token budget
 - **DCP byte-budget gate** — local patch that enforces a payload byte cap (1,802,240 bytes safe target) on the message list via `pruneByByteBudget()`, preventing 413 Payload Too Large errors from the model provider
-- **Durable DCP patch sync** — installer keeps both native runtime and package-cache `@tarquinen/opencode-dcp` copies aligned with local bounded-retention and byte-budget patch files
+- **Durable DCP patch sync** — installer keeps native runtime and all package-cache `@tarquinen/opencode-dcp` copies (including the `@3.1.9` version-pinned cache) aligned with local bounded-retention and byte-budget patch files
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 
 ---
@@ -270,8 +270,8 @@ cd ez-omo-config
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `github-copilot/claude-sonnet-4.6`, `github-copilot/gpt-5.4` | Orchestrator with wisdom injection |
-| **prometheus** | `github-copilot/gpt-5.5` | high | `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `github-copilot/claude-sonnet-4.6`, `openai/gpt-5.4`, `github-copilot/gpt-5.4` | Orchestrator with wisdom injection |
+| **prometheus** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
 | **sisyphus** | `zai-coding-plan/glm-5.1` | default | `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
 | **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `github-copilot/claude-sonnet-4.6` | Category task executor |
 | **librarian** | `opencode-go/minimax-m2.7` | default | (none) | Search, documentation |
@@ -279,10 +279,10 @@ cd ez-omo-config
 | **frontend-ui-ux-engineer** | `github-copilot/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |
 | **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5.1` | Writing, documentation |
 | **multimodal-looker** | `github-copilot/gemini-3.1-pro-preview` | default | (none) | Image/PDF analysis |
-| **oracle** | `github-copilot/gpt-5.5` | high | `github-copilot/gemini-3.1-pro-preview` | Q&A, knowledge queries |
-| **metis** | `github-copilot/gpt-5.5` | high | `github-copilot/claude-sonnet-4.6` | Deep analysis |
-| **momus** | `github-copilot/gpt-5.5` | xhigh | `github-copilot/gemini-3.1-pro-preview` | Code review, critique |
-| **hephaestus** | `github-copilot/gpt-5.3-codex` | xhigh | (none) | Infrastructure, deployment |
+| **oracle** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `google/antigravity-gemini-3-pro` | Q&A, knowledge queries |
+| **metis** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `github-copilot/claude-sonnet-4.6` | Deep analysis |
+| **momus** | `openai/gpt-5.5` | xhigh | `github-copilot/gpt-5.5`, `google/antigravity-gemini-3-pro` | Code review, critique |
+| **hephaestus** | `openai/gpt-5.3-codex` | xhigh | `github-copilot/gpt-5.3-codex` | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
 
@@ -311,7 +311,7 @@ The bounded DCP retention patch is a local modification, not upstream standard b
 bash tests/test_dcp_bounded_range.sh
 ```
 
-Expected: 8 passed, 0 failed. The proof script checks marker presence across all three DCP install copies (reference, runtime, and package cache) and exercises five functional regression cases, including runtime metadata validation of `retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, and `truncationOccurred`.
+Expected: 9 passed, 0 failed. The proof script checks marker presence across all four DCP install copies (reference, runtime, `@latest` package cache, and `@3.1.9` version-pinned package cache) and exercises five functional regression cases, including runtime metadata validation of `retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, and `truncationOccurred`.
 
 **Fresh-start warning probe**: File-marker checks prove the patch files exist on disk, but they do not prove a running OpenCode process has loaded them. To verify a fresh process does not reject the bounded-retention keys as unknown, also run:
 
@@ -331,7 +331,7 @@ The byte-budget gate is a local patch that prevents prompt payload from exceedin
 bash tests/test_dcp_payload_budget.sh --installed
 ```
 
-Expected: 12 passed, 0 failed. The script checks marker presence across all three DCP install copies (reference, runtime, package cache) and exercises 9 functional regression cases covering tool output compaction, repeated scaffold collapse, error loop collapse, todo snapshot preservation, multibyte encoding, threshold behavior, and protected-failover.
+Expected: 13 passed, 0 failed. The script checks marker presence across all four DCP install copies (reference, runtime, `@latest` package cache, and `@3.1.9` version-pinned package cache) and exercises 9 functional regression cases covering tool output compaction, repeated scaffold collapse, error loop collapse, todo snapshot preservation, multibyte encoding, threshold behavior, and protected-failover.
 
 Configuration reference, safety margin derivation, and uninstall steps are documented in `docs/dcp-byte-budget.md`.
 
@@ -346,6 +346,7 @@ bash tests/test_dcp_bounded_range.sh && bash tests/test_dcp_payload_budget.sh --
 For install locations, failure string meanings, and reapply instructions:
 - **Bounded-range archive mode**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`
 - **Byte-budget gate**: `.sisyphus/patches/opencode-dcp--byte-budget.md`
+- **Compress tool prompt contract**: `.sisyphus/patches/opencode-dcp--compress-tool-prompt-contract.md`
 
 ---
 

@@ -96,6 +96,7 @@ DCP_PATCH_FILES=(
     "commands/decompress.js"
     "commands/recompress.js"
     "prompts/compress-range.js"
+    "prompts/system.js"
     "commands/compression-targets.js"
     "hooks.js"
     "hooks.d.ts"
@@ -416,6 +417,7 @@ sync_dcp_local_patch() {
     local -a destination_roots=(
         "$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
         "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
+        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib"
     )
 
     if [[ ! -d "$source_root" ]]; then
