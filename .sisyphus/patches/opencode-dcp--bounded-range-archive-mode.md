@@ -201,3 +201,65 @@ Additionally, the following repo config and documentation files were updated to 
 ## Durable Alternative
 Upstream PR #501 (https://github.com/Opencode-DCP/opencode-dynamic-context-pruning/pull/501) proposes making bounded archive mode a first-class config option. If merged, this patch could be deprecated and the upstream config keys used directly. Alternatively, DCP could expose a plugin hook for custom compression modes, which would eliminate the need for direct source patches entirely.
 Status: pursued
+
+---
+
+# Byte-Budget Gate (opencode-dcp)
+
+**Patch**: byte-budget gate — `pruneByByteBudget()` enforces a payload byte cap on the message list after all other DCP strategies, preventing prompt payload from exceeding the protocol limit.
+
+**Dependency**: `@tarquinen/opencode-dcp`
+**Version**: 3.1.9
+**Applied**: 2026-05-16 (alongside bounded-range patch)
+**Upstream issue**: https://github.com/Opencode-DCP/opencode-dynamic-context-pruning/pull/501 (same upstream effort)
+
+## Files Patched
+
+Six source-dist build artifacts, all under `dist/lib/`:
+
+| File | Purpose |
+|------|---------|
+| `messages/byte-budget.js` | Core `pruneByByteBudget()` logic with 5 compaction passes (compact tool outputs, collapse scaffolds, collapse error loops, collapse old todo snapshots, remove old non-protected messages) |
+| `messages/byte-budget.d.ts` | Type declarations for the byte-budget module |
+| `hooks.js` | `createChatMessageTransformHandler()` calls `pruneByByteBudget()` at the true end of chat transforms (after dedup, purge, nudge injection) |
+| `hooks.d.ts` | Type declarations for the hooks module |
+| `config.js` | `maxPayloadBytes` added to `VALID_CONFIG_KEYS` and `validateConfigTypes()` |
+| `config.d.ts` | Type declarations for the config module |
+
+## Installation Mode
+
+**Source-dist build + install.sh sync**
+1. Build DCP from source: `cd omo-hub/projects/opencode-dynamic-context-pruning && npm run build`
+2. Emit per-module JS: `npx tsc --noEmit false --emitDeclarationOnly false`
+3. Sync to reference: `rsync -a dist/ ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/`
+4. Sync all three copies: `./install.sh --configs` (copies 15 DCP_PATCH_FILES to runtime + package cache)
+
+## Prerequisites
+
+T1–T5 completed (source import, byte-budget implementation, hook integration, test harness, runtime alignment).
+
+## Verification
+
+Run the payload-budget regression harness:
+```bash
+bash tests/test_dcp_payload_budget.sh --installed
+```
+
+Expected: 12 passed, 0 failed (3 marker checks + 9 functional cases).
+
+Also confirm the config key is present:
+```bash
+grep -n "maxPayloadBytes" configs/opencode/dcp.jsonc
+```
+
+Expected: a positive integer value (currently `1802240`).
+
+## Rollback
+
+1. Restore `dcp.jsonc`: `git checkout -- configs/opencode/dcp.jsonc` (removes `maxPayloadBytes`)
+2. Restore patched dist files: `./install.sh --configs` overwrites with previously backed-up unpatched files, or restore from `~/.ez-omo-backup/`
+3. Remove byte-budget artifacts from runtime: manually delete `messages/byte-budget.js`, `messages/byte-budget.d.ts` from all three install copies
+
+## Durable Alternative
+Same upstream PR #501 tracks both bounded-retention and payload-budget features. If merged, both patches could be deprecated and controlled through upstream config keys.
+Status: pursued

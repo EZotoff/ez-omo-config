@@ -85,15 +85,20 @@ ITEMS=(
 
 DCP_PATCH_FILES=(
     "config.js"
+    "config.d.ts"
     "compress/range.js"
     "compress/state.js"
     "compress/range-utils.js"
     "messages/sync.js"
     "messages/prune.js"
+    "messages/byte-budget.js"
+    "messages/byte-budget.d.ts"
     "commands/decompress.js"
     "commands/recompress.js"
     "prompts/compress-range.js"
     "commands/compression-targets.js"
+    "hooks.js"
+    "hooks.d.ts"
 )
 
 usage() {

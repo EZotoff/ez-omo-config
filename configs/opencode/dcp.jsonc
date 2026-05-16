@@ -60,7 +60,12 @@
       "zai-coding-plan/glm-5.1": 50000
     },
     "protectedTools": [],
-    "protectUserMessages": false
+    "protectUserMessages": false,
+    // Byte-aware pruning cap: 2,097,152-byte hard cap (2 MiB protocol limit),
+    // minus 262,144-byte reserve (for injected tool outputs and nudge overhead),
+    // minus 32,768-byte safety margin (to stay within safe operating envelope).
+    // Effective safe target: 1,802,240 bytes.
+    "maxPayloadBytes": 1802240
   },
   "strategies": {
     "deduplication": {

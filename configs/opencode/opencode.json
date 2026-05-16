@@ -14,7 +14,7 @@
   "plugin": [
     "file:///home/ezotoff/.config/opencode/provider-connect-retry.mjs",
     "file:///home/ezotoff/.config/opencode/aspect-dynamics.mjs",
-    "@tarquinen/opencode-dcp@latest",
+    "@tarquinen/opencode-dcp@3.1.9",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",

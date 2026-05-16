@@ -72,7 +72,9 @@ Complete inventory of 65 core artifacts for ez-omo-config repository scaffold.
 | 28e | test_prometheus_planning_contract.sh | (repo only) | `tests/` | (repo only) | Prometheus Planning Contract | Required |
 | 28f | test_openai_provider.sh | (repo only) | `tests/` | (repo only) | Codex Provider Verification | Required |
 | 28g | test_update_to_latest_skill.sh | (repo only) | `tests/` | (repo only) | Update Pipeline Verification | Required |
+| 28h | test_dcp_payload_budget.sh | (repo only) | `tests/` | (repo only) | DCP Byte-Budget Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
+| 30 | dcp-byte-budget.md | (repo only) | `docs/` | (repo only) | Byte-Budget Configuration Reference | Required |
 
 ## Directory Structure
 
@@ -130,7 +132,7 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 65 core + 1 external (commands: 4, configs: 17, plugins: 11 files + kdco-primitives dir, skills: 11 dirs + 1 external, scripts: 14, tests: 22, extras: 1, docs: 5)
+- **Total Artifacts**: 66 core + 1 external (commands: 4, configs: 17, plugins: 11 files + kdco-primitives dir, skills: 11 dirs + 1 external, scripts: 14, tests: 22, extras: 1, docs: 6)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 17 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
@@ -144,6 +146,15 @@ ez-omo-config/
 | # | Artifact | Path | Purpose | Install Command |
 |---|----------|------|---------|-----------------|
 | 28 | vera/ | `~/.config/opencode/skills/vera/` | Semantic code search skill | `vera agent install --client opencode --scope global` |
+
+## Patch Registry
+
+Patches in `.sisyphus/patches/` document local modifications to external dependencies. Each entry includes verification patterns, reapply instructions, and durable alternative status.
+
+| # | Patch ID | Dependency | Status | Applied | Verification |
+|---|----------|------------|--------|---------|-------------|
+| 1 | `opencode-dcp--bounded-range-archive-mode` | `@tarquinen/opencode-dcp@3.1.x` | active | 2026-04-30 | `bash tests/test_dcp_bounded_range.sh` |
+| 2 | `opencode-dcp--byte-budget` | `@tarquinen/opencode-dcp@3.1.9` | active | 2026-05-16 | `bash tests/test_dcp_payload_budget.sh --installed` |
 
 ## Dependency Clusters
 

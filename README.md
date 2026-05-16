@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **65 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **66 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -53,14 +53,15 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Vera index hygiene** — automatic `.veraignore` management that detects unreadable dirs, heavy generated artifacts, and prevents self-indexing before Vera root-indexes a project
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **Bounded DCP retention** — local patch that caps archived summary tokens during DCP range compression, keeping long-running sessions within a fixed token budget
-- **Durable DCP patch sync** — installer keeps both native runtime and package-cache `@tarquinen/opencode-dcp` copies aligned with local bounded-retention patch files
+- **DCP byte-budget gate** — local patch that enforces a payload byte cap (1,802,240 bytes safe target) on the message list via `pruneByByteBudget()`, preventing 413 Payload Too Large errors from the model provider
+- **Durable DCP patch sync** — installer keeps both native runtime and package-cache `@tarquinen/opencode-dcp` copies aligned with local bounded-retention and byte-budget patch files
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 
 ---
 
 ## What's Included
 
-This repository contains 65 core artifacts + 1 external integration organized into 9 categories:
+This repository contains 66 core artifacts + 1 external integration organized into 9 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -72,7 +73,7 @@ This repository contains 65 core artifacts + 1 external integration organized in
 | 32 | **Tests** | 22 test scripts | Regression tests for config, DCP, plugin, and update pipeline verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
-| 36-39 | **Docs** | 5 files | Configuration, plugin, skills, worktree state, live deployment verification, and compatibility debt documentation |
+| 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and byte-budget configuration reference |
 | 40 | **External** | 1 skill | [Vera](https://github.com/lemon07r/Vera) semantic code search (installed separately) |
 
 ### Complete Artifact Inventory
@@ -85,7 +86,7 @@ This repository contains 65 core artifacts + 1 external integration organized in
 | 1d | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
-| 3b | `dcp.jsonc` | `configs/opencode/` | DCP plugin configuration with bounded range archive retention (local patch) |
+| 3b | `dcp.jsonc` | `configs/opencode/` | DCP plugin configuration with bounded range archive retention and byte-budget payload cap (local patches) |
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection and registry-driven error matching |
 | 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models for the retry plugin |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
@@ -148,6 +149,7 @@ This repository contains 65 core artifacts + 1 external integration organized in
 | 50c | `tests/test_openai_provider.sh` | `tests/` | Regression test for Codex display provider presence in opencode.json (`openai` key) |
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 | 51a | `aspect-dynamics/sets/emotions-v2.json` | `configs/opencode/` | Versioned distress-focused seed aspect set with profanity-aware heuristics |
+| 52 | `docs/dcp-byte-budget.md` | `docs/` | DCP byte-budget gate configuration reference, safety margin derivation, installation, and rollback |
 
 ---
 
@@ -321,7 +323,29 @@ Expected: 2 passed, 0 failed. This test starts a short-lived `opencode serve` pr
 
 **Stale-process gotcha**: If you see the DCP unknown-key warning in a running OpenCode server or TUI session that was started *before* the latest patch sync, the patched modules may not be loaded in that process. File-marker checks prove patch presence on disk, but long-running processes only load DCP modules at startup. Restart OpenCode to load the patched code.
 
-For install locations, failure string meanings, and reapply instructions, see `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
+### DCP Byte-Budget Gate Verification
+
+The byte-budget gate is a local patch that prevents prompt payload from exceeding the 2 MiB protocol limit. After any OpenCode or DCP package update, verify the patch is still intact:
+
+```bash
+bash tests/test_dcp_payload_budget.sh --installed
+```
+
+Expected: 12 passed, 0 failed. The script checks marker presence across all three DCP install copies (reference, runtime, package cache) and exercises 9 functional regression cases covering tool output compaction, repeated scaffold collapse, error loop collapse, todo snapshot preservation, multibyte encoding, threshold behavior, and protected-failover.
+
+Configuration reference, safety margin derivation, and uninstall steps are documented in `docs/dcp-byte-budget.md`.
+
+For full DCP observability — bounded-range and byte-budget together — run both verification scripts:
+
+```bash
+bash tests/test_dcp_bounded_range.sh && bash tests/test_dcp_payload_budget.sh --installed && bash tests/test_dcp_startup_warning.sh
+```
+
+### Patch Documentation
+
+For install locations, failure string meanings, and reapply instructions:
+- **Bounded-range archive mode**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`
+- **Byte-budget gate**: `.sisyphus/patches/opencode-dcp--byte-budget.md`
 
 ---
 
@@ -395,6 +419,7 @@ For in-depth guides on specific components:
 | Compatibility Debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
 | Observability Contract | [docs/configs.md](docs/configs.md) |
 | Live Deployment Verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
+| DCP Byte-Budget Gate | [docs/dcp-byte-budget.md](docs/dcp-byte-budget.md) |
 
 ---
 
