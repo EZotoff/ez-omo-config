@@ -2,7 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-openagent.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "zai-coding-plan/glm-5.1",
+      "model": "openai/gpt-5.5",
+      "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding"
       ],
@@ -14,14 +15,18 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "hephaestus": {
-      "model": "github-copilot/gpt-5.3-codex",
-      "variant": "xhigh"
+      "model": "openai/gpt-5.3-codex",
+      "variant": "xhigh",
+      "fallback_models": [
+        "github-copilot/gpt-5.3-codex"
+      ]
     },
     "oracle": {
-      "model": "github-copilot/gpt-5.5",
+      "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "google/antigravity-gemini-3-pro"
+        "github-copilot/gpt-5.5",
+        "github-copilot/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
@@ -48,12 +53,13 @@
       "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill."
     },
     "multimodal-looker": {
-      "model": "google/antigravity-gemini-3-pro"
+      "model": "github-copilot/gemini-3.1-pro-preview"
     },
     "prometheus": {
-      "model": "github-copilot/gpt-5.5",
+      "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
+        "github-copilot/gpt-5.5",
         "zai-coding-plan/glm-5.1"
       ],
       "skills": [
@@ -64,9 +70,10 @@
       "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\nHTML Proposal+Design Packet contract:\n- For Standard or Architecture planning work, before writing any executable `.sisyphus/plans/*.md` plan, create a human-facing HTML Proposal+Design Packet by default at `.sisyphus/drafts/<topic-slug>-proposal.html`.\n- The packet must be lean and design-informed: objective, user-visible outcome, non-goals, chosen implementation slice, design assumptions, risks, and a checkpoint question.\n- The packet must include a Goal Coverage Map showing how the proposed implementation slice advances the high-level goal using the labels FULL, PARTIAL, DEFERRED, and DELTA.\n- Workflow is autonomous by default: make reasonable planning/design judgments, ask only when a user decision materially changes scope or acceptance criteria, and avoid mandatory multi-stage approval bureaucracy.\n- The checkpoint happens before writing the executable Markdown plan. If proceeding by default because no blocking decision exists, record the assumption in the plan.\n- `.sisyphus/plans/*.md` remains the canonical execution source for Atlas/Sisyphus. HTML packets are human-facing rationale/review artifacts; agents may read them for context but must execute the Markdown plan checklist.\n- If the current mode or tool constraints cannot create `.html`, write a same-content Markdown fallback under `.sisyphus/drafts/*.md`, state that HTML is pending or unsupported, and preserve the same Goal Coverage Map and checkpoint content.\n- Do not introduce reusable HTML template, CSS asset, renderer, or generator infrastructure unless a separate approved plan explicitly authorizes it."
     },
     "metis": {
-      "model": "github-copilot/gpt-5.5",
+      "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
+        "github-copilot/gpt-5.5",
         "github-copilot/claude-sonnet-4.6"
       ],
       "skills": [
@@ -74,10 +81,11 @@
       ]
     },
     "momus": {
-      "model": "github-copilot/gpt-5.5",
+      "model": "openai/gpt-5.5",
       "variant": "xhigh",
       "fallback_models": [
-        "google/antigravity-gemini-3-pro"
+        "github-copilot/gpt-5.5",
+        "github-copilot/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
@@ -87,6 +95,7 @@
       "model": "kimi-for-coding-oauth/kimi-for-coding",
       "fallback_models": [
         "github-copilot/claude-sonnet-4.6",
+        "openai/gpt-5.4",
         "github-copilot/gpt-5.4"
       ],
       "skills": [
@@ -105,7 +114,7 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "github-copilot/gemini-3.1-pro-preview",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
       ],
@@ -120,7 +129,7 @@
   },
   "categories": {
     "visual-engineering": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "github-copilot/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
@@ -128,36 +137,43 @@
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
     "ultrabrain": {
-      "model": "github-copilot/gpt-5.4",
+      "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
+        "github-copilot/gpt-5.5",
         "zai-coding-plan/glm-5.1"
       ]
     },
     "artistry": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "github-copilot/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
+        "openai/gpt-5.4",
         "github-copilot/gpt-5.4"
       ]
     },
     "quick": {
-      "model": "opencode-go/deepseek-v4-flash",
+      "model": "openai/gpt-5.3-codex-spark",
+      "variant": "medium",
       "fallback_models": [
+        "github-copilot/gpt-5.3-codex",
         "deepseek/deepseek-chat"
       ]
     },
     "unspecified-low": {
-      "model": "opencode-go/deepseek-v4-flash",
+      "model": "openai/gpt-5.3-codex-spark",
+      "variant": "medium",
       "fallback_models": [
+        "github-copilot/gpt-5.3-codex",
         "deepseek/deepseek-chat"
       ]
     },
     "unspecified-high": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "openai/gpt-5.4",
       "fallback_models": [
-        "github-copilot/gpt-5.4"
+        "github-copilot/gpt-5.4",
+        "kimi-for-coding-oauth/kimi-for-coding"
       ]
     },
     "writing": {
@@ -167,17 +183,20 @@
       ]
     },
     "deep": {
-      "model": "github-copilot/gpt-5.3-codex",
+      "model": "openai/gpt-5.3-codex",
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
+        "github-copilot/gpt-5.3-codex",
         "github-copilot/gpt-5.4"
       ]
     },
     "mephistopheles": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "openai/gpt-5.5",
+      "variant": "high",
       "fallback_models": [
-        "github-copilot/gpt-5.4",
+        "github-copilot/gpt-5.5",
+        "kimi-for-coding-oauth/kimi-for-coding",
         "github-copilot/claude-sonnet-4.6"
       ],
       "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless — you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly."
@@ -219,7 +238,7 @@
       "scanThrottleMinutes": 10,
       "lockStaleHours": 1,
       "model": {
-        "providerID": "github-copilot",
+        "providerID": "openai",
         "modelID": "gpt-5.4"
       }
     }

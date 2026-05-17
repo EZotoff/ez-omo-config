@@ -272,16 +272,16 @@ cd ez-omo-config
 |-------|---------------|---------|----------------|---------|
 | **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `github-copilot/claude-sonnet-4.6`, `openai/gpt-5.4`, `github-copilot/gpt-5.4` | Orchestrator with wisdom injection |
 | **prometheus** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
-| **sisyphus** | `zai-coding-plan/glm-5.1` | default | `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
+| **sisyphus** | `openai/gpt-5.5` | high | `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
 | **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `github-copilot/claude-sonnet-4.6` | Category task executor |
 | **librarian** | `opencode-go/minimax-m2.7` | default | (none) | Search, documentation |
 | **explore** | `opencode-go/minimax-m2.7` | default | `github-copilot/grok-code-fast-1` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `github-copilot/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |
 | **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5.1` | Writing, documentation |
 | **multimodal-looker** | `github-copilot/gemini-3.1-pro-preview` | default | (none) | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `google/antigravity-gemini-3-pro` | Q&A, knowledge queries |
+| **oracle** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `github-copilot/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `github-copilot/claude-sonnet-4.6` | Deep analysis |
-| **momus** | `openai/gpt-5.5` | xhigh | `github-copilot/gpt-5.5`, `google/antigravity-gemini-3-pro` | Code review, critique |
+| **momus** | `openai/gpt-5.5` | xhigh | `github-copilot/gpt-5.5`, `github-copilot/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `openai/gpt-5.3-codex` | xhigh | `github-copilot/gpt-5.3-codex` | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
