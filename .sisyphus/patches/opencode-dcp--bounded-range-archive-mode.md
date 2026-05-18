@@ -6,6 +6,11 @@ target_install_paths:
   - "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*"
 status: "active"
 applied_date: "2026-04-30"
 dep_version: "3.1.9 (reference/package cache), 3.1.7 (runtime cache)"
@@ -43,14 +48,16 @@ DCP exists in **multiple locations** on this machine. The currently active backe
 | 1 | `/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.7 | ✅ **Current runtime** | Loaded by the native OpenCode backend; this is the live patch target |
 | 2 | `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.9 | ⚙️ Reference copy | Manual patched install kept as the source-of-truth donor for runtime syncs |
 | 3 | `/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` | 3.1.9 | ✅ Synced cache copy | Package-store source that can be promoted into runtime copies after updates |
-| 4 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.8 | ❌ Inactive snap runtime | Only relevant if OpenCode is launched from the snap-confined environment again |
-| 5 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` | 3.1.9 | ❌ Inactive snap package cache | Only relevant for snap-confined runtime/package flows |
+| 4 | `/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/` | 3.1.9 | ✅ **Version-pinned cache** | Because `opencode.json` pins `@tarquinen/opencode-dcp@3.1.9`, OpenCode loads DCP from this path. Must stay patched to prevent startup warnings. |
+| 5 | `/home/ezotoff/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/` | varies | ⚠️ Resolver fallback cache | Bun-compiled OpenCode may consider stale Bun plugin cache copies before OpenCode package cache; existing v3 copies must be patched too. |
+| 6 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` | 3.1.8 | ✅ Synced XDG runtime | `install.sh --configs` now syncs here when `XDG_CACHE_HOME` differs from `HOME/.cache` |
+| 7 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` | 3.1.9 | ✅ Synced XDG package cache | `install.sh --configs` now syncs here when `XDG_CACHE_HOME` differs from `HOME/.cache` |
+| 8 | `/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/` | 3.1.9 | ✅ Synced XDG version-pinned cache | `install.sh --configs` now syncs here when `XDG_CACHE_HOME` differs from `HOME/.cache` |
 
 **Durable local baseline in this repo:**
 
 - Location #2 (`~/.config/...`) is the source-of-truth patched donor copy.
-- `install.sh --configs` now syncs all 10 patched files from #2 into both native cache copies (#1 runtime + #3 package cache) when those destinations exist.
-- If the active backend ever switches to snap-confined runtime, repeat the same sync for snap paths (#4/#5).
+- `install.sh --configs` now syncs all 15 patched files from #2 into all native cache copies (#1 runtime, #3 `@latest` package cache, #4 `@3.1.9` version-pinned package cache, #6/#7/#8 XDG_CACHE_HOME cache copies when set and differing from HOME/.cache, and #5 existing Bun v3 plugin cache copies) when those destinations exist.
 
 ## Canonical Proof Command
 
@@ -60,7 +67,7 @@ Run the canonical proof script from the repo root:
 bash tests/test_dcp_bounded_range.sh
 ```
 
-Expected: 8 passed, 0 failed. The script exercises marker detection on all three install copies plus five functional regression cases. This is the single command to run after any OpenCode or DCP package update to confirm the patch is still intact.
+Expected: 0 failed. The script exercises marker detection on all known runtime/cache copies (reference, runtime, OpenCode package caches, XDG_CACHE_HOME cache copies when set and differing from HOME/.cache, and any existing Bun v3 DCP cache copies) plus five functional regression cases. Pass count varies with local cache contents. This is the single command to run after any OpenCode or DCP package update to confirm the patch is still intact.
 
 Also run the fresh-start warning probe to ensure a new OpenCode process does not reject the bounded-retention keys:
 
@@ -68,7 +75,7 @@ Also run the fresh-start warning probe to ensure a new OpenCode process does not
 bash tests/test_dcp_startup_warning.sh
 ```
 
-Expected: 2 passed, 0 failed. This test starts a short-lived `opencode serve` probe and fails if the startup logs contain `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens`.
+Expected: 0 failed. This test checks version-pinned and Bun cache marker presence, starts a short-lived `opencode serve` probe, and fails if the startup logs contain `Unknown keys: compress.retentionMode`, `compress.maxArchivedSummaryTokens`, `compress.maxPayloadBytes`, or `DCP: config warning`.
 
 ## Verification
 
@@ -122,13 +129,16 @@ grep -n "bounded-runtime-proof-metadata\|archiveRawMessages\|maxArchivedSummaryT
 ```
 
 ```bash
-# Quick: verify all 10 files are identical between reference and both native cache copies:
+# Quick: verify all patched files are identical between reference and all native cache copies:
 SRC="/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
 for DEST in \
   "/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib" \
-  "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"; do
+  "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib" \
+  "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib" \
+  /home/ezotoff/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib; do
+  [[ -d "$DEST" ]] || continue
   echo "-- checking $DEST"
-  for f in config.js compress/range.js compress/state.js compress/range-utils.js messages/sync.js messages/prune.js commands/decompress.js commands/recompress.js prompts/compress-range.js commands/compression-targets.js; do
+  for f in config.js config.d.ts compress/range.js compress/state.js compress/range-utils.js messages/sync.js messages/prune.js messages/byte-budget.js messages/byte-budget.d.ts commands/decompress.js commands/recompress.js prompts/compress-range.js commands/compression-targets.js hooks.js hooks.d.ts; do
     diff -q "$SRC/$f" "$DEST/$f" > /dev/null 2>&1 && echo "OK: $f" || echo "MISMATCH: $f"
   done
 done
@@ -136,13 +146,13 @@ done
 
 ### How to prove a fresh OpenCode process does not warn
 
-File-marker checks prove patch presence on disk, but they do not prove a running OpenCode process loaded the patched modules. To verify a fresh startup does not reject `compress.retentionMode` and `compress.maxArchivedSummaryTokens` as unknown keys, run:
+File-marker checks prove patch presence on disk, but they do not prove a running OpenCode process loaded the patched modules. To verify a fresh startup does not reject `compress.retentionMode`, `compress.maxArchivedSummaryTokens`, or `compress.maxPayloadBytes` as unknown keys, run:
 
 ```bash
 bash tests/test_dcp_startup_warning.sh
 ```
 
-Expected: 2 passed, 0 failed. The test probes a short-lived `opencode serve --print-logs --log-level WARN --port 0` startup and fails if stdout/stderr contains `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens` or `DCP: config warning`.
+Expected: 0 failed. The test probes a short-lived `opencode serve --print-logs --log-level WARN --port 0` startup and fails if stdout/stderr contains `Unknown keys: compress.retentionMode`, `compress.maxArchivedSummaryTokens`, `compress.maxPayloadBytes`, or `DCP: config warning`.
 
 **Stale-process gotcha**: If a running OpenCode server or TUI session emits the DCP unknown-key warning despite all file-marker checks passing, the process was likely started before the most recent patch sync. The patched modules are only loaded at process startup; an already-running process continues using the old modules until restarted. Always restart OpenCode after reapplying or syncing the patch.
 
@@ -163,22 +173,26 @@ If any case fails, the patch may have been overwritten. Reapply per the instruct
 |---|---|
 | `FAIL: markers-reference-copy` | The reference install at `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/` is missing bounded-retention markers. The source-of-truth copy was likely overwritten. |
 | `FAIL: markers-runtime-copy` | The active runtime at `~/.cache/opencode/node_modules/@tarquinen/opencode-dcp/` is unpatched. DCP will ignore `retentionMode` and `maxArchivedSummaryTokens` config keys. |
-| `FAIL: markers-package-cache-copy` | The package cache at `~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` is unpatched. Future package-cache promotions will revert the patch. |
+| `FAIL: markers-package-cache-latest` | The `@latest` package cache at `~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/` is unpatched. Future `@latest` promotions will revert the patch. |
+| `FAIL: markers-package-cache-pinned-3.1.9` | The **version-pinned** package cache at `~/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/` is unpatched. Because `opencode.json` pins `@3.1.9`, this is the path OpenCode actually loads. If unpatched, DCP will ignore `retentionMode` and `maxArchivedSummaryTokens` and emit startup warnings. |
+| `FAIL: markers-bun-cache-*` | A Bun install-cache DCP v3 copy is unpatched. Bun plugin resolution can fall back to stale copies, causing real TUI startup warnings even when OpenCode package-cache marker checks pass. |
+| `FAIL: markers-xdg-runtime-copy` | The XDG_CACHE_HOME runtime copy is unpatched. OpenCode may load DCP from this path in XDG-compliant or snap-confined environments, ignoring bounded-retention config keys. |
+| `FAIL: markers-xdg-package-cache-latest` | The XDG_CACHE_HOME `@latest` package cache is unpatched. Future promotions from this cache will revert the patch. |
+| `FAIL: markers-xdg-package-cache-pinned-3.1.9` | The XDG_CACHE_HOME `@3.1.9` version-pinned package cache is unpatched. This is the path OpenCode loads when `XDG_CACHE_HOME` is active and `opencode.json` pins `@3.1.9`. |
 | `FAIL: monotonic-summary-bound` | The token budget enforcement function `normalizeBoundedRangeSummary()` is missing or broken. Archived summaries may exceed the token cap. |
 | `FAIL: archived-raw-stays-out-of-prompt` | The prune logic is not filtering archived raw messages. Old turns remain in the prompt, defeating the purpose of bounded retention. |
 | `FAIL: persisted-frontier-state` | The sync logic is not computing `archivedBlockIds`. Block state may be inconsistent after a restart or reload. |
 | `FAIL: decompress-archived-rejected` | The decompress command guard is missing. Users could accidentally decompress an archived block, which is not supported in bounded mode. |
 | `FAIL: bounded-runtime-proof-metadata` | The end-to-end runtime metadata proof failed. The config may be missing `retentionMode: "bounded"` or `maxArchivedSummaryTokens`, or the runtime state objects are not receiving the patch fields. |
 | `FAIL: startup probe` (`test_dcp_startup_warning.sh`) | The `opencode serve` probe crashed or exited unexpectedly before timeout. This usually indicates a startup failure unrelated to DCP. |
-| `FAIL: DCP unknown-key warning detected` (`test_dcp_startup_warning.sh`) | A fresh OpenCode process emitted `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens`. The active runtime copy (`~/.cache/opencode/node_modules/@tarquinen/opencode-dcp/`) is unpatched or the running process was started before the latest patch sync. Restart OpenCode after confirming file markers pass. |
+| `FAIL: DCP unknown-key warning detected` (`test_dcp_startup_warning.sh`) | A fresh OpenCode process emitted `Unknown keys: compress.retentionMode`, `compress.maxArchivedSummaryTokens`, or `compress.maxPayloadBytes`. The active runtime/package/cache copy is unpatched, or the running process was started before the latest patch sync. Restart OpenCode after confirming file markers pass. |
 
 ## Reapply Instructions
 If the patch is lost after a DCP package update:
 
 1. Apply patches to `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/` (source of truth).
-2. Run `./install.sh --configs` from this repo to sync patched files into both native cache destinations (`~/.cache/opencode/node_modules/...` and `~/.cache/opencode/packages/...`).
+2. Run `./install.sh --configs` from this repo to sync patched files into all native cache destinations (`~/.cache/opencode/node_modules/...`, `~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/...`, `~/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/...`, `$XDG_CACHE_HOME/opencode/...` when set and differing from HOME/.cache, and existing `~/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/...` copies).
 3. **Restart OpenCode** so the already-running backend reloads the patched modules. This step is critical: an OpenCode server or TUI that was started before the patch sync will continue using the old, unpatched modules until it is restarted. File-marker checks prove patch presence on disk; only a process restart guarantees the patched code is loaded.
-4. If the active backend later switches to snap-confined OpenCode, manually sync the same 10 files into the snap cache/runtime copies too.
 
 Per-file patch details:
 

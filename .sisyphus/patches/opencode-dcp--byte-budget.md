@@ -6,6 +6,11 @@ target_install_paths:
   - "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*"
 status: "active"
 applied_date: "2026-05-16"
 dep_version: "3.1.9"
@@ -46,7 +51,7 @@ Changes across 6 files:
 
 ## Install Locations
 
-Same three-copy layout as the bounded-range patch. See the bounded-range patch doc (same directory) for the full install location table.
+Same multi-copy layout as the bounded-range patch. See the bounded-range patch doc (same directory) for the full install location table, including OpenCode package-cache copies and existing Bun v3 plugin cache copies.
 
 ## Verification
 
@@ -67,8 +72,8 @@ Expected: ≥1 match (file exists with byte-budget symbols).
 ```bash
 bash tests/test_dcp_payload_budget.sh --installed
 ```
-Expected: 12 passed, 0 failed:
-- 3 marker checks (reference, runtime, package-cache copies of `messages/byte-budget.js`)
+Expected: 0 failed. Pass count varies with local XDG and Bun cache contents:
+- Marker checks for reference, runtime, OpenCode package-cache, XDG_CACHE_HOME cache (when set and differing from HOME/.cache), and existing Bun v3 cache copies of `messages/byte-budget.js`
 - 9 functional cases
 
 ### Full stack verification
@@ -82,7 +87,7 @@ If the patch is lost after a DCP package update:
 
 1. Build from source: `cd omo-hub/projects/opencode-dynamic-context-pruning && npm run build && npx tsc --noEmit false --emitDeclarationOnly false`
 2. Sync dist to reference install: `rsync -a dist/ ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/`
-3. Sync all three copies: `./install.sh --configs` from this repo
+3. Sync all copies: `./install.sh --configs` from this repo (syncs reference, runtime, `@latest` package cache, `@3.1.9` version-pinned package cache, XDG_CACHE_HOME cache copies when set and differing from HOME/.cache, and existing Bun v3 plugin cache copies)
 4. Verify: `bash tests/test_dcp_payload_budget.sh --installed`
 5. **Restart OpenCode** so the backend reloads the patched modules
 
