@@ -22,7 +22,19 @@ MARKER_PATTERN='compress\.retentionMode|compress\.maxArchivedSummaryTokens|reten
 
 REFERENCE_CONFIG_JS="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
 RUNTIME_CONFIG_JS="$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-PACKAGE_CACHE_CONFIG_JS="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+PACKAGE_CACHE_LATEST_CONFIG_JS="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+PACKAGE_CACHE_PINNED_CONFIG_JS="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+BUN_CACHE_CONFIG_GLOB="$HOME/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib/config.js"
+
+# XDG_CACHE_HOME cache roots (when set and differs from HOME/.cache)
+XDG_RUNTIME_CONFIG_JS=""
+XDG_PACKAGE_CACHE_LATEST_CONFIG_JS=""
+XDG_PACKAGE_CACHE_PINNED_CONFIG_JS=""
+if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
+    XDG_RUNTIME_CONFIG_JS="$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+    XDG_PACKAGE_CACHE_LATEST_CONFIG_JS="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+    XDG_PACKAGE_CACHE_PINNED_CONFIG_JS="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+fi
 
 TOTAL_PASSED=0
 TOTAL_FAILED=0
@@ -65,7 +77,25 @@ run_marker_case() {
 
 run_marker_case "markers-reference-copy" "$REFERENCE_CONFIG_JS" "required"
 run_marker_case "markers-runtime-copy" "$RUNTIME_CONFIG_JS" "required"
-run_marker_case "markers-package-cache-copy" "$PACKAGE_CACHE_CONFIG_JS" "required"
+run_marker_case "markers-package-cache-latest" "$PACKAGE_CACHE_LATEST_CONFIG_JS" "required"
+run_marker_case "markers-package-cache-pinned-3.1.9" "$PACKAGE_CACHE_PINNED_CONFIG_JS" "required"
+
+if [[ -n "$XDG_RUNTIME_CONFIG_JS" ]]; then
+    run_marker_case "markers-xdg-runtime-copy" "$XDG_RUNTIME_CONFIG_JS" "required"
+fi
+if [[ -n "$XDG_PACKAGE_CACHE_LATEST_CONFIG_JS" ]]; then
+    run_marker_case "markers-xdg-package-cache-latest" "$XDG_PACKAGE_CACHE_LATEST_CONFIG_JS" "required"
+fi
+if [[ -n "$XDG_PACKAGE_CACHE_PINNED_CONFIG_JS" ]]; then
+    run_marker_case "markers-xdg-package-cache-pinned-3.1.9" "$XDG_PACKAGE_CACHE_PINNED_CONFIG_JS" "required"
+fi
+
+for bun_cache_config_js in $BUN_CACHE_CONFIG_GLOB; do
+    if [[ -f "$bun_cache_config_js" ]]; then
+        bun_cache_package="$(basename "$(dirname "$(dirname "$(dirname "$bun_cache_config_js")")")")"
+        run_marker_case "markers-bun-cache-$bun_cache_package" "$bun_cache_config_js" "required"
+    fi
+done
 
 run_case "monotonic-summary-bound"
 run_case "archived-raw-stays-out-of-prompt"

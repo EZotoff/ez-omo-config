@@ -25,7 +25,18 @@ MARKER_PATTERN='maxPayloadBytes|byte-budget|payload-budget|pruneByByteBudget|mea
 SOURCE_DIST_ROOT="/home/ezotoff/omo-hub/projects/opencode-dynamic-context-pruning/dist/lib"
 INSTALLED_ROOT="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
 RUNTIME_ROOT="$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
-PACKAGE_CACHE_ROOT="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
+PACKAGE_CACHE_LATEST_ROOT="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
+PACKAGE_CACHE_PINNED_ROOT="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib"
+BUN_CACHE_ROOT_GLOB="$HOME/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib"
+
+XDG_RUNTIME_ROOT=""
+XDG_PACKAGE_CACHE_LATEST_ROOT=""
+XDG_PACKAGE_CACHE_PINNED_ROOT=""
+if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
+    XDG_RUNTIME_ROOT="$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+    XDG_PACKAGE_CACHE_LATEST_ROOT="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
+    XDG_PACKAGE_CACHE_PINNED_ROOT="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib"
+fi
 
 MODE="installed"
 TOTAL_PASSED=0
@@ -102,9 +113,27 @@ fi
 # Installed copy marker checks (prove patch presence on disk)
 # ---------------------------------------------------------------------------
 if [[ "$MODE" == "installed" ]]; then
-    run_marker_case "installed-reference-byte-budget"  "$INSTALLED_ROOT/messages/byte-budget.js"         "required"
-    run_marker_case "installed-runtime-byte-budget"    "$RUNTIME_ROOT/messages/byte-budget.js"           "required"
-    run_marker_case "installed-pkgcache-byte-budget"   "$PACKAGE_CACHE_ROOT/messages/byte-budget.js"     "required"
+    run_marker_case "installed-reference-byte-budget"      "$INSTALLED_ROOT/messages/byte-budget.js"              "required"
+    run_marker_case "installed-runtime-byte-budget"        "$RUNTIME_ROOT/messages/byte-budget.js"                "required"
+    run_marker_case "installed-pkgcache-latest-byte-budget" "$PACKAGE_CACHE_LATEST_ROOT/messages/byte-budget.js"   "required"
+    run_marker_case "installed-pkgcache-3.1.9-byte-budget"  "$PACKAGE_CACHE_PINNED_ROOT/messages/byte-budget.js"   "required"
+
+    if [[ -n "$XDG_RUNTIME_ROOT" ]]; then
+        run_marker_case "installed-xdg-runtime-byte-budget" "$XDG_RUNTIME_ROOT/messages/byte-budget.js" "required"
+    fi
+    if [[ -n "$XDG_PACKAGE_CACHE_LATEST_ROOT" ]]; then
+        run_marker_case "installed-xdg-pkgcache-latest-byte-budget" "$XDG_PACKAGE_CACHE_LATEST_ROOT/messages/byte-budget.js" "required"
+    fi
+    if [[ -n "$XDG_PACKAGE_CACHE_PINNED_ROOT" ]]; then
+        run_marker_case "installed-xdg-pkgcache-3.1.9-byte-budget" "$XDG_PACKAGE_CACHE_PINNED_ROOT/messages/byte-budget.js" "required"
+    fi
+
+    for bun_cache_root in $BUN_CACHE_ROOT_GLOB; do
+        if [[ -d "$bun_cache_root" ]]; then
+            bun_cache_package="$(basename "$(dirname "$(dirname "$bun_cache_root")")")"
+            run_marker_case "installed-bun-cache-$bun_cache_package-byte-budget" "$bun_cache_root/messages/byte-budget.js" "required"
+        fi
+    done
 fi
 
 # ---------------------------------------------------------------------------

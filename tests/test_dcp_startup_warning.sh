@@ -24,7 +24,64 @@ if [[ ! -x "$OPENCODE_BIN" ]]; then
 fi
 
 # Forbidden warning patterns
-FORBIDDEN_PATTERN='Unknown keys: compress\.retentionMode, compress\.maxArchivedSummaryTokens|DCP: config warning'
+FORBIDDEN_PATTERN='Unknown keys: compress\.retentionMode, compress\.maxArchivedSummaryTokens|Unknown keys: compress\.maxPayloadBytes|DCP: config warning'
+MARKER_PATTERN='compress\.retentionMode|compress\.maxArchivedSummaryTokens|compress\.maxPayloadBytes|retentionMode|maxArchivedSummaryTokens|maxPayloadBytes'
+
+# File-marker check for the version-pinned @3.1.9 cache copy.
+# This proves the patch files exist on disk even though the serve probe below
+# cannot prove TUI toast suppression (warnings are emitted via ctx.client.tui.showToast()).
+PINNED_PKG_CACHE_CONFIG="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+BUN_CACHE_CONFIG_GLOB="$HOME/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib/config.js"
+XDG_PINNED_PKG_CACHE_CONFIG=""
+if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
+    XDG_PINNED_PKG_CACHE_CONFIG="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+fi
+
+echo "Checking version-pinned @3.1.9 cache copy for bounded-retention markers..."
+if [[ -f "$PINNED_PKG_CACHE_CONFIG" ]]; then
+    if grep -Eq "$MARKER_PATTERN" "$PINNED_PKG_CACHE_CONFIG"; then
+        echo "PASS: markers present in @3.1.9 cache copy"
+    else
+        echo "FAIL: markers missing in @3.1.9 cache copy ($PINNED_PKG_CACHE_CONFIG)"
+        exit 1
+    fi
+else
+    echo "FAIL: @3.1.9 cache copy not found ($PINNED_PKG_CACHE_CONFIG)"
+    exit 1
+fi
+
+if [[ -n "$XDG_PINNED_PKG_CACHE_CONFIG" ]]; then
+    echo "Checking XDG version-pinned @3.1.9 cache copy for bounded-retention markers..."
+    if [[ -f "$XDG_PINNED_PKG_CACHE_CONFIG" ]]; then
+        if grep -Eq "$MARKER_PATTERN" "$XDG_PINNED_PKG_CACHE_CONFIG"; then
+            echo "PASS: markers present in XDG @3.1.9 cache copy"
+        else
+            echo "FAIL: markers missing in XDG @3.1.9 cache copy ($XDG_PINNED_PKG_CACHE_CONFIG)"
+            exit 1
+        fi
+    else
+        echo "FAIL: XDG @3.1.9 cache copy not found ($XDG_PINNED_PKG_CACHE_CONFIG)"
+        exit 1
+    fi
+fi
+
+echo "Checking Bun DCP v3 cache copies for local config markers..."
+BUN_CACHE_CHECKED=0
+for bun_cache_config in $BUN_CACHE_CONFIG_GLOB; do
+    if [[ -f "$bun_cache_config" ]]; then
+        BUN_CACHE_CHECKED=$((BUN_CACHE_CHECKED + 1))
+        if grep -Eq "$MARKER_PATTERN" "$bun_cache_config"; then
+            echo "PASS: markers present in Bun cache copy: $bun_cache_config"
+        else
+            echo "FAIL: markers missing in Bun cache copy: $bun_cache_config"
+            exit 1
+        fi
+    fi
+done
+if [[ $BUN_CACHE_CHECKED -eq 0 ]]; then
+    echo "SKIP: no Bun DCP v3 cache copies found"
+fi
+echo ""
 
 TMPLOG=$(mktemp)
 trap 'rm -f "$TMPLOG"' EXIT
@@ -98,6 +155,8 @@ echo ""
 
 TOTAL_PASSED=0
 TOTAL_FAILED=0
+
+TOTAL_PASSED=$((TOTAL_PASSED + 1))
 
 # Case 1: startup succeeded (or timed out as expected)
 if [[ "$STARTUP_FAILED" == "true" ]]; then
