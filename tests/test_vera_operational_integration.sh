@@ -105,6 +105,31 @@ else
     pass "plugins/vera-runtime.ts has no TODO comments"
 fi
 
+if grep -q 'event: async' "$REPO_ROOT/plugins/vera-runtime.ts"; then
+    pass "vera-runtime.ts uses event: async hook"
+else
+    fail "vera-runtime.ts missing event: async hook"
+fi
+
+if grep -q 'event.properties.info.id' "$REPO_ROOT/plugins/vera-runtime.ts"; then
+    pass "vera-runtime.ts handles properties.info.id"
+else
+    fail "vera-runtime.ts missing properties.info.id handling"
+fi
+
+for log_pattern in \
+    "event hook invoked" \
+    "session.created handled" \
+    "vera index . starting" \
+    "vera watch . starting" \
+    "watcher started pid="; do
+    if grep -qF "$log_pattern" "$REPO_ROOT/plugins/vera-runtime.ts"; then
+        pass "vera-runtime.ts contains log substring: $log_pattern"
+    else
+        fail "vera-runtime.ts missing log substring: $log_pattern"
+    fi
+done
+
 echo ""
 echo "Vera operational integration: $TESTS_PASSED passed, $TESTS_FAILED failed"
 

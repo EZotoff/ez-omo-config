@@ -181,12 +181,47 @@ function extractSessionId(input: unknown): string {
 		return ""
 	}
 
-	const directProperties = isRecord(input.properties) ? input.properties : null
-	const eventRecord = isRecord(input.event) ? input.event : null
-	const eventProperties = eventRecord && isRecord(eventRecord.properties) ? eventRecord.properties : null
-	const props = directProperties ?? eventProperties ?? input
+	// Tier 1: Direct event shape
+	const props = isRecord(input.properties) ? input.properties : null
+	if (props) {
+		// 1. event.properties.info.id
+		const info = isRecord(props.info) ? props.info : null
+		if (info) {
+			const id = getString(info, "id")
+			if (id) return id
+		}
+		// 2-4. event.properties.session_id, sessionId, id
+		for (const key of ["session_id", "sessionId", "id"]) {
+			const val = getString(props, key)
+			if (val) return val
+		}
+	}
 
-	return getString(props, "session_id") ?? getString(props, "sessionId") ?? getString(props, "id") ?? ""
+	// 5. event.id
+	const eventId = getString(input, "id")
+	if (eventId) return eventId
+
+	// Tier 2: Legacy wrapper input.event
+	const eventRec = isRecord(input.event) ? input.event : null
+	if (eventRec) {
+		const eventProps = isRecord(eventRec.properties) ? eventRec.properties : null
+		if (eventProps) {
+			// Legacy: input.event.properties.info.id
+			const info = isRecord(eventProps.info) ? eventProps.info : null
+			if (info) {
+				const id = getString(info, "id")
+				if (id) return id
+			}
+			// Legacy: input.event.properties.session_id, sessionId, id
+			for (const key of ["session_id", "sessionId", "id"]) {
+				const val = getString(eventProps, key)
+				if (val) return val
+			}
+		}
+	}
+
+	// Tier 3: Direct input fields
+	return getString(input, "session_id") ?? getString(input, "sessionId") ?? getString(input, "id") ?? ""
 }
 
 function isPidAlive(pid: number): boolean {
@@ -290,7 +325,7 @@ function resetRestartAttempts(state: VeraWatcherState): void {
 
 function runVeraIndex(workspacePath: string): boolean {
 	try {
-		log("info", `[${workspacePath}] Running vera index .`)
+		log("info", `[${workspacePath}] vera index . starting`)
 		const proc = Bun.spawnSync(["vera", "index", "."], {
 			cwd: workspacePath,
 			stdout: "pipe",
@@ -312,7 +347,7 @@ function runVeraIndex(workspacePath: string): boolean {
 
 function startVeraWatch(workspacePath: string): { pid: number } | null {
 	try {
-		log("info", `[${workspacePath}] Starting vera watch ${workspacePath}`)
+		log("info", `[${workspacePath}] vera watch . starting`)
 		const proc = Bun.spawn(["vera", "watch", workspacePath], {
 			cwd: workspacePath,
 			stdout: "inherit",
@@ -414,6 +449,273 @@ function performSafeRestart(workspacePath: string, state: VeraWatcherState): boo
 	return true
 }
 
+function handleSessionCreatedEvent(directory: string, event: unknown): Promise<void> | void {
+	const sessionId = extractSessionId(event)
+	if (!sessionId) {
+		log("warn", `[${directory}] session.created: no sessionId extracted`)
+	}
+
+	try {
+		let state = readWatcherState(directory)
+		if (!state) {
+			state = createInitialState(directory)
+		}
+
+		if (sessionId && !state.sessionIds.includes(sessionId)) {
+			state.sessionIds.push(sessionId)
+		}
+
+		log("info", `[${directory}] session.created`)
+
+		const needsBootstrap =
+			state.status === "stopped" ||
+			state.status === "missing-binary" ||
+			state.status === "index-failed" ||
+			state.status === "watch-failed" ||
+			!state.status
+
+		if (needsBootstrap) {
+			if (!veraAvailable()) {
+				state.status = "missing-binary"
+				state.lastFailureAt = new Date().toISOString()
+				state.lastFailureReason = "vera binary not available"
+				writeWatcherState(directory, state)
+				log("warn", `[${directory}] session.created: vera not available, status=missing-binary`)
+				return
+			}
+
+			const indexed = runVeraIndex(directory)
+			if (!indexed) {
+				state.status = "index-failed"
+				state.lastFailureAt = new Date().toISOString()
+				state.lastFailureReason = "vera index . failed"
+				writeWatcherState(directory, state)
+				log("error", `[${directory}] session.created: vera index failed`)
+				return
+			}
+			state.lastIndexedAt = new Date().toISOString()
+
+			if (!isVeraIndexNonEmpty(directory)) {
+				const hygienePassed = runVeraHygieneCheck(directory)
+				state.hygieneStatus = hygienePassed ? "passed" : "failed"
+				state.lastHygieneCheckAt = new Date().toISOString()
+				if (!hygienePassed) {
+					state.status = "index-failed"
+					state.lastFailureAt = new Date().toISOString()
+					state.lastFailureReason = "Vera index is hollow/has blockers. Run vera-hygiene --apply to resolve."
+					writeWatcherState(directory, state)
+					log("error", `[${directory}] session.created: hollow index with hygiene blockers`)
+					return
+				}
+				const reindexed = runVeraIndex(directory)
+				if (!reindexed || !isVeraIndexNonEmpty(directory)) {
+					state.status = "index-failed"
+					state.lastFailureAt = new Date().toISOString()
+					state.lastFailureReason = "vera index . still hollow after hygiene and reindex"
+					writeWatcherState(directory, state)
+					log("error", `[${directory}] session.created: index still hollow after reindex`)
+					return
+				}
+				state.lastIndexedAt = new Date().toISOString()
+			}
+
+			const watchResult = startVeraWatch(directory)
+			if (!watchResult) {
+				state.status = "watch-failed"
+				state.lastFailureAt = new Date().toISOString()
+				state.lastFailureReason = "vera watch . failed to start"
+				writeWatcherState(directory, state)
+				log("error", `[${directory}] session.created: vera watch failed to start`)
+				return
+			}
+
+			state.pid = watchResult.pid
+			state.status = "running"
+			state.startedAt = new Date().toISOString()
+			state.lastVerifiedAt = new Date().toISOString()
+			resetRestartAttempts(state)
+			log("info", `[${directory}] watcher started pid=${state.pid}`)
+		} else if (state.status === "indexed") {
+			if (!veraAvailable()) {
+				state.status = "missing-binary"
+				state.lastFailureAt = new Date().toISOString()
+				state.lastFailureReason = "vera binary not available"
+				writeWatcherState(directory, state)
+				log("warn", `[${directory}] session.created: vera not available, status=missing-binary`)
+				return
+			}
+
+			if (!isVeraIndexNonEmpty(directory)) {
+				const hygienePassed = runVeraHygieneCheck(directory)
+				state.hygieneStatus = hygienePassed ? "passed" : "failed"
+				state.lastHygieneCheckAt = new Date().toISOString()
+				if (!hygienePassed) {
+					state.status = "index-failed"
+					state.lastFailureAt = new Date().toISOString()
+					state.lastFailureReason = "Vera index is hollow/has blockers. Run vera-hygiene --apply to resolve."
+					writeWatcherState(directory, state)
+					log("error", `[${directory}] session.created: hollow index with hygiene blockers`)
+					return
+				}
+				const reindexed = runVeraIndex(directory)
+				if (!reindexed || !isVeraIndexNonEmpty(directory)) {
+					state.status = "index-failed"
+					state.lastFailureAt = new Date().toISOString()
+					state.lastFailureReason = "vera index . still hollow after hygiene and reindex"
+					writeWatcherState(directory, state)
+					log("error", `[${directory}] session.created: index still hollow after reindex`)
+					return
+				}
+				state.lastIndexedAt = new Date().toISOString()
+			}
+
+			const watchResult = startVeraWatch(directory)
+			if (!watchResult) {
+				state.status = "watch-failed"
+				state.lastFailureAt = new Date().toISOString()
+				state.lastFailureReason = "vera watch . failed to start"
+				writeWatcherState(directory, state)
+				log("error", `[${directory}] session.created: vera watch failed to start`)
+				return
+			}
+
+			state.pid = watchResult.pid
+			state.status = "running"
+			state.startedAt = new Date().toISOString()
+			state.lastVerifiedAt = new Date().toISOString()
+			resetRestartAttempts(state)
+			log("info", `[${directory}] watcher started pid=${state.pid}`)
+		} else if (state.status === "running") {
+			if (state.pid && isPidAlive(state.pid) && validatePidOwnership(state.pid, directory)) {
+				state.lastVerifiedAt = new Date().toISOString()
+				resetRestartAttempts(state)
+				log("info", `[${directory}] session.created: watcher already running pid=${state.pid}`)
+			} else {
+				log("warn", `[${directory}] session.created: existing pid=${state.pid} unavailable or unowned, attempting safe restart`)
+				const restarted = performSafeRestart(directory, state)
+				if (!restarted) {
+					log("error", `[${directory}] session.created: safe restart failed, status=${state.status}`)
+				}
+			}
+		} else if (state.status === "stale") {
+			log("info", `[${directory}] session.created: recovering stale watcher`)
+			const restarted = performSafeRestart(directory, state)
+			if (!restarted) {
+				log("error", `[${directory}] session.created: stale recovery failed, status=${state.status}`)
+			}
+		}
+
+		writeWatcherState(directory, state)
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : String(err)
+		log("error", `[${directory}] session.created error: ${reason}`)
+		try {
+			const state = readWatcherState(directory) || createInitialState(directory)
+			state.lastFailureAt = new Date().toISOString()
+			state.lastFailureReason = `session.created exception: ${reason}`
+			writeWatcherState(directory, state)
+		} catch {
+			/* fail-open */
+		}
+	}
+}
+
+async function handleSessionDeletedEvent(directory: string, event: unknown): Promise<void> {
+	const sessionId = extractSessionId(event)
+	if (!sessionId) {
+		log("warn", `[${directory}] session.deleted: no sessionId extracted`)
+	}
+
+	try {
+		const state = readWatcherState(directory)
+		if (!state) {
+			log("debug", `[${directory}] session.deleted: no state found`)
+			return
+		}
+
+		state.sessionIds = state.sessionIds.filter((id) => id !== sessionId)
+
+		if (state.sessionIds.length === 0) {
+			const timer = healthCheckTimers.get(directory)
+			if (timer) {
+				clearInterval(timer)
+				healthCheckTimers.delete(directory)
+				log("debug", `[${directory}] session.deleted: cleared health check timer`)
+			}
+
+			if (state.status === "running" && state.pid) {
+				log("info", `[${directory}] session.deleted: last session gone, stopping watcher pid=${state.pid}`)
+
+				if (validatePidOwnership(state.pid, directory)) {
+					try {
+						Bun.spawnSync(["kill", String(state.pid)])
+						log("info", `[${directory}] Sent kill to pid=${state.pid}`)
+					} catch (err) {
+						const reason = err instanceof Error ? err.message : String(err)
+						log("warn", `[${directory}] kill ${state.pid} failed: ${reason}`)
+					}
+
+					let alive = true
+					for (let i = 0; i < KILL_WAIT_SECONDS; i++) {
+						await Bun.sleep(1000)
+						alive = isPidAlive(state.pid) && validatePidOwnership(state.pid, directory)
+						if (!alive) {
+							log("info", `[${directory}] Watcher pid=${state.pid} exited gracefully`)
+							break
+						}
+					}
+
+					if (alive && validatePidOwnership(state.pid, directory)) {
+						try {
+							Bun.spawnSync(["kill", "-9", String(state.pid)])
+							log("warn", `[${directory}] Sent kill -9 to pid=${state.pid}`)
+						} catch (err) {
+							const reason = err instanceof Error ? err.message : String(err)
+							log("warn", `[${directory}] kill -9 ${state.pid} failed: ${reason}`)
+						}
+					}
+				} else {
+					log(
+						"warn",
+						`[${directory}] session.deleted: pid=${state.pid} ownership validation failed, refusing to kill`,
+					)
+				}
+			}
+
+			state.status = "stopped"
+			state.pid = null
+			log("info", `[${directory}] Watcher stopped`)
+
+			const statePath = getStateFilePath(directory)
+			try {
+				unlinkSync(statePath)
+				log("info", `[${directory}] Removed watcher state file ${statePath}`)
+				return
+			} catch (err) {
+				const reason = err instanceof Error ? err.message : String(err)
+				log("warn", `[${directory}] Failed to remove state file ${statePath}: ${reason}`)
+				writeWatcherState(directory, state)
+				return
+			}
+		}
+
+		writeWatcherState(directory, state)
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : String(err)
+		log("error", `[${directory}] session.deleted error: ${reason}`)
+		try {
+			const state = readWatcherState(directory)
+			if (state) {
+				state.lastFailureAt = new Date().toISOString()
+				state.lastFailureReason = `session.deleted exception: ${reason}`
+				writeWatcherState(directory, state)
+			}
+		} catch {
+			/* fail-open */
+		}
+	}
+}
+
 const VeraRuntimePlugin: Plugin = async (ctx) => {
 	const { directory } = ctx
 
@@ -432,7 +734,10 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 		} catch {
 			/* fail-open */
 		}
-		return {}
+		return {
+			event: async () => {},
+			"tool.execute.before": () => {},
+		}
 	}
 
 	log("info", `Vera runtime plugin initialized for ${directory}`)
@@ -478,275 +783,23 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 
 	return {
 		// =============================================================
-		// session.created — bootstrap vera watcher for this workspace
+		// event hook — dispatch session lifecycle events
 		// =============================================================
-		"session.created": (_input, _output) => {
-			const sessionId = extractSessionId(_input)
-			if (!sessionId) {
-				log("warn", `[${directory}] session.created: no sessionId extracted`)
-			}
+		event: async (input: { event: any }) => {
+			const { event } = input
+			log("info", `[${directory}] event hook invoked`)
 
 			try {
-				let state = readWatcherState(directory)
-				if (!state) {
-					state = createInitialState(directory)
+				if (event.type === "session.created") {
+					handleSessionCreatedEvent(directory, event)
+					log("info", `[${directory}] session.created handled`)
+				} else if (event.type === "session.deleted") {
+					await handleSessionDeletedEvent(directory, event)
+					log("info", `[${directory}] session.deleted handled`)
 				}
-
-				if (sessionId && !state.sessionIds.includes(sessionId)) {
-					state.sessionIds.push(sessionId)
-				}
-
-				log("info", `[${directory}] session.created`)
-
-				const needsBootstrap =
-					state.status === "stopped" ||
-					state.status === "missing-binary" ||
-					state.status === "index-failed" ||
-					state.status === "watch-failed" ||
-					!state.status
-
-				if (needsBootstrap) {
-					if (!veraAvailable()) {
-						state.status = "missing-binary"
-						state.lastFailureAt = new Date().toISOString()
-						state.lastFailureReason = "vera binary not available"
-						writeWatcherState(directory, state)
-						log("warn", `[${directory}] session.created: vera not available, status=missing-binary`)
-						return
-					}
-
-					const indexed = runVeraIndex(directory)
-					if (!indexed) {
-						state.status = "index-failed"
-						state.lastFailureAt = new Date().toISOString()
-						state.lastFailureReason = "vera index . failed"
-						writeWatcherState(directory, state)
-						log("error", `[${directory}] session.created: vera index failed`)
-						return
-					}
-					state.lastIndexedAt = new Date().toISOString()
-
-					if (!isVeraIndexNonEmpty(directory)) {
-						const hygienePassed = runVeraHygieneCheck(directory)
-						state.hygieneStatus = hygienePassed ? "passed" : "failed"
-						state.lastHygieneCheckAt = new Date().toISOString()
-						if (!hygienePassed) {
-							state.status = "index-failed"
-							state.lastFailureAt = new Date().toISOString()
-							state.lastFailureReason = "Vera index is hollow/has blockers. Run vera-hygiene --apply to resolve."
-							writeWatcherState(directory, state)
-							log("error", `[${directory}] session.created: hollow index with hygiene blockers`)
-							return
-						}
-						const reindexed = runVeraIndex(directory)
-						if (!reindexed || !isVeraIndexNonEmpty(directory)) {
-							state.status = "index-failed"
-							state.lastFailureAt = new Date().toISOString()
-							state.lastFailureReason = "vera index . still hollow after hygiene and reindex"
-							writeWatcherState(directory, state)
-							log("error", `[${directory}] session.created: index still hollow after reindex`)
-							return
-						}
-						state.lastIndexedAt = new Date().toISOString()
-					}
-
-					const watchResult = startVeraWatch(directory)
-					if (!watchResult) {
-						state.status = "watch-failed"
-						state.lastFailureAt = new Date().toISOString()
-						state.lastFailureReason = "vera watch . failed to start"
-						writeWatcherState(directory, state)
-						log("error", `[${directory}] session.created: vera watch failed to start`)
-						return
-					}
-
-					state.pid = watchResult.pid
-					state.status = "running"
-					state.startedAt = new Date().toISOString()
-					state.lastVerifiedAt = new Date().toISOString()
-					resetRestartAttempts(state)
-					log("info", `[${directory}] watcher started pid=${state.pid}`)
-				} else if (state.status === "indexed") {
-					if (!veraAvailable()) {
-						state.status = "missing-binary"
-						state.lastFailureAt = new Date().toISOString()
-						state.lastFailureReason = "vera binary not available"
-						writeWatcherState(directory, state)
-						log("warn", `[${directory}] session.created: vera not available, status=missing-binary`)
-						return
-					}
-
-					if (!isVeraIndexNonEmpty(directory)) {
-						const hygienePassed = runVeraHygieneCheck(directory)
-						state.hygieneStatus = hygienePassed ? "passed" : "failed"
-						state.lastHygieneCheckAt = new Date().toISOString()
-						if (!hygienePassed) {
-							state.status = "index-failed"
-							state.lastFailureAt = new Date().toISOString()
-							state.lastFailureReason = "Vera index is hollow/has blockers. Run vera-hygiene --apply to resolve."
-							writeWatcherState(directory, state)
-							log("error", `[${directory}] session.created: hollow index with hygiene blockers`)
-							return
-						}
-						const reindexed = runVeraIndex(directory)
-						if (!reindexed || !isVeraIndexNonEmpty(directory)) {
-							state.status = "index-failed"
-							state.lastFailureAt = new Date().toISOString()
-							state.lastFailureReason = "vera index . still hollow after hygiene and reindex"
-							writeWatcherState(directory, state)
-							log("error", `[${directory}] session.created: index still hollow after reindex`)
-							return
-						}
-						state.lastIndexedAt = new Date().toISOString()
-					}
-
-					const watchResult = startVeraWatch(directory)
-					if (!watchResult) {
-						state.status = "watch-failed"
-						state.lastFailureAt = new Date().toISOString()
-						state.lastFailureReason = "vera watch . failed to start"
-						writeWatcherState(directory, state)
-						log("error", `[${directory}] session.created: vera watch failed to start`)
-						return
-					}
-
-					state.pid = watchResult.pid
-					state.status = "running"
-					state.startedAt = new Date().toISOString()
-					state.lastVerifiedAt = new Date().toISOString()
-					resetRestartAttempts(state)
-					log("info", `[${directory}] watcher started pid=${state.pid}`)
-				} else if (state.status === "running") {
-					if (state.pid && isPidAlive(state.pid) && validatePidOwnership(state.pid, directory)) {
-						state.lastVerifiedAt = new Date().toISOString()
-						resetRestartAttempts(state)
-						log("info", `[${directory}] session.created: watcher already running pid=${state.pid}`)
-					} else {
-						log("warn", `[${directory}] session.created: existing pid=${state.pid} unavailable or unowned, attempting safe restart`)
-						const restarted = performSafeRestart(directory, state)
-						if (!restarted) {
-							log("error", `[${directory}] session.created: safe restart failed, status=${state.status}`)
-						}
-					}
-				} else if (state.status === "stale") {
-					log("info", `[${directory}] session.created: recovering stale watcher`)
-					const restarted = performSafeRestart(directory, state)
-					if (!restarted) {
-						log("error", `[${directory}] session.created: stale recovery failed, status=${state.status}`)
-					}
-				}
-
-				writeWatcherState(directory, state)
 			} catch (err) {
 				const reason = err instanceof Error ? err.message : String(err)
-				log("error", `[${directory}] session.created error: ${reason}`)
-				try {
-					const state = readWatcherState(directory) || createInitialState(directory)
-					state.lastFailureAt = new Date().toISOString()
-					state.lastFailureReason = `session.created exception: ${reason}`
-					writeWatcherState(directory, state)
-				} catch {
-					/* fail-open */
-				}
-			}
-		},
-
-		// =============================================================
-		// session.deleted — stop watcher if last session
-		// =============================================================
-		"session.deleted": async (_input, _output) => {
-			const sessionId = extractSessionId(_input)
-			if (!sessionId) {
-				log("warn", `[${directory}] session.deleted: no sessionId extracted`)
-			}
-
-			try {
-				const state = readWatcherState(directory)
-				if (!state) {
-					log("debug", `[${directory}] session.deleted: no state found`)
-					return
-				}
-
-				state.sessionIds = state.sessionIds.filter((id) => id !== sessionId)
-
-				if (state.sessionIds.length === 0) {
-					const timer = healthCheckTimers.get(directory)
-					if (timer) {
-						clearInterval(timer)
-						healthCheckTimers.delete(directory)
-						log("debug", `[${directory}] session.deleted: cleared health check timer`)
-					}
-
-					if (state.status === "running" && state.pid) {
-						log("info", `[${directory}] session.deleted: last session gone, stopping watcher pid=${state.pid}`)
-
-						if (validatePidOwnership(state.pid, directory)) {
-							try {
-								Bun.spawnSync(["kill", String(state.pid)])
-								log("info", `[${directory}] Sent kill to pid=${state.pid}`)
-							} catch (err) {
-								const reason = err instanceof Error ? err.message : String(err)
-								log("warn", `[${directory}] kill ${state.pid} failed: ${reason}`)
-							}
-
-							let alive = true
-							for (let i = 0; i < KILL_WAIT_SECONDS; i++) {
-								await Bun.sleep(1000)
-								alive = isPidAlive(state.pid) && validatePidOwnership(state.pid, directory)
-								if (!alive) {
-									log("info", `[${directory}] Watcher pid=${state.pid} exited gracefully`)
-									break
-								}
-							}
-
-							if (alive && validatePidOwnership(state.pid, directory)) {
-								try {
-									Bun.spawnSync(["kill", "-9", String(state.pid)])
-									log("warn", `[${directory}] Sent kill -9 to pid=${state.pid}`)
-								} catch (err) {
-									const reason = err instanceof Error ? err.message : String(err)
-									log("warn", `[${directory}] kill -9 ${state.pid} failed: ${reason}`)
-								}
-							}
-						} else {
-							log(
-								"warn",
-								`[${directory}] session.deleted: pid=${state.pid} ownership validation failed, refusing to kill`,
-							)
-						}
-					}
-
-					state.status = "stopped"
-					state.pid = null
-					log("info", `[${directory}] Watcher stopped`)
-
-					const statePath = getStateFilePath(directory)
-					try {
-						unlinkSync(statePath)
-						log("info", `[${directory}] Removed watcher state file ${statePath}`)
-						return
-					} catch (err) {
-						const reason = err instanceof Error ? err.message : String(err)
-						log("warn", `[${directory}] Failed to remove state file ${statePath}: ${reason}`)
-						writeWatcherState(directory, state)
-						return
-					}
-				}
-
-				writeWatcherState(directory, state)
-			} catch (err) {
-				const reason = err instanceof Error ? err.message : String(err)
-				log("error", `[${directory}] session.deleted error: ${reason}`)
-				try {
-					const state = readWatcherState(directory)
-					if (state) {
-						state.lastFailureAt = new Date().toISOString()
-						state.lastFailureReason = `session.deleted exception: ${reason}`
-						writeWatcherState(directory, state)
-					}
-				} catch {
-					/* fail-open */
-				}
+				log("error", `[${directory}] event hook error: ${reason}`)
 			}
 		},
 

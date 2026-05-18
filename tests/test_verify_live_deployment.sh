@@ -20,6 +20,11 @@
 #   * watcher state status is "running"
 #   * watcher PID is alive, owned by current user, and command line contains
 #     "vera watch" and exact project root
+#   * lifecycle_event_observed tracks whether a lifecycle-specific pattern
+#     (event hook invoked, session.created handled, watcher started pid=,
+#     watcher_state verified) appears in the runtime log — generic logs alone
+#     are insufficient for runtime_project_log unless accompanied by watcher
+#     state/PID evidence
 #
 # - real_project_behavior_proven:
 #   * runtime_loaded is satisfied
@@ -729,6 +734,24 @@ run_scenario() {
     echo "Evidence directory: $EVIDENCE_DIR"
     echo "Summary file: $EVIDENCE_DIR/summary.json"
 
+    if [[ -f "$EVIDENCE_DIR/summary.json" ]]; then
+        if python3 -c "
+import json
+with open('$EVIDENCE_DIR/summary.json') as f:
+    data = json.load(f)
+checks = data.get('checks', [])
+check_names = [c['check'] for c in checks]
+if 'lifecycle_event_observed' not in check_names:
+    print('MISSING')
+else:
+    for c in checks:
+        if c['check'] == 'lifecycle_event_observed':
+            print(c['status'])
+" 2>/dev/null; then
+            :
+        fi
+    fi
+
     exit "$exit_code"
 }
 
@@ -769,6 +792,22 @@ run_single_scenario_no_exit() {
     set -e
 
     echo "Scenario verifier exit code: $exit_code"
+
+    if [[ -f "$EVIDENCE_DIR/summary.json" ]]; then
+        python3 -c "
+import json
+with open('$EVIDENCE_DIR/summary.json') as f:
+    data = json.load(f)
+checks = data.get('checks', [])
+check_names = [c['check'] for c in checks]
+if 'lifecycle_event_observed' not in check_names:
+    print('ERROR: lifecycle_event_observed check missing from summary.json')
+    exit(1)
+status = next((c['status'] for c in checks if c['check'] == 'lifecycle_event_observed'), 'unknown')
+print('lifecycle_event_observed=' + status)
+" 2>&1 || true
+    fi
+
     return "$exit_code"
 }
 

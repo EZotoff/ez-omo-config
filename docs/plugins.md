@@ -172,7 +172,7 @@ At each evidence state, agents may only use approved claim language:
 **Features**:
 
 - **Fail-open behavior**: If the `vera` binary is missing, the plugin logs a warning and continues normal operation without error
-- **Automatic watcher lifecycle**: Hooks into `session.created` to start watchers, `session.deleted` to stop them
+- **Automatic watcher lifecycle**: Handles `session.created` and `session.deleted` events inside `event: async ({ event }) => ...`, dispatching on `event.type` to start or stop watchers
 - **Tool execution guard**: `tool.execute.before` hook verifies watcher health before file-modifying tools run
 - **Health checks**: Every 60 seconds verifies the watcher PID is still alive and owned by the current user with `vera watch` in its cmdline
 - **State persistence**: Tracks watcher state per project in `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/`
@@ -184,8 +184,7 @@ At each evidence state, agents may only use approved claim language:
 
 | Hook | When Fired | Action |
 |------|-----------|--------|
-| `session.created` | New session starts | Start or verify Vera watcher; recover stale watchers; validate non-empty root index |
-| `session.deleted` | Session ends | Stop Vera watcher if no other sessions need it |
+| `event` | Session lifecycle changes | `event: async ({ event }) => ...` dispatches on `event.type === "session.created"` to start or verify the Vera watcher (recover stale watchers, validate non-empty root index), and on `event.type === "session.deleted"` to stop it if no other sessions need it |
 | `tool.execute.before` | Before any tool executes | If tool modifies files, trigger `vera update .` |
 
 **Dependencies**: None (self-contained; falls open if `vera` binary absent)

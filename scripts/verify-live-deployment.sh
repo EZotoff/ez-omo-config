@@ -271,6 +271,7 @@ log_cmd "test -f \"$RUNTIME_LOG\""
 log_cmd "test -f \"$WATCHER_STATE_FILE\""
 
 RUNTIME_PROVEN=0
+LIFECYCLE_EVENT_FOUND=0
 STALE_REASON=""
 EVIDENCE_FOUND=0
 
@@ -287,8 +288,13 @@ if [[ -f "$RUNTIME_LOG" ]]; then
                 log_min="${log_ts:0:16}"
                 if [[ "$log_min" > "$MARKER_MIN" || "$log_min" == "$MARKER_MIN" ]]; then
                     if [[ "$line" == *"$REAL_PROJECT_PATH"* || "$line" == *"$WORKSPACE_KEY"* ]]; then
-                        RUNTIME_PROVEN=1
                         echo "$line" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
+                        if [[ "$line" == *"event hook invoked"* || \
+                             "$line" == *"session.created handled"* || \
+                             "$line" == *"watcher started pid="* || \
+                             "$line" == *"watcher_state verified"* ]]; then
+                            LIFECYCLE_EVENT_FOUND=1
+                        fi
                     fi
                 fi
             fi
@@ -379,13 +385,21 @@ if [[ -n "$WATCHER_PID" && "$WATCHER_PID" != "null" && "$WATCHER_PID" != "" ]]; 
     fi
 fi
 
-if [[ "$RUNTIME_PROVEN" -eq 1 ]]; then
+if [[ "$LIFECYCLE_EVENT_FOUND" -eq 1 ]]; then
+    record_result "lifecycle_event_observed" "passed" \
+        "Post-marker runtime log contains lifecycle event with exact project/workspace match"
+else
+    record_result "lifecycle_event_observed" "failed" \
+        "No lifecycle event found in post-marker runtime log for project ($REAL_PROJECT_PATH) or workspace key ($WORKSPACE_KEY). Expected one of: event hook invoked, session.created handled, watcher started pid=, watcher_state verified"
+fi
+
+if [[ "$LIFECYCLE_EVENT_FOUND" -eq 1 || "$RUNTIME_PROVEN" -eq 1 ]]; then
     record_result "runtime_project_log" "passed" \
-        "Runtime proven by post-marker log or watcher state with exact project/workspace match"
+        "Runtime proven by lifecycle event or watcher state with exact project/workspace match"
 else
     if [[ -z "$STALE_REASON" ]]; then
         if [[ "$EVIDENCE_FOUND" -eq 1 ]]; then
-            STALE_REASON="No post-marker runtime evidence found with exact project path ($REAL_PROJECT_PATH) or workspace key ($WORKSPACE_KEY)"
+            STALE_REASON="No lifecycle event or watcher state evidence with exact project path ($REAL_PROJECT_PATH) or workspace key ($WORKSPACE_KEY)"
         else
             STALE_REASON="No runtime log or watcher state found"
         fi

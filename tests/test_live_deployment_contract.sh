@@ -42,6 +42,11 @@ assert_no_grep 'ANIA' "$REPO_ROOT/tests/run_all.sh"
 assert_no_grep '/home/ezotoff/AI_projects' "$REPO_ROOT/tests/run_all.sh"
 assert_no_grep 'live.?probe' "$REPO_ROOT/tests/run_all.sh"
 
+echo "=== Contract 6: vera-runtime.ts event lifecycle contract ==="
+assert_grep 'event: async' "$REPO_ROOT/plugins/vera-runtime.ts"
+assert_no_grep '"session.created":' "$REPO_ROOT/plugins/vera-runtime.ts"
+assert_grep 'event.properties.info.id' "$REPO_ROOT/plugins/vera-runtime.ts"
+
 echo ""
 echo "=========================================="
 echo "Tests passed: $TESTS_PASSED"

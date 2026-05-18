@@ -1,6 +1,7 @@
-import { mkdtempSync, rmSync, readdirSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { mkdtempSync, readFileSync, rmSync, readdirSync, writeFileSync, renameSync, unlinkSync, mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, dirname, join } from "node:path"
 
 const PLUGIN_PATH = join(import.meta.dir, "..", "..", "plugins", "vera-runtime.ts")
 
@@ -19,6 +20,7 @@ function mockBunSpawnSync(overrides: {
 	veraIndexSuccess?: boolean
 	veraUpdateSuccess?: boolean
 	projectId?: string
+	indexNonEmpty?: boolean
 } = {}): () => void {
 	const original = Bun.spawnSync
 	Bun.spawnSync = function (cmd: any, opts?: any) {
@@ -45,6 +47,12 @@ function mockBunSpawnSync(overrides: {
 		if (cmdStr.includes("kill -0")) {
 			const alive = overrides.pidAlive ?? false
 			return { success: alive, exitCode: alive ? 0 : 1, stdout: Buffer.from(""), stderr: Buffer.from("") } as any
+		}
+
+		if (cmdStr.includes("vera overview")) {
+			const nonEmpty = overrides.indexNonEmpty ?? true
+			const stdout = nonEmpty ? Buffer.from("Files: 42\nChunks: 128") : Buffer.from("Files: 0\nChunks: 0")
+			return { success: nonEmpty, exitCode: nonEmpty ? 0 : 1, stdout, stderr: Buffer.from("") } as any
 		}
 
 		if (cmdStr.includes("vera index")) {
@@ -112,6 +120,138 @@ async function importPlugin(directory: string) {
 	return await pluginFn({ directory })
 }
 
+// ---------------------------------------------------------------------------
+// Harness-local state helpers (replicates plugin internals for test access)
+// ---------------------------------------------------------------------------
+
+function harnessComputeWorkspaceKey(workspacePath: string): string {
+	const base = basename(workspacePath)
+	const hash = createHash("sha1").update(workspacePath).digest("hex").slice(0, 8)
+	return `${base}-${hash}`
+}
+
+function harnessReadStateFile(workspacePath: string, projectId: string): any {
+	const key = harnessComputeWorkspaceKey(workspacePath)
+	const statePath = join(process.env.HOME!, ".local", "share", "opencode", "worktree-state", projectId, "vera-watchers", `${key}.json`)
+	try {
+		const raw = readFileSync(statePath, "utf-8")
+		return JSON.parse(raw)
+	} catch {
+		return null
+	}
+}
+
+function harnessWriteStateFile(workspacePath: string, projectId: string, state: any): void {
+	const key = harnessComputeWorkspaceKey(workspacePath)
+	const stateDir = join(process.env.HOME!, ".local", "share", "opencode", "worktree-state", projectId, "vera-watchers")
+	const statePath = join(stateDir, `${key}.json`)
+	const tempPath = `${statePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+	try {
+		mkdirSync(stateDir, { recursive: true })
+		writeFileSync(tempPath, JSON.stringify(state, null, 2), "utf-8")
+		renameSync(tempPath, statePath)
+	} catch {
+		try { unlinkSync(tempPath) } catch {}
+	}
+}
+
+function harnessGetStateFilePath(workspacePath: string, projectId: string): string {
+	const key = harnessComputeWorkspaceKey(workspacePath)
+	return join(process.env.HOME!, ".local", "share", "opencode", "worktree-state", projectId, "vera-watchers", `${key}.json`)
+}
+
+// ---------------------------------------------------------------------------
+// Event dispatch helpers — replace old plugin["session.created"] calls
+// ---------------------------------------------------------------------------
+
+function dispatchCreated(plugin: any, id: string, extra: Record<string, any> = {}) {
+	return plugin.event({ event: { type: "session.created", properties: { session_id: id, ...extra } } })
+}
+
+function dispatchDeleted(plugin: any, id: string, extra: Record<string, any> = {}) {
+	return plugin.event({ event: { type: "session.deleted", properties: { session_id: id, ...extra } } })
+}
+
+// ---------------------------------------------------------------------------
+// Test cases
+// ---------------------------------------------------------------------------
+
+async function runEventSessionCreatedBootstrap() {
+	const caseName = "event-session-created-bootstrap"
+	const { tempHome, originalHome } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	const restoreSpawn = mockBunSpawn()
+
+	try {
+		const wsDir = createTempWorkspace(tempHome)
+		const plugin = await importPlugin(wsDir)
+
+		await plugin.event({ event: { type: "session.created", properties: { info: { id: "sess-bootstrap-1" } } } })
+
+		const state = harnessReadStateFile(wsDir, "test-project")
+
+		if (!state) {
+			fail(caseName, "No state file found after session.created")
+		}
+		if (state.status !== "running") {
+			fail(caseName, `Expected status=running, got ${state.status}`)
+		}
+		if (!state.pid) {
+			fail(caseName, `Expected non-null pid, got ${state.pid}`)
+		}
+		if (!state.sessionIds.includes("sess-bootstrap-1")) {
+			fail(caseName, "sessionId 'sess-bootstrap-1' not found in state")
+		}
+
+		await plugin.event({ event: { type: "session.deleted", properties: { info: { id: "sess-bootstrap-1" } } } })
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
+	}
+
+	pass(caseName)
+}
+
+async function runEventSessionDeletedCleanup() {
+	const caseName = "event-session-deleted-cleanup"
+	const { tempHome, originalHome } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	const restoreSpawn = mockBunSpawn()
+
+	try {
+		const wsDir = createTempWorkspace(tempHome)
+		const plugin = await importPlugin(wsDir)
+
+		await plugin.event({ event: { type: "session.created", properties: { info: { id: "sess-cleanup-1" } } } })
+
+		const stateBefore = harnessReadStateFile(wsDir, "test-project")
+		if (!stateBefore) {
+			fail(caseName, "No state before deletion")
+		}
+
+		await plugin.event({ event: { type: "session.deleted", properties: { info: { id: "sess-cleanup-1" } } } })
+
+		const stateAfter = harnessReadStateFile(wsDir, "test-project")
+		if (stateAfter) {
+			fail(caseName, "State file still exists after last session deleted")
+		}
+
+		const watchersDir = getWatchersDir("test-project")
+		const files = readdirSync(watchersDir)
+		const jsonFiles = files.filter((f: string) => f.endsWith(".json"))
+		if (jsonFiles.length !== 0) {
+			fail(caseName, `Expected 0 state files, found ${jsonFiles.length}`)
+		}
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
+	}
+
+	pass(caseName)
+}
+
 async function runSameWorkspaceDedupe() {
 	const caseName = "same-workspace-dedupe"
 	const { tempHome, originalHome } = setupTempHome()
@@ -120,25 +260,12 @@ async function runSameWorkspaceDedupe() {
 
 	try {
 		const wsDir = createTempWorkspace(tempHome)
-
 		const plugin = await importPlugin(wsDir)
 
-		await plugin["session.created"](
-			{
-				event: { properties: { session_id: "sess-1" } },
-			},
-			{},
-		)
+		await dispatchCreated(plugin, "sess-1")
+		await dispatchCreated(plugin, "sess-2")
 
-		await plugin["session.created"](
-			{
-				event: { properties: { session_id: "sess-2" } },
-			},
-			{},
-		)
-
-		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
-		const state = mod.readWatcherState(wsDir)
+		const state = harnessReadStateFile(wsDir, "test-project")
 
 		if (!state) {
 			fail(caseName, "No state file found after session.created calls")
@@ -164,18 +291,8 @@ async function runSameWorkspaceDedupe() {
 			fail(caseName, `Expected exactly 1 state file, found ${jsonFiles.length}`)
 		}
 
-		await plugin["session.deleted"](
-			{
-				event: { properties: { session_id: "sess-1" } },
-			},
-			{},
-		)
-		await plugin["session.deleted"](
-			{
-				event: { properties: { session_id: "sess-2" } },
-			},
-			{},
-		)
+		await dispatchDeleted(plugin, "sess-1")
+		await dispatchDeleted(plugin, "sess-2")
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
@@ -198,23 +315,11 @@ async function runCrossWorkspaceIsolation() {
 		const pluginA = await importPlugin(wsA)
 		const pluginB = await importPlugin(wsB)
 
-		await pluginA["session.created"](
-			{
-				event: { properties: { session_id: "sess-a-1" } },
-			},
-			{},
-		)
+		await dispatchCreated(pluginA, "sess-a-1")
+		await dispatchCreated(pluginB, "sess-b-1")
 
-		await pluginB["session.created"](
-			{
-				event: { properties: { session_id: "sess-b-1" } },
-			},
-			{},
-		)
-
-		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
-		const stateA = mod.readWatcherState(wsA)
-		const stateB = mod.readWatcherState(wsB)
+		const stateA = harnessReadStateFile(wsA, "test-project")
+		const stateB = harnessReadStateFile(wsB, "test-project")
 
 		if (!stateA) {
 			fail(caseName, "No state file found for workspace A")
@@ -242,18 +347,8 @@ async function runCrossWorkspaceIsolation() {
 			fail(caseName, `Expected exactly 2 state files, found ${jsonFiles.length}`)
 		}
 
-		await pluginA["session.deleted"](
-			{
-				event: { properties: { session_id: "sess-a-1" } },
-			},
-			{},
-		)
-		await pluginB["session.deleted"](
-			{
-				event: { properties: { session_id: "sess-b-1" } },
-			},
-			{},
-		)
+		await dispatchDeleted(pluginA, "sess-a-1")
+		await dispatchDeleted(pluginB, "sess-b-1")
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
@@ -272,8 +367,7 @@ async function runStalePidRecovery() {
 	try {
 		const wsDir = createTempWorkspace(tempHome)
 
-		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
-		const key = mod.computeWorkspaceKey(wsDir)
+		const key = harnessComputeWorkspaceKey(wsDir)
 		const initialState = {
 			workspaceKey: key,
 			workspacePath: wsDir,
@@ -282,25 +376,20 @@ async function runStalePidRecovery() {
 			status: "running",
 			sessionIds: ["sess-stale-1"],
 			indexPath: `${wsDir}/.vera`,
-			watchLogPath: `${mod.getStateFilePath(wsDir).replace(/\.json$/, ".log")}`,
+			watchLogPath: `${harnessGetStateFilePath(wsDir, "test-project").replace(/\.json$/, ".log")}`,
 			lastIndexedAt: new Date().toISOString(),
 			startedAt: new Date().toISOString(),
 			lastVerifiedAt: new Date().toISOString(),
 			lastFailureAt: null,
 			lastFailureReason: null,
 		}
-		mod.writeWatcherState(wsDir, initialState)
+		harnessWriteStateFile(wsDir, "test-project", initialState)
 
 		const plugin = await importPlugin(wsDir)
 
-		await plugin["session.created"](
-			{
-				event: { properties: { session_id: "sess-stale-1" } },
-			},
-			{},
-		)
+		await dispatchCreated(plugin, "sess-stale-1")
 
-		const state = mod.readWatcherState(wsDir)
+		const state = harnessReadStateFile(wsDir, "test-project")
 		if (!state) {
 			fail(caseName, "No state file found after session.created")
 		}
@@ -313,12 +402,7 @@ async function runStalePidRecovery() {
 			fail(caseName, `Expected status=running after recovery, got ${state.status}`)
 		}
 
-		await plugin["session.deleted"](
-			{
-				event: { properties: { session_id: "sess-stale-1" } },
-			},
-			{},
-		)
+		await dispatchDeleted(plugin, "sess-stale-1")
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
@@ -336,7 +420,6 @@ async function runMissingVeraFailsOpen() {
 
 	try {
 		const wsDir = createTempWorkspace(tempHome)
-
 		const plugin = await importPlugin(wsDir)
 
 		restoreSpawnSync()
@@ -344,13 +427,8 @@ async function runMissingVeraFailsOpen() {
 
 		let threw = false
 		try {
-			await plugin["session.created"](
-				{
-					event: { properties: { session_id: "sess-missing-1" } },
-				},
-				{},
-			)
-		} catch (_err) {
+			await dispatchCreated(plugin, "sess-missing-1")
+		} catch {
 			threw = true
 		}
 
@@ -358,8 +436,7 @@ async function runMissingVeraFailsOpen() {
 			fail(caseName, "session.created threw when vera binary is missing")
 		}
 
-		const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
-		const state = mod.readWatcherState(wsDir)
+		const state = harnessReadStateFile(wsDir, "test-project")
 
 		if (!state) {
 			fail(caseName, "No state file found")
@@ -370,12 +447,7 @@ async function runMissingVeraFailsOpen() {
 		}
 
 		try {
-			await plugin["session.deleted"](
-				{
-					event: { properties: { session_id: "sess-missing-1" } },
-				},
-				{},
-			)
+			await dispatchDeleted(plugin, "sess-missing-1")
 		} catch {}
 	} finally {
 		restoreSpawnSync()
@@ -386,16 +458,122 @@ async function runMissingVeraFailsOpen() {
 	pass(caseName)
 }
 
+async function runUnknownEventNoop() {
+	const caseName = "unknown-event-noop"
+	const { tempHome, originalHome } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	const restoreSpawn = mockBunSpawn()
+
+	try {
+		const wsDir = createTempWorkspace(tempHome)
+		const plugin = await importPlugin(wsDir)
+
+		await plugin.event({ event: { type: "session.status", properties: { session_id: "sess-unknown-1" } } })
+
+		const state = harnessReadStateFile(wsDir, "test-project")
+
+		if (state) {
+			fail(caseName, "Watcher state was created for unknown event type 'session.status'")
+		}
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
+	}
+
+	pass(caseName)
+}
+
+async function runSessionIdShapes() {
+	const caseName = "session-id-shapes"
+	const { tempHome, originalHome } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	const restoreSpawn = mockBunSpawn()
+
+	try {
+		{
+			const ws = createTempWorkspace(tempHome)
+			const plugin = await importPlugin(ws)
+			await plugin.event({ event: { type: "session.created", properties: { info: { id: "sess-upstream" } } } })
+
+			const state = harnessReadStateFile(ws, "test-project")
+			if (!state || !state.sessionIds.includes("sess-upstream")) {
+				fail(caseName, "upstream-info shape (info.id) did not resolve to 'sess-upstream'")
+			}
+
+			await plugin.event({ event: { type: "session.deleted", properties: { info: { id: "sess-upstream" } } } })
+		}
+
+		{
+			const ws = createTempWorkspace(tempHome)
+			const plugin = await importPlugin(ws)
+			await plugin.event({ event: { type: "session.created", properties: { session_id: "sess-legacy" } } })
+
+			const state = harnessReadStateFile(ws, "test-project")
+			if (!state || !state.sessionIds.includes("sess-legacy")) {
+				fail(caseName, "legacy-wrapper shape (session_id) did not resolve to 'sess-legacy'")
+			}
+
+			await plugin.event({ event: { type: "session.deleted", properties: { session_id: "sess-legacy" } } })
+		}
+
+		{
+			const ws = createTempWorkspace(tempHome)
+			const plugin = await importPlugin(ws)
+			await plugin.event({ event: { type: "session.created", id: "sess-direct" } })
+
+			const state = harnessReadStateFile(ws, "test-project")
+			if (!state || !state.sessionIds.includes("sess-direct")) {
+				fail(caseName, "direct shape (event.id) did not resolve to 'sess-direct'")
+			}
+
+			await plugin.event({ event: { type: "session.deleted", id: "sess-direct" } })
+		}
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome)
+	}
+
+	pass(caseName)
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
 async function main() {
 	const args = process.argv.slice(2)
 	const caseIdx = args.indexOf("--case")
 	const testCase = caseIdx >= 0 ? args[caseIdx + 1] : null
 
+	{
+		const { tempHome, originalHome } = setupTempHome()
+		const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project" })
+		try {
+			const guardPlugin = await importPlugin(createTempWorkspace(tempHome))
+			if (typeof (guardPlugin as any)["session.created"] !== "undefined") {
+				fail("guard-plugin-hooks", "plugin['session.created'] must be undefined (event dispatch only)")
+			}
+			if (typeof (guardPlugin as any)["session.deleted"] !== "undefined") {
+				fail("guard-plugin-hooks", "plugin['session.deleted'] must be undefined (event dispatch only)")
+			}
+			pass("guard-plugin-hooks")
+		} finally {
+			restoreSpawnSync()
+			cleanup(tempHome, originalHome)
+		}
+	}
+
 	const testMap: Record<string, () => Promise<void>> = {
+		"event-session-created-bootstrap": runEventSessionCreatedBootstrap,
+		"event-session-deleted-cleanup": runEventSessionDeletedCleanup,
 		"same-workspace-dedupe": runSameWorkspaceDedupe,
 		"cross-workspace-isolation": runCrossWorkspaceIsolation,
 		"stale-pid-recovery": runStalePidRecovery,
 		"missing-vera-fails-open": runMissingVeraFailsOpen,
+		"unknown-event-noop": runUnknownEventNoop,
+		"session-id-shapes": runSessionIdShapes,
 	}
 
 	if (testCase) {
@@ -411,6 +589,9 @@ async function main() {
 			await fn()
 		}
 	}
+
+	// Explicit exit to stop lingering health check timers
+	process.exit(0)
 }
 
 main().catch((err) => {

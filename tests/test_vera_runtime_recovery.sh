@@ -118,6 +118,35 @@ scenario_safe_restart() {
     echo "=== safe-restart complete ==="
 }
 
+scenario_event_lifecycle() {
+    echo "=== Scenario: event-lifecycle ==="
+
+    if [[ ! -f "$PLUGIN_FILE" ]]; then
+        echo "FAIL: Plugin file not found: $PLUGIN_FILE"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return 1
+    fi
+
+    local plugin_src
+    plugin_src="$(cat "$PLUGIN_FILE")"
+
+    assert_contains "event: async" "$plugin_src" "event: async hook missing"
+    assert_not_contains '"session.created":' "$plugin_src" "old flat session.created key (should use event: async dispatch)"
+    assert_not_contains '"session.deleted":' "$plugin_src" "old flat session.deleted key (should use event: async dispatch)"
+    assert_contains "function handleSessionCreatedEvent" "$plugin_src" "handleSessionCreatedEvent function missing"
+    assert_contains "async function handleSessionDeletedEvent" "$plugin_src" "handleSessionDeletedEvent async function missing"
+    assert_contains "function extractSessionId" "$plugin_src" "extractSessionId function missing"
+    assert_contains "event.properties.info.id" "$plugin_src" "properties.info.id handling missing"
+    assert_contains "event hook invoked" "$plugin_src" "event hook invoked log missing"
+    assert_contains "session.created handled" "$plugin_src" "session.created handled log missing"
+    assert_contains "session.deleted handled" "$plugin_src" "session.deleted handled log missing"
+    assert_contains "vera index . starting" "$plugin_src" "vera index . starting log missing"
+    assert_contains "vera watch . starting" "$plugin_src" "vera watch . starting log missing"
+    assert_contains "watcher started pid=" "$plugin_src" "watcher started pid= log missing"
+
+    echo "=== event-lifecycle complete ==="
+}
+
 main() {
     local scenario=""
 
@@ -143,6 +172,9 @@ main() {
             safe-restart)
                 scenario_safe_restart
                 ;;
+            event-lifecycle)
+                scenario_event_lifecycle
+                ;;
             *)
                 echo "Unknown scenario: $scenario"
                 exit 2
@@ -151,6 +183,7 @@ main() {
     else
         scenario_indexed_hollow_recovery
         scenario_safe_restart
+        scenario_event_lifecycle
     fi
 
     echo ""
