@@ -420,6 +420,24 @@ sync_dcp_local_patch() {
         "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib"
     )
 
+    # XDG_CACHE_HOME guard: prevents unpatched snap/XDG cache copies from
+    # emitting DCP unknown-key warnings. Deduplicated against HOME/.cache.
+    if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
+        destination_roots+=(
+            "$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
+            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib"
+        )
+    fi
+
+    # Bun-compiled OpenCode can resolve npm plugins through Bun's install cache
+    # before the OpenCode package cache. Keep existing v3 DCP cache copies patched
+    # so stale package resolution cannot reintroduce DCP unknown-key warnings.
+    local bun_destination_root
+    for bun_destination_root in "$HOME"/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib; do
+        [[ -d "$bun_destination_root" ]] && destination_roots+=("$bun_destination_root")
+    done
+
     if [[ ! -d "$source_root" ]]; then
         log "DCP patch sync: skipped (reference copy not found: $source_root)"
         return 0
