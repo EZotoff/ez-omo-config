@@ -129,7 +129,7 @@ npx tsc --noEmit false --emitDeclarationOnly false
 # 2. Sync to reference install
 rsync -a dist/ ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/
 
-# 3. Sync all three copies (reference, runtime, package cache)
+# 3. Sync all known runtime/cache copies (reference, runtime, OpenCode package cache, XDG_CACHE_HOME cache, Bun v3 cache)
 cd ~/ez-omo-config
 ./install.sh --configs
 ```
@@ -137,14 +137,11 @@ cd ~/ez-omo-config
 ### Verify Installation
 
 ```bash
-# Marker presence check across all three copies
+# Marker presence check across all known runtime/cache copies
 bash tests/test_dcp_payload_budget.sh --installed
-
-# Config key presence
-grep -n "maxPayloadBytes" configs/opencode/dcp.jsonc
 ```
 
-Expected: 12 passed, 0 failed for the test; `"maxPayloadBytes": 1802240` in the config.
+Expected: 0 failed for the test; pass count varies with local XDG and Bun cache contents. The config should retain `"maxPayloadBytes": 1802240`.
 
 ---
 
@@ -168,11 +165,13 @@ git checkout -- configs/opencode/dcp.jsonc
 cp -r ~/.ez-omo-backup/<date>/dcp/* ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/
 ./install.sh --configs
 
-# OR manually remove byte-budget files from all three copies
+# OR manually remove byte-budget files from all copies
 for root in \
   ~/.config/opencode/node_modules/@tarquinen/opencode-dcp \
   ~/.cache/opencode/node_modules/@tarquinen/opencode-dcp \
-  ~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp; do
+  ~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp \
+  ~/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp \
+  ~/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*; do
   rm -f "$root/dist/lib/messages/byte-budget.js" "$root/dist/lib/messages/byte-budget.d.ts"
 done
 ```

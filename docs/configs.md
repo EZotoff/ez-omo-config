@@ -85,12 +85,17 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 The bounded retention mode is **not upstream standard behavior**. It is backed by a local patch to the installed `@tarquinen/opencode-dcp` package. The patch registry entry lives at `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
 
-`install.sh --configs` includes a DCP patch sync step: it copies the 10 patched DCP files from the reference install at `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib` into both native cache copies when present:
+`install.sh --configs` includes a DCP patch sync step: it copies the 15 patched DCP files from the reference install at `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib` into all native cache copies when present:
 
 - `~/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib`
 - `~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib`
+- `~/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib`
+- `$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib` (when `XDG_CACHE_HOME` is set and differs from `HOME/.cache`)
+- `$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib` (when `XDG_CACHE_HOME` is set and differs from `HOME/.cache`)
+- `$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib` (when `XDG_CACHE_HOME` is set and differs from `HOME/.cache`)
+- `~/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib` (existing Bun v3 plugin cache copies)
 
-This prevents package-cache refreshes from reintroducing unknown-key warnings for `compress.retentionMode` and `compress.maxArchivedSummaryTokens`.
+This prevents package-cache refreshes, XDG cache lookups, or Bun plugin-resolution fallback from reintroducing unknown-key warnings for `compress.retentionMode`, `compress.maxArchivedSummaryTokens`, and `compress.maxPayloadBytes`. The `@3.1.9` path is included because `opencode.json` pins `@tarquinen/opencode-dcp@3.1.9`; XDG paths are included because snap-confined or XDG-compliant OpenCode launches may resolve modules from `XDG_CACHE_HOME` instead of `~/.cache`; Bun cache paths are included because stale v3 copies can still be considered by the Bun-compiled OpenCode plugin resolver.
 
 **Observability**:
 
@@ -100,7 +105,7 @@ After any OpenCode or DCP update, verify the patch is still intact by running th
 bash tests/test_dcp_bounded_range.sh
 ```
 
-Expected: 8 passed, 0 failed. The script checks marker presence across all three install copies (reference, runtime, and package cache) and exercises five functional regression cases, including the `bounded-runtime-proof-metadata` case that asserts runtime block metadata (`retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, `rawMessageCoverageCount`, `normalizedSummaryTokenCount`, `truncationOccurred`) against the live DCP state.
+Expected: 0 failed. The script checks marker presence across the reference copy, runtime copy, `@latest` package cache, `@3.1.9` version-pinned package cache, XDG_CACHE_HOME cache copies (when set and differing from HOME/.cache), and any existing Bun v3 DCP cache copies; the pass count varies with local cache contents. It also exercises five functional regression cases, including the `bounded-runtime-proof-metadata` case that asserts runtime block metadata (`retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, `rawMessageCoverageCount`, `normalizedSummaryTokenCount`, `truncationOccurred`) against the live DCP state.
 
 **Fresh-start warning probe**: File-marker checks prove patch presence on disk, but a long-running OpenCode process started before the patch sync may still emit unknown-key warnings because it loaded unpatched modules at startup. To verify a fresh process does not reject the bounded-retention keys, also run:
 
@@ -108,7 +113,7 @@ Expected: 8 passed, 0 failed. The script checks marker presence across all three
 bash tests/test_dcp_startup_warning.sh
 ```
 
-Expected: 2 passed, 0 failed. This test probes a short-lived `opencode serve` startup and fails if the logs contain `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens` or `DCP: config warning`.
+Expected: 0 failed. This test verifies marker presence in the version-pinned and Bun cache copies, probes a short-lived `opencode serve` startup, and fails if the logs contain `Unknown keys: compress.retentionMode`, `compress.maxArchivedSummaryTokens`, `compress.maxPayloadBytes`, or `DCP: config warning`.
 
 **Stale-process gotcha**: If a running OpenCode server or TUI session emits the DCP unknown-key warning despite `test_dcp_bounded_range.sh` passing, the process was likely started before the most recent patch sync. The file markers prove the patch exists on disk, but the running process loaded the old modules at startup. Restart OpenCode to load the patched modules.
 

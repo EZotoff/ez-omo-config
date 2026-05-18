@@ -54,7 +54,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **Bounded DCP retention** — local patch that caps archived summary tokens during DCP range compression, keeping long-running sessions within a fixed token budget
 - **DCP byte-budget gate** — local patch that enforces a payload byte cap (1,802,240 bytes safe target) on the message list via `pruneByByteBudget()`, preventing 413 Payload Too Large errors from the model provider
-- **Durable DCP patch sync** — installer keeps native runtime and all package-cache `@tarquinen/opencode-dcp` copies (including the `@3.1.9` version-pinned cache) aligned with local bounded-retention and byte-budget patch files
+- **Durable DCP patch sync** — installer keeps native runtime, OpenCode package-cache, XDG_CACHE_HOME cache (when set and differing from HOME/.cache), and existing Bun v3 `@tarquinen/opencode-dcp` cache copies aligned with local bounded-retention and byte-budget patch files
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 
 ---
@@ -311,7 +311,7 @@ The bounded DCP retention patch is a local modification, not upstream standard b
 bash tests/test_dcp_bounded_range.sh
 ```
 
-Expected: 9 passed, 0 failed. The proof script checks marker presence across all four DCP install copies (reference, runtime, `@latest` package cache, and `@3.1.9` version-pinned package cache) and exercises five functional regression cases, including runtime metadata validation of `retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, and `truncationOccurred`.
+Expected: 0 failed. The proof script checks marker presence across the reference copy, runtime copy, OpenCode package-cache copies, XDG_CACHE_HOME cache copies (when set and differing from HOME/.cache), and existing Bun v3 DCP cache copies; the pass count varies with local cache contents. It also exercises five functional regression cases, including runtime metadata validation of `retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, and `truncationOccurred`.
 
 **Fresh-start warning probe**: File-marker checks prove the patch files exist on disk, but they do not prove a running OpenCode process has loaded them. To verify a fresh process does not reject the bounded-retention keys as unknown, also run:
 
@@ -319,7 +319,7 @@ Expected: 9 passed, 0 failed. The proof script checks marker presence across all
 bash tests/test_dcp_startup_warning.sh
 ```
 
-Expected: 2 passed, 0 failed. This test starts a short-lived `opencode serve` probe and fails if the startup logs contain `Unknown keys: compress.retentionMode, compress.maxArchivedSummaryTokens`.
+Expected: 0 failed. This test starts a short-lived `opencode serve` probe and fails if the startup logs contain `Unknown keys: compress.retentionMode`, `compress.maxArchivedSummaryTokens`, `compress.maxPayloadBytes`, or `DCP: config warning`.
 
 **Stale-process gotcha**: If you see the DCP unknown-key warning in a running OpenCode server or TUI session that was started *before* the latest patch sync, the patched modules may not be loaded in that process. File-marker checks prove patch presence on disk, but long-running processes only load DCP modules at startup. Restart OpenCode to load the patched code.
 
@@ -331,7 +331,7 @@ The byte-budget gate is a local patch that prevents prompt payload from exceedin
 bash tests/test_dcp_payload_budget.sh --installed
 ```
 
-Expected: 13 passed, 0 failed. The script checks marker presence across all four DCP install copies (reference, runtime, `@latest` package cache, and `@3.1.9` version-pinned package cache) and exercises 9 functional regression cases covering tool output compaction, repeated scaffold collapse, error loop collapse, todo snapshot preservation, multibyte encoding, threshold behavior, and protected-failover.
+Expected: 0 failed. The script checks marker presence across the reference copy, runtime copy, OpenCode package-cache copies, and existing Bun v3 DCP cache copies; the pass count varies with local cache contents. It also exercises 9 functional regression cases covering tool output compaction, repeated scaffold collapse, error loop collapse, todo snapshot preservation, multibyte encoding, threshold behavior, and protected-failover.
 
 Configuration reference, safety margin derivation, and uninstall steps are documented in `docs/dcp-byte-budget.md`.
 

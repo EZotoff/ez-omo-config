@@ -6,7 +6,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 |---|---|---|
 | `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, and runtime defaults | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
-| `dcp.jsonc` | DCP plugin configuration with bounded range archive retention (local patch) | `$HOME/.config/opencode/dcp.jsonc` |
+| `dcp.jsonc` | DCP plugin configuration with bounded range archive retention and byte-budget payload cap (local patches, synced to XDG_CACHE_HOME cache when active) | `$HOME/.config/opencode/dcp.jsonc` |
 | `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response detection, and registry-driven error matching | `$HOME/.config/opencode/provider-connect-retry.mjs` |
 | `retry-errors.json` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models consumed by the retry plugin | `$HOME/.config/opencode/retry-errors.json` |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudge dispatch | `$HOME/.config/opencode/aspect-dynamics.mjs` |
