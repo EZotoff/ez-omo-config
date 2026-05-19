@@ -156,6 +156,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 1 | `opencode-dcp--bounded-range-archive-mode` | `@tarquinen/opencode-dcp@3.1.x` | active | 2026-04-30 | `bash tests/test_dcp_bounded_range.sh` |
 | 2 | `opencode-dcp--byte-budget` | `@tarquinen/opencode-dcp@3.1.9` | active | 2026-05-16 | `bash tests/test_dcp_payload_budget.sh --installed` |
 | 3 | `opencode-dcp--compress-tool-prompt-contract` | `@tarquinen/opencode-dcp@3.1.9` | active | 2026-05-17 | `grep -n "Do NOT announce that you will compress" ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/prompts/system.js` |
+| 4 | `omo--boulder-worktree-authoritative-state` | `oh-my-openagent` | active | 2026-05-19 | `grep -n "worktreePath\|effectiveDirectory\|displayDirectory" ~/omo-hub/projects/oh-my-openagent/src/hooks/atlas/resolve-active-boulder-session.ts` |
 
 ## Dependency Clusters
 

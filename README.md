@@ -347,6 +347,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Bounded-range archive mode**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`
 - **Byte-budget gate**: `.sisyphus/patches/opencode-dcp--byte-budget.md`
 - **Compress tool prompt contract**: `.sisyphus/patches/opencode-dcp--compress-tool-prompt-contract.md`
+- **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (repo_implemented and tests_passed; not verified live)
 
 ---
 
