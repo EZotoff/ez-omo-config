@@ -1,13 +1,14 @@
 ---
 patch_id: "omo--clean-agent-display-names"
 dependency: "oh-my-openagent"
-target_file: "src/shared/agent-display-names.ts, src/features/claude-code-session-state/state.ts, src/cli/run/event-handlers.ts"
-target_install_path: "/home/ezotoff/omo-hub/projects/oh-my-openagent"
+target_file: "dist/index.js, dist/cli/index.js"
+target_install_path: "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent"
 status: "active"
 applied_date: "2026-04-30"
-dep_version: "current"
+dep_version: "4.4.0 (active XDG OpenCode package cache, reapplied 2026-05-23)"
 upstream_issue: "none"
-verification_pattern: 'normalizeAgentForPrompt|getAgentDisplayName\(configKey\)'
+verification_pattern: "sisyphus: \"Sisyphus\""
+post_update_status: "unaffected"
 ---
 
 # Clean Agent Display Names
@@ -48,10 +49,11 @@ This patch is verified at the source level. The cache bundles are secondary arti
 
 ```bash
 # Verify all three source files contain the fix patterns
+OMO_SOURCE_DIR="${OMO_SOURCE_DIR:-/home/ezotoff/oh-my-openagent}"
 grep -E 'normalizeAgentForPrompt|getAgentDisplayName\(configKey\)' \
-  /home/ezotoff/omo-hub/projects/oh-my-openagent/src/shared/agent-display-names.ts \
-  /home/ezotoff/omo-hub/projects/oh-my-openagent/src/features/claude-code-session-state/state.ts \
-  /home/ezotoff/omo-hub/projects/oh-my-openagent/src/cli/run/event-handlers.ts
+  "$OMO_SOURCE_DIR/src/shared/agent-display-names.ts" \
+  "$OMO_SOURCE_DIR/src/features/claude-code-session-state/state.ts" \
+  "$OMO_SOURCE_DIR/src/cli/run/event-handlers.ts"
 ```
 
 Expected: matches in all three files. `agent-display-names.ts` shows `return getAgentDisplayName(configKey)`; `state.ts` shows `normalizeAgentForPrompt`; `event-handlers.ts` shows `normalizeAgentForPrompt`.
@@ -72,7 +74,7 @@ If the patch is lost after a source update or dependency refresh:
    ```bash
    grep 'oh-my-openagent' ~/.config/opencode/opencode.json
    ```
-   If it points to `file:///home/ezotoff/omo-hub/projects/oh-my-openagent`, edit the source files there directly.
+   If it points to `file:///home/ezotoff/oh-my-openagent`, edit the source files there directly.
 
 2. In `src/shared/agent-display-names.ts`:
    - Ensure `AGENT_DISPLAY_NAMES` contains plain names only.
@@ -87,7 +89,7 @@ If the patch is lost after a source update or dependency refresh:
 
 5. Rebuild the project:
    ```bash
-   cd /home/ezotoff/omo-hub/projects/oh-my-openagent
+    cd "${OMO_SOURCE_DIR:-/home/ezotoff/oh-my-openagent}"
    bun run build
    ```
 
@@ -105,3 +107,47 @@ Upstream could:
 - Use plain names as defaults with role descriptions as tooltips or metadata.
 
 Status: not-yet-pursued
+
+## Task 11 Triage (2026-05-23)
+
+- Classification: `unaffected`
+- Guard result: `allowed` (`source_plane`).
+- Verification marker is present in all target source files.
+- Reapply instructions remain valid for OMO v4.3.1 baseline.
+
+## Runtime Cache Reapply (2026-05-23)
+
+After refreshing the active XDG OpenCode package cache to `oh-my-openagent@4.4.0`, OMO again exposed the primary agent as `"Sisyphus - ultraworker"`. The active runtime path is no longer the local source checkout; it is:
+
+```text
+/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent
+```
+
+The local reapply changed only the bundled display-name map in:
+
+```text
+dist/index.js
+dist/cli/index.js
+```
+
+Before:
+
+```js
+sisyphus: "Sisyphus - ultraworker"
+```
+
+After:
+
+```js
+sisyphus: "Sisyphus"
+```
+
+Verification:
+
+```bash
+grep -E 'sisyphus: "Sisyphus"'   /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js   /home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/cli/index.js
+opencode debug agent Sisyphus
+```
+
+Expected: both bundles contain `sisyphus: "Sisyphus"`, and `opencode debug agent Sisyphus` resolves the primary agent with model `openai/gpt-5.5`.
+
