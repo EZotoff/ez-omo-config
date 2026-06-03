@@ -255,7 +255,7 @@ cd ez-omo-config
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
-| **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3 Pro, Gemini 3 Flash, Claude Sonnet/Opus Thinking |
+| **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3.1 Pro Preview, Gemini 3 Flash, Claude Sonnet/Opus Thinking |
 | **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.2, GPT 5.5, GPT 5.4, GPT 5.3 Codex, GPT 5.1 Codex Max |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
 | **Moonshot** | Kimi models via OpenAI-compatible API | Kimi K2.5 |
@@ -275,12 +275,12 @@ cd ez-omo-config
 | **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `openai/gpt-5.4` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | (none) | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `opencode-go/deepseek-v4-flash` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `google/antigravity-gemini-3-pro` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |
+| **frontend-ui-ux-engineer** | `google/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |
 | **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5.1` | Writing, documentation |
 | **multimodal-looker** | `google/gemini-3.5-flash` | default | (none) | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.5` | high | `google/antigravity-gemini-3-pro` | Q&A, knowledge queries |
-| **metis** | `openai/gpt-5.5` | high | `google/antigravity-gemini-3-pro` | Deep analysis |
-| **momus** | `openai/gpt-5.5` | xhigh | `google/antigravity-gemini-3-pro` | Code review, critique |
+| **oracle** | `openai/gpt-5.5` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **metis** | `openai/gpt-5.5` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
+| **momus** | `openai/gpt-5.5` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `openai/gpt-5.3-codex` | xhigh | (none) | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
