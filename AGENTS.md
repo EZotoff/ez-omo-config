@@ -179,7 +179,7 @@ Because this repo IS the live configuration, any change to config files, plugins
 
 ## Provider Setup
 
-- **Built-in providers** (e.g. `google`, `github-copilot`, `opencode-go`): Only need an entry in `enabled_providers` array + API key in `auth.json`. No `npm` or `options.baseURL` needed.
+- **Built-in providers** (e.g. `google`, `opencode-go`): Only need an entry in `enabled_providers` array + API key in `auth.json`. No `npm` or `options.baseURL` needed.
 - **Custom/OpenAI-compatible providers** (e.g. `moonshot`, `kimi-code`, `deepseek`): Need full provider block with `npm: "@ai-sdk/openai-compatible"`, `options.baseURL`, and model definitions.
 - **Auth keys**: Stored in `~/.local/share/opencode/auth.json` under the provider ID. Format: `{ "type": "api", "key": "sk-..." }`. Never commit this file.
 

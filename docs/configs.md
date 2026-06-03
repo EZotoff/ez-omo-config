@@ -240,6 +240,8 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - OMO workflow integrations
 - Extension point configurations
 
+**Notable Model Assignments**: GPT-family routes use the Codex/OpenAI provider (`openai/*`). `agents.multimodal-looker.model` uses `google/gemini-3.5-flash` for image/PDF analysis. Google Antigravity Gemini routes use `google/antigravity-gemini-3-pro` for frontend/artistry work and specialist fallbacks. Both Google models are defined in `opencode.json` under `provider.google.models`. OpenCode Go-backed discovery agents use `opencode-go/minimax-m3`, and the `writing` category keeps `opencode-go/kimi-k2.6` as its OpenCode Go fallback.
+
 ### Prometheus HTML Proposal+Design Packet Contract
 
 The `prometheus` agent is configured via `prompt_append` to produce a human-facing proposal artifact before emitting the executable Markdown plan. This is a **prompt contract**, not runtime infrastructure.
@@ -365,7 +367,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
-| `opencode.json` | Main config: 10 providers, 10 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
+| `opencode.json` | Main config: 9 providers, 10 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `dcp.jsonc` | DCP plugin configuration with bounded range archive retention (local patch) | `$HOME/.config/opencode/dcp.jsonc` | Optional |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
@@ -447,7 +449,7 @@ The following values must **never** appear in any observability event:
 | Full message text | Message ID, role, and token count |
 | Prompt content | Prompt hash or `prompt_sha256` |
 | Model response | Response length in tokens and finish reason |
-| API key | Provider ID only (e.g., `github-copilot`, `moonshot`) |
+| API key | Provider ID only (e.g., `openai`, `moonshot`) |
 | File path with secrets | File name only, or a redaction marker `<redacted>` |
 
 ### Retention Rules

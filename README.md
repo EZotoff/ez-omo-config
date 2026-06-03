@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 12 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 13 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **66 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
@@ -40,13 +40,13 @@ ls -la ~/.opencode/plugin/
 
 After running `./install.sh`, your OpenCode CLI gains:
 
-- **`/models-preset`** — view all 12 agent model assignments at a glance
+- **`/models-preset`** — view all 13 agent model assignments at a glance
 - **`/session-id`** — copy the invoking session ID to clipboard (no LLM round-trip)
 - **`/session-info`** — copy project path, session title, and invoking session ID to clipboard (no LLM round-trip)
 - **Git safety guardrails** — automatic prevention of destructive git operations
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
-- **Runtime fallback** — automatic model switching across 10 providers when APIs fail or rate-limit
+- **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
@@ -251,14 +251,13 @@ cd ez-omo-config
 
 ## Configuration Highlights
 
-### 10 Enabled Providers
+### 9 Enabled Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
-| **Google** | Gemini and Antigravity-hosted models | Gemini 3 Flash, Claude Sonnet/Opus Thinking |
-| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.2, GPT 5.4, GPT 5.3 Codex, GPT 5.1 Codex Max |
-| **OpenCode Go** | Built-in OpenCode Go provider | Minimax M2.7, DeepSeek V4 Flash |
-| **GitHub Copilot** | Claude, GPT, Grok, and Gemini via Copilot | Claude Opus 4.6, Claude Sonnet 4.6, Gemini 3.1 Pro, GPT 5.4, GPT 5.5, GPT 5.3 Codex, Grok Code Fast 1 |
+| **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3 Pro, Gemini 3 Flash, Claude Sonnet/Opus Thinking |
+| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.2, GPT 5.5, GPT 5.4, GPT 5.3 Codex, GPT 5.1 Codex Max |
+| **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
 | **Moonshot** | Kimi models via OpenAI-compatible API | Kimi K2.5 |
 | **Kimi Code** | Kimi coding models via Anthropic-compatible API | Kimi K2.5 (`k2p5`) |
 | **Kimi For Coding (OAuth)** | Kimi K2.6 via device-flow OAuth | Kimi K2.6 (`kimi-for-coding`) |
@@ -270,19 +269,19 @@ cd ez-omo-config
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `github-copilot/claude-sonnet-4.6`, `openai/gpt-5.4`, `github-copilot/gpt-5.4` | Orchestrator with wisdom injection |
-| **prometheus** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `openai/gpt-5.4`, `kimi-for-coding-oauth/kimi-for-coding` | Orchestrator with wisdom injection |
+| **prometheus** | `openai/gpt-5.5` | high | `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
 | **sisyphus** | `openai/gpt-5.5` | high | `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
-| **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `github-copilot/claude-sonnet-4.6` | Category task executor |
-| **librarian** | `opencode-go/minimax-m2.7` | default | (none) | Search, documentation |
-| **explore** | `opencode-go/minimax-m2.7` | default | `github-copilot/grok-code-fast-1` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `github-copilot/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |
+| **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `openai/gpt-5.4` | Category task executor |
+| **librarian** | `opencode-go/minimax-m3` | default | (none) | Search, documentation |
+| **explore** | `opencode-go/minimax-m3` | default | `opencode-go/deepseek-v4-flash` | Discovery, exploration |
+| **frontend-ui-ux-engineer** | `google/antigravity-gemini-3-pro` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |
 | **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5.1` | Writing, documentation |
-| **multimodal-looker** | `github-copilot/gemini-3.1-pro-preview` | default | (none) | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `github-copilot/gemini-3.1-pro-preview` | Q&A, knowledge queries |
-| **metis** | `openai/gpt-5.5` | high | `github-copilot/gpt-5.5`, `github-copilot/claude-sonnet-4.6` | Deep analysis |
-| **momus** | `openai/gpt-5.5` | xhigh | `github-copilot/gpt-5.5`, `github-copilot/gemini-3.1-pro-preview` | Code review, critique |
-| **hephaestus** | `openai/gpt-5.3-codex` | xhigh | `github-copilot/gpt-5.3-codex` | Infrastructure, deployment |
+| **multimodal-looker** | `google/gemini-3.5-flash` | default | (none) | Image/PDF analysis |
+| **oracle** | `openai/gpt-5.5` | high | `google/antigravity-gemini-3-pro` | Q&A, knowledge queries |
+| **metis** | `openai/gpt-5.5` | high | `google/antigravity-gemini-3-pro` | Deep analysis |
+| **momus** | `openai/gpt-5.5` | xhigh | `google/antigravity-gemini-3-pro` | Code review, critique |
+| **hephaestus** | `openai/gpt-5.3-codex` | xhigh | (none) | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
 
