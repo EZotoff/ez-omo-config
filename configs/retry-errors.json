@@ -32,7 +32,7 @@
       "max_retries": 3,
       "backoff_ms": [5000, 15000, 45000],
       "retry_after_tool_execution": false,
-      "description": "GitHub Copilot backend rate throttle — transient capacity issue, not a Google API error",
+      "description": "Provider backend rate throttle — transient capacity issue, not a Google API error",
       "added_by": "sisyphus",
       "added_at": "2026-04-08"
     },
@@ -62,7 +62,7 @@
     },
     {
       "id": "glm-server-error",
-      "pattern": "(?:internal.?server.?error|bad.?gateway|service.?(?:temporarily.?)?unavailable|gateway.?timeout)(?!.*(?:anthropic|openai|claude|copilot))",
+      "pattern": "(?:internal.?server.?error|bad.?gateway|service.?(?:temporarily.?)?unavailable|gateway.?timeout)(?!.*(?:anthropic|openai|claude))",
       "match_type": "regex",
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],

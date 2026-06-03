@@ -3,7 +3,6 @@
     "google",
     "openai",
     "opencode-go",
-    "github-copilot",
     "moonshot",
     "kimi-code",
     "kimi-for-coding-oauth",
@@ -33,194 +32,71 @@
     "reserved": 0
   },
   "provider": {
-    "github-copilot": {
-      "name": "GitHub Copilot",
-      "models": {
-        "claude-opus-4.6": {
-          "name": "Claude Opus 4.6",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 128000
-          },
-          "variants": {
-            "high": {
-              "thinking_budget": 7000
-            },
-            "low": {
-              "thinking_budget": 2000
-            }
-          }
-        },
-        "claude-sonnet-4.6": {
-          "name": "Claude Sonnet 4.6",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 64000
-          },
-          "variants": {
-            "high": {
-              "thinking_budget": 7000
-            },
-            "low": {
-              "thinking_budget": 2000
-            }
-          }
-        },
-        "claude-haiku-4.5": {
-          "name": "Claude Haiku 4.5",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 64000
-          }
-        },
-        "grok-code-fast-1": {
-          "name": "Grok Code Fast 1",
-          "limit": {
-            "context": 128000,
-            "input": 80000,
-            "output": 64000
-          }
-        },
-        "gemini-3.1-pro-preview": {
-          "name": "Gemini 3.1 Pro Preview",
-          "limit": {
-            "context": 1048576,
-            "output": 65535
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image",
-              "pdf"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "low": {},
-            "high": {}
-          }
-        },
-        "gpt-5.4": {
-          "name": "GPT 5.4",
-          "limit": {
-            "context": 400000,
-            "input": 400000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image",
-              "pdf"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "options": {
-            "reasoningEffort": "high"
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "gpt-5.5": {
-          "name": "GPT 5.5",
-          "limit": {
-            "context": 400000,
-            "input": 400000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image",
-              "pdf"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "options": {
-            "reasoningEffort": "high"
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "gpt-5.3-codex": {
-          "name": "GPT 5.3 Codex",
-          "limit": {
-            "context": 400000,
-            "input": 400000,
-            "output": 128000
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "gpt-5.4-mini": {
-          "name": "GPT 5.4 Mini",
-          "limit": {
-            "context": 400000,
-            "input": 400000,
-            "output": 128000
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            }
-          }
-        }
-      }
-    },
     "google": {
       "name": "Google",
       "models": {
+        "gemini-3.5-flash": {
+          "name": "Gemini 3.5 Flash",
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "minimal": {
+              "thinkingLevel": "minimal"
+            },
+            "low": {
+              "thinkingLevel": "low"
+            },
+            "medium": {
+              "thinkingLevel": "medium"
+            },
+            "high": {
+              "thinkingLevel": "high"
+            }
+          }
+        },
+        "antigravity-gemini-3-pro": {
+          "name": "Gemini 3 Pro",
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "minimal": {
+              "thinkingLevel": "minimal"
+            },
+            "low": {
+              "thinkingLevel": "low"
+            },
+            "medium": {
+              "thinkingLevel": "medium"
+            },
+            "high": {
+              "thinkingLevel": "high"
+            }
+          }
+        },
         "antigravity-gemini-3-flash": {
           "name": "Gemini 3 Flash",
           "limit": {
@@ -880,5 +756,5 @@
   },
   "autoupdate": false,
   "$schema": "https://opencode.ai/config.json",
-  "small_model": "github-copilot/claude-sonnet-4.6"
+  "small_model": "openai/gpt-5.3-codex-spark"
 }
