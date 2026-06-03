@@ -21,7 +21,7 @@
       "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "google/antigravity-gemini-3-pro"
+        "google/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
@@ -64,7 +64,7 @@
       "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "google/antigravity-gemini-3-pro"
+        "google/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
@@ -74,7 +74,7 @@
       "model": "openai/gpt-5.5",
       "variant": "xhigh",
       "fallback_models": [
-        "google/antigravity-gemini-3-pro"
+        "google/gemini-3.1-pro-preview"
       ],
       "skills": [
         "wisdom"
@@ -102,11 +102,11 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "google/gemini-3.1-pro-preview",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
       ],
-      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3 Pro for deeper reasoning. Use ui-quick for simple tasks instead."
+      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3.1 Pro Preview for deeper reasoning. Use ui-quick for simple tasks instead."
     },
     "document-writer": {
       "model": "kimi-for-coding-oauth/kimi-for-coding",
@@ -117,7 +117,7 @@
   },
   "categories": {
     "visual-engineering": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "google/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
@@ -132,7 +132,7 @@
       ]
     },
     "artistry": {
-      "model": "google/antigravity-gemini-3-pro",
+      "model": "google/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",

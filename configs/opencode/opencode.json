@@ -66,8 +66,8 @@
             }
           }
         },
-        "antigravity-gemini-3-pro": {
-          "name": "Gemini 3 Pro",
+        "gemini-3.1-pro-preview": {
+          "name": "Gemini 3.1 Pro Preview",
           "limit": {
             "context": 1048576,
             "output": 65536

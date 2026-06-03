@@ -71,10 +71,10 @@ if 'gemini-3.5-flash' not in google_models:
     sys.exit(1)
 print('PASS: provider.google.models.gemini-3.5-flash exists')
 
-if 'antigravity-gemini-3-pro' not in google_models:
-    print('FAIL: provider.google.models.antigravity-gemini-3-pro missing')
+if 'gemini-3.1-pro-preview' not in google_models:
+    print('FAIL: provider.google.models.gemini-3.1-pro-preview missing')
     sys.exit(1)
-print('PASS: provider.google.models.antigravity-gemini-3-pro exists')
+print('PASS: provider.google.models.gemini-3.1-pro-preview exists')
 
 plugins = data.get('plugin', [])
 if not any('opencode-openai-codex-auth' in str(p) for p in plugins):
@@ -101,9 +101,9 @@ expected_category_models = {
 
 expected_gemini_routes = {
     ('agents', 'multimodal-looker'): 'google/gemini-3.5-flash',
-    ('agents', 'frontend-ui-ux-engineer'): 'google/antigravity-gemini-3-pro',
-    ('categories', 'visual-engineering'): 'google/antigravity-gemini-3-pro',
-    ('categories', 'artistry'): 'google/antigravity-gemini-3-pro',
+    ('agents', 'frontend-ui-ux-engineer'): 'google/gemini-3.1-pro-preview',
+    ('categories', 'visual-engineering'): 'google/gemini-3.1-pro-preview',
+    ('categories', 'artistry'): 'google/gemini-3.1-pro-preview',
 }
 
 expected_opencode_go_routes = {
@@ -122,10 +122,10 @@ print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
     'sisyphus': ['kimi-for-coding-oauth/kimi-for-coding'],
-    'oracle': ['google/antigravity-gemini-3-pro'],
+    'oracle': ['google/gemini-3.1-pro-preview'],
     'prometheus': ['zai-coding-plan/glm-5.1'],
-    'metis': ['google/antigravity-gemini-3-pro'],
-    'momus': ['google/antigravity-gemini-3-pro'],
+    'metis': ['google/gemini-3.1-pro-preview'],
+    'momus': ['google/gemini-3.1-pro-preview'],
 }
 
 for name, expected in expected_agent_models.items():
@@ -210,7 +210,7 @@ print('PASS: aspectDynamics dream agent GPT route prefers openai')
     exit 1
 }
 
-TESTS_PASSED=13
+TESTS_PASSED=14
 TESTS_FAILED=0
 
 echo ""
