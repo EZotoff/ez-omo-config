@@ -240,7 +240,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - OMO workflow integrations
 - Extension point configurations
 
-**Notable Model Assignments**: GPT-family routes use the Codex/OpenAI provider (`openai/*`). `agents.multimodal-looker.model` uses `google/gemini-3.5-flash` for image/PDF analysis. Google Antigravity Gemini routes use `google/antigravity-gemini-3-pro` for frontend/artistry work and specialist fallbacks. Both Google models are defined in `opencode.json` under `provider.google.models`. OpenCode Go-backed discovery agents use `opencode-go/minimax-m3`, and the `writing` category keeps `opencode-go/kimi-k2.6` as its OpenCode Go fallback.
+**Notable Model Assignments**: GPT-family routes use the Codex/OpenAI provider (`openai/*`). `agents.multimodal-looker.model` uses `google/gemini-3.5-flash` for image/PDF analysis. Direct Google Gemini Pro preview routes use `google/gemini-3.1-pro-preview` for frontend/artistry work and specialist fallbacks. Both Google models are defined in `opencode.json` under `provider.google.models`. OpenCode Go-backed discovery agents use `opencode-go/minimax-m3`, and the `writing` category keeps `opencode-go/kimi-k2.6` as its OpenCode Go fallback.
 
 ### Prometheus HTML Proposal+Design Packet Contract
 
