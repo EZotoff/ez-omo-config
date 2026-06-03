@@ -40,7 +40,7 @@ ls -la ~/.opencode/plugin/
 
 After running `./install.sh`, your OpenCode CLI gains:
 
-- **`/models-preset`** — view all 13 agent model assignments at a glance
+- **`/models-preset`** — view all 13 agent model assignments, category presets, compaction model, and small model at a glance
 - **`/session-id`** — copy the invoking session ID to clipboard (no LLM round-trip)
 - **`/session-info`** — copy project path, session title, and invoking session ID to clipboard (no LLM round-trip)
 - **Git safety guardrails** — automatic prevention of destructive git operations
@@ -80,7 +80,7 @@ This repository contains 66 core artifacts + 1 external integration organized in
 
 | # | Artifact | Path | Purpose |
 |---|----------|------|---------|
-| 1 | `models-preset.md` | `commands/` | Slash command for showing current OMO model assignments |
+| 1 | `models-preset.md` | `commands/` | Slash command for showing current OMO model assignments plus compaction and small-model settings |
 | 1b | `vscode.md` | `commands/` | VS Code launcher command stub (handled by plugin) |
 | 1c | `session-id.md` | `commands/` | Session ID clipboard command stub (handled by plugin) |
 | 1d | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |

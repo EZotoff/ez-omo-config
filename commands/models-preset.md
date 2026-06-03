@@ -7,7 +7,7 @@ Read these files and do not modify them:
 1. `~/.config/opencode/oh-my-openagent.json`
 2. `~/.config/opencode/opencode.json`
 
-If both files and required keys are present, output exactly three markdown tables, in this order:
+If both files and required keys are present, output exactly four markdown tables, in this order:
 
 ## Agents
 
@@ -52,6 +52,18 @@ Use columns:
 | Compaction | ... |
 
 - Output exactly one row for compaction.
+
+## Small Model
+
+Read the model from `small_model` in `~/.config/opencode/opencode.json`.
+
+Use columns:
+
+| Setting | Model |
+| ------- | ----- |
+| Small Model | ... |
+
+- Output exactly one row for the small model.
 
 Requirements:
 
