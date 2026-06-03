@@ -44,6 +44,7 @@ const HEALTH_CHECK_INTERVAL_MS = 60 * 1000
 const KILL_WAIT_SECONDS = 5
 const MAX_RESTART_ATTEMPTS = 3
 const RESTART_WINDOW_MS = 10 * 60 * 1000
+const SESSION_ID_LIMIT = 50
 const watcherStateWriteLocks = new Set<string>()
 const healthCheckTimers = new Map<string, ReturnType<typeof setInterval>>()
 
@@ -350,8 +351,8 @@ function startVeraWatch(workspacePath: string): { pid: number } | null {
 		log("info", `[${workspacePath}] vera watch . starting`)
 		const proc = Bun.spawn(["vera", "watch", workspacePath], {
 			cwd: workspacePath,
-			stdout: "inherit",
-			stderr: "inherit",
+			stdout: "pipe",
+			stderr: "pipe",
 		})
 		const pid = proc.pid
 		if (!pid) {
@@ -449,6 +450,13 @@ function performSafeRestart(workspacePath: string, state: VeraWatcherState): boo
 	return true
 }
 
+function pruneStaleSessionIds(state: VeraWatcherState): void {
+	if (state.sessionIds.length <= SESSION_ID_LIMIT) return
+	const pruned = state.sessionIds.length - SESSION_ID_LIMIT
+	state.sessionIds = state.sessionIds.slice(pruned)
+	log("info", `Pruned ${pruned} stale session IDs (limit=${SESSION_ID_LIMIT})`)
+}
+
 function handleSessionCreatedEvent(directory: string, event: unknown): Promise<void> | void {
 	const sessionId = extractSessionId(event)
 	if (!sessionId) {
@@ -460,6 +468,8 @@ function handleSessionCreatedEvent(directory: string, event: unknown): Promise<v
 		if (!state) {
 			state = createInitialState(directory)
 		}
+
+		pruneStaleSessionIds(state)
 
 		if (sessionId && !state.sessionIds.includes(sessionId)) {
 			state.sessionIds.push(sessionId)
@@ -760,6 +770,8 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 			if (state.sessionIds.length === 0) return
 			if (!state.pid) return
 
+			pruneStaleSessionIds(state)
+
 			const alive = isPidAlive(state.pid)
 			const owned = alive ? validatePidOwnership(state.pid, directory) : false
 			if (alive && owned) {
@@ -787,7 +799,6 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 		// =============================================================
 		event: async (input: { event: any }) => {
 			const { event } = input
-			log("info", `[${directory}] event hook invoked`)
 
 			try {
 				if (event.type === "session.created") {
