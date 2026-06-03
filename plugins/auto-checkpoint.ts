@@ -46,7 +46,7 @@ const CONFIG = {
 		helperPollIntervalMs: 1_000,
 		proposalMaxDiffBytes: 120_000,
 		maxCandidateFiles: 40,
-		model: "github-copilot/gpt-5.4-mini",
+		model: "openai/gpt-5.3-codex-spark",
 	},
 } as const
 

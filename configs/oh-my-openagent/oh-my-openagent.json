@@ -3,30 +3,25 @@
   "agents": {
     "sisyphus": {
       "model": "openai/gpt-5.5",
-      "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "skills": [
         "wisdom",
-        "vera",
-        "vera-hygiene"
+        "vera"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.",
+      "variant": "high"
     },
     "hephaestus": {
       "model": "openai/gpt-5.3-codex",
-      "variant": "xhigh",
-      "fallback_models": [
-        "github-copilot/gpt-5.3-codex"
-      ]
+      "variant": "xhigh"
     },
     "oracle": {
       "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/gpt-5.5",
-        "github-copilot/gemini-3.1-pro-preview"
+        "google/antigravity-gemini-3-pro"
       ],
       "skills": [
         "wisdom"
@@ -34,47 +29,42 @@
       "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "librarian": {
-      "model": "opencode-go/minimax-m2.7",
+      "model": "opencode-go/minimax-m3",
       "skills": [
-        "vera",
-        "vera-hygiene"
+        "vera"
       ],
-      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill."
+      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "explore": {
-      "model": "opencode-go/minimax-m2.7",
+      "model": "opencode-go/minimax-m3",
       "fallback_models": [
-        "github-copilot/grok-code-fast-1"
+        "opencode-go/deepseek-v4-flash"
       ],
       "skills": [
-        "vera",
-        "vera-hygiene"
+        "vera"
       ],
-      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill."
+      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
     },
     "multimodal-looker": {
-      "model": "github-copilot/gemini-3.1-pro-preview"
+      "model": "google/gemini-3.5-flash"
     },
     "prometheus": {
       "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/gpt-5.5",
         "zai-coding-plan/glm-5.1"
       ],
       "skills": [
         "wisdom",
-        "vera",
-        "vera-hygiene"
+        "vera"
       ],
-      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nBefore root-indexing a large or external project, or whenever Vera indexing fails with permission errors, zero files/chunks, or watcher issues, use the `vera-hygiene` skill.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\nHTML Proposal+Design Packet contract:\n- For Standard or Architecture planning work, before writing any executable `.sisyphus/plans/*.md` plan, create a human-facing HTML Proposal+Design Packet by default at `.sisyphus/drafts/<topic-slug>-proposal.html`.\n- The packet must be lean and design-informed: objective, user-visible outcome, non-goals, chosen implementation slice, design assumptions, risks, and a checkpoint question.\n- The packet must include a Goal Coverage Map showing how the proposed implementation slice advances the high-level goal using the labels FULL, PARTIAL, DEFERRED, and DELTA.\n- Workflow is autonomous by default: make reasonable planning/design judgments, ask only when a user decision materially changes scope or acceptance criteria, and avoid mandatory multi-stage approval bureaucracy.\n- The checkpoint happens before writing the executable Markdown plan. If proceeding by default because no blocking decision exists, record the assumption in the plan.\n- `.sisyphus/plans/*.md` remains the canonical execution source for Atlas/Sisyphus. HTML packets are human-facing rationale/review artifacts; agents may read them for context but must execute the Markdown plan checklist.\n- If the current mode or tool constraints cannot create `.html`, write a same-content Markdown fallback under `.sisyphus/drafts/*.md`, state that HTML is pending or unsupported, and preserve the same Goal Coverage Map and checkpoint content.\n- Do not introduce reusable HTML template, CSS asset, renderer, or generator infrastructure unless a separate approved plan explicitly authorizes it."
+      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "metis": {
       "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/gpt-5.5",
-        "github-copilot/claude-sonnet-4.6"
+        "google/antigravity-gemini-3-pro"
       ],
       "skills": [
         "wisdom"
@@ -84,8 +74,7 @@
       "model": "openai/gpt-5.5",
       "variant": "xhigh",
       "fallback_models": [
-        "github-copilot/gpt-5.5",
-        "github-copilot/gemini-3.1-pro-preview"
+        "google/antigravity-gemini-3-pro"
       ],
       "skills": [
         "wisdom"
@@ -94,27 +83,26 @@
     "atlas": {
       "model": "kimi-for-coding-oauth/kimi-for-coding",
       "fallback_models": [
-        "github-copilot/claude-sonnet-4.6",
         "openai/gpt-5.4",
-        "github-copilot/gpt-5.4"
+        "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "sisyphus-junior": {
       "model": "zai-coding-plan/glm-5.1",
       "fallback_models": [
-        "github-copilot/claude-sonnet-4.6"
+        "openai/gpt-5.4"
       ],
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "github-copilot/gemini-3.1-pro-preview",
+      "model": "google/antigravity-gemini-3-pro",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
       ],
@@ -129,7 +117,7 @@
   },
   "categories": {
     "visual-engineering": {
-      "model": "github-copilot/gemini-3.1-pro-preview",
+      "model": "google/antigravity-gemini-3-pro",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.1"
@@ -140,46 +128,41 @@
       "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
-        "github-copilot/gpt-5.5",
         "zai-coding-plan/glm-5.1"
       ]
     },
     "artistry": {
-      "model": "github-copilot/gemini-3.1-pro-preview",
+      "model": "google/antigravity-gemini-3-pro",
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
-        "openai/gpt-5.4",
-        "github-copilot/gpt-5.4"
+        "openai/gpt-5.4"
       ]
     },
     "quick": {
       "model": "openai/gpt-5.3-codex-spark",
-      "variant": "medium",
       "fallback_models": [
-        "github-copilot/gpt-5.3-codex",
         "deepseek/deepseek-chat"
-      ]
+      ],
+      "variant": "medium"
     },
     "unspecified-low": {
       "model": "openai/gpt-5.3-codex-spark",
-      "variant": "medium",
       "fallback_models": [
-        "github-copilot/gpt-5.3-codex",
         "deepseek/deepseek-chat"
-      ]
+      ],
+      "variant": "medium"
     },
     "unspecified-high": {
       "model": "openai/gpt-5.4",
       "fallback_models": [
-        "github-copilot/gpt-5.4",
         "kimi-for-coding-oauth/kimi-for-coding"
       ]
     },
     "writing": {
       "model": "kimi-for-coding-oauth/kimi-for-coding",
       "fallback_models": [
-        "opencode-go/kimi-k2.5"
+        "opencode-go/kimi-k2.6"
       ]
     },
     "deep": {
@@ -187,24 +170,24 @@
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
-        "github-copilot/gpt-5.3-codex",
-        "github-copilot/gpt-5.4"
+        "openai/gpt-5.4"
       ]
     },
     "mephistopheles": {
       "model": "openai/gpt-5.5",
-      "variant": "high",
       "fallback_models": [
-        "github-copilot/gpt-5.5",
-        "kimi-for-coding-oauth/kimi-for-coding",
-        "github-copilot/claude-sonnet-4.6"
+        "openai/gpt-5.4",
+        "kimi-for-coding-oauth/kimi-for-coding"
       ],
-      "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless — you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly."
+      "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless \u2014 you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly.",
+      "variant": "high"
     }
   },
   "google_auth": false,
   "auto_update": false,
-  "disabled_hooks": ["auto-update-checker"],
+  "disabled_hooks": [
+    "auto-update-checker"
+  ],
   "browser_automation_engine": {
     "provider": "agent-browser"
   },
@@ -220,7 +203,9 @@
     ]
   },
   "aspectDynamics": {
-    "activeSets": ["emotions-v2"],
+    "activeSets": [
+      "emotions-v1"
+    ],
     "heuristicPreFilter": true,
     "contextWindowTurns": 10,
     "scoringModel": {

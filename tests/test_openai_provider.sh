@@ -8,8 +8,9 @@
 #   - provider.openai exists and is labeled Codex
 #   - provider.openai exists with expected models
 #   - opencode-openai-codex-auth plugin entry exists
-#   - OMO GPT-heavy agents/categories prefer openai models with GitHub Copilot fallbacks
-#   - quick/unspecified-low prefer Spark over DeepSeek and Gemini regressions point back to GitHub Copilot Gemini 3.1 Pro Preview
+#   - retired provider routes are absent from active config
+#   - OMO GPT-heavy agents/categories use openai models
+#   - quick/unspecified-low prefer Spark, Google routes resolve, and OpenCode Go routes use current model IDs
 
 set -u
 
@@ -38,6 +39,15 @@ if 'openai' not in enabled:
     sys.exit(1)
 print('PASS: openai in enabled_providers')
 
+retired_provider = 'github' + '-' + ''.join(['co', 'pi', 'lot'])
+if retired_provider in enabled:
+    print('FAIL: retired provider still present in enabled_providers')
+    sys.exit(1)
+if retired_provider in data.get('provider', {}):
+    print('FAIL: retired provider catalog still present')
+    sys.exit(1)
+print('PASS: retired provider absent from enabled provider list and provider catalog')
+
 provider = data.get('provider', {})
 if 'openai' not in provider:
     print('FAIL: provider.openai missing')
@@ -54,6 +64,17 @@ if missing:
     print(f'FAIL: missing expected models: {missing}')
     sys.exit(1)
 print(f'PASS: all expected models present ({len(expected_models)})')
+
+google_models = provider.get('google', {}).get('models', {})
+if 'gemini-3.5-flash' not in google_models:
+    print('FAIL: provider.google.models.gemini-3.5-flash missing')
+    sys.exit(1)
+print('PASS: provider.google.models.gemini-3.5-flash exists')
+
+if 'antigravity-gemini-3-pro' not in google_models:
+    print('FAIL: provider.google.models.antigravity-gemini-3-pro missing')
+    sys.exit(1)
+print('PASS: provider.google.models.antigravity-gemini-3-pro exists')
 
 plugins = data.get('plugin', [])
 if not any('opencode-openai-codex-auth' in str(p) for p in plugins):
@@ -79,38 +100,64 @@ expected_category_models = {
 }
 
 expected_gemini_routes = {
-    ('agents', 'multimodal-looker'): 'github-copilot/gemini-3.1-pro-preview',
-    ('agents', 'frontend-ui-ux-engineer'): 'github-copilot/gemini-3.1-pro-preview',
-    ('categories', 'visual-engineering'): 'github-copilot/gemini-3.1-pro-preview',
-    ('categories', 'artistry'): 'github-copilot/gemini-3.1-pro-preview',
+    ('agents', 'multimodal-looker'): 'google/gemini-3.5-flash',
+    ('agents', 'frontend-ui-ux-engineer'): 'google/antigravity-gemini-3-pro',
+    ('categories', 'visual-engineering'): 'google/antigravity-gemini-3-pro',
+    ('categories', 'artistry'): 'google/antigravity-gemini-3-pro',
+}
+
+expected_opencode_go_routes = {
+    ('agents', 'librarian'): 'opencode-go/minimax-m3',
+    ('agents', 'explore'): 'opencode-go/minimax-m3',
+    ('categories', 'writing'): 'opencode-go/kimi-k2.6',
 }
 
 agents = omo.get('agents', {})
 categories = omo.get('categories', {})
+
+if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
+    print('FAIL: retired provider string remains in active JSON config')
+    sys.exit(1)
+print('PASS: retired provider string absent from active JSON config')
+
+expected_agent_fallbacks = {
+    'sisyphus': ['kimi-for-coding-oauth/kimi-for-coding'],
+    'oracle': ['google/antigravity-gemini-3-pro'],
+    'prometheus': ['zai-coding-plan/glm-5.1'],
+    'metis': ['google/antigravity-gemini-3-pro'],
+    'momus': ['google/antigravity-gemini-3-pro'],
+}
+
 for name, expected in expected_agent_models.items():
     actual = agents.get(name, {}).get('model')
     if actual != expected:
         print(f'FAIL: agents.{name}.model expected {expected!r}, got {actual!r}')
         sys.exit(1)
-    fallbacks = agents.get(name, {}).get('fallback_models', [])
-    if name == 'sisyphus':
-        if fallbacks != ['kimi-for-coding-oauth/kimi-for-coding']:
-            print(f'FAIL: agents.sisyphus.fallback_models has unexpected value: {fallbacks!r}')
+    if name in expected_agent_fallbacks:
+        fallbacks = agents.get(name, {}).get('fallback_models', [])
+        if fallbacks != expected_agent_fallbacks[name]:
+            print(f'FAIL: agents.{name}.fallback_models expected {expected_agent_fallbacks[name]!r}, got {fallbacks!r}')
             sys.exit(1)
-        continue
-    if not any(str(model).startswith('github-copilot/gpt-') for model in fallbacks):
-        print(f'FAIL: agents.{name}.fallback_models lacks GitHub Copilot GPT fallback')
-        sys.exit(1)
+
+expected_category_fallbacks = {
+    'ultrabrain': ['zai-coding-plan/glm-5.1'],
+    'deep': ['kimi-for-coding-oauth/kimi-for-coding', 'openai/gpt-5.4'],
+    'quick': ['deepseek/deepseek-chat'],
+    'unspecified-low': ['deepseek/deepseek-chat'],
+    'unspecified-high': ['kimi-for-coding-oauth/kimi-for-coding'],
+    'mephistopheles': ['openai/gpt-5.4', 'kimi-for-coding-oauth/kimi-for-coding'],
+}
+
 for name, expected in expected_category_models.items():
     actual = categories.get(name, {}).get('model')
     if actual != expected:
         print(f'FAIL: categories.{name}.model expected {expected!r}, got {actual!r}')
         sys.exit(1)
     fallbacks = categories.get(name, {}).get('fallback_models', [])
-    if not any(str(model).startswith('github-copilot/gpt-') for model in fallbacks):
-        print(f'FAIL: categories.{name}.fallback_models lacks GitHub Copilot GPT fallback')
+    if fallbacks != expected_category_fallbacks[name]:
+        print(f'FAIL: categories.{name}.fallback_models expected {expected_category_fallbacks[name]!r}, got {fallbacks!r}')
         sys.exit(1)
-print('PASS: OMO GPT-heavy routes prefer openai with GitHub Copilot fallbacks')
+print('PASS: OMO GPT-heavy routes use openai without retired-provider fallbacks')
 
 for name in ('quick', 'unspecified-low'):
     route = categories.get(name, {})
@@ -118,10 +165,10 @@ for name in ('quick', 'unspecified-low'):
         print(f'FAIL: categories.{name}.variant expected \'medium\', got {route.get("variant")!r}')
         sys.exit(1)
     fallbacks = route.get('fallback_models', [])
-    if 'github-copilot/gpt-5.3-codex' not in fallbacks:
-        print(f'FAIL: categories.{name}.fallback_models missing github-copilot/gpt-5.3-codex')
+    if fallbacks != ['deepseek/deepseek-chat']:
+        print(f'FAIL: categories.{name}.fallback_models expected deepseek fallback, got {fallbacks!r}')
         sys.exit(1)
-print('PASS: quick and unspecified-low prefer Spark with Codex fallback')
+print('PASS: quick and unspecified-low prefer Spark with non-retired fallback')
 
 for (scope, name), expected in expected_gemini_routes.items():
     actual = (agents if scope == 'agents' else categories).get(name, {}).get('model')
@@ -129,15 +176,18 @@ for (scope, name), expected in expected_gemini_routes.items():
         print(f'FAIL: {scope}.{name}.model expected {expected!r}, got {actual!r}')
         sys.exit(1)
 
-for name in ('oracle', 'momus'):
-    fallbacks = agents.get(name, {}).get('fallback_models', [])
-    if 'github-copilot/gemini-3.1-pro-preview' not in fallbacks:
-        print(f'FAIL: agents.{name}.fallback_models missing github-copilot/gemini-3.1-pro-preview')
+print('PASS: Gemini routes use expected Google providers')
+
+for (scope, name), expected in expected_opencode_go_routes.items():
+    route = (agents if scope == 'agents' else categories).get(name, {})
+    actual = route.get('model') if scope == 'agents' else route.get('fallback_models', [None])[0]
+    if actual != expected:
+        print(f'FAIL: {scope}.{name} expected OpenCode Go route {expected!r}, got {actual!r}')
         sys.exit(1)
-print('PASS: Gemini 3.1 Pro Preview routes restored to GitHub Copilot')
+print('PASS: OpenCode Go routes use current Minimax and Kimi models')
 
 unspecified_high = categories.get('unspecified-high', {})
-if unspecified_high.get('fallback_models') != ['github-copilot/gpt-5.4', 'kimi-for-coding-oauth/kimi-for-coding']:
+if unspecified_high.get('fallback_models') != ['kimi-for-coding-oauth/kimi-for-coding']:
     print(f'FAIL: categories.unspecified-high.fallback_models has unexpected order: {unspecified_high.get("fallback_models")!r}')
     sys.exit(1)
 
@@ -145,8 +195,8 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if 'github-copilot/gpt-5.5' not in meph.get('fallback_models', []):
-    print('FAIL: categories.mephistopheles.fallback_models missing github-copilot/gpt-5.5')
+if meph.get('fallback_models') != ['openai/gpt-5.4', 'kimi-for-coding-oauth/kimi-for-coding']:
+    print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')
 
@@ -160,7 +210,7 @@ print('PASS: aspectDynamics dream agent GPT route prefers openai')
     exit 1
 }
 
-TESTS_PASSED=8
+TESTS_PASSED=13
 TESTS_FAILED=0
 
 echo ""
