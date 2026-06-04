@@ -25,6 +25,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 - `enabled_providers` — Enabled provider IDs
 - `plugin` — Loaded plugins and local config-layer modules
 - `agent` — Agent-specific runtime settings such as the compaction model
+- `small_model` — Lightweight model used by built-in OpenCode helper agents, including automatic session title generation
 - `provider` — Provider definitions, model catalogs, endpoints, and options
 - `compaction` / `experimental` — Compaction behavior and feature flags
 

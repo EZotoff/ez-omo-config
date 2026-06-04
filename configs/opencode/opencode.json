@@ -756,5 +756,5 @@
   },
   "autoupdate": false,
   "$schema": "https://opencode.ai/config.json",
-  "small_model": "openai/gpt-5.3-codex-spark"
+  "small_model": "opencode-go/deepseek-v4-flash"
 }
