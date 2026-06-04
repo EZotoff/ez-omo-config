@@ -9,8 +9,8 @@
   //   commands.protectedTools: ["task","todowrite","todoread","skill"]  (now: [])
   //   turnProtection: { enabled: true, turns: 3 }   (now: disabled)
   //   protectedFilePatterns: ["AGENTS.md","*.config.*","*.jsonc","oh-my-openagent.json"]  (now: [])
-  //   compress.maxContextLimit: "55%"          (now: 100000)
-  //   compress.minContextLimit: "30%"          (now: 50000)
+  //   compress.maxContextLimit: "55%"          (restored)
+  //   compress.minContextLimit: "30%"          (restored)
   //   compress.nudgeFrequency: 10             (now: 5)
   //   compress.nudgeForce: "strong"           (now: "soft")
   //   compress.protectUserMessages: true       (now: false)
@@ -48,8 +48,8 @@
     "permission": "allow",
     "showCompression": false,
     "summaryBuffer": true,
-    "maxContextLimit": 100000,
-    "minContextLimit": 50000,
+    "maxContextLimit": "55%",
+    "minContextLimit": "30%",
     "nudgeFrequency": 5,
     "iterationNudgeThreshold": 15,
     "nudgeForce": "soft",

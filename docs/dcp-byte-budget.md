@@ -46,7 +46,7 @@ When `maxPayloadBytes > hardLimitBytes`, the gate silently caps it to `safeClamp
 |---------|----------|
 | `compress.maxArchivedSummaryTokens` (1,200) | Controls per-summary token budget for bounded-range archive mode. Independent of byte-budget — archived summaries still pass through `measureMessagePayloadBytes`. |
 | `compress.retentionMode: "bounded"` | Archive mode that removes raw messages from the prompt path. Works alongside byte-budget to manage both structured archive size and total payload size. |
-| `compress.maxContextLimit` / `compress.minContextLimit` | Token-level limits for DCP range compression. Byte-budget operates at the byte level and is orthogonal to token limits. |
+| `compress.maxContextLimit` / `compress.minContextLimit` | Relative token thresholds for DCP range compression (`55%` / `30%` of the active model context window). Byte-budget operates at the byte level and is orthogonal to token limits. |
 
 ---
 

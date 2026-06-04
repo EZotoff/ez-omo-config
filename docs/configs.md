@@ -74,12 +74,12 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 |-------|------|-------------|
 | `compress.mode` | string | Always `"range"`. Enables range-based compression where contiguous blocks of old conversation turns are summarized. |
 | `compress.retentionMode` | string | `"reversible"` or `"bounded"`. Controls what happens to archived raw turns after compression. |
-| `compress.maxArchivedSummaryTokens` | integer | Maximum tokens allowed for all archived summaries combined. Only enforced when `retentionMode` is `"bounded"`. |
+| `compress.maxArchivedSummaryTokens` | integer | Maximum tokens allowed per archived summary. Only enforced when `retentionMode` is `"bounded"`. |
 
 **Retention Modes**:
 
 - **`reversible`** (default upstream behavior): Old raw turns are hidden from the default prompt path but kept in session storage. They can be restored later via `decompress` or `recompress` commands.
-- **`bounded`** (local patched behavior): Old raw turns are archived out of the default prompt path and a hard token cap is enforced on the total size of all archived summaries. The `maxArchivedSummaryTokens` budget is enforced per-summary via hard text truncation; if a summary exceeds the budget its text is clipped and a tail marker is appended. The `decompress` and `recompress` commands reject bounded archive blocks, so archived content cannot be restored. This keeps long-running sessions from growing without limit.
+- **`bounded`** (local patched behavior): Old raw turns are archived out of the default prompt path and a hard token cap is enforced on each archived summary. The `maxArchivedSummaryTokens` budget is enforced per-summary via hard text truncation; if a summary exceeds the budget its text is clipped and a tail marker is appended. The `decompress` and `recompress` commands reject bounded archive blocks, so archived content cannot be restored. This keeps long-running sessions from growing without limit.
 
 **Local Patch Note**:
 
