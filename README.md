@@ -67,7 +67,7 @@ This repository contains 66 core artifacts + 1 external integration organized in
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
-| 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, Vera runtime supervision, and semantic checkpointing |
+| 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, manual-by-default Vera runtime state, and semantic checkpointing |
 | 12-22 | **Skills** | 11 directories | Specialized agent skills for testing, deployment, UX, parallel development, Vera hygiene, and safe update pipelines |
 | 22-31 | **Scripts** | 24 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
 | 32 | **Tests** | 22 test scripts | Regression tests for config, DCP, plugin, and update pipeline verification |
@@ -99,7 +99,7 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
 | 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id, no LLM round-trip) |
 | 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
-| 11e | `vera-runtime.ts` | `plugins/` | Vera watcher supervision plugin (automated index lifecycle, fail-open) |
+| 11e | `vera-runtime.ts` | `plugins/` | Vera runtime state plugin (manual-by-default index lifecycle, opt-in watcher automation, fail-open) |
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
@@ -123,8 +123,8 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 30 | `worktree-coordinator/` | `skills/` | Worktree parallel development guide |
 | 30a | `vera-hygiene/` | `skills/` | Vera index hygiene skill — `.veraignore` management and pre-indexing cleanup |
 | 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
-| 31 | `worktree-post-create.sh` | `scripts/worktree/` | State creation, port allocation, Docker start, Vera bootstrap. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
-| 32 | `worktree-pre-delete.sh` | `scripts/worktree/` | Container stop, port free, state cleanup, Vera watcher cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
+| 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, Docker start, and manual-by-default Vera state recording. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
+| 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, state cleanup, and Vera watcher cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
 | 32a | `vera-hygiene.sh` | `scripts/` | Vera hygiene script — detects unreadable dirs, heavy artifacts, and updates `.veraignore`. Install: `$HOME/.sisyphus/scripts/vera-hygiene.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
 | 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
@@ -261,7 +261,7 @@ cd ez-omo-config
 | **Moonshot** | Kimi models via OpenAI-compatible API | Kimi K2.5 |
 | **Kimi Code** | Kimi coding models via Anthropic-compatible API | Kimi K2.5 (`k2p5`) |
 | **Kimi For Coding (OAuth)** | Kimi K2.6 via device-flow OAuth | Kimi K2.6 (`kimi-for-coding`) |
-| **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1 |
+| **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1, GLM 5.2 |
 | **DeepSeek** | DeepSeek V3.2 | DeepSeek Chat, DeepSeek Reasoner |
 | **Inception Labs** | Mercury models | Mercury 2 |
 
@@ -269,10 +269,10 @@ cd ez-omo-config
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `openai/gpt-5.4`, `kimi-for-coding-oauth/kimi-for-coding` | Orchestrator with wisdom injection |
-| **prometheus** | `openai/gpt-5.5` | high | `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
-| **sisyphus** | `openai/gpt-5.5` | high | `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
-| **sisyphus-junior** | `zai-coding-plan/glm-5.1` | default | `openai/gpt-5.4` | Category task executor |
+| **atlas** | `kimi-for-coding-oauth/kimi-for-coding` | default | `openai/gpt-5.4` | Orchestrator with wisdom injection |
+| **prometheus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.5`, `zai-coding-plan/glm-5.1` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **sisyphus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.5`, `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
+| **sisyphus-junior** | `zai-coding-plan/glm-5.2` | default | `openai/gpt-5.4` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | (none) | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `opencode-go/deepseek-v4-flash` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `google/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5.1` | Complex frontend work |

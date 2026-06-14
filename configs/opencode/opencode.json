@@ -664,6 +664,35 @@
               "thinking_budget": 32768
             }
           }
+        },
+        "glm-5.2": {
+          "name": "GLM 5.2",
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "thinking_budget": 4096
+            },
+            "medium": {
+              "thinking_budget": 8192
+            },
+            "high": {
+              "thinking_budget": 16384
+            },
+            "max": {
+              "thinking_budget": 32768
+            }
+          }
         }
       }
     },

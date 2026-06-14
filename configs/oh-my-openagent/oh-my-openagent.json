@@ -2,8 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-openagent.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "openai/gpt-5.5",
+      "model": "zai-coding-plan/glm-5.2",
       "fallback_models": [
+        "openai/gpt-5.5",
         "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "skills": [
@@ -49,9 +50,10 @@
       "model": "google/gemini-3.5-flash"
     },
     "prometheus": {
-      "model": "openai/gpt-5.5",
+      "model": "zai-coding-plan/glm-5.2",
       "variant": "high",
       "fallback_models": [
+        "openai/gpt-5.5",
         "zai-coding-plan/glm-5.1"
       ],
       "skills": [
@@ -83,8 +85,7 @@
     "atlas": {
       "model": "kimi-for-coding-oauth/kimi-for-coding",
       "fallback_models": [
-        "openai/gpt-5.4",
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "openai/gpt-5.4"
       ],
       "skills": [
         "wisdom"
@@ -92,7 +93,7 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "sisyphus-junior": {
-      "model": "zai-coding-plan/glm-5.1",
+      "model": "zai-coding-plan/glm-5.2",
       "fallback_models": [
         "openai/gpt-5.4"
       ],
@@ -142,14 +143,14 @@
     "quick": {
       "model": "openai/gpt-5.3-codex-spark",
       "fallback_models": [
-        "deepseek/deepseek-chat"
+        "opencode-go/deepseek-v4-flash"
       ],
       "variant": "medium"
     },
     "unspecified-low": {
       "model": "openai/gpt-5.3-codex-spark",
       "fallback_models": [
-        "deepseek/deepseek-chat"
+        "opencode-go/deepseek-v4-flash"
       ],
       "variant": "medium"
     },
@@ -169,8 +170,8 @@
       "model": "openai/gpt-5.3-codex",
       "variant": "high",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding",
-        "openai/gpt-5.4"
+        "openai/gpt-5.4",
+        "kimi-for-coding-oauth/kimi-for-coding"
       ]
     },
     "mephistopheles": {
@@ -185,6 +186,12 @@
   },
   "google_auth": false,
   "auto_update": false,
+  "team_mode": {
+    "enabled": true
+  },
+  "default_mode": {
+    "ultrawork": true
+  },
   "disabled_hooks": [
     "auto-update-checker"
   ],

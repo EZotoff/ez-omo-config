@@ -83,10 +83,10 @@ if not any('opencode-openai-codex-auth' in str(p) for p in plugins):
 print('PASS: opencode-openai-codex-auth plugin entry exists')
 
 expected_agent_models = {
-    'sisyphus': 'openai/gpt-5.5',
+    'sisyphus': 'zai-coding-plan/glm-5.2',
     'hephaestus': 'openai/gpt-5.3-codex',
     'oracle': 'openai/gpt-5.5',
-    'prometheus': 'openai/gpt-5.5',
+    'prometheus': 'zai-coding-plan/glm-5.2',
     'metis': 'openai/gpt-5.5',
     'momus': 'openai/gpt-5.5',
 }
@@ -121,9 +121,9 @@ if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
 print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
-    'sisyphus': ['kimi-for-coding-oauth/kimi-for-coding'],
+    'sisyphus': ['openai/gpt-5.5', 'kimi-for-coding-oauth/kimi-for-coding'],
     'oracle': ['google/gemini-3.1-pro-preview'],
-    'prometheus': ['zai-coding-plan/glm-5.1'],
+    'prometheus': ['openai/gpt-5.5', 'zai-coding-plan/glm-5.1'],
     'metis': ['google/gemini-3.1-pro-preview'],
     'momus': ['google/gemini-3.1-pro-preview'],
 }
