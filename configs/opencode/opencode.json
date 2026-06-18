@@ -97,8 +97,8 @@
             }
           }
         },
-        "antigravity-gemini-3-flash": {
-          "name": "Gemini 3 Flash",
+        "antigravity-gemini-3.5-flash": {
+          "name": "Gemini 3.5 Flash",
           "limit": {
             "context": 1048576,
             "output": 65536
@@ -529,6 +529,22 @@
       "models": {
         "kimi-k2.5": {
           "name": "Kimi K2.5"
+        },
+        "kimi-k2.6": {
+          "name": "Kimi K2.6",
+          "reasoning": true,
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          }
+        },
+        "kimi-k2.7-code": {
+          "name": "Kimi K2.7 Code",
+          "reasoning": true,
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          }
         }
       }
     },
@@ -573,7 +589,7 @@
       },
       "models": {
         "kimi-for-coding": {
-          "name": "Kimi K2.6",
+          "name": "Kimi K2.7 Code",
           "reasoning": true,
           "options": {},
           "limit": {
@@ -735,6 +751,21 @@
         },
         "deepseek-v4-flash": {
           "name": "DeepSeek V4 Flash",
+          "limit": {
+            "context": 1048576,
+            "output": 393216
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "deepseek-v4-pro": {
+          "name": "DeepSeek V4 Pro",
           "limit": {
             "context": 1048576,
             "output": 393216

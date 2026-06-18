@@ -54,7 +54,7 @@
       "variant": "high",
       "fallback_models": [
         "openai/gpt-5.5",
-        "zai-coding-plan/glm-5.1"
+        "zai-coding-plan/glm-5.2"
       ],
       "skills": [
         "wisdom",
@@ -83,8 +83,9 @@
       ]
     },
     "atlas": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "zai-coding-plan/glm-5.2",
       "fallback_models": [
+        "kimi-for-coding-oauth/kimi-for-coding",
         "openai/gpt-5.4"
       ],
       "skills": [
@@ -105,14 +106,14 @@
     "frontend-ui-ux-engineer": {
       "model": "google/gemini-3.1-pro-preview",
       "fallback_models": [
-        "zai-coding-plan/glm-5.1"
+        "zai-coding-plan/glm-5.2"
       ],
       "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3.1 Pro Preview for deeper reasoning. Use ui-quick for simple tasks instead."
     },
     "document-writer": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "opencode-go/kimi-k2.6",
       "fallback_models": [
-        "zai-coding-plan/glm-5.1"
+        "zai-coding-plan/glm-5.2"
       ]
     }
   },
@@ -121,22 +122,22 @@
       "model": "google/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
-        "zai-coding-plan/glm-5.1"
+        "zai-coding-plan/glm-5.2"
       ],
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
     "ultrabrain": {
       "model": "openai/gpt-5.5",
-      "variant": "high",
+      "variant": "xhigh",
       "fallback_models": [
-        "zai-coding-plan/glm-5.1"
+        "zai-coding-plan/glm-5.2"
       ]
     },
     "artistry": {
       "model": "google/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding",
+        "opencode-go/kimi-k2.6",
         "openai/gpt-5.4"
       ]
     },
@@ -153,15 +154,15 @@
       ]
     },
     "unspecified-high": {
-      "model": "openai/gpt-5.4",
+      "model": "opencode-go/deepseek-v4-pro",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding"
       ]
     },
     "writing": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "opencode-go/kimi-k2.6",
       "fallback_models": [
-        "opencode-go/kimi-k2.6"
+        "zai-coding-plan/glm-5.2"
       ]
     },
     "deep": {
@@ -176,7 +177,7 @@
       "model": "openai/gpt-5.5",
       "fallback_models": [
         "openai/gpt-5.4",
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "opencode-go/kimi-k2.6"
       ],
       "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless \u2014 you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly.",
       "variant": "high"
