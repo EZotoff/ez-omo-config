@@ -37,7 +37,7 @@ Complete inventory of 65 core artifacts for ez-omo-config repository scaffold.
 | 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
 | 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
-| 11e | vera-runtime.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Vera Watcher Supervision | Required |
+| 11e | vera-runtime.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Vera Runtime State / Opt-in Watcher Supervision | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
 | 14 | review-protocol/ | `~/.config/opencode/skills/review-protocol/` | `skills/review-protocol/` | `$HOME/.config/opencode/skills/` | Review Protocol | Required |
@@ -59,8 +59,8 @@ Complete inventory of 65 core artifacts for ez-omo-config repository scaffold.
 | 25 | wisdom-gc.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26 | wisdom-merge.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26a | wisdom-observe.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Observability | Required |
-| 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
-| 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/worktree/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
+| 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
+| 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
 | 26d | vera-hygiene.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Vera Hygiene | Optional |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
@@ -97,7 +97,7 @@ ez-omo-config/
 │   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
 │   ├── session-id.ts       # Session ID clipboard plugin (intercepts /session-id command)
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
-│   ├── vera-runtime.ts     # Vera watcher supervision plugin
+│   ├── vera-runtime.ts     # Vera runtime state / opt-in watcher supervision plugin
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
 ├── skills/
@@ -161,7 +161,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 ## Dependency Clusters
 
 1. **Worktree Plugin Cluster**: worktree.ts → worktree/state.ts, worktree/terminal.ts, kdco-primitives/
-2. **Vera Runtime Cluster**: vera-runtime.ts → (self-contained, fails open if vera binary absent)
+2. **Vera Runtime Cluster**: vera-runtime.ts → (self-contained, manual-by-default, fails open if vera binary absent)
 3. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by all 8 other wisdom scripts)
 4. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
 5. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json + sets/emotions-v2.json

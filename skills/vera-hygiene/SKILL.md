@@ -74,8 +74,12 @@ vera stats
 
 Expected: `Files:` and `Chunks:` are non-zero.
 
+## Runtime Automation Note
+
+`plugins/vera-runtime.ts` is manual by default to avoid blocking OpenCode session startup in large or first-time projects. Leave `OMO_VERA_RUNTIME_AUTOSTART` unset/false unless synchronous watcher bootstrap/recovery is acceptable, and leave `OMO_VERA_RUNTIME_TOOL_UPDATE` unset/false unless synchronous pre-tool `vera update .` is acceptable.
+
 ## See Also
 
 - `docs/vera-implementation-plan.md` — Vera integration architecture
-- `plugins/vera-runtime.ts` — Automated Vera watcher supervision
-- `scripts/worktree-post-create.sh` — Worktree hook that bootstraps Vera index on worktree creation
+- `plugins/vera-runtime.ts` — Manual-by-default Vera runtime state and opt-in watcher supervision
+- `scripts/worktree-post-create.sh` — Worktree hook that records manual Vera state by default and bootstraps the Vera index only when `OMO_VERA_RUNTIME_AUTOSTART=1`

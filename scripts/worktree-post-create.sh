@@ -97,76 +97,62 @@ echo "Worktree state created: $STATE_FILE"
 echo "Port allocated: $PORT"
 
 # --- Vera Bootstrap ---
-if command -v vera &> /dev/null; then
-  WORKSPACE_KEY="$(basename "$(pwd)")-$(echo -n "$(realpath "$(pwd)")" | sha1sum | cut -c1-8)"
-  WATCHERS_DIR="$HOME/.local/share/opencode/worktree-state/$PROJECT_ID/vera-watchers"
-  mkdir -p "$WATCHERS_DIR"
-  WATCHER_STATE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
-  TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+vera_autostart_enabled() {
+  case "${OMO_VERA_RUNTIME_AUTOSTART:-}" in
+    1|true|TRUE|yes|YES|on|ON)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+WORKTREE_REAL_PATH="$(realpath "$(pwd)")"
+WORKSPACE_KEY="$(basename "$WORKTREE_REAL_PATH")-$(printf '%s' "$WORKTREE_REAL_PATH" | sha1sum | cut -c1-8)"
+WATCHERS_DIR="$HOME/.local/share/opencode/worktree-state/$PROJECT_ID/vera-watchers"
+mkdir -p "$WATCHERS_DIR"
+WATCHER_STATE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+write_vera_state() {
+  local status="$1"
+  local automation_mode="$2"
+  local last_indexed_at="${3:-}"
+  local last_failure_at="${4:-}"
+  local last_failure_reason="${5:-}"
+
+  jq -n     --arg workspaceKey "$WORKSPACE_KEY"     --arg workspacePath "$WORKTREE_REAL_PATH"     --arg projectId "$PROJECT_ID"     --arg indexPath "$WORKTREE_REAL_PATH/.vera"     --arg watchLogPath "$WATCHERS_DIR/$WORKSPACE_KEY.log"     --arg status "$status"     --arg automationMode "$automation_mode"     --arg lastIndexedAt "$last_indexed_at"     --arg lastFailureAt "$last_failure_at"     --arg lastFailureReason "$last_failure_reason"     '{
+      workspaceKey: $workspaceKey,
+      workspacePath: $workspacePath,
+      projectId: $projectId,
+      pid: null,
+      status: $status,
+      sessionIds: [],
+      indexPath: $indexPath,
+      watchLogPath: $watchLogPath,
+      lastIndexedAt: (if $lastIndexedAt == "" then null else $lastIndexedAt end),
+      startedAt: null,
+      lastVerifiedAt: null,
+      lastFailureAt: (if $lastFailureAt == "" then null else $lastFailureAt end),
+      lastFailureReason: (if $lastFailureReason == "" then null else $lastFailureReason end),
+      automationMode: $automationMode
+    }' > "$WATCHER_STATE"
+}
+
+if ! vera_autostart_enabled; then
+  write_vera_state "stopped" "manual"
+  echo "INFO: Vera autostart disabled; recorded manual state for workspace: $WORKSPACE_KEY"
+elif command -v vera &> /dev/null; then
 
   echo "Running vera index for workspace: $WORKSPACE_KEY"
   if vera index . > /dev/null 2>&1; then
-    cat > "$WATCHER_STATE" << EOF
-{
-  "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$(pwd)",
-  "projectId": "$PROJECT_ID",
-  "pid": null,
-  "status": "indexed",
-  "sessionIds": [],
-  "indexPath": "$(realpath .)/.vera",
-  "watchLogPath": "$WATCHERS_DIR/$WORKSPACE_KEY.log",
-  "lastIndexedAt": "$TIMESTAMP",
-  "startedAt": null,
-  "lastVerifiedAt": null,
-  "lastFailureAt": null,
-  "lastFailureReason": null
-}
-EOF
-
+    write_vera_state "indexed" "autostart" "$TIMESTAMP"
   else
-    cat > "$WATCHER_STATE" << EOF
-{
-  "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$(pwd)",
-  "projectId": "$PROJECT_ID",
-  "pid": null,
-  "status": "index-failed",
-  "sessionIds": [],
-  "indexPath": "$(realpath .)/.vera",
-  "watchLogPath": "$WATCHERS_DIR/$WORKSPACE_KEY.log",
-  "lastIndexedAt": null,
-  "startedAt": null,
-  "lastVerifiedAt": null,
-  "lastFailureAt": "$TIMESTAMP",
-  "lastFailureReason": "vera index . failed"
-}
-EOF
+    write_vera_state "index-failed" "autostart" "" "$TIMESTAMP" "vera index . failed"
     echo "WARN: vera index failed for workspace: $WORKSPACE_KEY"
   fi
 else
-  WORKSPACE_KEY="$(basename "$(pwd)")-$(echo -n "$(realpath "$(pwd)")" | sha1sum | cut -c1-8)"
-  WATCHERS_DIR="$HOME/.local/share/opencode/worktree-state/$PROJECT_ID/vera-watchers"
-  mkdir -p "$WATCHERS_DIR"
-  WATCHER_STATE="$WATCHERS_DIR/$WORKSPACE_KEY.json"
-  TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-  cat > "$WATCHER_STATE" << EOF
-{
-  "workspaceKey": "$WORKSPACE_KEY",
-  "workspacePath": "$(pwd)",
-  "projectId": "$PROJECT_ID",
-  "pid": null,
-  "status": "missing-binary",
-  "sessionIds": [],
-  "indexPath": "$(realpath .)/.vera",
-  "watchLogPath": "$WATCHERS_DIR/$WORKSPACE_KEY.log",
-  "lastIndexedAt": null,
-  "startedAt": null,
-  "lastVerifiedAt": null,
-  "lastFailureAt": "$TIMESTAMP",
-  "lastFailureReason": "vera binary not available"
-}
-EOF
+  write_vera_state "missing-binary" "autostart" "" "$TIMESTAMP" "vera binary not available"
   echo "INFO: vera not found; recorded missing-binary state for workspace: $WORKSPACE_KEY"
 fi

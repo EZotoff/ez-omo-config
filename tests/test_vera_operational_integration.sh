@@ -59,6 +59,117 @@ else
     fail "install.sh missing worktree-pre-delete.sh entry"
 fi
 
+WORKTREE_HOOK_TEMP="$(mktemp -d)"
+trap 'rm -rf "$WORKTREE_HOOK_TEMP"' EXIT
+FAKE_BIN="$WORKTREE_HOOK_TEMP/bin"
+FAKE_HOME="$WORKTREE_HOOK_TEMP/home"
+FAKE_REPO="$WORKTREE_HOOK_TEMP/repo"
+VERA_CALLS="$WORKTREE_HOOK_TEMP/vera-calls.log"
+mkdir -p "$FAKE_BIN" "$FAKE_HOME" "$FAKE_REPO"
+cat > "$FAKE_BIN/vera" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$VERA_CALLS"
+exit 0
+EOF
+chmod +x "$FAKE_BIN/vera"
+git -C "$FAKE_REPO" init -q
+
+(
+    cd "$FAKE_REPO"
+    HOME="$FAKE_HOME" PATH="$FAKE_BIN:$PATH" VERA_CALLS="$VERA_CALLS" bash "$REPO_ROOT/scripts/worktree-post-create.sh" >/dev/null
+)
+if [[ -s "$VERA_CALLS" ]]; then
+    fail "worktree-post-create.sh invoked vera when OMO_VERA_RUNTIME_AUTOSTART was unset"
+else
+    pass "worktree-post-create.sh skips vera when OMO_VERA_RUNTIME_AUTOSTART is unset"
+fi
+if grep -R '"automationMode": "manual"' "$FAKE_HOME/.local/share/opencode/worktree-state" >/dev/null && grep -R '"status": "stopped"' "$FAKE_HOME/.local/share/opencode/worktree-state" >/dev/null; then
+    pass "worktree-post-create.sh records manual stopped Vera state by default"
+else
+    fail "worktree-post-create.sh did not record manual stopped Vera state by default"
+fi
+
+rm -f "$VERA_CALLS"
+rm -rf "$FAKE_HOME/.local/share/opencode/worktree-state"
+(
+    cd "$FAKE_REPO"
+    HOME="$FAKE_HOME" PATH="$FAKE_BIN:$PATH" VERA_CALLS="$VERA_CALLS" OMO_VERA_RUNTIME_AUTOSTART=1 bash "$REPO_ROOT/scripts/worktree-post-create.sh" >/dev/null
+)
+if grep -Fxq 'index .' "$VERA_CALLS" 2>/dev/null; then
+    pass "worktree-post-create.sh runs vera index when OMO_VERA_RUNTIME_AUTOSTART=1"
+else
+    fail "worktree-post-create.sh did not run vera index when OMO_VERA_RUNTIME_AUTOSTART=1"
+fi
+if grep -R '"automationMode": "autostart"' "$FAKE_HOME/.local/share/opencode/worktree-state" >/dev/null && grep -R '"status": "indexed"' "$FAKE_HOME/.local/share/opencode/worktree-state" >/dev/null; then
+    pass "worktree-post-create.sh records autostart indexed Vera state when enabled"
+else
+    fail "worktree-post-create.sh did not record autostart indexed Vera state when enabled"
+fi
+
+run_pre_delete_case() {
+    local mode="$1"
+    local repo="$WORKTREE_HOOK_TEMP/pre-delete-$mode"
+    local home="$WORKTREE_HOOK_TEMP/home-pre-delete-$mode"
+    local project_id
+    local real_path
+    local workspace_key
+    local watcher_dir
+    local watcher_state
+    local pid
+
+    mkdir -p "$repo" "$home"
+    git -C "$repo" init -q
+    project_id="$(basename "$repo")"
+    real_path="$(realpath "$repo")"
+    workspace_key="$(basename "$real_path")-$(printf '%s' "$real_path" | sha1sum | cut -c1-8)"
+    watcher_dir="$home/.local/share/opencode/worktree-state/$project_id/vera-watchers"
+    watcher_state="$watcher_dir/$workspace_key.json"
+    mkdir -p "$watcher_dir"
+
+    bash -c "exec -a 'vera watch $real_path' sleep 900" >/dev/null 2>&1 &
+    pid=$!
+    STARTED_PIDS+=("$pid")
+
+    cat > "$watcher_state" <<EOF
+{
+  "status": "running",
+  "pid": $pid,
+  "workspaceKey": "$workspace_key",
+  "workspacePath": "$real_path",
+  "automationMode": "$mode"
+}
+EOF
+
+    (
+        cd "$repo"
+        HOME="$home" bash "$REPO_ROOT/scripts/worktree-pre-delete.sh" >/dev/null
+    )
+
+    if [[ -e "$watcher_state" ]]; then
+        fail "worktree-pre-delete.sh removes $mode watcher state"
+    else
+        pass "worktree-pre-delete.sh removes $mode watcher state"
+    fi
+
+    if [[ "$mode" == "autostart" ]]; then
+        if kill -0 "$pid" >/dev/null 2>&1; then
+            fail "worktree-pre-delete.sh stops owned autostart Vera watcher"
+        else
+            pass "worktree-pre-delete.sh stops owned autostart Vera watcher"
+        fi
+    else
+        if kill -0 "$pid" >/dev/null 2>&1; then
+            pass "worktree-pre-delete.sh leaves manual Vera watcher process untouched"
+            kill "$pid" >/dev/null 2>&1 || true
+        else
+            fail "worktree-pre-delete.sh should not stop manual Vera watcher process"
+        fi
+    fi
+}
+
+run_pre_delete_case "autostart"
+run_pre_delete_case "manual"
+
 if grep -q '\.vera/' "$REPO_ROOT/.gitignore"; then
     pass ".gitignore contains .vera/"
 else

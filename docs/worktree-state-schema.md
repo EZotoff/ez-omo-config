@@ -223,20 +223,21 @@ File: `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/<worksp
 | `workspaceKey` | string | yes | Stable key derived from the realpath of the workspace. |
 | `workspacePath` | string | yes | Absolute path to the watched workspace directory. |
 | `projectId` | string | yes | Project identifier (basename of git top-level). |
-| `pid` | number \| null | no | Process ID of the active vera watcher process, if running. |
+| `pid` | number \| null | no | Process ID of the active vera watcher process, if running. Runtime code and shell hooks accept only integer PIDs in the safe Linux range `2..4194304`; strings and out-of-range values are treated as invalid. |
 | `status` | string | yes | Current watcher state. See status enum below. |
 | `sessionIds` | string[] | yes | OpenCode session IDs currently associated with this workspace. |
 | `indexPath` | string | yes | Absolute path to the Vera index directory for this workspace. |
 | `watchLogPath` | string | yes | Absolute path to the watcher log file. |
 | `lastIndexedAt` | string (ISO 8601) \| null | no | Timestamp of the last successful index. |
 | `startedAt` | string (ISO 8601) \| null | no | When the watcher was first started. |
-| `lastVerifiedAt` | string (ISO 8601) \| null | no | Timestamp of the last health/verification check. |
+| `lastVerifiedAt` | string (ISO 8601) \| null | no | Timestamp of the last runtime health/verification check. Manual hook-created `stopped` state should leave this null because it does not prove runtime loading. |
 | `lastFailureAt` | string (ISO 8601) \| null | no | Timestamp of the last watcher failure, if any. |
 | `lastFailureReason` | string \| null | no | Reason for the last failure (stderr excerpt or message). |
 | `restartAttempts` | number | no | Count of restart attempts within the current retry window. Resets on successful health verification. |
 | `lastRestartAttemptAt` | string (ISO 8601) \| null | no | Timestamp of the most recent restart attempt. |
 | `hygieneStatus` | string \| null | no | Result of the last vera-hygiene check (`passed` or `failed`). |
 | `lastHygieneCheckAt` | string (ISO 8601) \| null | no | Timestamp of the most recent hygiene check. |
+| `automationMode` | string | no | `manual` by default; `autostart` only when `OMO_VERA_RUNTIME_AUTOSTART=1` enables watcher bootstrap/recovery. If autostart is later disabled, a still-running validated autostart watcher remains recorded until explicit cleanup so the PID is not orphaned. |
 
 ### Status Enum
 

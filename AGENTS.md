@@ -129,20 +129,20 @@ When entering a new repository for the first time:
 
 ### Vera Lifecycle Automation
 
-Vera watcher management is now fully automated. Manual `pgrep` checks and manual `vera watch` invocations are no longer needed.
+Vera watcher management is manual by default to keep OpenCode session startup responsive in large or first-time projects. Runtime automation can be enabled explicitly with environment flags when the startup cost is acceptable.
 
 **Worktree hooks** (`scripts/worktree-post-create.sh` / `scripts/worktree-pre-delete.sh`):
-- Automatically bootstrap a Vera index when a worktree is created
+- Record manual Vera state when a worktree is created; set `OMO_VERA_RUNTIME_AUTOSTART=1` to allow synchronous Vera index bootstrap during worktree creation
 - Automatically stop and cleanup the Vera watcher when a worktree is deleted
 - State file locations are documented in `docs/worktree-state-schema.md`
 
 **Runtime plugin** (`plugins/vera-runtime.ts`):
-- Supervises Vera watchers during active sessions
-- Health checks every 60 seconds verify watcher PID
-- Restarts watchers if they die unexpectedly
+- Records Vera watcher state during active sessions without running `vera index .` on startup by default
+- Set `OMO_VERA_RUNTIME_AUTOSTART=1` to restore automatic watcher start/recovery
+- Set `OMO_VERA_RUNTIME_TOOL_UPDATE=1` to allow `tool.execute.before` to run `vera update .`
 - Fails open: if the `vera` binary is missing, normal operation continues without error
 
-**Manual fallback** (only when automated systems are unavailable):
+**Manual operation**:
 ```bash
 vera update .        # One-time incremental update
 vera watch . &       # Start background watcher manually

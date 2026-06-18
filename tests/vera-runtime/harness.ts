@@ -1,17 +1,36 @@
 import { createHash } from "node:crypto"
-import { mkdtempSync, readFileSync, rmSync, readdirSync, writeFileSync, renameSync, unlinkSync, mkdirSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { basename, dirname, join } from "node:path"
+import { basename, join } from "node:path"
 
 const PLUGIN_PATH = join(import.meta.dir, "..", "..", "plugins", "vera-runtime.ts")
 
 let nextFakePid = 50000
+let spawnSyncCommands: string[] = []
+let pluginImportCounter = 0
 
-function setupTempHome(): { tempHome: string; originalHome: string | undefined } {
+function setEnvFlag(name: string, enabled: boolean | undefined): void {
+	if (enabled) {
+		process.env[name] = "1"
+		return
+	}
+	delete process.env[name]
+}
+
+function setupTempHome(options: { autostart?: boolean; toolUpdate?: boolean } = {}): {
+	tempHome: string
+	originalHome: string | undefined
+	originalAutostart: string | undefined
+	originalToolUpdate: string | undefined
+} {
 	const originalHome = process.env.HOME
+	const originalAutostart = process.env.OMO_VERA_RUNTIME_AUTOSTART
+	const originalToolUpdate = process.env.OMO_VERA_RUNTIME_TOOL_UPDATE
 	const tempHome = mkdtempSync(join(tmpdir(), "vera-runtime-test-"))
 	process.env.HOME = tempHome
-	return { tempHome, originalHome }
+	setEnvFlag("OMO_VERA_RUNTIME_AUTOSTART", options.autostart)
+	setEnvFlag("OMO_VERA_RUNTIME_TOOL_UPDATE", options.toolUpdate)
+	return { tempHome, originalHome, originalAutostart, originalToolUpdate }
 }
 
 function mockBunSpawnSync(overrides: {
@@ -26,6 +45,7 @@ function mockBunSpawnSync(overrides: {
 	Bun.spawnSync = function (cmd: any, opts?: any) {
 		const cmdArray = Array.isArray(cmd) ? cmd : [String(cmd)]
 		const cmdStr = cmdArray.join(" ")
+		spawnSyncCommands.push(cmdStr)
 
 		if (cmdStr.includes("command -v vera")) {
 			const available = overrides.veraAvailable ?? true
@@ -33,7 +53,7 @@ function mockBunSpawnSync(overrides: {
 			return { success: available, exitCode: available ? 0 : 1, stdout, stderr: Buffer.from("") } as any
 		}
 
-		if (cmdStr.includes("git rev-parse")) {
+		if (cmdStr.includes("rev-parse --show-toplevel")) {
 			const pid = overrides.projectId
 			const stdout = pid ? Buffer.from(pid) : Buffer.from("")
 			return { success: !!pid, exitCode: pid ? 0 : 1, stdout, stderr: Buffer.from("") } as any
@@ -87,13 +107,56 @@ function mockBunSpawn(): () => void {
 	}
 }
 
-function cleanup(tempHome: string, originalHome: string | undefined) {
+function restoreEnv(name: string, value: string | undefined): void {
+	if (value === undefined) {
+		delete process.env[name]
+		return
+	}
+	process.env[name] = value
+}
+
+function cleanup(
+	tempHome: string,
+	originalHome: string | undefined,
+	originalAutostart: string | undefined,
+	originalToolUpdate: string | undefined,
+) {
 	try {
 		rmSync(tempHome, { recursive: true, force: true })
 	} catch {}
 	if (originalHome !== undefined) {
 		process.env.HOME = originalHome
 	}
+	restoreEnv("OMO_VERA_RUNTIME_AUTOSTART", originalAutostart)
+	restoreEnv("OMO_VERA_RUNTIME_TOOL_UPDATE", originalToolUpdate)
+}
+
+function installTermIgnoringVera(home: string): () => void {
+	const originalPath = process.env.PATH
+	const binDir = join(home, "bin")
+	const veraPath = join(binDir, "vera")
+	mkdirSync(binDir, { recursive: true })
+	writeFileSync(
+		veraPath,
+		[
+			"#!/usr/bin/env bash",
+			"set -eo pipefail",
+			"case \"$1\" in",
+			"  watch)",
+			"    trap '' TERM",
+			"    while true; do sleep 1; done",
+			"    ;;",
+			"  *)",
+			"    exit 0",
+			"    ;;",
+			"esac",
+			"",
+		].join("\n"),
+		"utf-8",
+	)
+	chmodSync(veraPath, 0o755)
+	process.env.PATH = `${binDir}:${originalPath ?? ""}`
+	return () => restoreEnv("PATH", originalPath)
 }
 
 function fail(caseName: string, reason: string): never {
@@ -115,7 +178,8 @@ function getWatchersDir(projectId: string): string {
 }
 
 async function importPlugin(directory: string) {
-	const mod = await import(`${PLUGIN_PATH}?${Date.now()}`)
+	pluginImportCounter += 1
+	const mod = await import(`${PLUGIN_PATH}?${Date.now()}-${pluginImportCounter}`)
 	const pluginFn = mod.default
 	return await pluginFn({ directory })
 }
@@ -178,7 +242,7 @@ function dispatchDeleted(plugin: any, id: string, extra: Record<string, any> = {
 
 async function runEventSessionCreatedBootstrap() {
 	const caseName = "event-session-created-bootstrap"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
 	const restoreSpawn = mockBunSpawn()
 
@@ -207,7 +271,7 @@ async function runEventSessionCreatedBootstrap() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -215,7 +279,7 @@ async function runEventSessionCreatedBootstrap() {
 
 async function runEventSessionDeletedCleanup() {
 	const caseName = "event-session-deleted-cleanup"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
 	const restoreSpawn = mockBunSpawn()
 
@@ -246,7 +310,52 @@ async function runEventSessionDeletedCleanup() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
+	}
+
+	pass(caseName)
+}
+
+async function runSessionDeletedEscalatesToSigkill() {
+	const caseName = "session-deleted-escalates-to-sigkill"
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
+	const restorePath = installTermIgnoringVera(tempHome)
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	let watcherPid: number | null = null
+
+	try {
+		const wsDir = createTempWorkspace(tempHome)
+		const plugin = await importPlugin(wsDir)
+
+		await dispatchCreated(plugin, "sess-sigkill-1")
+
+		const stateBefore = harnessReadStateFile(wsDir, "test-project")
+		if (!stateBefore?.pid) {
+			fail(caseName, "No watcher PID found after session.created")
+		}
+		watcherPid = stateBefore.pid
+
+		await dispatchDeleted(plugin, "sess-sigkill-1")
+		await Bun.sleep(200)
+
+		try {
+			process.kill(watcherPid, 0)
+			fail(caseName, `Watcher pid=${watcherPid} survived SIGKILL escalation`)
+		} catch {
+			// Expected: SIGTERM was ignored, SIGKILL removed the process.
+		}
+
+		const stateAfter = harnessReadStateFile(wsDir, "test-project")
+		if (stateAfter) {
+			fail(caseName, "State file still exists after SIGKILL cleanup")
+		}
+	} finally {
+		if (watcherPid !== null) {
+			try { process.kill(watcherPid, "SIGKILL") } catch {}
+		}
+		restoreSpawnSync()
+		restorePath()
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -254,7 +363,7 @@ async function runEventSessionDeletedCleanup() {
 
 async function runSameWorkspaceDedupe() {
 	const caseName = "same-workspace-dedupe"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
 	const restoreSpawn = mockBunSpawn()
 
@@ -296,7 +405,7 @@ async function runSameWorkspaceDedupe() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -304,7 +413,7 @@ async function runSameWorkspaceDedupe() {
 
 async function runCrossWorkspaceIsolation() {
 	const caseName = "cross-workspace-isolation"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
 	const restoreSpawn = mockBunSpawn()
 
@@ -352,7 +461,7 @@ async function runCrossWorkspaceIsolation() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -360,7 +469,7 @@ async function runCrossWorkspaceIsolation() {
 
 async function runStalePidRecovery() {
 	const caseName = "stale-pid-recovery"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: false })
 	const restoreSpawn = mockBunSpawn()
 
@@ -406,7 +515,7 @@ async function runStalePidRecovery() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -414,7 +523,7 @@ async function runStalePidRecovery() {
 
 async function runMissingVeraFailsOpen() {
 	const caseName = "missing-vera-fails-open"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	let restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project" })
 	const restoreSpawn = mockBunSpawn()
 
@@ -452,7 +561,7 @@ async function runMissingVeraFailsOpen() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -460,7 +569,7 @@ async function runMissingVeraFailsOpen() {
 
 async function runUnknownEventNoop() {
 	const caseName = "unknown-event-noop"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
 	const restoreSpawn = mockBunSpawn()
 
@@ -478,7 +587,7 @@ async function runUnknownEventNoop() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -486,7 +595,7 @@ async function runUnknownEventNoop() {
 
 async function runSessionIdShapes() {
 	const caseName = "session-id-shapes"
-	const { tempHome, originalHome } = setupTempHome()
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
 	const restoreSpawn = mockBunSpawn()
 
@@ -532,7 +641,141 @@ async function runSessionIdShapes() {
 	} finally {
 		restoreSpawnSync()
 		restoreSpawn()
-		cleanup(tempHome, originalHome)
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
+	}
+
+	pass(caseName)
+}
+
+async function runDefaultManualMode() {
+	const caseName = "default-manual-mode"
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome()
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: false })
+	const restoreSpawn = mockBunSpawn()
+
+	try {
+		const wsDir = createTempWorkspace(tempHome)
+		const plugin = await importPlugin(wsDir)
+
+		await dispatchCreated(plugin, "sess-manual-1")
+
+		const state = harnessReadStateFile(wsDir, "test-project")
+		if (!state) {
+			fail(caseName, "No state file found after session.created")
+		}
+		if (state.status !== "stopped") {
+			fail(caseName, `Expected status=stopped in default manual mode, got ${state.status}`)
+		}
+		if (state.pid !== null) {
+			fail(caseName, `Expected pid=null in default manual mode, got ${state.pid}`)
+		}
+		if (state.automationMode !== "manual") {
+			fail(caseName, `Expected automationMode=manual, got ${state.automationMode}`)
+		}
+		if (!state.sessionIds.includes("sess-manual-1")) {
+			fail(caseName, "sess-manual-1 not in sessionIds")
+		}
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
+	}
+
+	pass(caseName)
+}
+
+async function runUnsafePidStateRejected() {
+	const caseName = "unsafe-pid-state-rejected"
+	const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
+	const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", pidAlive: true })
+	const restoreSpawn = mockBunSpawn()
+
+	try {
+		const wsDir = createTempWorkspace(tempHome)
+		const markerPath = join(tempHome, "pid-injection-marker")
+		const key = harnessComputeWorkspaceKey(wsDir)
+		const state = {
+			workspaceKey: key,
+			workspacePath: wsDir,
+			projectId: "test-project",
+			pid: `1; touch ${markerPath}`,
+			status: "running",
+			sessionIds: ["sess-unsafe-1"],
+			indexPath: `${wsDir}/.vera`,
+			watchLogPath: `${harnessGetStateFilePath(wsDir, "test-project").replace(/\.json$/, ".log")}`,
+			lastIndexedAt: new Date().toISOString(),
+			startedAt: new Date().toISOString(),
+			lastVerifiedAt: new Date().toISOString(),
+			lastFailureAt: null,
+			lastFailureReason: null,
+			automationMode: "autostart",
+		}
+		harnessWriteStateFile(wsDir, "test-project", state)
+
+		const plugin = await importPlugin(wsDir)
+		await dispatchCreated(plugin, "sess-unsafe-1")
+		await dispatchDeleted(plugin, "sess-unsafe-1")
+
+		if (existsSync(markerPath)) {
+			fail(caseName, "malicious PID string was executed during session.created/session.deleted")
+		}
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
+	}
+
+	pass(caseName)
+}
+
+async function runToolUpdateOptInBehavior() {
+	const caseName = "tool-update-opt-in-behavior"
+	const disabledEnv = setupTempHome({ autostart: true })
+	let restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", veraUpdateSuccess: true })
+	let restoreSpawn = mockBunSpawn()
+
+	try {
+		spawnSyncCommands = []
+		const wsDir = createTempWorkspace(disabledEnv.tempHome)
+		const plugin = await importPlugin(wsDir)
+		await dispatchCreated(plugin, "sess-tool-disabled")
+		plugin["tool.execute.before"]({ tool: "task" }, {})
+
+		if (spawnSyncCommands.some((cmd) => cmd.includes("vera update"))) {
+			fail(caseName, "vera update ran while OMO_VERA_RUNTIME_TOOL_UPDATE was disabled")
+		}
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(disabledEnv.tempHome, disabledEnv.originalHome, disabledEnv.originalAutostart, disabledEnv.originalToolUpdate)
+	}
+
+	const enabledEnv = setupTempHome({ autostart: true, toolUpdate: true })
+	restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project", veraUpdateSuccess: true })
+	restoreSpawn = mockBunSpawn()
+
+	try {
+		spawnSyncCommands = []
+		const wsDir = createTempWorkspace(enabledEnv.tempHome)
+		const plugin = await importPlugin(wsDir)
+		await dispatchCreated(plugin, "sess-tool-enabled")
+
+		const state = harnessReadStateFile(wsDir, "test-project")
+		if (!state) {
+			fail(caseName, "No state file found for enabled case")
+		}
+		state.lastIndexedAt = "2000-01-01T00:00:00.000Z"
+		harnessWriteStateFile(wsDir, "test-project", state)
+
+		plugin["tool.execute.before"]({ tool: "task" }, {})
+
+		if (!spawnSyncCommands.some((cmd) => cmd.includes("vera update"))) {
+			fail(caseName, "vera update did not run when OMO_VERA_RUNTIME_TOOL_UPDATE was enabled and index was stale")
+		}
+	} finally {
+		restoreSpawnSync()
+		restoreSpawn()
+		cleanup(enabledEnv.tempHome, enabledEnv.originalHome, enabledEnv.originalAutostart, enabledEnv.originalToolUpdate)
 	}
 
 	pass(caseName)
@@ -548,7 +791,7 @@ async function main() {
 	const testCase = caseIdx >= 0 ? args[caseIdx + 1] : null
 
 	{
-		const { tempHome, originalHome } = setupTempHome()
+		const { tempHome, originalHome, originalAutostart, originalToolUpdate } = setupTempHome({ autostart: true })
 		const restoreSpawnSync = mockBunSpawnSync({ veraAvailable: true, projectId: "test-project" })
 		try {
 			const guardPlugin = await importPlugin(createTempWorkspace(tempHome))
@@ -561,19 +804,23 @@ async function main() {
 			pass("guard-plugin-hooks")
 		} finally {
 			restoreSpawnSync()
-			cleanup(tempHome, originalHome)
+			cleanup(tempHome, originalHome, originalAutostart, originalToolUpdate)
 		}
 	}
 
 	const testMap: Record<string, () => Promise<void>> = {
+		"default-manual-mode": runDefaultManualMode,
 		"event-session-created-bootstrap": runEventSessionCreatedBootstrap,
 		"event-session-deleted-cleanup": runEventSessionDeletedCleanup,
+		"session-deleted-escalates-to-sigkill": runSessionDeletedEscalatesToSigkill,
 		"same-workspace-dedupe": runSameWorkspaceDedupe,
 		"cross-workspace-isolation": runCrossWorkspaceIsolation,
 		"stale-pid-recovery": runStalePidRecovery,
 		"missing-vera-fails-open": runMissingVeraFailsOpen,
 		"unknown-event-noop": runUnknownEventNoop,
 		"session-id-shapes": runSessionIdShapes,
+		"unsafe-pid-state-rejected": runUnsafePidStateRejected,
+		"tool-update-opt-in-behavior": runToolUpdateOptInBehavior,
 	}
 
 	if (testCase) {

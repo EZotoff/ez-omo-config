@@ -19,10 +19,14 @@ This directory contains the portable OpenCode config bundle copied from the loca
 
 Two hook scripts automate worktree setup and teardown:
 
-- **`scripts/worktree-post-create.sh`** — Runs after a worktree is created. Handles state creation, port allocation from the deployment registry, Docker container start, and Vera index bootstrapping.
+- **`scripts/worktree-post-create.sh`** — Runs after a worktree is created. Handles state creation, port allocation from the deployment registry, Docker container start, and manual-by-default Vera state recording. Set `OMO_VERA_RUNTIME_AUTOSTART=1` to allow synchronous Vera index bootstrapping.
 - **`scripts/worktree-pre-delete.sh`** — Runs before a worktree is deleted. Handles container stop, port freeing, state cleanup, and Vera watcher cleanup.
 
 These hooks are registered in `worktree.jsonc` and are invoked automatically by the worktree plugin. No manual intervention is needed.
+
+## Vera Runtime Startup Mode
+
+`plugins/vera-runtime.ts` is installed under `$HOME/.opencode/plugin/` and records per-workspace Vera state without blocking OpenCode startup by default. Leave `OMO_VERA_RUNTIME_AUTOSTART` unset/false to keep first-time and large-project launches responsive; set `OMO_VERA_RUNTIME_AUTOSTART=1` only when synchronous watcher bootstrap/recovery is acceptable. Leave `OMO_VERA_RUNTIME_TOOL_UPDATE` unset/false to prevent `tool.execute.before` from running `vera update .`; set it to `1` only when synchronous pre-tool updates are acceptable.
 
 Port allocation now follows a three-tier contract:
 

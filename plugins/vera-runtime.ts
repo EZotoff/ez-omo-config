@@ -35,7 +35,10 @@ export interface VeraWatcherState {
 	lastRestartAttemptAt?: string | null
 	hygieneStatus?: string | null
 	lastHygieneCheckAt?: string | null
+	automationMode?: "manual" | "autostart"
 }
+
+type OpenCodeEvent = { type?: string } & Record<string, unknown>
 
 const STATE_BASE = `${process.env.HOME}/.local/share/opencode/worktree-state`
 const LOG_PATH = `${process.env.HOME}/.opencode/plugin/vera-runtime.log`
@@ -45,8 +48,26 @@ const KILL_WAIT_SECONDS = 5
 const MAX_RESTART_ATTEMPTS = 3
 const RESTART_WINDOW_MS = 10 * 60 * 1000
 const SESSION_ID_LIMIT = 50
+const MAX_SAFE_PID = 4194304
 const watcherStateWriteLocks = new Set<string>()
 const healthCheckTimers = new Map<string, ReturnType<typeof setInterval>>()
+const VALID_STATUSES = new Set<VeraWatcherState["status"]>([
+	"indexed",
+	"running",
+	"stale",
+	"stopped",
+	"missing-binary",
+	"index-failed",
+	"watch-failed",
+])
+
+function envFlagEnabled(name: string): boolean {
+	const value = process.env[name]?.toLowerCase()
+	return value === "1" || value === "true" || value === "yes" || value === "on"
+}
+
+const AUTO_BOOTSTRAP_ENABLED = envFlagEnabled("OMO_VERA_RUNTIME_AUTOSTART")
+const AUTO_UPDATE_BEFORE_TOOLS_ENABLED = envFlagEnabled("OMO_VERA_RUNTIME_TOOL_UPDATE")
 
 function veraAvailable(): boolean {
 	try {
@@ -68,15 +89,16 @@ function log(level: string, message: string): void {
 	}
 }
 
-function computeProjectId(): string {
+function computeProjectId(workspacePath?: string): string {
 	try {
-		const proc = Bun.spawnSync([
-			"bash",
-			"-c",
-			'git rev-parse --show-toplevel 2>/dev/null | xargs basename',
-		])
+		const proc = workspacePath
+			? Bun.spawnSync(["git", "-C", workspacePath, "rev-parse", "--show-toplevel"], {
+					stdout: "pipe",
+					stderr: "pipe",
+				})
+			: Bun.spawnSync(["git", "rev-parse", "--show-toplevel"], { stdout: "pipe", stderr: "pipe" })
 		if (proc.success) {
-			const id = proc.stdout.toString().trim()
+			const id = basename(proc.stdout.toString().trim())
 			if (id) return id
 		}
 	} catch {
@@ -99,26 +121,74 @@ function computeWorkspaceKey(workspacePath: string): string {
 	}
 }
 
-function getWatchersDir(): string {
-	const projectId = computeProjectId()
+function getWatchersDir(workspacePath: string): string {
+	const projectId = computeProjectId(workspacePath)
 	return `${STATE_BASE}/${projectId}/vera-watchers`
 }
 
 function getStateFilePath(workspacePath: string): string {
 	const key = computeWorkspaceKey(workspacePath)
-	return `${getWatchersDir()}/${key}.json`
+	return `${getWatchersDir(workspacePath)}/${key}.json`
 }
 
 function getLogPath(workspacePath: string): string {
 	const key = computeWorkspaceKey(workspacePath)
-	return `${getWatchersDir()}/${key}.log`
+	return `${getWatchersDir(workspacePath)}/${key}.log`
+}
+
+function parseSafePid(value: unknown): number | null {
+	if (!Number.isInteger(value)) return null
+	const pid = value
+	if (pid <= 1 || pid > MAX_SAFE_PID) return null
+	return pid
+}
+
+function parseIsoTimestamp(value: unknown): string | null {
+	return typeof value === "string" && value.length > 0 ? value : null
+}
+
+function normalizeWatcherState(raw: unknown, workspacePath: string): VeraWatcherState | null {
+	if (!isRecord(raw)) return null
+
+	const fallback = createInitialState(workspacePath)
+	const rawStatus = raw.status
+	const status = typeof rawStatus === "string" && VALID_STATUSES.has(rawStatus as VeraWatcherState["status"])
+		? rawStatus as VeraWatcherState["status"]
+		: fallback.status
+	const rawSessionIds = raw.sessionIds
+	const sessionIds = Array.isArray(rawSessionIds) ? rawSessionIds.filter((id): id is string => typeof id === "string") : []
+	const rawAutomationMode = raw.automationMode
+	const automationMode = rawAutomationMode === "autostart" || rawAutomationMode === "manual"
+		? rawAutomationMode
+		: fallback.automationMode
+
+	return {
+		workspaceKey: typeof raw.workspaceKey === "string" ? raw.workspaceKey : fallback.workspaceKey,
+		workspacePath: typeof raw.workspacePath === "string" ? raw.workspacePath : fallback.workspacePath,
+		projectId: typeof raw.projectId === "string" ? raw.projectId : fallback.projectId,
+		pid: parseSafePid(raw.pid),
+		status,
+		sessionIds,
+		indexPath: typeof raw.indexPath === "string" ? raw.indexPath : fallback.indexPath,
+		watchLogPath: typeof raw.watchLogPath === "string" ? raw.watchLogPath : fallback.watchLogPath,
+		lastIndexedAt: parseIsoTimestamp(raw.lastIndexedAt),
+		startedAt: parseIsoTimestamp(raw.startedAt),
+		lastVerifiedAt: parseIsoTimestamp(raw.lastVerifiedAt),
+		lastFailureAt: parseIsoTimestamp(raw.lastFailureAt),
+		lastFailureReason: parseIsoTimestamp(raw.lastFailureReason),
+		restartAttempts: Number.isInteger(raw.restartAttempts) && raw.restartAttempts >= 0 ? raw.restartAttempts : undefined,
+		lastRestartAttemptAt: parseIsoTimestamp(raw.lastRestartAttemptAt),
+		hygieneStatus: parseIsoTimestamp(raw.hygieneStatus),
+		lastHygieneCheckAt: parseIsoTimestamp(raw.lastHygieneCheckAt),
+		automationMode,
+	}
 }
 
 function readWatcherState(workspacePath: string): VeraWatcherState | null {
 	const path = getStateFilePath(workspacePath)
 	try {
 		const raw = readFileSync(path, "utf-8")
-		return JSON.parse(raw) as VeraWatcherState
+		return normalizeWatcherState(JSON.parse(raw), workspacePath)
 	} catch {
 		return null
 	}
@@ -154,7 +224,7 @@ function createInitialState(workspacePath: string): VeraWatcherState {
 	return {
 		workspaceKey,
 		workspacePath,
-		projectId: computeProjectId(),
+		projectId: computeProjectId(workspacePath),
 		pid: null,
 		status: "stopped",
 		sessionIds: [],
@@ -165,7 +235,36 @@ function createInitialState(workspacePath: string): VeraWatcherState {
 		lastVerifiedAt: null,
 		lastFailureAt: null,
 		lastFailureReason: null,
+		automationMode: AUTO_BOOTSTRAP_ENABLED ? "autostart" : "manual",
 	}
+}
+
+function recordManualMode(workspacePath: string, state: VeraWatcherState): void {
+	if (
+		state.automationMode === "autostart" &&
+		state.status === "running" &&
+		state.pid !== null &&
+		isPidAlive(state.pid) &&
+		validatePidOwnership(state.pid, workspacePath)
+	) {
+		state.lastVerifiedAt = new Date().toISOString()
+		writeWatcherState(workspacePath, state)
+		log(
+			"info",
+			`[${workspacePath}] Vera auto-bootstrap disabled; preserving existing autostart watcher pid=${state.pid}`,
+		)
+		return
+	}
+
+	state.automationMode = "manual"
+	state.status = "stopped"
+	state.pid = null
+	state.lastVerifiedAt = null
+	writeWatcherState(workspacePath, state)
+	log(
+		"info",
+		`[${workspacePath}] Vera auto-bootstrap disabled; skipping synchronous index/watch during session startup`,
+	)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -225,23 +324,53 @@ function extractSessionId(input: unknown): string {
 	return getString(input, "session_id") ?? getString(input, "sessionId") ?? getString(input, "id") ?? ""
 }
 
-function isPidAlive(pid: number): boolean {
+
+function isPidAlive(pid: number | null): boolean {
+	const safePid = parseSafePid(pid)
+	if (safePid === null) return false
 	try {
-		const proc = Bun.spawnSync(["bash", "-c", `kill -0 ${pid} 2>/dev/null`])
-		return proc.success === true
+		process.kill(safePid, 0)
+		return true
 	} catch {
 		return false
 	}
 }
 
-function validatePidOwnership(pid: number, workspacePath: string): boolean {
+function uidMatchesCurrentProcess(pid: number): boolean {
+	if (typeof process.getuid !== "function") return true
 	try {
-		const cmdline = readFileSync(`/proc/${pid}/cmdline`, "utf-8").replace(/\0/g, " ").trim()
+		const status = readFileSync(`/proc/${pid}/status`, "utf-8")
+		const uidLine = status.split("\n").find((line) => line.startsWith("Uid:"))
+		if (!uidLine) return false
+		const realUid = Number.parseInt(uidLine.trim().split(/\s+/)[1] ?? "", 10)
+		return Number.isInteger(realUid) && realUid === process.getuid()
+	} catch {
+		return false
+	}
+}
+
+function validatePidOwnership(pid: number | null, workspacePath: string): boolean {
+	const safePid = parseSafePid(pid)
+	if (safePid === null) return false
+	try {
+		if (!uidMatchesCurrentProcess(safePid)) return false
+		const cmdline = readFileSync(`/proc/${safePid}/cmdline`, "utf-8").replace(/\0/g, " ").trim()
 		if (!cmdline) return false
 
 		const hasVeraWatch = cmdline.includes("vera watch") || (cmdline.includes("vera") && cmdline.includes("watch"))
 		const hasWorkspacePath = cmdline.includes(workspacePath)
 		return hasVeraWatch && hasWorkspacePath
+	} catch {
+		return false
+	}
+}
+
+function sendSignal(pid: number | null, signal: NodeJS.Signals = "SIGTERM"): boolean {
+	const safePid = parseSafePid(pid)
+	if (safePid === null) return false
+	try {
+		process.kill(safePid, signal)
+		return true
 	} catch {
 		return false
 	}
@@ -351,8 +480,8 @@ function startVeraWatch(workspacePath: string): { pid: number } | null {
 		log("info", `[${workspacePath}] vera watch . starting`)
 		const proc = Bun.spawn(["vera", "watch", workspacePath], {
 			cwd: workspacePath,
-			stdout: "pipe",
-			stderr: "pipe",
+			stdout: "ignore",
+			stderr: "ignore",
 		})
 		const pid = proc.pid
 		if (!pid) {
@@ -477,6 +606,11 @@ function handleSessionCreatedEvent(directory: string, event: unknown): Promise<v
 
 		log("info", `[${directory}] session.created`)
 
+		if (!AUTO_BOOTSTRAP_ENABLED) {
+			recordManualMode(directory, state)
+			return
+		}
+
 		const needsBootstrap =
 			state.status === "stopped" ||
 			state.status === "missing-binary" ||
@@ -485,6 +619,7 @@ function handleSessionCreatedEvent(directory: string, event: unknown): Promise<v
 			!state.status
 
 		if (needsBootstrap) {
+			state.automationMode = "autostart"
 			if (!veraAvailable()) {
 				state.status = "missing-binary"
 				state.lastFailureAt = new Date().toISOString()
@@ -546,6 +681,7 @@ function handleSessionCreatedEvent(directory: string, event: unknown): Promise<v
 			resetRestartAttempts(state)
 			log("info", `[${directory}] watcher started pid=${state.pid}`)
 		} else if (state.status === "indexed") {
+			state.automationMode = "autostart"
 			if (!veraAvailable()) {
 				state.status = "missing-binary"
 				state.lastFailureAt = new Date().toISOString()
@@ -596,6 +732,7 @@ function handleSessionCreatedEvent(directory: string, event: unknown): Promise<v
 			resetRestartAttempts(state)
 			log("info", `[${directory}] watcher started pid=${state.pid}`)
 		} else if (state.status === "running") {
+			state.automationMode = AUTO_BOOTSTRAP_ENABLED ? "autostart" : "manual"
 			if (state.pid && isPidAlive(state.pid) && validatePidOwnership(state.pid, directory)) {
 				state.lastVerifiedAt = new Date().toISOString()
 				resetRestartAttempts(state)
@@ -608,6 +745,7 @@ function handleSessionCreatedEvent(directory: string, event: unknown): Promise<v
 				}
 			}
 		} else if (state.status === "stale") {
+			state.automationMode = "autostart"
 			log("info", `[${directory}] session.created: recovering stale watcher`)
 			const restarted = performSafeRestart(directory, state)
 			if (!restarted) {
@@ -657,12 +795,10 @@ async function handleSessionDeletedEvent(directory: string, event: unknown): Pro
 				log("info", `[${directory}] session.deleted: last session gone, stopping watcher pid=${state.pid}`)
 
 				if (validatePidOwnership(state.pid, directory)) {
-					try {
-						Bun.spawnSync(["kill", String(state.pid)])
+					if (sendSignal(state.pid)) {
 						log("info", `[${directory}] Sent kill to pid=${state.pid}`)
-					} catch (err) {
-						const reason = err instanceof Error ? err.message : String(err)
-						log("warn", `[${directory}] kill ${state.pid} failed: ${reason}`)
+					} else {
+						log("warn", `[${directory}] kill ${state.pid} failed`)
 					}
 
 					let alive = true
@@ -676,12 +812,10 @@ async function handleSessionDeletedEvent(directory: string, event: unknown): Pro
 					}
 
 					if (alive && validatePidOwnership(state.pid, directory)) {
-						try {
-							Bun.spawnSync(["kill", "-9", String(state.pid)])
+						if (sendSignal(state.pid, "SIGKILL")) {
 							log("warn", `[${directory}] Sent kill -9 to pid=${state.pid}`)
-						} catch (err) {
-							const reason = err instanceof Error ? err.message : String(err)
-							log("warn", `[${directory}] kill -9 ${state.pid} failed: ${reason}`)
+						} else {
+							log("warn", `[${directory}] kill -9 ${state.pid} failed`)
 						}
 					}
 				} else {
@@ -764,6 +898,8 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 	// -----------------------------------------------------------------
 	const healthCheckTimer = setInterval(() => {
 		try {
+			if (!AUTO_BOOTSTRAP_ENABLED) return
+
 			const state = readWatcherState(directory)
 			if (!state) return
 			if (state.status !== "running") return
@@ -797,8 +933,9 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 		// =============================================================
 		// event hook — dispatch session lifecycle events
 		// =============================================================
-		event: async (input: { event: any }) => {
-			const { event } = input
+		event: async (input: { event?: OpenCodeEvent }) => {
+			const event = isRecord(input.event) ? input.event : {}
+			log("debug", `[${directory}] event hook invoked: ${event.type ?? "unknown"}`)
 
 			try {
 				if (event.type === "session.created") {
@@ -820,6 +957,10 @@ const VeraRuntimePlugin: Plugin = async (ctx) => {
 		"tool.execute.before": (input, _output) => {
 			const toolName = input.tool
 			if (toolName !== "task" && toolName !== "search") {
+				return
+			}
+			if (!AUTO_UPDATE_BEFORE_TOOLS_ENABLED) {
+				log("debug", `[${directory}] tool.execute.before (${toolName}): Vera sync update disabled`)
 				return
 			}
 

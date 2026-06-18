@@ -167,16 +167,16 @@ At each evidence state, agents may only use approved claim language:
 
 ## vera-runtime.ts
 
-**Purpose**: Supervises Vera semantic search watchers during active OpenCode sessions, ensuring indexes stay fresh without manual intervention.
+**Purpose**: Records Vera semantic-search session state without blocking OpenCode startup. Watcher/index automation is opt-in so first-time launches in large projects do not wait on `vera index .`.
 
 **Features**:
 
 - **Fail-open behavior**: If the `vera` binary is missing, the plugin logs a warning and continues normal operation without error
-- **Automatic watcher lifecycle**: Handles `session.created` and `session.deleted` events inside `event: async ({ event }) => ...`, dispatching on `event.type` to start or stop watchers
-- **Tool execution guard**: `tool.execute.before` hook verifies watcher health before file-modifying tools run
-- **Health checks**: Every 60 seconds verifies the watcher PID is still alive and owned by the current user with `vera watch` in its cmdline
+- **Manual-by-default lifecycle**: Handles `session.created` and `session.deleted` events inside `event: async ({ event }) => ...`, recording state but skipping synchronous index/watch work unless `OMO_VERA_RUNTIME_AUTOSTART=1` is set
+- **Opt-in tool execution guard**: `tool.execute.before` can trigger `vera update .` only when `OMO_VERA_RUNTIME_TOOL_UPDATE=1` is set
+- **Health checks (opt-in)**: With `OMO_VERA_RUNTIME_AUTOSTART=1`, every 60 seconds verifies the watcher PID is still alive and owned by the current user with `vera watch` in its cmdline
 - **State persistence**: Tracks watcher state per project in `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/`
-- **Runtime recovery**: Detects hollow indexes (`Files: 0` or `Chunks: 0`) and triggers `vera-hygiene --check` followed by reindex before starting the watcher
+- **Runtime recovery (opt-in)**: With autostart enabled, detects hollow indexes (`Files: 0` or `Chunks: 0`) and triggers `vera-hygiene --check` followed by reindex before starting the watcher
 - **Safe restart boundaries**: Bounded restart with `MAX_RESTART_ATTEMPTS=3` and `RESTART_WINDOW_MS=10` minutes. Exceeded attempts set `status=watch-failed` and log actionable advice to run `vera-hygiene --apply`
 - **Hygiene preflight**: Before starting or restarting a watcher, validates the root index is non-empty via `vera overview`. Hollow indexes trigger an automatic hygiene check and reindex cycle.
 
@@ -184,10 +184,17 @@ At each evidence state, agents may only use approved claim language:
 
 | Hook | When Fired | Action |
 |------|-----------|--------|
-| `event` | Session lifecycle changes | `event: async ({ event }) => ...` dispatches on `event.type === "session.created"` to start or verify the Vera watcher (recover stale watchers, validate non-empty root index), and on `event.type === "session.deleted"` to stop it if no other sessions need it |
-| `tool.execute.before` | Before any tool executes | If tool modifies files, trigger `vera update .` |
+| `event` | Session lifecycle changes | `event: async ({ event }) => ...` dispatches on `event.type === "session.created"` to record manual mode immediately. If manual mode sees an already-running autostart watcher that is still alive, owned by the current user, and tied to the exact workspace, it preserves that state so later cleanup can stop it safely. If `OMO_VERA_RUNTIME_AUTOSTART=1`, it starts/verifies the Vera watcher, recovers stale watchers, and validates non-empty root indexes. On `session.deleted`, it stops an owned watcher if no other sessions need it. |
+| `tool.execute.before` | Before selected tools execute | No-ops by default. If `OMO_VERA_RUNTIME_TOOL_UPDATE=1`, stale running indexes trigger `vera update .`. |
 
 **Dependencies**: None (self-contained; falls open if `vera` binary absent)
+
+**Runtime Flags**:
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `OMO_VERA_RUNTIME_AUTOSTART` | unset / false | `session.created` records `automationMode: "manual"` and returns before any `vera index .`, `vera overview`, `vera-hygiene`, safe-restart, health-check restart, or `vera watch` work. Existing validated autostart watcher state is preserved instead of being overwritten, preventing orphaned watcher processes. Set to `1`, `true`, `yes`, or `on` to restore automatic watcher bootstrap/recovery. |
+| `OMO_VERA_RUNTIME_TOOL_UPDATE` | unset / false | `tool.execute.before` returns before `vera update .`. Set to `1`, `true`, `yes`, or `on` to restore synchronous pre-tool index updates for `task` and `search`. |
 
 **Active Loading Requirement**:
 
@@ -200,8 +207,8 @@ At each evidence state, agents may only use approved claim language:
 | File in repo | repo_implemented | `test -f plugins/vera-runtime.ts` |
 | File installed | live_file_installed | `test -f ~/.opencode/plugin/vera-runtime.ts` |
 | HOME plugin installed | active_config_registered | OpenCode auto-loads `~/.opencode/plugin/vera-runtime.ts` when the file is present; **must NOT** be listed in `opencode.json` |
-| Runtime loaded | runtime_loaded | Watcher PID is alive, owned by current user, and cmdline contains `vera watch` with exact project path |
-| Proven working | real_project_behavior_proven | Search probe returns expected result under project root; root `.vera/` index is non-empty (Files > 0, Chunks > 0) with no nested indexes |
+| Runtime loaded | runtime_loaded | `vera-runtime.log` contains a post-launch lifecycle entry for the exact project path or workspace key. A manual stopped watcher state is not enough by itself; autostart watcher-state proof also requires a running, numeric, current-user-owned `vera watch` PID for that workspace. |
+| Proven working | real_project_behavior_proven | OpenCode session prompt becomes usable without waiting on Vera startup work. If autostart is enabled, a search probe returns expected result under project root; root `.vera/` index is non-empty (Files > 0, Chunks > 0) with no nested indexes |
 
 Until all six states are verified, agents must use "workflow requires" language, not "Vera is active/working".
 

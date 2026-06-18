@@ -12,7 +12,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `auto-checkpoint.ts` — semantic session-scoped git checkpointing. Disabled by default for TUI startup safety; set `OPENCODE_AUTO_CHECKPOINT_ENABLE=1` to enable. Uses an ephemeral LLM helper session to select files and compose commit messages from a bounded candidate set, with temp-index safety and skip-on-ambiguity guards.
 - `session-id.ts` — copies the invoking session ID to clipboard via `/session-id`, no LLM round-trip.
 - `session-info.ts` — copies `Project <path>:<branch>; Session <title>; ID <session-id>` to clipboard via `/session-info` command, no LLM round-trip.
-- `vera-runtime.ts` — supervises per-workspace Vera indexes and watchers, records watcher state under worktree-state, and fails open when the `vera` binary is unavailable.
+- `vera-runtime.ts` — records per-workspace Vera state without blocking session startup, offers opt-in watcher supervision, and fails open when the `vera` binary is unavailable.
 - `kdco-primitives/` — shared helpers used by the plugin bundle, including project ID lookup, shell escaping, tmux detection, temp paths, logging, timeout helpers, and shared types.
 
 ## Dependency notes

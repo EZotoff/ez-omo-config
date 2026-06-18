@@ -305,13 +305,15 @@ During active editing:
 2. Agent queries Vera → gets stale results
 3. Agent makes decisions based on outdated code → errors
 
-### 5.2 Mitigation: Auto-Start Watcher
+### 5.2 Mitigation: Manual-by-Default Watcher
 
-**Strategy**: Start `vera watch .` automatically at the beginning of each session.
+**Current strategy**: Do not run `vera index .`, `vera update .`, or `vera watch .` synchronously during OpenCode startup. `plugins/vera-runtime.ts` records state in manual mode by default; set `OMO_VERA_RUNTIME_AUTOSTART=1` only when automatic watcher startup is worth the launch-time cost, and set `OMO_VERA_RUNTIME_TOOL_UPDATE=1` only when pre-tool synchronous updates are acceptable.
+
+The original auto-start plan below is retained as historical design context, not as the default runtime behavior. Do not reintroduce session-start or worktree-create `vera index .` calls unless they are gated behind `OMO_VERA_RUNTIME_AUTOSTART=1`.
 
 **Implementation options**:
 
-**Option A: AGENTS.md Hook (Recommended)**
+**Option A: AGENTS.md Hook (Historical / Not Default)**
 Add to AGENTS.md:
 ```markdown
 ### Session Start Protocol
@@ -349,11 +351,11 @@ At the start of every coding session:
    ```
 ```
 
-**Option B: Plugin-Based Auto-Start (Future Enhancement)**
+**Option B: Plugin-Based Auto-Start (Opt-in)**
 Create an OpenCode plugin that:
 - Detects when agent enters a new workspace
 - Checks for `.vera/` index
-- Auto-starts `vera watch` in background
+- Auto-starts `vera watch` in background only when `OMO_VERA_RUNTIME_AUTOSTART=1` is set
 - Reports status to agent
 
 This is out of scope for initial implementation but noted for future enhancement.
@@ -401,9 +403,9 @@ Before running semantic search after significant edits:
 **Problem**: Agent refactors code, queries stale index, gets wrong results.
 
 **Mitigation**:
-1. Auto-start `vera watch .` at session start (2s debounce catches most edits)
-2. AGENTS.md rule: Agent MUST run `vera update .` after bulk edits (renames, moves)
-3. Vera's incremental updates are fast (~1-5s for typical changes)
+1. Do not auto-start `vera watch .` at session start by default; that startup work is opt-in via `OMO_VERA_RUNTIME_AUTOSTART=1` because first-time indexing can block OpenCode readiness.
+2. AGENTS.md rule: Agent MUST run `vera update .` after bulk edits (renames, moves) when a watcher is not already active.
+3. Vera's incremental updates are fast (~1-5s for typical changes) once the root index exists.
 
 ### 6.2 Cold Start in New Repos (MEDIUM SEVERITY)
 
@@ -612,7 +614,7 @@ Agents fall back to existing tools (grep, LSP, glob) automatically.
 |---------|---------|-------------|
 | `vera index <path>` | Full indexing | First time, or after `vera repair` |
 | `vera update <path>` | Incremental update | After edits (if not using watcher) |
-| `vera watch <path>` | Background watcher | Start of session, auto-updates on changes |
+| `vera watch <path>` | Background watcher | Manual long sessions, or opt-in autostart with `OMO_VERA_RUNTIME_AUTOSTART=1` |
 | `vera search <query>` | Semantic search | Discovery, conceptual queries |
 | `vera search --deep <query>` | RAG-fusion search | Complex queries needing expansion |
 | `vera search --intent "goal" <query>` | Goal-based reranking | When initial search misses |
