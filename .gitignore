@@ -5,3 +5,10 @@ test-results/
 .env*
 node_modules
 .vera/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# OMO runtime state at repo root is a forbidden zone per configs/stack-locations.json
+.omo/
