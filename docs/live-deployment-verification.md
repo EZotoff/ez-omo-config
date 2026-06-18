@@ -59,8 +59,13 @@ The script writes these files to the evidence directory:
 
 - `summary.json` — Overall result, check list, timestamps, and failure code
 - `commands.txt` — Every command executed during verification
-- `vera-runtime.log` — Copied snippet of the runtime log (if found)
-- `watcher-state.json` — Copied snippet of the watcher state file (if found)
+- `runtime-log-snippet.txt` — Copied snippet of the runtime log (if found)
+- `watcher-state-snippet.json` — Copied snippet of the watcher state file (if found)
+- `runtime-project-evidence.txt` — Project/workspace-specific runtime evidence accepted by the verifier
+- `watcher-pid.txt` — Accepted watcher PID when autostart PID validation succeeds
+- `active-config-plugin-array.json` — Extracted `plugin` array from active OpenCode config
+- `vera-overview.txt` — Output from `vera overview` in the project root
+- `vera-search.txt` — Output from `vera search` when `--probe-query` is provided
 
 ### Exit Codes
 
@@ -76,7 +81,7 @@ The verifier defends against stale evidence with timestamp markers.
 ### How It Works
 
 1. A marker timestamp is recorded at the start of verification (`date -u +%Y-%m-%dT%H:%M:%SZ`).
-2. The script looks for log entries or watcher state timestamps that are **at or after** the marker.
+2. The script looks for log entries or watcher state timestamps that are **at or after** the marker at second precision. Evidence earlier in the same minute no longer passes.
 3. Post-marker evidence must also contain the exact project path (`$REAL_PROJECT_PATH`) or workspace key (`$WORKSPACE_KEY`). Generic timestamps without project-specific context are treated as stale.
 4. If all found timestamps are **before** the marker, or if post-marker evidence lacks exact project/workspace matching, the check fails.
 
@@ -86,7 +91,7 @@ The `--allow-existing-index` flag has been removed (it was dead code). A pre-exi
 
 - A non-empty root `.vera/` index (`vera overview` reports `Files > 0` and `Chunks > 0`).
 - No nested `.vera/` indexes (only the root project `.vera/` is accepted).
-- Either a post-marker log entry in `vera-runtime.log` with exact project path or workspace key, or a post-marker `lastVerifiedAt` / `lastIndexedAt` in the watcher state file with matching workspace key or path.
+- A post-marker lifecycle log entry in `vera-runtime.log` with exact project path or workspace key. Watcher state timestamps can corroborate runtime only for an autostart `running` watcher with a numeric safe PID; a manual `stopped` state from a worktree hook is not runtime-loaded evidence by itself. Watcher PID evidence applies only when `OMO_VERA_RUNTIME_AUTOSTART=1` is set and `/proc/<pid>` confirms current-user ownership plus an exact `vera watch <project>` command line.
 
 ## Vera/ANIA Regression Probe
 
@@ -94,10 +99,10 @@ The first concrete use case for the Live Deployment Verification Gate is the **V
 
 ### What the Probe Validates
 
-- Vera watcher is supervised by `vera-runtime.ts`
-- The watcher PID is alive, owned by the current user, and its cmdline contains `vera watch` with the exact project path
-- Health checks occur every 60 seconds; dead or unowned PIDs trigger bounded safe restart (max 3 attempts in 10 minutes)
-- Index updates happen automatically after file-modifying tool executions
+- `vera-runtime.ts` records project-specific runtime evidence without blocking OpenCode startup
+- With `OMO_VERA_RUNTIME_AUTOSTART=1`, the watcher PID is alive, owned by the current user, and its cmdline contains `vera watch` with the exact project path
+- With autostart enabled, health checks occur every 60 seconds; dead or unowned PIDs trigger bounded safe restart (max 3 attempts in 10 minutes)
+- With `OMO_VERA_RUNTIME_TOOL_UPDATE=1`, index updates can happen before selected tool executions
 - The root `.vera/` directory contains a non-empty index (`Files > 0`, `Chunks > 0`)
 - No nested `.vera/` indexes exist anywhere under the project
 - A search probe (`--probe-query`) succeeds and returns results under the project root
@@ -117,7 +122,7 @@ cat /tmp/vera-probe-evidence/summary.json
 
 ### Interpreting Results
 
-- **Passed with runtime proven**: The Vera watcher has produced post-marker evidence with exact project path or workspace key match. The pipeline is active.
+- **Passed with runtime proven**: The Vera runtime has produced post-marker lifecycle evidence with exact project path or workspace key match. In manual mode this proves the plugin handler was invoked without blocking startup; in autostart mode watcher state must also pass PID validation before watcher activity is claimed.
 - **Failed with stale evidence**: The watcher may be running, but it has not produced new evidence since the marker, or post-marker evidence lacks exact project/workspace matching. Check `vera-runtime.log` for errors.
 - **Failed with hollow index**: The `.vera/` directory exists but `vera overview` reports `Files: 0` or `Chunks: 0`. Run `vera-hygiene --apply` to exclude unreadable or heavy directories, then reindex.
 - **Failed with nested index**: A nested `.vera/` directory was found under the project. Only the root `.vera/` is accepted. Remove nested indexes or add them to `.veraignore`.

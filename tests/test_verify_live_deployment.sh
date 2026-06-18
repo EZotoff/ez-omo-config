@@ -17,9 +17,9 @@
 # - runtime_loaded:
 #   * exact real project path + workspace key appear in post-marker runtime
 #     evidence (log/state)
-#   * watcher state status is "running"
-#   * watcher PID is alive, owned by current user, and command line contains
-#     "vera watch" and exact project root
+#   * if automationMode=autostart: watcher state is running and PID is alive,
+#     owned by current user, and command line contains "vera watch" and exact
+#     project root
 #   * lifecycle_event_observed tracks whether a lifecycle-specific pattern
 #     (event hook invoked, session.created handled, watcher started pid=,
 #     watcher_state verified) appears in the runtime log — generic logs alone
@@ -253,6 +253,7 @@ write_scenario_env() {
     local search_file="${13}"
     local expected_outcome="${14}"
     local watcher_pid="${15:-}"
+    local marker_timestamp_override="${16:-}"
 
     cat > "$env_file" <<EOF
 SCENARIO_NAME="$scenario_name"
@@ -269,6 +270,7 @@ VERA_FAKE_OVERVIEW_FILE="$overview_file"
 VERA_FAKE_SEARCH_FILE="$search_file"
 EXPECTED_OUTCOME="$expected_outcome"
 WATCHER_PID="$watcher_pid"
+MARKER_TIMESTAMP_OVERRIDE="$marker_timestamp_override"
 EOF
 }
 
@@ -407,7 +409,8 @@ EOF
   "workspaceKey": "$workspace_key",
   "projectRoot": "$project_dir",
   "lastVerifiedAt": "2999-01-01T00:00:00Z",
-  "lastIndexedAt": "2999-01-01T00:00:00Z"
+  "lastIndexedAt": "2999-01-01T00:00:00Z",
+  "automationMode": "autostart"
 }
 EOF
 
@@ -492,7 +495,8 @@ EOF
   "workspaceKey": "$workspace_key",
   "projectRoot": "$project_dir",
   "lastVerifiedAt": "2999-01-01T00:00:00Z",
-  "lastIndexedAt": "2999-01-01T00:00:00Z"
+  "lastIndexedAt": "2999-01-01T00:00:00Z",
+  "automationMode": "autostart"
 }
 EOF
 
@@ -521,6 +525,239 @@ EOF
     printf '%s' "$env_file"
 }
 
+scenario_manual_runtime_without_watcher_pid() {
+    local fixtures_root="$1"
+    local values
+    local env_file
+    local overview_file
+    local search_file
+
+    local fixture_dir
+    local project_dir
+    local home_dir
+    local project_id
+    local workspace_key
+    local watcher_state_file
+    local watcher_log_file
+    local runtime_log_file
+    local evidence_dir
+    local fake_vera_data_dir
+    local watcher_dir
+
+    values="$(create_fixture_common "$fixtures_root" "manual_runtime_without_watcher_pid")"
+    IFS='|' read -r fixture_dir project_dir home_dir project_id workspace_key watcher_state_file watcher_log_file runtime_log_file evidence_dir fake_vera_data_dir watcher_dir <<< "$values"
+
+    mkdir -p "$project_dir/.vera"
+
+    overview_file="$fake_vera_data_dir/overview.txt"
+    search_file="$fake_vera_data_dir/search.txt"
+
+    cat > "$overview_file" <<'EOF'
+Vera Index Overview
+Files: 12
+Chunks: 31
+EOF
+
+    cat > "$search_file" <<EOF
+$project_dir/README.md:1:# Manual mode runtime proof fixture
+EOF
+
+    cat > "$runtime_log_file" <<EOF
+[2999-01-01T00:00:00Z] session.created handled project=$project_dir workspace=$workspace_key
+EOF
+
+    cat > "$watcher_state_file" <<EOF
+{
+  "status": "stopped",
+  "pid": null,
+  "workspaceKey": "$workspace_key",
+  "workspacePath": "$project_dir",
+  "projectRoot": "$project_dir",
+  "lastVerifiedAt": "2999-01-01T00:00:00Z",
+  "lastIndexedAt": "2999-01-01T00:00:00Z",
+  "automationMode": "manual"
+}
+EOF
+
+    cat > "$watcher_log_file" <<EOF
+[2999-01-01T00:00:00Z] manual runtime state recorded workspace=$workspace_key root=$project_dir
+EOF
+
+    env_file="$fixture_dir/scenario.env"
+    write_scenario_env \
+        "$env_file" \
+        "manual_runtime_without_watcher_pid" \
+        "$fixture_dir" \
+        "$project_dir" \
+        "$home_dir" \
+        "$project_id" \
+        "$workspace_key" \
+        "$watcher_state_file" \
+        "$watcher_log_file" \
+        "$runtime_log_file" \
+        "$evidence_dir" \
+        "$overview_file" \
+        "$search_file" \
+        "Should pass in manual mode without watcher pid (runtime_loaded + search probe)" \
+
+    printf '%s' "$env_file"
+}
+
+scenario_manual_hook_state_without_runtime_log() {
+    local fixtures_root="$1"
+    local values
+    local env_file
+    local overview_file
+    local search_file
+
+    local fixture_dir
+    local project_dir
+    local home_dir
+    local project_id
+    local workspace_key
+    local watcher_state_file
+    local watcher_log_file
+    local runtime_log_file
+    local evidence_dir
+    local fake_vera_data_dir
+    local watcher_dir
+
+    values="$(create_fixture_common "$fixtures_root" "manual_hook_state_without_runtime_log")"
+    IFS='|' read -r fixture_dir project_dir home_dir project_id workspace_key watcher_state_file watcher_log_file runtime_log_file evidence_dir fake_vera_data_dir watcher_dir <<< "$values"
+
+    mkdir -p "$project_dir/.vera"
+
+    overview_file="$fake_vera_data_dir/overview.txt"
+    search_file="$fake_vera_data_dir/search.txt"
+
+    cat > "$overview_file" <<'EOF'
+Vera Index Overview
+Files: 12
+Chunks: 31
+EOF
+
+    cat > "$search_file" <<EOF
+$project_dir/README.md:1:# Manual hook-only fixture
+EOF
+
+    : > "$runtime_log_file"
+
+    cat > "$watcher_state_file" <<EOF
+{
+  "status": "stopped",
+  "pid": null,
+  "workspaceKey": "$workspace_key",
+  "workspacePath": "$project_dir",
+  "projectRoot": "$project_dir",
+  "lastVerifiedAt": "2999-01-01T00:00:00Z",
+  "lastIndexedAt": "2999-01-01T00:00:00Z",
+  "sessionIds": [],
+  "automationMode": "manual"
+}
+EOF
+
+    cat > "$watcher_log_file" <<EOF
+[2999-01-01T00:00:00Z] manual hook-created state workspace=$workspace_key root=$project_dir
+EOF
+
+    env_file="$fixture_dir/scenario.env"
+    write_scenario_env \
+        "$env_file" \
+        "manual_hook_state_without_runtime_log" \
+        "$fixture_dir" \
+        "$project_dir" \
+        "$home_dir" \
+        "$project_id" \
+        "$workspace_key" \
+        "$watcher_state_file" \
+        "$watcher_log_file" \
+        "$runtime_log_file" \
+        "$evidence_dir" \
+        "$overview_file" \
+        "$search_file" \
+        "Should fail: manual stopped watcher state alone must not prove runtime_loaded"
+
+    printf '%s' "$env_file"
+}
+
+scenario_stale_same_minute_runtime_log() {
+    local fixtures_root="$1"
+    local values
+    local env_file
+    local overview_file
+    local search_file
+
+    local fixture_dir
+    local project_dir
+    local home_dir
+    local project_id
+    local workspace_key
+    local watcher_state_file
+    local watcher_log_file
+    local runtime_log_file
+    local evidence_dir
+    local fake_vera_data_dir
+    local watcher_dir
+
+    values="$(create_fixture_common "$fixtures_root" "stale_same_minute_runtime_log")"
+    IFS='|' read -r fixture_dir project_dir home_dir project_id workspace_key watcher_state_file watcher_log_file runtime_log_file evidence_dir fake_vera_data_dir watcher_dir <<< "$values"
+
+    mkdir -p "$project_dir/.vera"
+
+    overview_file="$fake_vera_data_dir/overview.txt"
+    search_file="$fake_vera_data_dir/search.txt"
+
+    cat > "$overview_file" <<'EOF'
+Vera Index Overview
+Files: 12
+Chunks: 31
+EOF
+
+    cat > "$search_file" <<EOF
+$project_dir/README.md:1:# Stale same-minute fixture
+EOF
+
+    cat > "$runtime_log_file" <<EOF
+[2026-01-01T00:00:01Z] session.created handled project=$project_dir workspace=$workspace_key
+EOF
+
+    cat > "$watcher_state_file" <<EOF
+{
+  "status": "stopped",
+  "pid": null,
+  "workspaceKey": "$workspace_key",
+  "workspacePath": "$project_dir",
+  "lastVerifiedAt": "2026-01-01T00:00:01Z",
+  "lastIndexedAt": "2026-01-01T00:00:01Z",
+  "sessionIds": [],
+  "automationMode": "manual"
+}
+EOF
+
+    : > "$watcher_log_file"
+
+    env_file="$fixture_dir/scenario.env"
+    write_scenario_env \
+        "$env_file" \
+        "stale_same_minute_runtime_log" \
+        "$fixture_dir" \
+        "$project_dir" \
+        "$home_dir" \
+        "$project_id" \
+        "$workspace_key" \
+        "$watcher_state_file" \
+        "$watcher_log_file" \
+        "$runtime_log_file" \
+        "$evidence_dir" \
+        "$overview_file" \
+        "$search_file" \
+        "Should fail: runtime evidence is earlier than marker even though it is in the same minute" \
+        "" \
+        "2026-01-01T00:00:59Z"
+
+    printf '%s' "$env_file"
+}
+
 build_all_fixtures() {
     FIXTURES_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/verify-live-fixtures.XXXXXX")"
     TMP_DIRS+=("$FIXTURES_ROOT")
@@ -531,6 +768,9 @@ build_all_fixtures() {
     SCENARIO_ENVS["hollow_root_generic_log"]="$(scenario_hollow_root_generic_log "$FIXTURES_ROOT")"
     SCENARIO_ENVS["nested_src_populated_root_hollow"]="$(scenario_nested_src_populated_root_hollow "$FIXTURES_ROOT")"
     SCENARIO_ENVS["root_index_runtime_exact_search_hit"]="$(scenario_root_index_runtime_exact_search_hit "$FIXTURES_ROOT")"
+    SCENARIO_ENVS["manual_runtime_without_watcher_pid"]="$(scenario_manual_runtime_without_watcher_pid "$FIXTURES_ROOT")"
+    SCENARIO_ENVS["manual_hook_state_without_runtime_log"]="$(scenario_manual_hook_state_without_runtime_log "$FIXTURES_ROOT")"
+    SCENARIO_ENVS["stale_same_minute_runtime_log"]="$(scenario_stale_same_minute_runtime_log "$FIXTURES_ROOT")"
 }
 
 validate_active_config_plugin_key() {
@@ -542,6 +782,8 @@ with open('$active_config', 'r', encoding='utf-8') as fh:
     data = json.load(fh)
 plugin = data.get('plugin', [])
 if not isinstance(plugin, list):
+    raise SystemExit(1)
+if any(isinstance(item, str) and 'vera-runtime.ts' in item for item in plugin):
     raise SystemExit(1)
 print('ok')
 " >/dev/null 2>&1; then
@@ -665,6 +907,29 @@ self_test_single_fixture() {
             assert_grep "$PROJECT_DIR" "$RUNTIME_LOG_FILE"
             assert_grep '"status": "running"' "$WATCHER_STATE_FILE"
             ;;
+
+        manual_runtime_without_watcher_pid)
+            assert_grep '"status": "stopped"' "$WATCHER_STATE_FILE"
+            assert_grep '"automationMode": "manual"' "$WATCHER_STATE_FILE"
+
+            if [[ -n "$WORKSPACE_KEY" ]]; then
+                assert_grep "$WORKSPACE_KEY" "$RUNTIME_LOG_FILE"
+            fi
+            if [[ -n "$PROJECT_DIR" ]]; then
+                assert_grep "$PROJECT_DIR" "$RUNTIME_LOG_FILE"
+            fi
+            ;;
+
+        manual_hook_state_without_runtime_log)
+            assert_grep '"status": "stopped"' "$WATCHER_STATE_FILE"
+            assert_grep '"automationMode": "manual"' "$WATCHER_STATE_FILE"
+            assert_no_grep "$WORKSPACE_KEY" "$RUNTIME_LOG_FILE"
+            assert_no_grep "$PROJECT_DIR" "$RUNTIME_LOG_FILE"
+            ;;
+
+        stale_same_minute_runtime_log)
+            assert_grep '2026-01-01T00:00:01Z' "$RUNTIME_LOG_FILE"
+            ;;
     esac
 }
 
@@ -677,6 +942,9 @@ run_self_test_fixtures() {
     self_test_single_fixture "hollow_root_generic_log"
     self_test_single_fixture "nested_src_populated_root_hollow"
     self_test_single_fixture "root_index_runtime_exact_search_hit"
+    self_test_single_fixture "manual_runtime_without_watcher_pid"
+    self_test_single_fixture "manual_hook_state_without_runtime_log"
+    self_test_single_fixture "stale_same_minute_runtime_log"
 
     echo ""
     echo "=========================================="
@@ -721,6 +989,7 @@ run_scenario() {
         PATH="$FAKE_BIN_DIR:$ORIGINAL_PATH" \
         VERA_FAKE_OVERVIEW_FILE="$VERA_FAKE_OVERVIEW_FILE" \
         VERA_FAKE_SEARCH_FILE="$VERA_FAKE_SEARCH_FILE" \
+        OMO_VERIFY_MARKER_TIMESTAMP_OVERRIDE="$MARKER_TIMESTAMP_OVERRIDE" \
             "$VERIFY_SCRIPT" \
                 --component vera-runtime \
                 --project "$PROJECT_DIR" \
@@ -782,6 +1051,7 @@ run_single_scenario_no_exit() {
         PATH="$FAKE_BIN_DIR:$ORIGINAL_PATH" \
         VERA_FAKE_OVERVIEW_FILE="$VERA_FAKE_OVERVIEW_FILE" \
         VERA_FAKE_SEARCH_FILE="$VERA_FAKE_SEARCH_FILE" \
+        OMO_VERIFY_MARKER_TIMESTAMP_OVERRIDE="$MARKER_TIMESTAMP_OVERRIDE" \
             "$VERIFY_SCRIPT" \
                 --component vera-runtime \
                 --project "$PROJECT_DIR" \
@@ -845,6 +1115,33 @@ run_all_scenarios() {
         echo "PASS: root_index_runtime_exact_search_hit passed as expected"
     fi
 
+    exit_code=0
+    run_single_scenario_no_exit "manual_runtime_without_watcher_pid" "--probe-query" "manual" || exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        echo "FAIL: manual_runtime_without_watcher_pid expected to pass but failed (exit=$exit_code)"
+        failed=1
+    else
+        echo "PASS: manual_runtime_without_watcher_pid passed as expected"
+    fi
+
+    exit_code=0
+    run_single_scenario_no_exit "manual_hook_state_without_runtime_log" "--probe-query" "manual" || exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        echo "FAIL: manual_hook_state_without_runtime_log expected to fail but passed"
+        failed=1
+    else
+        echo "PASS: manual_hook_state_without_runtime_log failed as expected (exit=$exit_code)"
+    fi
+
+    exit_code=0
+    run_single_scenario_no_exit "stale_same_minute_runtime_log" "--probe-query" "stale" || exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        echo "FAIL: stale_same_minute_runtime_log expected to fail but passed"
+        failed=1
+    else
+        echo "PASS: stale_same_minute_runtime_log failed as expected (exit=$exit_code)"
+    fi
+
     echo ""
     echo "=========================================="
     if [[ $failed -eq 1 ]]; then
@@ -861,8 +1158,8 @@ print_usage() {
     cat <<'EOF'
 Usage: bash tests/test_verify_live_deployment.sh [OPTIONS]
 
-Default (no options):
-  Run all three scenarios against the strict verifier and assert expected outcomes.
+  Default (no options):
+    Run all scenarios (manual and autostart-style) against the strict verifier and assert expected outcomes.
 
 Options:
   --self-test-fixtures                Build fixtures + fake vera and validate scaffold
@@ -874,6 +1171,9 @@ Named scenarios:
   hollow_root_generic_log
   nested_src_populated_root_hollow
   root_index_runtime_exact_search_hit
+  manual_runtime_without_watcher_pid
+  manual_hook_state_without_runtime_log
+  stale_same_minute_runtime_log
 EOF
 }
 
@@ -888,6 +1188,8 @@ Scenario commands for individual debugging:
   bash tests/test_verify_live_deployment.sh --run-scenario hollow_root_generic_log
   bash tests/test_verify_live_deployment.sh --run-scenario nested_src_populated_root_hollow
   bash tests/test_verify_live_deployment.sh --run-scenario root_index_runtime_exact_search_hit
+  bash tests/test_verify_live_deployment.sh --run-scenario manual_runtime_without_watcher_pid
+  bash tests/test_verify_live_deployment.sh --run-scenario manual_hook_state_without_runtime_log
 
 Fixture self-check command:
   bash tests/test_verify_live_deployment.sh --self-test-fixtures

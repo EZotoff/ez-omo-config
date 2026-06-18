@@ -15,6 +15,7 @@ CHECK_RESULTS=()
 MARKER_TIMESTAMP=""
 
 HIGHEST_STATE="repo_implemented"
+DEFAULT_AUTOMATION_MODE="manual"
 
 usage() {
     cat <<'EOF'
@@ -45,7 +46,19 @@ record_result() {
     local name="$1"
     local status="$2"
     local message="$3"
-    CHECK_RESULTS+=("{\"check\":\"$name\",\"status\":\"$status\",\"message\":\"$message\"}")
+    local result_json
+    result_json="$(CHECK_NAME="$name" CHECK_STATUS="$status" CHECK_MESSAGE="$message" python3 - <<'PY'
+import json
+import os
+
+print(json.dumps({
+    "check": os.environ["CHECK_NAME"],
+    "status": os.environ["CHECK_STATUS"],
+    "message": os.environ["CHECK_MESSAGE"],
+}, separators=(",", ":")))
+PY
+)"
+    CHECK_RESULTS+=("$result_json")
 }
 
 fail_with() {
@@ -75,19 +88,51 @@ write_summary() {
         overall="failed"
     fi
 
-    cat > "$EVIDENCE_DIR/summary.json" <<EOF
-{
-  "component": "$COMPONENT",
-  "project_path": "$PROJECT_PATH",
-  "evidence_dir": "$EVIDENCE_DIR",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "marker_timestamp": "$MARKER_TIMESTAMP",
-  "overall": "$overall",
-  "failure_code": "$FAILURE_CODE",
-  "highest_state": "$HIGHEST_STATE",
-  "checks": $checks_json
+    SUMMARY_PATH="$EVIDENCE_DIR/summary.json" \
+    SUMMARY_COMPONENT="$COMPONENT" \
+    SUMMARY_PROJECT_PATH="$PROJECT_PATH" \
+    SUMMARY_EVIDENCE_DIR="$EVIDENCE_DIR" \
+    SUMMARY_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    SUMMARY_MARKER_TIMESTAMP="$MARKER_TIMESTAMP" \
+    SUMMARY_OVERALL="$overall" \
+    SUMMARY_FAILURE_CODE="$FAILURE_CODE" \
+    SUMMARY_HIGHEST_STATE="$HIGHEST_STATE" \
+    SUMMARY_CHECKS_JSON="$checks_json" \
+    python3 - <<'PY'
+import json
+import os
+
+summary = {
+    "component": os.environ["SUMMARY_COMPONENT"],
+    "project_path": os.environ["SUMMARY_PROJECT_PATH"],
+    "evidence_dir": os.environ["SUMMARY_EVIDENCE_DIR"],
+    "timestamp": os.environ["SUMMARY_TIMESTAMP"],
+    "marker_timestamp": os.environ["SUMMARY_MARKER_TIMESTAMP"],
+    "overall": os.environ["SUMMARY_OVERALL"],
+    "failure_code": os.environ["SUMMARY_FAILURE_CODE"],
+    "highest_state": os.environ["SUMMARY_HIGHEST_STATE"],
+    "checks": json.loads(os.environ["SUMMARY_CHECKS_JSON"]),
 }
-EOF
+
+with open(os.environ["SUMMARY_PATH"], "w", encoding="utf-8") as fh:
+    json.dump(summary, fh, indent=2)
+    fh.write("\n")
+PY
+}
+
+timestamp_second() {
+    local ts="$1"
+    if [[ "$ts" == *.*Z ]]; then
+        printf '%sZ' "${ts%%.*}"
+    else
+        printf '%s' "$ts"
+    fi
+}
+
+timestamp_at_or_after_marker() {
+    local ts
+    ts="$(timestamp_second "$1")"
+    [[ "$ts" > "$MARKER_TIMESTAMP" || "$ts" == "$MARKER_TIMESTAMP" ]]
 }
 
 copy_evidence_snippets() {
@@ -201,25 +246,31 @@ else
     fail_with "active_config_missing"
 fi
 
-python3 -c "
+if ACTIVE_CONFIG_PATH="$ACTIVE_CONFIG" EVIDENCE_OUTPUT_DIR="$EVIDENCE_DIR" python3 - <<'PY' > "$EVIDENCE_DIR/active-config-extraction.log" 2>&1
 import json
-try:
-    with open('$ACTIVE_CONFIG', 'r', encoding='utf-8') as fh:
-        data = json.load(fh)
-    plugin = data.get('plugin', [])
-    if not isinstance(plugin, list):
-        raise ValueError('plugin is not a list')
-    with open('$EVIDENCE_DIR/active-config-plugin-array.json', 'w', encoding='utf-8') as out:
-        json.dump(plugin, out)
-    print('ok')
-except Exception as e:
-    print('error:', e)
-    raise SystemExit(1)
-" > "$EVIDENCE_DIR/active-config-extraction.log" 2>&1
+import os
 
-if [[ $? -eq 0 ]]; then
+try:
+    active_config = os.environ["ACTIVE_CONFIG_PATH"]
+    evidence_dir = os.environ["EVIDENCE_OUTPUT_DIR"]
+    with open(active_config, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    plugin = data.get("plugin", [])
+    if not isinstance(plugin, list):
+        raise ValueError("plugin is not a list")
+    explicit_vera = [item for item in plugin if isinstance(item, str) and "vera-runtime.ts" in item]
+    if explicit_vera:
+        raise ValueError("vera-runtime.ts must not be explicitly listed in opencode.json plugin array")
+    with open(os.path.join(evidence_dir, "active-config-plugin-array.json"), "w", encoding="utf-8") as out:
+        json.dump(plugin, out)
+    print("ok")
+except Exception as e:
+    print("error:", e)
+    raise SystemExit(1)
+PY
+then
     record_result "active_config_autoload" "passed" \
-        "Active config has valid 'plugin' list key"
+        "Active config has valid 'plugin' list key and does not explicitly list vera-runtime.ts"
     HIGHEST_STATE="active_config_registered"
 else
     record_result "active_config_autoload" "failed" \
@@ -247,7 +298,7 @@ else
         "Project path is a valid git repository"
 fi
 
-MARKER_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+MARKER_TIMESTAMP="${OMO_VERIFY_MARKER_TIMESTAMP_OVERRIDE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 record_result "marker_timestamp" "passed" \
     "Marker timestamp recorded: $MARKER_TIMESTAMP"
 
@@ -279,14 +330,12 @@ EVIDENCE_FOUND=0
 
 if [[ -f "$RUNTIME_LOG" ]]; then
     EVIDENCE_FOUND=1
-    POST_MARKER_COUNT=$(grep -cE '\[2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}' "$RUNTIME_LOG" 2>/dev/null | awk '{print}')
+    POST_MARKER_COUNT="$(grep -cE '\[2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}' "$RUNTIME_LOG" 2>/dev/null || true)"
     if [[ -n "$POST_MARKER_COUNT" && "$POST_MARKER_COUNT" -gt 0 ]]; then
-        MARKER_MIN="${MARKER_TIMESTAMP:0:16}"
         while IFS= read -r line; do
-            log_ts=$(echo "$line" | grep -oE '2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z' | head -n1)
+            log_ts="$(echo "$line" | grep -oE '2[0-9]{3}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z' | head -n1 || true)"
             if [[ -n "$log_ts" ]]; then
-                log_min="${log_ts:0:16}"
-                if [[ "$log_min" > "$MARKER_MIN" || "$log_min" == "$MARKER_MIN" ]]; then
+                if timestamp_at_or_after_marker "$log_ts"; then
                     if [[ "$line" == *"$REAL_PROJECT_PATH"* || "$line" == *"$WORKSPACE_KEY"* ]]; then
                         echo "$line" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
                         if [[ "$line" == *"event hook invoked"* || \
@@ -310,42 +359,58 @@ WATCHER_WORKSPACE_PATH=""
 LAST_VERIFIED=""
 LAST_INDEXED=""
 LAST_FAILURE_REASON=""
+WATCHER_AUTOMATION_MODE=""
+WATCHER_SESSION_COUNT="0"
 
 if [[ -f "$WATCHER_STATE_FILE" ]]; then
     EVIDENCE_FOUND=1
-    WATCHER_JSON="$(python3 -c "
-import json, sys
+    WATCHER_JSON="$(WATCHER_STATE_PATH="$WATCHER_STATE_FILE" python3 - <<'PY' 2>/dev/null
+import json
+import os
+import sys
+
 try:
-    with open('$WATCHER_STATE_FILE', 'r', encoding='utf-8') as fh:
+    with open(os.environ["WATCHER_STATE_PATH"], "r", encoding="utf-8") as fh:
         data = json.load(fh)
+    sessions = data.get("sessionIds", [])
     result = {
-        'status': data.get('status', ''),
-        'pid': data.get('pid', ''),
-        'workspaceKey': data.get('workspaceKey', ''),
-        'workspacePath': data.get('workspacePath', ''),
-        'lastVerifiedAt': data.get('lastVerifiedAt', ''),
-        'lastIndexedAt': data.get('lastIndexedAt', ''),
-        'lastFailureReason': data.get('lastFailureReason', '')
+        "status": data.get("status", ""),
+        "pid": data.get("pid", ""),
+        "workspaceKey": data.get("workspaceKey", ""),
+        "workspacePath": data.get("workspacePath", ""),
+        "projectRoot": data.get("projectRoot", ""),
+        "lastVerifiedAt": data.get("lastVerifiedAt", ""),
+        "lastIndexedAt": data.get("lastIndexedAt", ""),
+        "lastFailureReason": data.get("lastFailureReason", ""),
+        "automationMode": data.get("automationMode", ""),
+        "sessionCount": len(sessions) if isinstance(sessions, list) else 0,
     }
     print(json.dumps(result))
 except Exception as e:
-    print(json.dumps({'error': str(e)}))
+    print(json.dumps({"error": str(e)}))
     sys.exit(1)
-" 2>/dev/null)" || WATCHER_JSON="{}"
+PY
+)" || WATCHER_JSON="{}"
 
     WATCHER_STATUS="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',''))")"
-    WATCHER_PID="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(str(d.get('pid','')))")"
+    WATCHER_PID="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); pid=d.get('pid'); print(pid if isinstance(pid, int) and 1 < pid <= 4194304 else '')")"
     WATCHER_WORKSPACE_KEY="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('workspaceKey',''))")"
-    WATCHER_WORKSPACE_PATH="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('workspacePath',''))")"
+    WATCHER_WORKSPACE_PATH="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('workspacePath','') or d.get('projectRoot',''))")"
     LAST_VERIFIED="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('lastVerifiedAt',''))")"
     LAST_INDEXED="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('lastIndexedAt',''))")"
     LAST_FAILURE_REASON="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('lastFailureReason',''))")"
+    WATCHER_AUTOMATION_MODE="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('automationMode',''))")"
+    WATCHER_SESSION_COUNT="$(echo "$WATCHER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('sessionCount',0))")"
 
-    MARKER_MIN="${MARKER_TIMESTAMP:0:16}"
+    WATCHER_STATE_CAN_PROVE_RUNTIME=0
+    if [[ "$WATCHER_AUTOMATION_MODE" == "autostart" && "$WATCHER_STATUS" == "running" && -n "$WATCHER_PID" && "$WATCHER_PID" != "null" ]]; then
+        WATCHER_STATE_CAN_PROVE_RUNTIME=1
+    fi
 
-    if [[ -n "$LAST_VERIFIED" && "$LAST_VERIFIED" != "null" ]]; then
-        VERIFIED_MIN="${LAST_VERIFIED:0:16}"
-        if [[ "$VERIFIED_MIN" > "$MARKER_MIN" || "$VERIFIED_MIN" == "$MARKER_MIN" ]]; then
+    if [[ "$WATCHER_AUTOMATION_MODE" == "manual" && "$WATCHER_STATUS" == "stopped" ]]; then
+        echo "watcher_state manual-only: workspaceKey=$WATCHER_WORKSPACE_KEY workspacePath=$WATCHER_WORKSPACE_PATH status=$WATCHER_STATUS sessions=$WATCHER_SESSION_COUNT" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
+    elif [[ -n "$LAST_VERIFIED" && "$LAST_VERIFIED" != "null" && "$WATCHER_STATE_CAN_PROVE_RUNTIME" -eq 1 ]]; then
+        if timestamp_at_or_after_marker "$LAST_VERIFIED"; then
             if [[ "$WATCHER_WORKSPACE_KEY" == "$WORKSPACE_KEY" || "$WATCHER_WORKSPACE_PATH" == "$REAL_PROJECT_PATH" ]]; then
                 RUNTIME_PROVEN=1
                 echo "watcher_state verified: workspaceKey=$WATCHER_WORKSPACE_KEY workspacePath=$WATCHER_WORKSPACE_PATH lastVerifiedAt=$LAST_VERIFIED" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
@@ -353,9 +418,8 @@ except Exception as e:
         fi
     fi
 
-    if [[ -n "$LAST_INDEXED" && "$LAST_INDEXED" != "null" && "$RUNTIME_PROVEN" -eq 0 ]]; then
-        INDEXED_MIN="${LAST_INDEXED:0:16}"
-        if [[ "$INDEXED_MIN" > "$MARKER_MIN" || "$INDEXED_MIN" == "$MARKER_MIN" ]]; then
+    if [[ -n "$LAST_INDEXED" && "$LAST_INDEXED" != "null" && "$RUNTIME_PROVEN" -eq 0 && "$WATCHER_STATE_CAN_PROVE_RUNTIME" -eq 1 ]]; then
+        if timestamp_at_or_after_marker "$LAST_INDEXED"; then
             if [[ "$WATCHER_WORKSPACE_KEY" == "$WORKSPACE_KEY" || "$WATCHER_WORKSPACE_PATH" == "$REAL_PROJECT_PATH" ]]; then
                 RUNTIME_PROVEN=1
                 echo "watcher_state indexed: workspaceKey=$WATCHER_WORKSPACE_KEY workspacePath=$WATCHER_WORKSPACE_PATH lastIndexedAt=$LAST_INDEXED" >> "$EVIDENCE_DIR/runtime-project-evidence.txt"
@@ -388,6 +452,9 @@ fi
 if [[ "$LIFECYCLE_EVENT_FOUND" -eq 1 ]]; then
     record_result "lifecycle_event_observed" "passed" \
         "Post-marker runtime log contains lifecycle event with exact project/workspace match"
+elif [[ "$RUNTIME_PROVEN" -eq 1 ]]; then
+    record_result "lifecycle_event_observed" "skipped" \
+        "Runtime proof came from post-marker watcher state with exact project/workspace match; lifecycle log evidence not required"
 else
     record_result "lifecycle_event_observed" "failed" \
         "No lifecycle event found in post-marker runtime log for project ($REAL_PROJECT_PATH) or workspace key ($WORKSPACE_KEY). Expected one of: event hook invoked, session.created handled, watcher started pid=, watcher_state verified"
@@ -396,6 +463,14 @@ fi
 if [[ "$LIFECYCLE_EVENT_FOUND" -eq 1 || "$RUNTIME_PROVEN" -eq 1 ]]; then
     record_result "runtime_project_log" "passed" \
         "Runtime proven by lifecycle event or watcher state with exact project/workspace match"
+
+    if [[ -z "$WATCHER_AUTOMATION_MODE" ]]; then
+        WATCHER_AUTOMATION_MODE="$DEFAULT_AUTOMATION_MODE"
+    fi
+
+    if [[ "$HIGHEST_STATE" == "active_config_registered" ]]; then
+        HIGHEST_STATE="runtime_loaded"
+    fi
 else
     if [[ -z "$STALE_REASON" ]]; then
         if [[ "$EVIDENCE_FOUND" -eq 1 ]]; then
@@ -408,14 +483,23 @@ else
     fail_with "runtime_not_proven"
 fi
 
-if [[ "$PID_VALID" -eq 1 ]]; then
-    record_result "watcher_pid_owned" "passed" \
-        "Watcher PID $WATCHER_PID is alive, owned by current user, and cmdline contains 'vera watch' with project path"
-    HIGHEST_STATE="runtime_loaded"
+if [[ "$WATCHER_AUTOMATION_MODE" == "autostart" ]]; then
+    if [[ "$PID_VALID" -eq 1 ]]; then
+        record_result "watcher_pid_owned" "passed" \
+            "Watcher PID $WATCHER_PID is alive, owned by current user, and cmdline contains 'vera watch' with project path"
+    else
+        record_result "watcher_pid_owned" "failed" \
+            "Watcher PID is missing, dead, not owned by current user, or cmdline does not contain 'vera watch' with exact project path. Required when automationMode=autostart"
+        fail_with "watcher_pid_invalid"
+    fi
 else
-    record_result "watcher_pid_owned" "failed" \
-        "Watcher PID is missing, dead, not owned by current user, or cmdline does not contain 'vera watch' with exact project path"
-    fail_with "watcher_pid_invalid"
+    if [[ "$PID_VALID" -eq 1 ]]; then
+        record_result "watcher_pid_owned" "passed" \
+            "Watcher PID $WATCHER_PID is alive, owned by current user, and cmdline contains 'vera watch' with project path (manual mode; watcher validation not required)"
+    else
+        record_result "watcher_pid_owned" "skipped" \
+            "Watcher PID validation skipped in manual mode (automationMode=$WATCHER_AUTOMATION_MODE)"
+    fi
 fi
 
 VERA_OVERVIEW=""
@@ -426,8 +510,8 @@ if command -v vera >/dev/null 2>&1; then
     log_cmd "vera overview (in $REAL_PROJECT_PATH)"
     if VERA_OVERVIEW="$(cd "$REAL_PROJECT_PATH" && vera overview 2>/dev/null)"; then
         echo "$VERA_OVERVIEW" > "$EVIDENCE_DIR/vera-overview.txt"
-        VERA_FILES="$(echo "$VERA_OVERVIEW" | grep -oE 'Files:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1)"
-        VERA_CHUNKS="$(echo "$VERA_OVERVIEW" | grep -oE 'Chunks:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1)"
+        VERA_FILES="$(echo "$VERA_OVERVIEW" | grep -oE 'Files:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)"
+        VERA_CHUNKS="$(echo "$VERA_OVERVIEW" | grep -oE 'Chunks:[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)"
         VERA_FILES="${VERA_FILES:-0}"
         VERA_CHUNKS="${VERA_CHUNKS:-0}"
     else
