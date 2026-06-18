@@ -281,7 +281,7 @@ cd ez-omo-config
 | **oracle** | `openai/gpt-5.5` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `openai/gpt-5.5` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
 | **momus** | `openai/gpt-5.5` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
-| **hephaestus** | `openai/gpt-5.3-codex` | xhigh | (none) | Infrastructure, deployment |
+| **hephaestus** | `openai/gpt-5.4` | xhigh | (none) | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
 

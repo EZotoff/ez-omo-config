@@ -84,7 +84,7 @@ print('PASS: opencode-openai-codex-auth plugin entry exists')
 
 expected_agent_models = {
     'sisyphus': 'zai-coding-plan/glm-5.2',
-    'hephaestus': 'openai/gpt-5.3-codex',
+    'hephaestus': 'openai/gpt-5.4',
     'oracle': 'openai/gpt-5.5',
     'prometheus': 'zai-coding-plan/glm-5.2',
     'metis': 'openai/gpt-5.5',
@@ -92,9 +92,9 @@ expected_agent_models = {
 }
 expected_category_models = {
     'ultrabrain': 'openai/gpt-5.5',
-    'deep': 'openai/gpt-5.3-codex',
-    'quick': 'openai/gpt-5.3-codex-spark',
-    'unspecified-low': 'openai/gpt-5.3-codex-spark',
+    'deep': 'openai/gpt-5.4',
+    'quick': 'opencode-go/deepseek-v4-flash',
+    'unspecified-low': 'opencode-go/deepseek-v4-flash',
     'unspecified-high': 'openai/gpt-5.4',
     'mephistopheles': 'openai/gpt-5.5',
 }
@@ -141,9 +141,9 @@ for name, expected in expected_agent_models.items():
 
 expected_category_fallbacks = {
     'ultrabrain': ['zai-coding-plan/glm-5.1'],
-    'deep': ['kimi-for-coding-oauth/kimi-for-coding', 'openai/gpt-5.4'],
-    'quick': ['deepseek/deepseek-chat'],
-    'unspecified-low': ['deepseek/deepseek-chat'],
+    'deep': ['kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.2'],
+    'quick': ['kimi-for-coding-oauth/kimi-for-coding'],
+    'unspecified-low': ['kimi-for-coding-oauth/kimi-for-coding'],
     'unspecified-high': ['kimi-for-coding-oauth/kimi-for-coding'],
     'mephistopheles': ['openai/gpt-5.4', 'kimi-for-coding-oauth/kimi-for-coding'],
 }
@@ -161,14 +161,14 @@ print('PASS: OMO GPT-heavy routes use openai without retired-provider fallbacks'
 
 for name in ('quick', 'unspecified-low'):
     route = categories.get(name, {})
-    if route.get('variant') != 'medium':
-        print(f'FAIL: categories.{name}.variant expected \'medium\', got {route.get("variant")!r}')
+    if route.get('variant') is not None:
+        print(f'FAIL: categories.{name}.variant expected None, got {route.get("variant")!r}')
         sys.exit(1)
     fallbacks = route.get('fallback_models', [])
-    if fallbacks != ['deepseek/deepseek-chat']:
-        print(f'FAIL: categories.{name}.fallback_models expected deepseek fallback, got {fallbacks!r}')
+    if fallbacks != ['kimi-for-coding-oauth/kimi-for-coding']:
+        print(f'FAIL: categories.{name}.fallback_models expected kimi fallback, got {fallbacks!r}')
         sys.exit(1)
-print('PASS: quick and unspecified-low prefer Spark with non-retired fallback')
+print('PASS: quick and unspecified-low use DeepSeek V4 Flash with kimi fallback')
 
 for (scope, name), expected in expected_gemini_routes.items():
     actual = (agents if scope == 'agents' else categories).get(name, {}).get('model')

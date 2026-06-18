@@ -15,7 +15,7 @@
       "variant": "high"
     },
     "hephaestus": {
-      "model": "openai/gpt-5.3-codex",
+      "model": "openai/gpt-5.4",
       "variant": "xhigh"
     },
     "oracle": {
@@ -141,18 +141,16 @@
       ]
     },
     "quick": {
-      "model": "openai/gpt-5.3-codex-spark",
+      "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
-        "opencode-go/deepseek-v4-flash"
-      ],
-      "variant": "medium"
+        "kimi-for-coding-oauth/kimi-for-coding"
+      ]
     },
     "unspecified-low": {
-      "model": "openai/gpt-5.3-codex-spark",
+      "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
-        "opencode-go/deepseek-v4-flash"
-      ],
-      "variant": "medium"
+        "kimi-for-coding-oauth/kimi-for-coding"
+      ]
     },
     "unspecified-high": {
       "model": "openai/gpt-5.4",
@@ -167,11 +165,11 @@
       ]
     },
     "deep": {
-      "model": "openai/gpt-5.3-codex",
+      "model": "openai/gpt-5.4",
       "variant": "high",
       "fallback_models": [
-        "openai/gpt-5.4",
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "kimi-for-coding-oauth/kimi-for-coding",
+        "zai-coding-plan/glm-5.2"
       ]
     },
     "mephistopheles": {
