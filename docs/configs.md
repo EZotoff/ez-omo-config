@@ -232,12 +232,15 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - Category model assignments
 - Default skill loading
 - OMO-specific settings
+- Team Mode enablement and default mode preferences
 - Override behaviors for core OpenCode
 
 **Key Features**:
 
 - Custom agent and category model overrides
 - Skill auto-loading per category
+- Team Mode is enabled through `team_mode.enabled: true`
+- Ultrawork is the default mode through `default_mode.ultrawork: true`
 - OMO workflow integrations
 - Extension point configurations
 
