@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable ownership manifest for OpenCode/OMO stack locations on this host.",
+  "default_policy": {
+    "unknown_writable": false,
+    "forbidden_writable": false,
+    "strict_failure_classifications": ["unknown", "forbidden_zone"]
+  },
+  "role_markers": {
+    "documentation": "A path's role is determined by the most specific canonical prefix below. Marker metadata is descriptive and intentionally tracked only inside the control-plane repository; runtime homes and secrets must not receive marker files from this policy.",
+    "tracked_control_plane_marker": {
+      "path": "/home/ezotoff/ez-omo-config/configs/stack-locations.json",
+      "role": "control_plane_policy_manifest",
+      "safe_to_track": true
+    },
+    "runtime_marker_policy": "Do not create repo-root .omo, runtime ~/.omo marker files, or auth markers. Runtime and secret locations are classified by canonical path only."
+  },
+  "planes": {
+    "secret_or_auth": {
+      "writable": false,
+      "paths": [
+        "/home/ezotoff/.local/share/opencode/auth.json"
+      ],
+      "notes": "Machine-local credentials. Never commit or edit from stack automation."
+    },
+    "forbidden_zone": {
+      "writable": false,
+      "paths": [
+        "/home/ezotoff/ez-omo-config/.omo"
+      ],
+      "notes": "Repository-root .omo is forbidden and must never be created or treated as valid state."
+    },
+    "planning_state": {
+      "writable": true,
+      "paths": [
+        "/home/ezotoff/ez-omo-config/.sisyphus"
+      ],
+      "notes": "Tracked Sisyphus plans, evidence, notepads, and execution state."
+    },
+    "control_plane": {
+      "writable": true,
+      "paths": [
+        "/home/ezotoff/ez-omo-config"
+      ],
+      "notes": "Versioned OpenCode/OMO configuration repository."
+    },
+    "source_plane": {
+      "writable": true,
+      "paths": [
+        "/home/ezotoff/oh-my-openagent"
+      ],
+      "notes": "Oh-My-OpenAgent source checkout."
+    },
+    "runtime_plane": {
+      "writable": true,
+      "paths": [
+        "/home/ezotoff/.omo"
+      ],
+      "notes": "Machine-local OMO runtime home."
+    },
+    "control_managed_runtime_child": {
+      "writable": false,
+      "paths": [
+        "/home/ezotoff/.config/opencode",
+        "/home/ezotoff/.opencode",
+        "/home/ezotoff/.local/share/opencode"
+      ],
+      "notes": "Live config/plugin targets managed by install.sh; direct writes are denied by default."
+    }
+  }
+}
