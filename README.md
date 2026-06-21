@@ -68,7 +68,7 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
 | 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, manual-by-default Vera runtime state, and semantic checkpointing |
-| 12-22 | **Skills** | 11 directories | Specialized agent skills for testing, deployment, UX, parallel development, Vera hygiene, and safe update pipelines |
+| 12-22 | **Skills** | 12 directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, Vera hygiene, and safe update pipelines. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | 24 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
 | 32 | **Tests** | 22 test scripts | Regression tests for config, DCP, plugin, and update pipeline verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
@@ -102,11 +102,13 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 11e | `vera-runtime.ts` | `plugins/` | Vera runtime state plugin (manual-by-default index lifecycle, opt-in watcher automation, fail-open) |
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
+| 12b | `patch-tracker/` | `skills/` | Patch registry CRUD and post-update verification skill |
+| 12c | `register-retry-error/` | `skills/` | Retryable error pattern registration skill |
+| 12d | `session-id/` | `skills/` | Session ID clipboard (skill form, mirrors the `/session-id` plugin) |
+| 12e | `debate/` | `skills/` | Structured adversarial debate protocol with configurable judge panels and 6 distinct modes |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
 | 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
-| 15 | `playwright/` | `skills/` | Browser automation testing |
 | 16 | `deployment/` | `skills/` | Infrastructure deployment helpers |
-| 17 | `frontend-ui-ux/` | `skills/` | Frontend and UX design assistance |
 | 18 | `wisdom-common.sh` | `scripts/wisdom/` | Shared wisdom utilities |
 | 19 | `wisdom-search.sh` | `scripts/wisdom/` | Search wisdom database |
 | 20 | `wisdom-write.sh` | `scripts/wisdom/` | Write new learnings |
@@ -120,7 +122,6 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
-| 30 | `worktree-coordinator/` | `skills/` | Worktree parallel development guide |
 | 30a | `vera-hygiene/` | `skills/` | Vera index hygiene skill — `.veraignore` management and pre-indexing cleanup |
 | 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
 | 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, Docker start, and manual-by-default Vera state recording. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |

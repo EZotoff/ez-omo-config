@@ -253,8 +253,8 @@ test_query_shim_events() {
     echo "Query shim test entry about search lookup and snapshot observability" | \
         "${SCRIPT_DIR}/wisdom-write.sh" --scope system --type fact --tags "${TEST_TAG},query" >/dev/null 2>&1
     "${SCRIPT_DIR}/wisdom-search.sh" "query shim" --scope system --json >/dev/null 2>&1 || true
-    "${SCRIPT_DIR}/knowledge-lookup.sh" "query shim" >/dev/null 2>&1 || true
-    "${SCRIPT_DIR}/knowledge-snapshot.sh" >/dev/null 2>&1 || true
+    "${SCRIPT_DIR}/wisdom-search.sh" "query shim" >/dev/null 2>&1 || true
+    "${SCRIPT_DIR}/wisdom-search.sh" --scope all --limit 1000 >/dev/null 2>&1 || true
     local search_events lookup_events snapshot_events
     search_events=$(events_for_event_type "wisdom.search" | jq 'length')
     lookup_events=$(events_for_event_type "wisdom.lookup" | jq 'length')

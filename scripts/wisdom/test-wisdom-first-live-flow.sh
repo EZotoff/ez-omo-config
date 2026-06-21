@@ -68,7 +68,7 @@ test_seed_and_lookup() {
     id2=$(echo "Live flow seed entry B about verifying the wisdom store works correctly" | \
         "${SCRIPT_DIR}/wisdom-write.sh" --scope system --type pattern --tags "${TEST_TAG},live-flow" --score 7 2>&1 | grep -oE '[0-9]{8}-[0-9]{6}-[a-z0-9]{4}')
     [[ -z "$id2" ]] && { echo "Failed to seed entry B"; return 1; }
-    lookup_output=$("${SCRIPT_DIR}/knowledge-lookup.sh" "live flow seed" 2>&1)
+    lookup_output=$("${SCRIPT_DIR}/wisdom-search.sh" "live flow seed" 2>&1)
     echo "$lookup_output" | grep -q "$id1" || { echo "Lookup did not find entry A"; return 1; }
     echo "$lookup_output" | grep -q "$id2" || { echo "Lookup did not find entry B"; return 1; }
     return 0
@@ -76,7 +76,7 @@ test_seed_and_lookup() {
 
 test_snapshot_without_manifests() {
     local snapshot_output
-    snapshot_output=$("${SCRIPT_DIR}/knowledge-snapshot.sh" 2>&1)
+    snapshot_output=$("${SCRIPT_DIR}/wisdom-search.sh" --scope all --limit 1000 2>&1)
     [[ -n "$snapshot_output" ]] || { echo "Snapshot produced no output"; return 1; }
     echo "$snapshot_output" | grep -q "Wisdom" || { echo "Snapshot missing Wisdom section"; return 1; }
     return 0
@@ -123,8 +123,8 @@ test_runtime_without_manifests() {
     mv "${manifest_dir}/project" "${MANIFEST_BACKUP}/project" 2>/dev/null || true
 
     local lookup_output snapshot_output
-    lookup_output=$("${SCRIPT_DIR}/knowledge-lookup.sh" "live flow" 2>&1)
-    snapshot_output=$("${SCRIPT_DIR}/knowledge-snapshot.sh" 2>&1)
+    lookup_output=$("${SCRIPT_DIR}/wisdom-search.sh" "live flow" 2>&1)
+    snapshot_output=$("${SCRIPT_DIR}/wisdom-search.sh" --scope all --limit 1000 2>&1)
 
     local lookup_ok=false snapshot_ok=false
     echo "$lookup_output" | grep -q "live flow" && lookup_ok=true

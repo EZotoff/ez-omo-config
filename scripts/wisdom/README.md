@@ -15,8 +15,6 @@
 - `wisdom-restore.sh` — restores a backup tarball produced by `wisdom-migrate.sh`.
 - `wisdom-publish.sh` — publishes a Wisdom entry as a derivative artifact. Updates canonical record (authority=published, verified_at=now) but NEVER supersedes the source. Tracks emitted artifacts in metadata.published_artifacts with source digests for staleness detection.
 - `wisdom-observe.sh` — operator-facing observability CLI. Subcommands: `status` (event file metadata), `read` (filtered event inspection), `trace TRACE_ID` (per-trace event timeline), `reset --yes` (safe truncation with reset event).
-- `knowledge-lookup.sh` — **DEPRECATED compatibility shim**. Delegates to `wisdom-search.sh` for backward-compatible knowledge queries.
-- `knowledge-snapshot.sh` — **DEPRECATED compatibility shim**. Generates session orientation snapshot from Wisdom store only.
-- `knowledge-promote.sh` — **DEPRECATED compatibility shim**. Delegates to `wisdom-publish.sh` while preserving legacy CLI interface (`--wisdom-id`, `--type`, `--reason`, `--scope`).
+- `knowledge-constants.sh` — shared constants for the wisdom/knowledge subsystem (sourced by `wisdom-publish.sh`, `manifest-write.sh`, and tests). Defines `WISDOM_BASE_DIR`, `WISDOM_SYSTEM_DIR`, `KNOWLEDGE_BASE_DIR`, authority levels, provenance types, and scope levels. **Note**: The deprecated `knowledge-lookup.sh`, `knowledge-snapshot.sh`, and `knowledge-promote.sh` shims were removed — Wisdom is the sole runtime memory store.
 
 Most non-common scripts source `./wisdom-common.sh` via `$(dirname "$0")/wisdom-common.sh` (notably `wisdom-migrate.sh` and runtime CRUD/search handlers). Keep the bundle co-located in the same directory.

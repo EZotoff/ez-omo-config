@@ -21,25 +21,36 @@ Automated code review agent that analyzes git diffs and returns structured findi
 - **Use Case**: Conducting code reviews of uncommitted or recent changes
 - **Live Gate Note**: This is a **referenced external skill**. It does **not** enforce the Live Deployment Verification Gate, unless later versioned in this repo. The gate is enforced by tracked repo files: `AGENTS.md`, `plugins/review-enforcer.ts`, and `scripts/verify-live-deployment.sh`.
 
-### playwright/
-Browser testing agent using playwright-cli. Verifies frontend functionality works correctly with actual user-visible behavior testing, not just error checking.
-- **Dependencies**: None
-- **Use Case**: Testing UI functionality, exploratory testing, verifying app works correctly
+### patch-tracker/
+Patch registry operator. Tracks custom patches to external dependencies through a full CRUD lifecycle (CREATE, READ, UPDATE, DEPRECATE, VERIFY) with post-update verification. Surfaces a "durable alternative nudge" before allowing direct patches.
+- **Dependencies**: `.sisyphus/patches/TEMPLATE.md`
+- **Use Case**: Preventing silent patch debt — patches lost on dependency updates with no record
+
+### register-retry-error/
+Error registry operator. Registers new retryable error patterns in the centralized retry-errors registry (`~/.config/opencode/retry-errors.json`). Validates regex patterns, prevents duplicates, and uses atomic writes.
+- **Dependencies**: `retry-errors.json` registry, `provider-connect-retry.mjs` plugin
+- **Use Case**: Adding new retryable error patterns at runtime
+
+### session-id/
+Minimal utility skill that copies the current OpenCode session ID to clipboard via `opencode session list -n 1` + `jq` + `xclip`. Mirrors the behavior of the `session-id.ts` plugin (which intercepts the `/session-id` slash command without an LLM round-trip).
+- **Dependencies**: `opencode` CLI, `jq`, `xclip`
+- **Use Case**: Quick clipboard copy of the current session ID
 
 ### deployment/
 Infrastructure and deployment helper for setting up servers, configuring ports, running services locally, docker-compose, and deployment-related tasks. Maintains port registry to avoid conflicts.
 - **Dependencies**: None
 - **Use Case**: Managing server setup, Docker deployments, port configuration
 
-### frontend-ui-ux/
-Designer-turned-developer UI/UX specialist that crafts stunning UI/UX with multi-dimensional analysis for deep design work. Provides UI/UX expertise even without design mockups.
-- **Dependencies**: None
-- **Use Case**: Visual engineering, UI design improvements, UX enhancements
-
 ### update-to-latest/
 Safe OpenCode/OMO update pipeline with explicit human approval gate, patch-tracker integration, rollback capability, and evidence-state claim discipline. A 13-phase guided operational pipeline that analyzes available updates, produces a go/no-go recommendation, and only executes after explicit human approval.
 - **Dependencies**: `patch-tracker` skill (referenced)
 - **Use Case**: Analyzing whether to update OpenCode or OMO, executing updates safely with full rollback capability
+- **Install**: `install.sh --skills`
+
+### debate/
+Structured adversarial debate protocol with configurable judge panels, scoring rubrics, and 6 distinct modes for rigorous technical analysis. Orchestrates multi-agent debates with formal rules, evidence tracking, and consensus building. Uses deterministic label blinding (Alpha/Beta only — judges never see agent names).
+- **Dependencies**: None (orchestrates other agents via `task()`)
+- **Use Case**: Surfacing hidden assumptions, testing argument robustness, making complex architectural decisions, evaluating competing approaches
 - **Install**: `install.sh --skills`
 
 ### vera-hygiene/

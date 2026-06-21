@@ -172,6 +172,42 @@ assert_no_grep '/dashboard/' "$inventory_file"
 assert_no_grep '^omo-dashboard/' "$inventory_file"
 assert_no_grep '/omo-dashboard/' "$inventory_file"
 
+for skill_dir in "$REPO_ROOT"/skills/*/; do
+    [[ -d "$skill_dir" ]] || continue
+    skill_name="$(basename "$skill_dir")"
+    if [[ ! -f "$skill_dir/SKILL.md" ]]; then
+        echo "FAIL: skills/${skill_name}/ is missing SKILL.md (skill will not load)" >&2
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    else
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    fi
+done
+
+shopt -s nullglob
+for patch_file in "$REPO_ROOT"/.sisyphus/patches/*.md; do
+    [[ -f "$patch_file" ]] || continue
+    patch_name="$(basename "$patch_file" .md)"
+    [[ "$patch_name" == "TEMPLATE" ]] && continue
+    if ! grep -q "\`${patch_name}\`" "$REPO_ROOT/MANIFEST.md"; then
+        echo "FAIL: patch ${patch_name} exists in .sisyphus/patches/ but is not listed in MANIFEST.md Patch Registry" >&2
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    else
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    fi
+done
+shopt -u nullglob
+
+while IFS= read -r line; do
+    source_rel="${line%%|*}"
+    [[ -n "$source_rel" ]] || continue
+    if [[ ! -e "$REPO_ROOT/$source_rel" ]]; then
+        echo "FAIL: install.sh references missing skill source: $source_rel" >&2
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    else
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    fi
+done < <(grep '^    "skills|' "$REPO_ROOT/install.sh" | sed 's/^    "skills|//; s/"$//')
+
 echo "Artifact manifest checks: $TESTS_PASSED passed, $TESTS_FAILED failed"
 
 if [[ $TESTS_FAILED -gt 0 ]]; then

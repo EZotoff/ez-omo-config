@@ -98,24 +98,66 @@ Like `atlas-review-handler/`, this skill is a **referenced external skill** and 
 
 These skills provide domain-specific enhancements and can be installed based on project needs.
 
-### playwright/
+### patch-tracker/
 
-**Purpose**: Browser testing agent using playwright-cli for frontend verification.
+**Purpose**: Patch registry operator skill. Tracks custom patches to external dependencies through a full CRUD lifecycle with post-update verification.
 
 **Features**:
 
-- Verifies frontend functionality with actual user-visible behavior
-- More thorough than simple error checking
-- Tests real user interactions
-- 4x more token-efficient than MCP approaches
+- Register patches with required frontmatter (patch_id, dependency, target_file, verification_pattern, etc.)
+- Five required body sections per entry (Problem, Patch Description, Verification, Reapply Instructions, Durable Alternative)
+- READ / UPDATE / DEPRECATE / VERIFY workflows
+- "Durable alternative nudge" — refuses to register a patch if a plugin, hook, or config option would solve the problem
+- Detects stale patches after dependency updates and surfaces reapply instructions
 
-**Dependencies**: None
+**Dependencies**: `.sisyphus/patches/TEMPLATE.md` (patch entry template)
 
-**Use Case**: Testing UI functionality, exploratory testing, verifying apps work correctly
+**Use Case**: Preventing silent patch debt — patches that get lost on dependency updates with no record
 
 **Status**: Optional
 
-**Install Target**: `$HOME/.config/opencode/skills/playwright/`
+**Install Target**: `$HOME/.config/opencode/skills/patch-tracker/`
+
+---
+
+### register-retry-error/
+
+**Purpose**: Error registry operator skill. Registers new retryable error patterns in the centralized retry-errors registry.
+
+**Features**:
+
+- Validates regex patterns, kebab-case IDs, and backoff length constraints
+- Prevents duplicate IDs and duplicate patterns
+- Atomic write protocol (temp file + rename) to prevent JSON corruption
+- Used alongside the `provider-connect-retry.mjs` plugin and `retry-errors.json` config
+
+**Dependencies**: `~/.config/opencode/retry-errors.json` (the registry)
+
+**Use Case**: Adding new retryable error patterns to the runtime retry plugin
+
+**Status**: Optional
+
+**Install Target**: `$HOME/.config/opencode/skills/register-retry-error/`
+
+---
+
+### session-id/
+
+**Purpose**: Minimal utility skill that copies the current OpenCode session ID to the clipboard.
+
+**Features**:
+
+- Single one-liner workflow using `opencode session list -n 1 --format json` + `jq` + `xclip`
+- Triggers on `/session-id`
+- Mirrors the behavior of the `session-id.ts` plugin (which intercepts the slash command without an LLM round-trip)
+
+**Dependencies**: `opencode` CLI, `jq`, `xclip`
+
+**Use Case**: Quick clipboard copy of the current session ID for sharing or bookmarking
+
+**Status**: Optional
+
+**Install Target**: `$HOME/.config/opencode/skills/session-id/`
 
 ---
 
@@ -141,27 +183,6 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
-### frontend-ui-ux/
-
-**Purpose**: Designer-turned-developer UI/UX specialist for visual engineering.
-
-**Features**:
-
-- Crafts stunning UI/UX even without design mockups
-- Multi-dimensional analysis for deep UI work
-- Provides UI/UX expertise and recommendations
-- Design pattern knowledge
-
-**Dependencies**: None
-
-**Use Case**: Visual engineering, UI design improvements, UX enhancements
-
-**Status**: Optional
-
-**Install Target**: `$HOME/.config/opencode/skills/frontend-ui-ux/`
-
----
-
 ### update-to-latest/
 
 **Purpose**: Safe OpenCode/OMO update pipeline with explicit human approval gate, patch-tracker integration, rollback capability, and evidence-state claim discipline.
@@ -184,6 +205,31 @@ These skills provide domain-specific enhancements and can be installed based on 
 **Status**: Optional
 
 **Install Target**: `$HOME/.config/opencode/skills/update-to-latest/`
+
+**Install Method**: `install.sh --skills`
+
+---
+
+### debate/
+
+**Purpose**: Structured adversarial debate protocol for rigorous technical analysis. Orchestrates multi-agent debates with formal rules, evidence tracking, and consensus building.
+
+**Features**:
+
+- 5-segment debate protocol (S1-S5): Core Thesis → Evidence & Reasoning → Steel-Man & Counter → Implications → Cross-Examination
+- 6 distinct modes for different analytical needs
+- Configurable judge panels with scoring rubrics
+- Deterministic label blinding (Alpha/Beta only — judges never see agent names)
+- Evidence tracking with formal citation requirements
+- Consensus building through adversarial examination
+
+**Dependencies**: None (orchestrates other agents via `task()`)
+
+**Use Case**: Surfacing hidden assumptions, testing argument robustness, making complex architectural decisions, evaluating competing approaches
+
+**Status**: Optional
+
+**Install Target**: `$HOME/.config/opencode/skills/debate/`
 
 **Install Method**: `install.sh --skills`
 
@@ -262,14 +308,18 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | Skill | Status | Install Target | Install Method |
 |-------|--------|----------------|----------------|
 | wisdom/ | Required | `$HOME/.config/opencode/skills/wisdom/` | `install.sh` |
+| patch-tracker/ | Optional | `$HOME/.config/opencode/skills/patch-tracker/` | `install.sh` |
+| register-retry-error/ | Optional | `$HOME/.config/opencode/skills/register-retry-error/` | `install.sh` |
+| session-id/ | Optional | `$HOME/.config/opencode/skills/session-id/` | `install.sh` |
 | atlas-review-handler/ | Required | `$HOME/.config/opencode/skills/atlas-review-handler/` | `install.sh` |
 | review-protocol/ | Required | `$HOME/.config/opencode/skills/review-protocol/` | `install.sh` |
-| playwright/ | Optional | `$HOME/.config/opencode/skills/playwright/` | `install.sh` |
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
-| frontend-ui-ux/ | Optional | `$HOME/.config/opencode/skills/frontend-ui-ux/` | `install.sh` |
 | update-to-latest/ | Optional | `$HOME/.config/opencode/skills/update-to-latest/` | `install.sh` |
+| debate/ | Optional | `$HOME/.config/opencode/skills/debate/` | `install.sh` |
 | vera-hygiene/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera-hygiene/` | `install.sh` |
 | vera/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera/` | `vera agent install --client opencode` |
+
+**Note**: `playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are intentionally NOT vendored here. OMO registers them automatically when `bunx oh-my-openagent install` is run.
 
 ---
 
