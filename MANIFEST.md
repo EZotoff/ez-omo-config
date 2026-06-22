@@ -60,6 +60,13 @@ Complete inventory of 65 core artifacts for ez-omo-config repository scaffold.
 | 25 | wisdom-gc.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26 | wisdom-merge.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26a | wisdom-observe.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Observability | Required |
+| 26b | wisdom-publish.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26c | wisdom-closeout.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26d | wisdom-nominate.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26e | wisdom-migrate.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26f | wisdom-restore.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26g | manifest-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
+| 26h | knowledge-constants.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
@@ -138,7 +145,7 @@ ez-omo-config/
 - **Core Configs**: 18 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets)
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 11 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`). `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill — its content lives in `parallel-dev/SKILL.md`, `merge-agent/SKILL.md`, and `docs/worktree-state-schema.md`). `knowledge/` removed (deprecated Wisdom compat shim — Wisdom is the sole runtime memory store; shell-script shims deleted alongside).
-- **Scripts**: 20 wisdom shell scripts + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script + 7 Python operator helpers (stack-doctor, drift-detector, patch-guard, path-classifier, secrets-path-audit, source-identity-check, legacy-name-classifier)
+- **Scripts**: 17 wisdom shell scripts (15 `wisdom-*` + `knowledge-constants.sh` + `manifest-write.sh`) + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script + 7 Python operator helpers (stack-doctor, drift-detector, patch-guard, path-classifier, secrets-path-audit, source-identity-check, legacy-name-classifier)
 - **Tests**: 22 test scripts
 - **Extras**: 1 file (ocx.jsonc)
 

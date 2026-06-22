@@ -69,7 +69,7 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
 | 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, manual-by-default Vera runtime state, and semantic checkpointing |
 | 12-22 | **Skills** | 12 directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, Vera hygiene, and safe update pipelines. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
-| 22-31 | **Scripts** | 24 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
+| 22-31 | **Scripts** | 21 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
 | 32 | **Tests** | 22 test scripts | Regression tests for config, DCP, plugin, and update pipeline verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
@@ -119,6 +119,13 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
 | 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
 | 26a | `wisdom-observe.sh` | `scripts/wisdom/` | Operator-facing observability CLI for wisdom events |
+| 26b | `wisdom-publish.sh` | `scripts/wisdom/` | Publishes a wisdom entry as a derivative artifact |
+| 26c | `wisdom-closeout.sh` | `scripts/wisdom/` | Closeout capture handler (provenance=closeout) |
+| 26d | `wisdom-nominate.sh` | `scripts/wisdom/` | Passive nomination handler for candidate wisdom |
+| 26e | `wisdom-migrate.sh` | `scripts/wisdom/` | Migration backups + idempotent manifest import |
+| 26f | `wisdom-restore.sh` | `scripts/wisdom/` | Restores backup tarballs produced by migrate |
+| 26g | `manifest-write.sh` | `scripts/wisdom/` | Creates knowledge manifests with YAML frontmatter |
+| 26h | `knowledge-constants.sh` | `scripts/wisdom/` | Shared constants sourced by `wisdom-publish.sh`, `manifest-write.sh`, and tests |
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
