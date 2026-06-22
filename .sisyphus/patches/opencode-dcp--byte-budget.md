@@ -1,19 +1,19 @@
 ---
 patch_id: "opencode-dcp--byte-budget"
 dependency: "@tarquinen/opencode-dcp"
-target_file: "dist/lib/messages/byte-budget.js"
+target_file: "dist/index.js"
 target_install_paths:
   - "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
-  - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
-  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*"
 status: "active"
 applied_date: "2026-05-16"
-dep_version: "3.1.9"
+dep_version: "3.1.13"
 upstream_issue: "https://github.com/Opencode-DCP/opencode-dynamic-context-pruning/pull/501"
 verification_pattern: "maxPayloadBytes|pruneByByteBudget|measureMessagePayloadBytes|BYTE_BUDGET_DEFAULTS"
 ---
@@ -85,11 +85,12 @@ bash tests/test_dcp_bounded_range.sh && bash tests/test_dcp_payload_budget.sh --
 ## Reapply Instructions
 If the patch is lost after a DCP package update:
 
-1. Build from source: `cd omo-hub/projects/opencode-dynamic-context-pruning && npm run build && npx tsc --noEmit false --emitDeclarationOnly false`
-2. Sync dist to reference install: `rsync -a dist/ ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/`
-3. Sync all copies: `./install.sh --configs` from this repo (syncs reference, runtime, `@latest` package cache, `@3.1.9` version-pinned package cache, XDG_CACHE_HOME cache copies when set and differing from HOME/.cache, and existing Bun v3 plugin cache copies)
-4. Verify: `bash tests/test_dcp_payload_budget.sh --installed`
-5. **Restart OpenCode** so the backend reloads the patched modules
+1. The patched source repo is at `/home/ezotoff/opencode-dynamic-context-pruning-v3.1.13/`. Cherry-pick the byte-budget commit onto a fresh checkout of the target DCP version.
+2. Build with tsup: `cd /home/ezotoff/opencode-dynamic-context-pruning-v3.1.13 && npm run build` (produces `dist/index.js` bundled with all patches).
+3. Copy the bundle to the reference install: `cp dist/index.js dist/index.js.map ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/`.
+4. Sync all copies: `./install.sh --configs` from this repo.
+5. Verify: `bash tests/test_dcp_payload_budget.sh`
+6. **Restart OpenCode** so the backend reloads the patched bundle.
 
 ## Durable Alternative
 Same upstream PR #501 (https://github.com/Opencode-DCP/opencode-dynamic-context-pruning/pull/501) that proposes bounded archive mode also covers payload-budget enforcement as a first-class config option. If merged, both patches could be deprecated and controlled through upstream config keys.

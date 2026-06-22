@@ -20,20 +20,22 @@ fi
 HARNESS="$SCRIPT_DIR/dcp-local-patch/bounded-range.mjs"
 MARKER_PATTERN='compress\.retentionMode|compress\.maxArchivedSummaryTokens|retentionMode|maxArchivedSummaryTokens'
 
-REFERENCE_CONFIG_JS="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-RUNTIME_CONFIG_JS="$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-PACKAGE_CACHE_LATEST_CONFIG_JS="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-PACKAGE_CACHE_PINNED_CONFIG_JS="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-BUN_CACHE_CONFIG_GLOB="$HOME/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib/config.js"
+# v3.1.13+ uses tsup bundling: all runtime code is in dist/index.js (single bundle).
+# Marker checks grep the bundle; functional tests import from source TS via tsx.
+REFERENCE_BUNDLE="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+RUNTIME_BUNDLE="$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+PACKAGE_CACHE_LATEST_BUNDLE="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+PACKAGE_CACHE_PINNED_BUNDLE="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+BUN_CACHE_BUNDLE_GLOB="$HOME/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/index.js"
 
 # XDG_CACHE_HOME cache roots (when set and differs from HOME/.cache)
-XDG_RUNTIME_CONFIG_JS=""
-XDG_PACKAGE_CACHE_LATEST_CONFIG_JS=""
-XDG_PACKAGE_CACHE_PINNED_CONFIG_JS=""
+XDG_RUNTIME_BUNDLE=""
+XDG_PACKAGE_CACHE_LATEST_BUNDLE=""
+XDG_PACKAGE_CACHE_PINNED_BUNDLE=""
 if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
-    XDG_RUNTIME_CONFIG_JS="$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-    XDG_PACKAGE_CACHE_LATEST_CONFIG_JS="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-    XDG_PACKAGE_CACHE_PINNED_CONFIG_JS="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+    XDG_RUNTIME_BUNDLE="$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+    XDG_PACKAGE_CACHE_LATEST_BUNDLE="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+    XDG_PACKAGE_CACHE_PINNED_BUNDLE="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist/index.js"
 fi
 
 TOTAL_PASSED=0
@@ -75,25 +77,25 @@ run_marker_case() {
     fi
 }
 
-run_marker_case "markers-reference-copy" "$REFERENCE_CONFIG_JS" "required"
-run_marker_case "markers-runtime-copy" "$RUNTIME_CONFIG_JS" "required"
-run_marker_case "markers-package-cache-latest" "$PACKAGE_CACHE_LATEST_CONFIG_JS" "required"
-run_marker_case "markers-package-cache-pinned-3.1.9" "$PACKAGE_CACHE_PINNED_CONFIG_JS" "required"
+run_marker_case "markers-reference-copy" "$REFERENCE_BUNDLE" "required"
+run_marker_case "markers-runtime-copy" "$RUNTIME_BUNDLE" "required"
+run_marker_case "markers-package-cache-latest" "$PACKAGE_CACHE_LATEST_BUNDLE" "required"
+run_marker_case "markers-package-cache-pinned-3.1.13" "$PACKAGE_CACHE_PINNED_BUNDLE" "required"
 
-if [[ -n "$XDG_RUNTIME_CONFIG_JS" ]]; then
-    run_marker_case "markers-xdg-runtime-copy" "$XDG_RUNTIME_CONFIG_JS" "required"
+if [[ -n "$XDG_RUNTIME_BUNDLE" ]]; then
+    run_marker_case "markers-xdg-runtime-copy" "$XDG_RUNTIME_BUNDLE" "required"
 fi
-if [[ -n "$XDG_PACKAGE_CACHE_LATEST_CONFIG_JS" ]]; then
-    run_marker_case "markers-xdg-package-cache-latest" "$XDG_PACKAGE_CACHE_LATEST_CONFIG_JS" "required"
+if [[ -n "$XDG_PACKAGE_CACHE_LATEST_BUNDLE" ]]; then
+    run_marker_case "markers-xdg-package-cache-latest" "$XDG_PACKAGE_CACHE_LATEST_BUNDLE" "required"
 fi
-if [[ -n "$XDG_PACKAGE_CACHE_PINNED_CONFIG_JS" ]]; then
-    run_marker_case "markers-xdg-package-cache-pinned-3.1.9" "$XDG_PACKAGE_CACHE_PINNED_CONFIG_JS" "required"
+if [[ -n "$XDG_PACKAGE_CACHE_PINNED_BUNDLE" ]]; then
+    run_marker_case "markers-xdg-package-cache-pinned-3.1.13" "$XDG_PACKAGE_CACHE_PINNED_BUNDLE" "required"
 fi
 
-for bun_cache_config_js in $BUN_CACHE_CONFIG_GLOB; do
-    if [[ -f "$bun_cache_config_js" ]]; then
-        bun_cache_package="$(basename "$(dirname "$(dirname "$(dirname "$bun_cache_config_js")")")")"
-        run_marker_case "markers-bun-cache-$bun_cache_package" "$bun_cache_config_js" "required"
+for bun_cache_bundle in $BUN_CACHE_BUNDLE_GLOB; do
+    if [[ -f "$bun_cache_bundle" ]]; then
+        bun_cache_package="$(basename "$(dirname "$(dirname "$(dirname "$bun_cache_bundle")")")")"
+        run_marker_case "markers-bun-cache-$bun_cache_package" "$bun_cache_bundle" "required"
     fi
 done
 

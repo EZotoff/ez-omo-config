@@ -1,9 +1,12 @@
 // tests/dcp-local-patch/bounded-range.mjs
-// Regression harness for bounded-range DCP patches
+// Regression harness for bounded-range DCP patches.
+// v3.1.13+ uses tsup bundling (single dist/index.js), so functional tests
+// import TypeScript source directly via tsx. Marker checks in the shell
+// scripts verify patch presence in the installed bundle.
 
 import { readFileSync } from "node:fs";
 
-const DCP_ROOT = "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist";
+const DCP_SRC_ROOT = "/home/ezotoff/opencode-dynamic-context-pruning-v3.1.13";
 const DCP_CONFIG_PATH = "/home/ezotoff/ez-omo-config/configs/opencode/dcp.jsonc";
 const BOUNDED_TRUNCATION_MARKER = "Older archived detail omitted.";
 
@@ -21,9 +24,9 @@ function pass(caseName) {
 // ---------------------------------------------------------------------------
 async function runMonotonicSummaryBound() {
   const { normalizeBoundedRangeSummary } = await import(
-    `${DCP_ROOT}/lib/compress/range-utils.js`
+    `${DCP_SRC_ROOT}/lib/compress/range-utils.ts`
   );
-  const { countTokens } = await import(`${DCP_ROOT}/lib/token-utils.js`);
+  const { countTokens } = await import(`${DCP_SRC_ROOT}/lib/token-utils.ts`);
 
   // Build a long summary that exceeds 1200 tokens and contains placeholders
   const longSummary =
@@ -49,7 +52,7 @@ async function runMonotonicSummaryBound() {
 // ---------------------------------------------------------------------------
 async function runArchivedRawStaysOutOfPrompt() {
   // filterCompressedRanges is not exported directly; exercise it via prune()
-  const { prune } = await import(`${DCP_ROOT}/lib/messages/prune.js`);
+  const { prune } = await import(`${DCP_SRC_ROOT}/lib/messages/prune.ts`);
 
   const logger = {
     warn: () => {},
@@ -99,7 +102,7 @@ async function runArchivedRawStaysOutOfPrompt() {
 // 3. persisted-frontier-state
 // ---------------------------------------------------------------------------
 async function runPersistedFrontierState() {
-  const { syncCompressionBlocks } = await import(`${DCP_ROOT}/lib/messages/sync.js`);
+  const { syncCompressionBlocks } = await import(`${DCP_SRC_ROOT}/lib/messages/sync.ts`);
 
   const logger = {
     warn: () => {},
@@ -168,13 +171,13 @@ async function runPersistedFrontierState() {
 // 4. decompress-archived-rejected
 // ---------------------------------------------------------------------------
 async function runDecompressArchivedRejected() {
-  const decompressPath = `${DCP_ROOT}/lib/commands/decompress.js`;
+  const decompressPath = `${DCP_SRC_ROOT}/lib/commands/decompress.ts`;
   const source = readFileSync(decompressPath, "utf-8");
 
   const expectedGuardSuffix =
     "uses bounded archival retention and cannot be decompressed to raw history.";
   if (!source.includes(expectedGuardSuffix) || !source.includes("target.displayId")) {
-    fail(`decompress-archived-rejected: guard string not found in decompress.js`);
+    fail(`decompress-archived-rejected: guard string not found in decompress.ts`);
   }
 
   pass("decompress-archived-rejected");
@@ -188,17 +191,17 @@ async function runBoundedRuntimeProofMetadata() {
     "/home/ezotoff/.config/opencode/node_modules/jsonc-parser/lib/esm/main.js"
   );
   const { normalizeBoundedRangeSummary } = await import(
-    `${DCP_ROOT}/lib/compress/range-utils.js`
+    `${DCP_SRC_ROOT}/lib/compress/range-utils.ts`
   );
   const {
     allocateBlockId,
     allocateRunId,
     applyCompressionState,
     wrapCompressedSummary,
-  } = await import(`${DCP_ROOT}/lib/compress/state.js`);
-  const { syncCompressionBlocks } = await import(`${DCP_ROOT}/lib/messages/sync.js`);
-  const { createPruneMessagesState } = await import(`${DCP_ROOT}/lib/state/utils.js`);
-  const { countTokens } = await import(`${DCP_ROOT}/lib/token-utils.js`);
+  } = await import(`${DCP_SRC_ROOT}/lib/compress/state.ts`);
+  const { syncCompressionBlocks } = await import(`${DCP_SRC_ROOT}/lib/messages/sync.ts`);
+  const { createPruneMessagesState } = await import(`${DCP_SRC_ROOT}/lib/state/utils.ts`);
+  const { countTokens } = await import(`${DCP_SRC_ROOT}/lib/token-utils.ts`);
 
   const dcpConfig = parse(readFileSync(DCP_CONFIG_PATH, "utf-8"));
   const compressConfig = dcpConfig?.compress;

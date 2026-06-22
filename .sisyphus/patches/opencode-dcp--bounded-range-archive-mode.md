@@ -1,19 +1,19 @@
 ---
 patch_id: "opencode-dcp--bounded-range-archive-mode"
 dependency: "@tarquinen/opencode-dcp"
-target_file: "dist/lib/compress/range.js"
+target_file: "dist/index.js"
 target_install_paths:
   - "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
-  - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/snap/alacritty/common/.cache/opencode/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp"
-  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp"
+  - "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp"
   - "/home/ezotoff/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*"
 status: "active"
 applied_date: "2026-04-30"
-dep_version: "3.1.9 (reference/package cache), 3.1.7 (runtime cache)"
+dep_version: "3.1.13"
 upstream_issue: "https://github.com/Opencode-DCP/opencode-dynamic-context-pruning/pull/501"
 verification_pattern: "COMPRESS_RANGE_BOUNDED|archiveRawMessages|maxArchivedSummaryTokens|retentionMode"
 ---
@@ -190,22 +190,24 @@ If any case fails, the patch may have been overwritten. Reapply per the instruct
 ## Reapply Instructions
 If the patch is lost after a DCP package update:
 
-1. Apply patches to `~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/` (source of truth).
-2. Run `./install.sh --configs` from this repo to sync patched files into all native cache destinations (`~/.cache/opencode/node_modules/...`, `~/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/...`, `~/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/...`, `$XDG_CACHE_HOME/opencode/...` when set and differing from HOME/.cache, and existing `~/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/...` copies).
-3. **Restart OpenCode** so the already-running backend reloads the patched modules. This step is critical: an OpenCode server or TUI that was started before the patch sync will continue using the old, unpatched modules until it is restarted. File-marker checks prove patch presence on disk; only a process restart guarantees the patched code is loaded.
+1. The patched source repo is at `/home/ezotoff/opencode-dynamic-context-pruning-v3.1.13/`. Cherry-pick the patch commits onto a fresh checkout of the target DCP version.
+2. Build with tsup: `cd /home/ezotoff/opencode-dynamic-context-pruning-v3.1.13 && npm run build` (produces `dist/index.js` bundled with all patches).
+3. Copy the bundle to the reference install: `cp dist/index.js dist/index.js.map ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/`.
+4. Run `./install.sh --configs` from this repo to sync `dist/index.js` + `dist/index.js.map` into all native cache destinations.
+5. **Restart OpenCode** so the backend reloads the patched bundle.
 
-Per-file patch details:
+### Per-file source changes (TypeScript, compiled into bundle by tsup)
 
-1. **config.js**: Add `"compress.retentionMode"` and `"compress.maxArchivedSummaryTokens"` to `VALID_CONFIG_KEYS`, and add type validation in `validateConfigTypes()`.
-2. **compress/state.js**: In `applyCompressionState()`, initialize `archivedBlockIds: []` on new `byMessageId` entries, and preserve it defensively on existing entries. Set `archiveRawMessages: retentionMode === "bounded"` and `retentionMode` on block metadata.
-3. **compress/range.js**: Before placeholder expansion, branch on `retentionMode === "bounded"`. In bounded mode, skip expansion and use the `COMPRESS_RANGE_BOUNDED` prompt.
-4. **compress/range-utils.js**: Add `normalizeBoundedRangeSummary()` that enforces `maxArchivedSummaryTokens` on the summary text.
-5. **prompts/compress-range.js**: Add the `COMPRESS_RANGE_BOUNDED` prompt constant.
-6. **messages/sync.js**: In `syncCompressionBlocks()`, recompute `archivedBlockIds` alongside `activeBlockIds`. Use `anchorMessageId` presence (not `compressMessageId`) as the guard for archived block activation.
-7. **messages/prune.js**: In `filterCompressedRanges()`, skip raw messages when `archivedBlockIds.length > 0` in addition to the existing `activeBlockIds.length > 0` check.
-8. **commands/decompress.js**: Add an early return guard that rejects blocks with `archiveRawMessages === true`.
-9. **commands/recompress.js**: Add an early return guard that rejects blocks with `archiveRawMessages === true`.
-10. **commands/compression-targets.js**: Filter out blocks where `archiveRawMessages === true` from the list of recompressible targets.
+1. **lib/config.ts**: Add `"compress.retentionMode"` and `"compress.maxArchivedSummaryTokens"` to `VALID_CONFIG_KEYS`, and add type validation in `validateConfigTypes()`.
+2. **lib/compress/state.ts**: In `applyCompressionState()`, initialize `archivedBlockIds: []` on new `byMessageId` entries, and preserve it defensively on existing entries. Set `archiveRawMessages: retentionMode === "bounded"` and `retentionMode` on block metadata.
+3. **lib/compress/range.ts**: Before placeholder expansion, branch on `retentionMode === "bounded"`. In bounded mode, skip expansion and use the `COMPRESS_RANGE_BOUNDED` prompt.
+4. **lib/compress/range-utils.ts**: Add `normalizeBoundedRangeSummary()` that enforces `maxArchivedSummaryTokens` on the summary text.
+5. **lib/prompts/compress-range.ts**: Add the `COMPRESS_RANGE_BOUNDED` prompt constant.
+6. **lib/messages/sync.ts**: In `syncCompressionBlocks()`, recompute `archivedBlockIds` alongside `activeBlockIds`. Use `anchorMessageId` presence (not `compressMessageId`) as the guard for archived block activation.
+7. **lib/messages/prune.ts**: In `filterCompressedRanges()`, skip raw messages when `archivedBlockIds.length > 0` in addition to the existing `activeBlockIds.length > 0` check.
+8. **lib/commands/decompress.ts**: Add an early return guard that rejects blocks with `archiveRawMessages === true`.
+9. **lib/commands/recompress.ts**: Add an early return guard that rejects blocks with `archiveRawMessages === true`.
+10. **lib/commands/compression-targets.ts**: Filter out blocks where `archiveRawMessages === true` from the list of recompressible targets.
 
 Additionally, the following repo config and documentation files were updated to expose the new settings:
 - `configs/opencode/dcp.jsonc` — added `retentionMode` and `maxArchivedSummaryTokens` defaults
@@ -242,11 +244,11 @@ Six source-dist build artifacts, all under `dist/lib/`:
 
 ## Installation Mode
 
-**Source-dist build + install.sh sync**
-1. Build DCP from source: `cd omo-hub/projects/opencode-dynamic-context-pruning && npm run build`
-2. Emit per-module JS: `npx tsc --noEmit false --emitDeclarationOnly false`
-3. Sync to reference: `rsync -a dist/ ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/`
-4. Sync all three copies: `./install.sh --configs` (copies 15 DCP_PATCH_FILES to runtime + package cache)
+**Source port + tsup build + install.sh sync** (v3.1.13+)
+1. Cherry-pick patch commits onto target DCP version source: `/home/ezotoff/opencode-dynamic-context-pruning-v3.1.13/`
+2. Build: `npm run build` (tsup produces single bundled `dist/index.js`)
+3. Copy bundle to reference: `cp dist/index.js dist/index.js.map ~/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/`
+4. Sync all copies: `./install.sh --configs`
 
 ## Prerequisites
 
@@ -256,7 +258,7 @@ T1–T5 completed (source import, byte-budget implementation, hook integration, 
 
 Run the payload-budget regression harness:
 ```bash
-bash tests/test_dcp_payload_budget.sh --installed
+bash tests/test_dcp_payload_budget.sh
 ```
 
 Expected: 12 passed, 0 failed (3 marker checks + 9 functional cases).

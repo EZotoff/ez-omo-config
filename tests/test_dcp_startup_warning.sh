@@ -27,53 +27,51 @@ fi
 FORBIDDEN_PATTERN='Unknown keys: compress\.retentionMode, compress\.maxArchivedSummaryTokens|Unknown keys: compress\.maxPayloadBytes|DCP: config warning'
 MARKER_PATTERN='compress\.retentionMode|compress\.maxArchivedSummaryTokens|compress\.maxPayloadBytes|retentionMode|maxArchivedSummaryTokens|maxPayloadBytes'
 
-# File-marker check for the version-pinned @3.1.9 cache copy.
-# This proves the patch files exist on disk even though the serve probe below
-# cannot prove TUI toast suppression (warnings are emitted via ctx.client.tui.showToast()).
-PINNED_PKG_CACHE_CONFIG="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
-BUN_CACHE_CONFIG_GLOB="$HOME/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib/config.js"
-XDG_PINNED_PKG_CACHE_CONFIG=""
+# v3.1.13+ uses tsup bundling: all runtime code is in dist/index.js
+PINNED_PKG_CACHE_BUNDLE="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+BUN_CACHE_BUNDLE_GLOB="$HOME/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/index.js"
+XDG_PINNED_PKG_CACHE_BUNDLE=""
 if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
-    XDG_PINNED_PKG_CACHE_CONFIG="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib/config.js"
+    XDG_PINNED_PKG_CACHE_BUNDLE="$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist/index.js"
 fi
 
-echo "Checking version-pinned @3.1.9 cache copy for bounded-retention markers..."
-if [[ -f "$PINNED_PKG_CACHE_CONFIG" ]]; then
-    if grep -Eq "$MARKER_PATTERN" "$PINNED_PKG_CACHE_CONFIG"; then
-        echo "PASS: markers present in @3.1.9 cache copy"
+echo "Checking version-pinned @3.1.13 cache copy for bounded-retention markers..."
+if [[ -f "$PINNED_PKG_CACHE_BUNDLE" ]]; then
+    if grep -Eq "$MARKER_PATTERN" "$PINNED_PKG_CACHE_BUNDLE"; then
+        echo "PASS: markers present in @3.1.13 cache copy"
     else
-        echo "FAIL: markers missing in @3.1.9 cache copy ($PINNED_PKG_CACHE_CONFIG)"
+        echo "FAIL: markers missing in @3.1.13 cache copy ($PINNED_PKG_CACHE_BUNDLE)"
         exit 1
     fi
 else
-    echo "FAIL: @3.1.9 cache copy not found ($PINNED_PKG_CACHE_CONFIG)"
+    echo "FAIL: @3.1.13 cache copy not found ($PINNED_PKG_CACHE_BUNDLE)"
     exit 1
 fi
 
-if [[ -n "$XDG_PINNED_PKG_CACHE_CONFIG" ]]; then
-    echo "Checking XDG version-pinned @3.1.9 cache copy for bounded-retention markers..."
-    if [[ -f "$XDG_PINNED_PKG_CACHE_CONFIG" ]]; then
-        if grep -Eq "$MARKER_PATTERN" "$XDG_PINNED_PKG_CACHE_CONFIG"; then
-            echo "PASS: markers present in XDG @3.1.9 cache copy"
+if [[ -n "$XDG_PINNED_PKG_CACHE_BUNDLE" ]]; then
+    echo "Checking XDG version-pinned @3.1.13 cache copy for bounded-retention markers..."
+    if [[ -f "$XDG_PINNED_PKG_CACHE_BUNDLE" ]]; then
+        if grep -Eq "$MARKER_PATTERN" "$XDG_PINNED_PKG_CACHE_BUNDLE"; then
+            echo "PASS: markers present in XDG @3.1.13 cache copy"
         else
-            echo "FAIL: markers missing in XDG @3.1.9 cache copy ($XDG_PINNED_PKG_CACHE_CONFIG)"
+            echo "FAIL: markers missing in XDG @3.1.13 cache copy ($XDG_PINNED_PKG_CACHE_BUNDLE)"
             exit 1
         fi
     else
-        echo "FAIL: XDG @3.1.9 cache copy not found ($XDG_PINNED_PKG_CACHE_CONFIG)"
+        echo "FAIL: XDG @3.1.13 cache copy not found ($XDG_PINNED_PKG_CACHE_BUNDLE)"
         exit 1
     fi
 fi
 
 echo "Checking Bun DCP v3 cache copies for local config markers..."
 BUN_CACHE_CHECKED=0
-for bun_cache_config in $BUN_CACHE_CONFIG_GLOB; do
-    if [[ -f "$bun_cache_config" ]]; then
+for bun_cache_bundle in $BUN_CACHE_BUNDLE_GLOB; do
+    if [[ -f "$bun_cache_bundle" ]]; then
         BUN_CACHE_CHECKED=$((BUN_CACHE_CHECKED + 1))
-        if grep -Eq "$MARKER_PATTERN" "$bun_cache_config"; then
-            echo "PASS: markers present in Bun cache copy: $bun_cache_config"
+        if grep -Eq "$MARKER_PATTERN" "$bun_cache_bundle"; then
+            echo "PASS: markers present in Bun cache copy: $bun_cache_bundle"
         else
-            echo "FAIL: markers missing in Bun cache copy: $bun_cache_config"
+            echo "FAIL: markers missing in Bun cache copy: $bun_cache_bundle"
             exit 1
         fi
     fi

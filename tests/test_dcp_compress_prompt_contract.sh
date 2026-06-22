@@ -29,12 +29,11 @@ NEW_CONTRACT_PATTERN='Do NOT announce that you will compress'
 SAME_TURN_PATTERN='tool immediately in the same turn'
 OLD_WORDING_PATTERN='Before compressing, ask:'
 
-# -- Targets (four DCP prompt copy locations) --
-SOURCE_BUILD_FILE="/home/ezotoff/omo-hub/projects/opencode-dynamic-context-pruning/dist/lib/prompts/system.js"
-SOURCE_BUILD_BUNDLE="/home/ezotoff/omo-hub/projects/opencode-dynamic-context-pruning/dist/index.js"
-REFERENCE_INSTALL_FILE="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/prompts/system.js"
-RUNTIME_INSTALL_FILE="$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib/prompts/system.js"
-PACKAGE_CACHE_FILE="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib/prompts/system.js"
+# -- Targets (v3.1.13+ uses tsup bundling: all prompts are in dist/index.js) --
+SOURCE_BUILD_BUNDLE="/home/ezotoff/opencode-dynamic-context-pruning-v3.1.13/dist/index.js"
+REFERENCE_INSTALL_BUNDLE="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+RUNTIME_INSTALL_BUNDLE="$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/index.js"
+PACKAGE_CACHE_BUNDLE="$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/index.js"
 
 # -- Assertion helpers --
 
@@ -104,13 +103,13 @@ echo "=========================================="
 echo ""
 
 echo "-- Test: install.sh DCP_PATCH_FILES --"
-echo "  Checking for: prompts/system.js"
-if grep -qF 'prompts/system.js' "$REPO_ROOT/install.sh"; then
+echo "  Checking for: index.js (tsup bundle)"
+if grep -qF 'index.js' "$REPO_ROOT/install.sh"; then
     TOTAL_PASSED=$((TOTAL_PASSED + 1))
-    echo "  [PASS] install.sh contains prompts/system.js in DCP_PATCH_FILES"
+    echo "  [PASS] install.sh contains index.js in DCP_PATCH_FILES"
 else
     TOTAL_FAILED=$((TOTAL_FAILED + 1))
-    echo "  [FAIL] install.sh does not contain prompts/system.js in DCP_PATCH_FILES"
+    echo "  [FAIL] install.sh does not contain index.js in DCP_PATCH_FILES"
 fi
 echo ""
 
@@ -121,10 +120,10 @@ echo " DCP Prompt Copy Verification"
 echo "------------------------------------------"
 echo ""
 
-check_target "source-build (standalone)"    "$SOURCE_BUILD_FILE"    "$SOURCE_BUILD_BUNDLE"
-check_target "reference-install"            "$REFERENCE_INSTALL_FILE"   ""
-check_target "runtime-install"              "$RUNTIME_INSTALL_FILE"     ""
-check_target "package-cache-latest"         "$PACKAGE_CACHE_FILE"       ""
+check_target "source-build (bundled)"         "$SOURCE_BUILD_BUNDLE"       ""
+check_target "reference-install"              "$REFERENCE_INSTALL_BUNDLE"  ""
+check_target "runtime-install"                "$RUNTIME_INSTALL_BUNDLE"    ""
+check_target "package-cache-latest"           "$PACKAGE_CACHE_BUNDLE"      ""
 
 # -- Summary --
 
@@ -136,13 +135,12 @@ echo "NOTE: Before T5 sync (./install.sh --configs), missing target files and"
 echo "      missing contract wording in unpatched copies are expected. After T5,"
 echo "      all targets must pass."
 echo ""
-echo "Pre-T5 tolerance guide:"
+echo "Post-sync guide (v3.1.13+ tsup bundle model):"
 echo "  - install.sh entry check ........ MUST pass (repo change)"
-echo "  - source build (standalone) ..... MAY skip (bundled into index.js)"
-echo "  - source build (bundled) ........ SHOULD pass (patched in T2)"
-echo "  - reference install ............. SHOULD fail (unpatched until T5)"
-echo "  - runtime install ............... SHOULD fail (unpatched until T5)"
-echo "  - package cache ................. SHOULD fail (unpatched until T5)"
+echo "  - source build (bundled) ........ SHOULD pass (patched in source)"
+echo "  - reference install ............. MUST pass after install.sh --configs"
+echo "  - runtime install ............... MUST pass after install.sh --configs"
+echo "  - package cache ................. MUST pass after install.sh --configs"
 
 if [[ $TOTAL_FAILED -gt 0 ]]; then
     exit 1

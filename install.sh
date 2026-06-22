@@ -81,23 +81,12 @@ ITEMS=(
     "scripts|scripts/vera-hygiene.sh|$HOME/.sisyphus/scripts/vera-hygiene.sh"
 )
 
+# DCP v3.1.13+ ships as a single tsup-bundled dist/index.js.
+# Patch sync copies the bundle (and source map) from the reference install
+# to all runtime/cache copies. Per-module .js files no longer exist.
 DCP_PATCH_FILES=(
-    "config.js"
-    "config.d.ts"
-    "compress/range.js"
-    "compress/state.js"
-    "compress/range-utils.js"
-    "messages/sync.js"
-    "messages/prune.js"
-    "messages/byte-budget.js"
-    "messages/byte-budget.d.ts"
-    "commands/decompress.js"
-    "commands/recompress.js"
-    "prompts/compress-range.js"
-    "prompts/system.js"
-    "commands/compression-targets.js"
-    "hooks.js"
-    "hooks.d.ts"
+    "index.js"
+    "index.js.map"
 )
 
 usage() {
@@ -411,20 +400,20 @@ sync_dcp_local_patch() {
         return 0
     fi
 
-    local source_root="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
+    local source_root="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist"
     local -a destination_roots=(
-        "$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
-        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
-        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib"
+        "$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist"
+        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist"
+        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist"
     )
 
     # XDG_CACHE_HOME guard: prevents unpatched snap/XDG cache copies from
     # emitting DCP unknown-key warnings. Deduplicated against HOME/.cache.
     if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
         destination_roots+=(
-            "$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib"
-            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist/lib"
-            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.9/node_modules/@tarquinen/opencode-dcp/dist/lib"
+            "$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist"
+            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist"
+            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist"
         )
     fi
 
@@ -432,7 +421,7 @@ sync_dcp_local_patch() {
     # before the OpenCode package cache. Keep existing v3 DCP cache copies patched
     # so stale package resolution cannot reintroduce DCP unknown-key warnings.
     local bun_destination_root
-    for bun_destination_root in "$HOME"/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist/lib; do
+    for bun_destination_root in "$HOME"/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist; do
         [[ -d "$bun_destination_root" ]] && destination_roots+=("$bun_destination_root")
     done
 

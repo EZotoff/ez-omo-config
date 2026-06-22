@@ -1,13 +1,13 @@
 // tests/dcp-local-patch/payload-budget.mjs
-// Regression harness for byte-budget DCP patches
+// Regression harness for byte-budget DCP patches.
+// v3.1.13+ uses tsup bundling (single dist/index.js), so functional tests
+// import TypeScript source directly via tsx. Marker checks in the shell
+// scripts verify patch presence in the installed bundle.
 
-const SOURCE_DIST_ROOT = "/home/ezotoff/omo-hub/projects/opencode-dynamic-context-pruning/dist/lib";
-const INSTALLED_ROOT = "/home/ezotoff/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist/lib";
-
-let DCP_ROOT = INSTALLED_ROOT;
+const DCP_SRC_ROOT = "/home/ezotoff/opencode-dynamic-context-pruning-v3.1.13";
 
 function resolveDcpPath(subpath) {
-  return `${DCP_ROOT}/${subpath}`;
+  return `${DCP_SRC_ROOT}/lib/${subpath.replace(/\.js$/, ".ts")}`;
 }
 
 function fail(message) {
@@ -497,12 +497,10 @@ async function runProtectedFrontierOverLimit() {
 async function main() {
   const args = process.argv.slice(2);
 
-  let mode = "installed";
   let testCase = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--mode" && i + 1 < args.length) {
-      mode = args[i + 1];
       i++;
     } else if (args[i] === "--case" && i + 1 < args.length) {
       testCase = args[i + 1];
@@ -512,14 +510,8 @@ async function main() {
     }
   }
 
-  if (mode === "source-dist") {
-    DCP_ROOT = SOURCE_DIST_ROOT;
-  } else {
-    DCP_ROOT = INSTALLED_ROOT;
-  }
-
   if (!testCase) {
-    console.error("Usage: npx tsx payload-budget.mjs [--mode source-dist|installed] [--case] <case-name>");
+    console.error("Usage: npx tsx payload-budget.mjs [--case] <case-name>");
     console.error(
       "Cases: below-budget-noop, huge-tool-output-compacts, repeated-scaffold-oldest-first, " +
       "repeated-provider-errors-oldest-first, latest-todo-preserved, compressed-placeholder-survives, " +
