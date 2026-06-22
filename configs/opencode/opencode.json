@@ -29,7 +29,7 @@
   },
   "compaction": {
     "auto": true,
-    "reserved": 0
+    "reserved": 30000
   },
   "provider": {
     "google": {

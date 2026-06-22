@@ -10,7 +10,7 @@ upstream_issue: "none"
 verification_pattern: "Git commits: follow the active git workflow"
 ---
 
-# OpenCode Commit Policy: Unblock Workflow-Authorized Local Commits
+# OpenCode Commit Policy: Unblock Local Atomic and Partial-Progress Commits
 
 ## Problem
 
@@ -21,7 +21,9 @@ OpenCode's base system instructions contain a blanket prohibition on git commits
 
 However, active project/skill workflows (git-master, auto-checkpoint) explicitly authorize local checkpoint or logical-task commits. These instructions are contradictory: the absolute no-commit rule blocks workflow-authorized commits, forcing agents to refuse legitimate task-required operations.
 
-This patch replaces the blanket prohibition with a nuanced safe local-commit policy that allows workflow-authorized commits while preserving safety guardrails (no pushing, force-pushing, amending, rebasing, or destructive actions without explicit authorization).
+This patch replaces the blanket prohibition with a permissive local-commit policy that lets agents commit freely for atomic changes and partial-progress saves while preserving safety guardrails (no pushing, force-pushing, amending, rebasing, or destructive actions without explicit authorization).
+
+**Revision v2 (2026-06-21):** The original v1 canonical text said "If no active workflow calls for a commit, ask first." In practice this caused agents to end turns with passive prompts like "ready to commit when you're ready" whenever no skill was explicitly loaded — which was the common case. The user's git workflow is agent-driven, so the "ask first" clause was friction without value. v2 removes the clause and explicitly permits free atomic/partial-progress commits.
 
 ## Patch Description
 
@@ -42,7 +44,7 @@ Three OpenCode instruction files are modified to replace absolute no-commit rule
 
 ### Canonical Replacement Text
 
-> Git commits: follow the active git workflow. A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
+> Git commits: follow the active git workflow. Agents may create local commits freely for atomic changes and partial-progress saves — no need to ask first. This user uses git primarily for agent work. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
 
 ## Verification
 
@@ -59,6 +61,17 @@ Expected: matches in all three files, each showing the safe local-commit policy 
 ```bash
 # Verify the old blanket prohibition is removed from all three files
 grep -cE "NEVER commit changes unless the user explicitly asks" \
+  /home/ezotoff/src/opencode/packages/opencode/src/tool/bash.txt \
+  /home/ezotoff/src/opencode/packages/opencode/src/session/prompt/trinity.txt \
+  /home/ezotoff/src/opencode/packages/opencode/src/session/prompt/default.txt
+```
+
+Expected: 0 matches in each file.
+
+```bash
+# Verify the v1 canonical text (revision-1 "ask first" clause) is also absent
+# This is the NEW check added in v2 — catches stale v1 patches that were not refreshed
+grep -cE "If no active workflow calls for a commit, ask first" \
   /home/ezotoff/src/opencode/packages/opencode/src/tool/bash.txt \
   /home/ezotoff/src/opencode/packages/opencode/src/session/prompt/trinity.txt \
   /home/ezotoff/src/opencode/packages/opencode/src/session/prompt/default.txt
@@ -88,7 +101,7 @@ If this patch is lost after an OpenCode update (git pull, rebase, or upstream ch
 ### Canonical Replacement Text
 
 ```
-Git commits: follow the active git workflow. A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
+Git commits: follow the active git workflow. Agents may create local commits freely for atomic changes and partial-progress saves — no need to ask first. This user uses git primarily for agent work. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
 ```
 
 ## Durable Alternative
@@ -99,3 +112,10 @@ Upstream OpenCode could:
 - Add a `commit` capability declaration to skills so the system can reconcile conflicting commit instructions automatically.
 
 Status: not-yet-pursued
+
+## Revision History
+
+| Revision | Date       | Change                                                                                                                                          |
+|----------|------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| v1       | 2026-05-02 | Initial canonical text: "A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first." |
+| v2       | 2026-06-21 | Removed "ask first" clause. New canonical text: "Agents may create local commits freely for atomic changes and partial-progress saves — no need to ask first. This user uses git primarily for agent work." The v1 "ask first" clause was generating passive "ready to commit when you're ready" turn-endings in the common case where no skill was explicitly loaded. The user's git workflow is agent-driven, so asking added friction without value. Safety guardrails (no secrets, no push/force-push, no destructive) are preserved unchanged. Verification step added to catch stale v1 patches. |

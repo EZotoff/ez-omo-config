@@ -21,7 +21,9 @@ Oh-My-OpenAgent has contradictory or under-constrained commit instructions acros
 - **git-master skill** (`builtin-skills/git-master/SKILL.md`, `features/builtin-skills/skills/git-master-sections/commit-workflow.ts`): Instructs agents to "Commit early, commit often" and "Commit and push on every completed todo item or logical task unit."
 - **AGENTS.md**: Contains `Rule 6` that says "Never commit without explicit user direction."
 
-These contradictions must be resolved by aligning all instructions with a consistent safe local-commit policy: workflow-authorized local commits are allowed, but pushes and destructive actions require explicit authorization.
+These contradictions must be resolved by aligning all instructions with a consistent permissive local-commit policy: agents may create local commits freely for atomic changes and partial-progress saves, while pushes and destructive actions require explicit authorization.
+
+**Revision v2 (2026-06-21):** The v1 canonical text retained an "If no active workflow calls for a commit, ask first" clause. In practice, agents ended turns with passive "ready to commit when you're ready" prompts in the common case where no skill was explicitly loaded. The user's git workflow is agent-driven, so the clause was pure friction. v2 removes it and makes atomic/partial-progress commits explicitly free. Safety guardrails (no secrets, no push/force-push/amend/rebase/destructive without authorization) are preserved unchanged.
 
 ## Patch Description
 
@@ -69,7 +71,7 @@ Nine OMO source files are modified to replace absolute no-commit rules or uncons
 
 ### Canonical Replacement Text
 
-> Git commits: follow the active git workflow. A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
+> Git commits: follow the active git workflow. Agents may create local commits freely for atomic changes and partial-progress saves — no need to ask first. This user uses git primarily for agent work. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
 
 ## Verification
 
@@ -117,11 +119,26 @@ grep -cF "Do not commit automatically unless the user explicitly requests a comm
 Expected: 0 matches in each file.
 
 ```bash
-# Rebuild and verify the bundled output keeps the canonical policy and excludes the stale wording
-cd /home/ezotoff/oh-my-openagent && bun run build && grep -F "Git commits: follow the active git workflow" dist/index.js && ! grep -F "Do not commit automatically unless the user explicitly requests a commit" dist/index.js
+# Verify the v1 canonical text (revision-1 "ask first" clause) is also absent
+# This is the NEW check added in v2 — catches stale v1 patches that were not refreshed
+grep -cE "If no active workflow calls for a commit, ask first" \
+  /home/ezotoff/oh-my-openagent/src/agents/sisyphus.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/sisyphus/default.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/sisyphus/gpt-5-4.ts \
+  /home/ezotoff/oh-my-openagent/AGENTS.md \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/plan-template.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/gpt.ts \
+  /home/ezotoff/oh-my-openagent/src/agents/prometheus/identity-constraints.ts
 ```
 
-Expected: build succeeds, canonical policy is present in `dist/index.js`, stale wording is absent.
+Expected: 0 matches in each file.
+
+```bash
+# Rebuild and verify the bundled output keeps the canonical policy and excludes the stale wording
+cd /home/ezotoff/oh-my-openagent && bun run build && grep -F "Git commits: follow the active git workflow" dist/index.js && ! grep -F "Do not commit automatically unless the user explicitly requests a commit" dist/index.js && ! grep -F "If no active workflow calls for a commit, ask first" dist/index.js
+```
+
+Expected: build succeeds, canonical policy is present in `dist/index.js`, stale v0 wording AND stale v1 "ask first" wording are both absent.
 
 ## Reapply Instructions
 
@@ -152,7 +169,7 @@ If this patch is lost after an OMO update (git pull, rebase):
 ### Canonical Replacement Text
 
 ```
-Git commits: follow the active git workflow. A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
+Git commits: follow the active git workflow. Agents may create local commits freely for atomic changes and partial-progress saves — no need to ask first. This user uses git primarily for agent work. Before committing, inspect staged/untracked changes and never commit secrets, credentials, auth files, or unrelated work. Do not push, force-push, amend, rebase, or run destructive git commands unless explicitly authorized.
 ```
 
 ## Durable Alternative
@@ -163,3 +180,10 @@ Upstream OMO could:
 - Provide an extensible policy hook in `SisyphusInitContext` so project configs can declare their commit policy without patching source files.
 
 Status: not-yet-pursued
+
+## Revision History
+
+| Revision | Date       | Change                                                                                                                                          |
+|----------|------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| v1       | 2026-05-02 | Initial canonical text: "A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first." Aligned 9 OMO source files. |
+| v2       | 2026-06-21 | Removed "ask first" clause. New canonical text: "Agents may create local commits freely for atomic changes and partial-progress saves — no need to ask first. This user uses git primarily for agent work." The v1 "ask first" clause caused agents to end turns with passive "ready to commit when you're ready" prompts in the common case where no skill was explicitly loaded. The user's git workflow is agent-driven, so asking added friction without value. Safety guardrails (no secrets, no push/force-push, no destructive) are preserved unchanged. Added v1-stale-text verification step and updated build verification to reject v1 text in dist/index.js. |

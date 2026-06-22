@@ -276,7 +276,7 @@ cd ez-omo-config
 | **sisyphus-junior** | `zai-coding-plan/glm-5.2` | default | `openai/gpt-5.4` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | (none) | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `opencode-go/deepseek-v4-flash` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `google/gemini-3.1-pro-preview` | default | `zai-coding-plan/glm-5.2` | Complex frontend work |
+| **frontend-ui-ux-engineer** | `google/gemini-3.5-flash` | high | `zai-coding-plan/glm-5.2` | Complex frontend work |
 | **document-writer** | `opencode-go/kimi-k2.6` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
 | **multimodal-looker** | `google/gemini-3.5-flash` | default | (none) | Image/PDF analysis |
 | **oracle** | `openai/gpt-5.5` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
@@ -302,6 +302,23 @@ The HTML packet is for human review and discussion. The Markdown plan remains ca
 | **Aggressive Truncation** | Enabled | Truncates verbose tool outputs aggressively |
 | **Runtime Fallback** | Enabled | Automatically switches to fallback models on API errors (404, 429, 500, 502, 503, 504) |
 | **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
+| **Preemptive Compaction** | Enabled | Triggers context compaction before the context window is exhausted, preventing runaway token growth in subagent sessions (set in `oh-my-openagent.json#experimental.preemptive_compaction`; paired with `opencode.json#compaction.reserved=30000`) |
+| **Purge Errors (aggressive)** | Enabled (2 turns) | Drops failed tool outputs from context after 2 turns instead of 5, keeping subagent context lean during build/test loops |
+| **Unstable-Agent Babysitting** | Enabled (10 min idle) | Sends transcript-visible reminders to `is_unstable_agent` categories (visual-engineering explicit; gemini/minimax auto-detected) after 10 minutes of idle time. Set in `oh-my-openagent.json#babysitting.timeout_ms` |
+
+### Doom-Loop Mitigations
+
+The configuration includes layered defenses against runaway subagent sessions (forensic root cause: 14 Jun 2025 visual-engineering QA loop burned $43.58 / 14.3M input tokens in 77 minutes; 21 Jun build/test ping-pong burned $12.75 / 50M cache-read tokens in 27 minutes):
+
+| Layer | Setting | Effect |
+|-------|---------|--------|
+| **Model demotion** | `categories.visual-engineering.model` = `google/gemini-3.5-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
+| **Preemptive compaction** | `experimental.preemptive_compaction: true` + `opencode.json#compaction.reserved: 30000` | Auto-compact before context exhaustion rather than at exhaustion |
+| **Aggressive error purge** | `experimental.dynamic_context_pruning.strategies.purge_errors.turns: 2` | Failed build/test outputs dropped after 2 turns instead of 5 |
+| **Unstable-agent flag** | `categories.visual-engineering.is_unstable_agent: true` | Explicitly opts the worst-offender category into babysitter monitoring |
+| **Idle timeout** | `babysitting.timeout_ms: 600000` | 10-minute idle trigger for `is_unstable_agent` sessions |
+
+These mitigations reduce the cost ceiling per subagent session but do **not** implement hard tool-call budgets (OMO schema has no `max_tool_calls` field). A future bash-tool circuit breaker would require a custom plugin hooking `tool.execute.before` — see [Recommendations Follow-Up](#recommendations-follow-up).
 
 ### DCP Observability
 

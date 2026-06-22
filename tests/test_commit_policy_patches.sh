@@ -75,6 +75,7 @@ COMMON_STALE_STRINGS=(
     "NEVER commit changes unless the user explicitly asks"
     "Never commit unless explicitly requested"
     "Never commit unless asked"
+    "If no active workflow calls for a commit, ask first"
 )
 
 PROMETHEUS_STALE_STRINGS=(

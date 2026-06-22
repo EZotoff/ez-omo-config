@@ -56,10 +56,12 @@ Status: superseded
 
 ## Supersession Note
 
-This patch is **deprecated**. It has been superseded by two new source-level patches that replace the absolute "never commit" AGENTS.md rule with a nuanced local-commit policy:
+This patch is **deprecated**. It has been superseded by two source-level patches that replace the absolute "never commit" AGENTS.md rule with a nuanced local-commit policy:
 
-1. **`opencode--commit-policy-unblock`** — Patches OpenCode system instructions (`bash.txt`, `trinity.txt`, `default.txt`) to replace the blanket "Only create commits when requested" with a safe local-commit policy that respects workflow-authorized commits.
+1. **`opencode--commit-policy-unblock`** (current revision: v2, 2026-06-21) — Patches OpenCode system instructions (`bash.txt`, `trinity.txt`, `default.txt`) to replace the blanket "Only create commits when requested" with a permissive local-commit policy that lets agents commit freely for atomic changes and partial-progress saves.
 
-2. **`omo--commit-policy-alignment.md`** — Patches OMO agent instructions and git-master skill to align with the same safe local-commit policy.
+2. **`omo--commit-policy-alignment`** (current revision: v2, 2026-06-21) — Patches OMO agent instructions and git-master skill to align with the same permissive local-commit policy.
 
-The old AGENTS.md rule was a band-aid that enforced an absolute no-commit stance, but it conflicted with active project/skill workflows (git-master, auto-checkpoint) that explicitly authorize local checkpoint/logical-task commits. The new source-level patches resolve the contradiction properly by updating the instructions at their source.
+The old AGENTS.md rule was a band-aid that enforced an absolute no-commit stance, but it conflicted with active project/skill workflows (git-master, auto-checkpoint) that explicitly authorize local checkpoint/logical-task commits. The source-level patches resolve the contradiction properly by updating the instructions at their source.
+
+**v2 revision context (2026-06-21):** Both superseding patches were revised from v1 to v2 on this date. The v1 canonical text retained an "ask first" clause that caused agents to end turns with passive "ready to commit when you're ready" prompts. v2 removes that clause — agents now commit freely for atomic/partial-progress work without asking. See the Revision History sections in each superseding patch entry for details.

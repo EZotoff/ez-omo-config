@@ -104,11 +104,12 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "google/gemini-3.1-pro-preview",
+      "model": "google/gemini-3.5-flash",
+      "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.2"
       ],
-      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3.1 Pro Preview for deeper reasoning. Use ui-quick for simple tasks instead."
+      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3.5 Flash (high thinking) for capable multimodal reasoning without the cost profile of Pro Preview. Use ui-quick for simple tasks instead."
     },
     "document-writer": {
       "model": "opencode-go/kimi-k2.6",
@@ -119,11 +120,12 @@
   },
   "categories": {
     "visual-engineering": {
-      "model": "google/gemini-3.1-pro-preview",
+      "model": "google/gemini-3.5-flash",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.2"
       ],
+      "is_unstable_agent": true,
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
     "ultrabrain": {
@@ -166,7 +168,7 @@
       ]
     },
     "deep": {
-      "model": "openai/gpt-5.4",
+      "model": "openai/gpt-5.5",
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
@@ -190,6 +192,9 @@
   },
   "default_mode": {
     "ultrawork": true
+  },
+  "babysitting": {
+    "timeout_ms": 600000
   },
   "disabled_hooks": [
     "auto-update-checker"
@@ -239,7 +244,7 @@
     "include_co_authored_by": false
   },
   "experimental": {
-    "preemptive_compaction": false,
+    "preemptive_compaction": true,
     "aggressive_truncation": true,
     "truncate_all_tool_outputs": true,
     "dynamic_context_pruning": {
@@ -268,7 +273,7 @@
         },
         "purge_errors": {
           "enabled": true,
-          "turns": 5
+          "turns": 2
         }
       }
     }
