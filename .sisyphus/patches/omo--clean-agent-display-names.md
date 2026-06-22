@@ -1,14 +1,15 @@
 ---
 patch_id: "omo--clean-agent-display-names"
 dependency: "oh-my-openagent"
-target_file: "dist/index.js, dist/cli/index.js"
-target_install_path: "/home/ezotoff/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent"
+target_file: "packages/omo-opencode/src/shared/agent-display-names.ts, packages/omo-opencode/src/features/claude-code-session-state/state.ts, packages/omo-opencode/src/cli/run/event-message-handlers.ts"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
 status: "active"
 applied_date: "2026-04-30"
-dep_version: "4.4.0 (active XDG OpenCode package cache, reapplied 2026-05-23)"
+dep_version: "4.12.1"
 upstream_issue: "none"
 verification_pattern: "sisyphus: \"Sisyphus\""
-post_update_status: "unaffected"
+post_update_status: "reapply_required"
+note: "v4.12.1 ships source-only (no dist/ for omo-opencode). Patch now targets source files + bun build. event-handlers.ts refactored to 4-line barrel; handleMessageUpdated moved to event-message-handlers.ts (new file). Previous post_update_status 'unaffected' was FALSE — v4.12.1 source still has all 8 verbose display names."
 ---
 
 # Clean Agent Display Names

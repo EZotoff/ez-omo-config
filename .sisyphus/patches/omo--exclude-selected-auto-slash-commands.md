@@ -1,13 +1,14 @@
 ---
 patch_id: "omo--exclude-selected-auto-slash-commands"
 dependency: "oh-my-openagent"
-target_file: "src/hooks/auto-slash-command/constants.ts"
-target_install_path: "/home/ezotoff/omo-hub/projects/oh-my-openagent"
+target_file: "packages/skills-loader-core/src/hooks/auto-slash-command/constants.ts, packages/omo-opencode/src/hooks/auto-slash-command/hook.ts"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
 status: "active"
 applied_date: "2026-05-14"
-dep_version: "current"
+dep_version: "4.12.1"
 upstream_issue: "none"
 verification_pattern: "\"vera\"|\"gad-experiment\""
+note: "v4.12.1 monorepo restructure: EXCLUDED_COMMANDS moved to packages/skills-loader-core. omo-opencode/constants.ts is now a 1-line re-export stub. hook.ts has different control flow (partsContainAutoSlashCommandTags, resolveSessionEventID). Cross-package edit required."
 ---
 
 # Exclude Selected Auto-Slash Commands (vera, gad-experiment)

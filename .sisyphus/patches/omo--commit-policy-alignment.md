@@ -1,13 +1,14 @@
 ---
 patch_id: "omo--commit-policy-alignment"
 dependency: "oh-my-openagent"
-target_file: "src/agents/sisyphus.ts"
-target_install_path: "/home/ezotoff/oh-my-openagent"
+target_file: "packages/omo-opencode/src/agents/sisyphus/default.ts, packages/omo-opencode/src/agents/sisyphus/gpt-5-4.ts, packages/omo-opencode/src/agents/sisyphus/kimi-k2-6.ts, packages/omo-opencode/src/agents/sisyphus-dynamic-prompt-execution.ts, AGENTS.md"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
 status: "active"
 applied_date: "2026-05-02"
-dep_version: "current"
+dep_version: "4.12.1"
 upstream_issue: "none"
 verification_pattern: "Git commits: follow the active git workflow"
+note: "Rescoped from 9 to 5 files for v4.12.1. 3 prometheus files (plan-template.ts, gpt.ts, identity-constraints.ts) deleted in v4.x monorepo refactor. git-master SKILL.md has totally different upstream content (no 'Commit early, commit often' to replace). Added 2 new files discovered in v4.12.1: kimi-k2-6.ts and sisyphus-dynamic-prompt-execution.ts."
 ---
 
 # OMO Commit Policy: Align Agent Instructions and Skills

@@ -2,12 +2,14 @@
 patch_id: "omo--remove-activity-stagnation-bypass"
 dependency: "oh-my-openagent"
 target_file: "src/hooks/todo-continuation-enforcer/session-state.ts"
-target_install_path: "/home/ezotoff/omo-hub/projects/oh-my-openagent"
-status: "active"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
+status: "upstreamed"
 applied_date: "2026-04-10"
-dep_version: "current"
+dep_version: "4.12.1"
 upstream_issue: "none"
 verification_pattern: "\"none\" \\| \"todo\""
+upstream_commit: "df7e1ae1 (Mar 17 2026, YeonGyu-Kim)"
+note: "Dropped on v4.12.1 update. Upstream shipped the same fix 24 days before the local fork patch. All 5 patched symbols absent from v4.12.1. progressSource type is 'none' | 'todo' (no 'activity' member) in both upstream and patched state."
 ---
 
 # Remove Activity-Based Stagnation Bypass in TODO Continuation

@@ -304,7 +304,7 @@ The HTML packet is for human review and discussion. The Markdown plan remains ca
 | **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
 | **Preemptive Compaction** | Enabled | Triggers context compaction before the context window is exhausted, preventing runaway token growth in subagent sessions (set in `oh-my-openagent.json#experimental.preemptive_compaction`; paired with `opencode.json#compaction.reserved=30000`) |
 | **Purge Errors (aggressive)** | Enabled (2 turns) | Drops failed tool outputs from context after 2 turns instead of 5, keeping subagent context lean during build/test loops |
-| **Unstable-Agent Babysitting** | Enabled (10 min idle) | Sends transcript-visible reminders to `is_unstable_agent` categories (visual-engineering explicit; gemini/minimax auto-detected) after 10 minutes of idle time. Set in `oh-my-openagent.json#babysitting.timeout_ms` |
+| **Background Task Circuit Breaker** | Enabled (maxToolCalls=500, consecutiveThreshold=15) | Hard-cancels runaway subagent tasks: 500 total tool calls or 15 consecutive identical tool+input signatures triggers automatic task cancellation. OMO default is 4000/20; lowered thresholds catch doom loops earlier |
 
 ### Doom-Loop Mitigations
 
@@ -315,10 +315,9 @@ The configuration includes layered defenses against runaway subagent sessions (f
 | **Model demotion** | `categories.visual-engineering.model` = `google/gemini-3.5-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
 | **Preemptive compaction** | `experimental.preemptive_compaction: true` + `opencode.json#compaction.reserved: 30000` | Auto-compact before context exhaustion rather than at exhaustion |
 | **Aggressive error purge** | `experimental.dynamic_context_pruning.strategies.purge_errors.turns: 2` | Failed build/test outputs dropped after 2 turns instead of 5 |
-| **Unstable-agent flag** | `categories.visual-engineering.is_unstable_agent: true` | Explicitly opts the worst-offender category into babysitter monitoring |
-| **Idle timeout** | `babysitting.timeout_ms: 600000` | 10-minute idle trigger for `is_unstable_agent` sessions |
+| **Tool-call circuit breaker** | `background_task.circuitBreaker.maxToolCalls: 500`, `consecutiveThreshold: 15` | Hard-cancel any subagent task that exceeds 500 total tool calls or repeats the same tool+input 15× in a row. Catches 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) still rely on preemptive compaction |
 
-These mitigations reduce the cost ceiling per subagent session but do **not** implement hard tool-call budgets (OMO schema has no `max_tool_calls` field). A future bash-tool circuit breaker would require a custom plugin hooking `tool.execute.before` — see [Recommendations Follow-Up](#recommendations-follow-up).
+**Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. A pattern-aware detector (same tool called N times in a sliding window) is not currently in OMO upstream.
 
 ### DCP Observability
 
@@ -364,7 +363,13 @@ For install locations, failure string meanings, and reapply instructions:
 - **Bounded-range archive mode**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`
 - **Byte-budget gate**: `.sisyphus/patches/opencode-dcp--byte-budget.md`
 - **Compress tool prompt contract**: `.sisyphus/patches/opencode-dcp--compress-tool-prompt-contract.md`
-- **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (repo_implemented and tests_passed; not verified live)
+- **Context overflow max-token detection**: `.sisyphus/patches/oh-my-openagent--context-overflow-max-token-error.md` (active on OMO v4.12.1)
+- **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.12.1)
+- **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.12.1)
+- **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.12.1)
+- **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (active on OMO v4.12.1)
+- **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (superseded by upstream v4.12.1 works-map architecture)
+- **Remove activity stagnation bypass**: `.sisyphus/patches/omo--remove-activity-stagnation-bypass.md` (upstreamed in OMO commit df7e1ae1)
 
 ---
 

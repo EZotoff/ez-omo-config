@@ -1,13 +1,14 @@
 ---
 patch_id: "oh-my-openagent--context-overflow-max-token-error"
 dependency: "oh-my-openagent"
-target_file: "src/hooks/todo-continuation-enforcer/token-limit-detection.ts"
-target_install_path: "/home/ezotoff/omo-hub/projects/oh-my-openagent"
+target_file: "packages/omo-opencode/src/hooks/todo-continuation-enforcer/token-limit-detection.ts, packages/omo-opencode/src/hooks/anthropic-context-window-limit-recovery/parser.ts"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
 status: "active"
 applied_date: "2026-05-14"
-dep_version: "3.17.5"
+dep_version: "4.12.1"
 upstream_issue: "https://github.com/anomalyco/opencode/issues/27519"
 verification_pattern: "isRequestTokenOverflowMessage"
+note: "v4.12.1 REGRESSED: upstream re-added 'max_tokens' to TOKEN_LIMIT_KEYWORDS (the false-positive this patch removes). Patch is MORE necessary on v4.12.1. Surrounding parser.ts code refactored with isRecord/readStringProperty/parseJsonOrNull helpers from @oh-my-opencode/utils."
 ---
 
 # Max Token Request Overflow Detection

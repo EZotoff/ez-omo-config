@@ -2,12 +2,15 @@
 patch_id: "omo--boulder-worktree-authoritative-state"
 dependency: "oh-my-openagent"
 target_file: "src/hooks/atlas/resolve-active-boulder-session.ts"
-target_install_path: "/home/ezotoff/omo-hub/projects/oh-my-openagent"
-status: "active"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
+status: "superseded"
 applied_date: "2026-05-19"
-dep_version: "current"
+dep_version: "4.12.1"
 upstream_issue: "none"
 verification_pattern: "progress.isComplete === true"
+superseded_by: "upstream v4.12.1 BoulderState schema v2 with works map + getWorkForSession lookup"
+superseded_upstream_test: "packages/omo-opencode/src/hooks/atlas/resolve-active-boulder-session.test.ts:169-202"
+note: "Dropped on v4.12.1 update. Upstream independently fixed the doom-loop via a different mechanism (BoulderState v2 works-map at data-model layer vs patch's ResolvedBoulderContext resolver-layer displayDirectory/effectiveDirectory split). All patch-specific symbols absent from v4.12.1. If doom-loop resurfaces, write a NEW patch against the works-map architecture — do not port this patch."
 ---
 
 # Boulder Worktree Authoritative Execution Root
