@@ -259,7 +259,7 @@
   "team_mode": {
     "enabled": true,
     "max_parallel_members": 6,
-    "max_members": 10
+    "max_members": 8
   },
   "experimental": {
     "preemptive_compaction": false,
