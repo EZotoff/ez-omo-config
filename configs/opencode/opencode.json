@@ -21,7 +21,8 @@
     "opencode-kimi-full",
     "file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs",
     "file:///home/ezotoff/omo-hub/projects/oh-my-openagent",
-    "file:///home/ezotoff/.opencode/plugin/subagent-loop-guard.ts"
+    "file:///home/ezotoff/.opencode/plugin/subagent-loop-guard.ts",
+    "file:///home/ezotoff/.opencode/plugin/clickable-links.ts"
   ],
   "agent": {
     "compaction": {
@@ -30,7 +31,11 @@
   },
   "compaction": {
     "auto": false,
-    "prune": false
+    "prune": true,
+    "tail_turns": 3
+  },
+  "experimental": {
+    "continue_loop_on_deny": true
   },
   "provider": {
     "google": {

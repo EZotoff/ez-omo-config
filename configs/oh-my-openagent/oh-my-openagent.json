@@ -184,11 +184,7 @@
       "variant": "high"
     }
   },
-  "google_auth": false,
   "auto_update": false,
-  "team_mode": {
-    "enabled": true
-  },
   "default_mode": {
     "ultrawork": true
   },
@@ -202,7 +198,6 @@
   "disabled_hooks": [
     "auto-update-checker",
     "preemptive-compaction",
-    "context-window-monitor",
     "anthropic-context-window-limit-recovery"
   ],
   "browser_automation_engine": {
@@ -219,35 +214,25 @@
       504
     ]
   },
-  "aspectDynamics": {
-    "activeSets": [
-      "emotions-v1"
-    ],
-    "heuristicPreFilter": true,
-    "contextWindowTurns": 10,
-    "scoringModel": {
-      "providerID": "inception",
-      "modelID": "mercury-2"
-    },
-    "polishingModel": {
-      "providerID": "inception",
-      "modelID": "mercury-2"
-    },
-    "dreamAgent": {
-      "enabled": false,
-      "timeThresholdHours": 24,
-      "minEventCount": 50,
-      "scanThrottleMinutes": 10,
-      "lockStaleHours": 1,
-      "model": {
-        "providerID": "openai",
-        "modelID": "gpt-5.4"
-      }
-    }
-  },
   "git_master": {
     "commit_footer": false,
     "include_co_authored_by": false
+  },
+  "hashline_edit": true,
+  "monitor": {
+    "enabled": true,
+    "live_mode_enabled": true
+  },
+  "model_capabilities": {
+    "auto_refresh_on_start": true
+  },
+  "ralph_loop": {
+    "enabled": true
+  },
+  "team_mode": {
+    "enabled": true,
+    "max_parallel_members": 6,
+    "max_members": 10
   },
   "experimental": {
     "preemptive_compaction": false,
