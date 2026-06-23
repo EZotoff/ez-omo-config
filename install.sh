@@ -53,6 +53,7 @@ ITEMS=(
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
     "skills|skills/debate|$HOME/.config/opencode/skills/debate"
     "skills|skills/deployment|$HOME/.config/opencode/skills/deployment"
+    "skills+configs|configs/opencode/AGENTS.md|$HOME/.config/opencode/AGENTS.md"
     "skills|skills/patch-tracker|$HOME/.config/opencode/skills/patch-tracker"
     "skills|skills/register-retry-error|$HOME/.config/opencode/skills/register-retry-error"
     "skills|skills/session-id|$HOME/.config/opencode/skills/session-id"
@@ -239,15 +240,23 @@ copy_source() {
 
 category_selected() {
     local category="$1"
+    local part
 
-    case "$category" in
-        commands) [[ "$INSTALL_COMMANDS" -eq 1 ]] ;;
-        configs) [[ "$INSTALL_CONFIGS" -eq 1 ]] ;;
-        plugins) [[ "$INSTALL_PLUGINS" -eq 1 ]] ;;
-        skills) [[ "$INSTALL_SKILLS" -eq 1 ]] ;;
-        scripts) [[ "$INSTALL_SCRIPTS" -eq 1 ]] ;;
-        *) return 1 ;;
-    esac
+    # ITEMS category field supports `+`-joined groups (e.g. `skills+configs`):
+    # the item installs when ANY declared group is selected. Used for atomic
+    # install pairings like global AGENTS.md, which must travel with the
+    # /deployment skill AND read like a config file.
+    local IFS='+'
+    for part in $category; do
+        case "$part" in
+            commands) [[ "$INSTALL_COMMANDS" -eq 1 ]] && return 0 ;;
+            configs)  [[ "$INSTALL_CONFIGS"  -eq 1 ]] && return 0 ;;
+            plugins)  [[ "$INSTALL_PLUGINS"  -eq 1 ]] && return 0 ;;
+            skills)   [[ "$INSTALL_SKILLS"   -eq 1 ]] && return 0 ;;
+            scripts)  [[ "$INSTALL_SCRIPTS" -eq 1 ]] && return 0 ;;
+        esac
+    done
+    return 1
 }
 
 verify_repo_structure() {

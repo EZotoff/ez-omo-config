@@ -56,6 +56,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **Magic Context** — cache-aware infinite context management with cross-session memory, replacing DCP. Transforms messages on every LLM round-trip, preserving the Anthropic prompt cache via m[0]/m[1] layout. Sub-agent sessions get reduced-mode context management automatically.
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
+- **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
 
 ---
 
@@ -111,6 +112,7 @@ This repository contains 69 core artifacts + 1 external integration organized in
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
 | 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
 | 16 | `deployment/` | `skills/` | Infrastructure deployment helpers |
+| 16b | `AGENTS.md` (global) | `configs/opencode/` | Global user-level agent instructions loaded by OpenCode on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs` |
 | 18 | `wisdom-common.sh` | `scripts/wisdom/` | Shared wisdom utilities |
 | 19 | `wisdom-search.sh` | `scripts/wisdom/` | Search wisdom database |
 | 20 | `wisdom-write.sh` | `scripts/wisdom/` | Write new learnings |

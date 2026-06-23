@@ -40,6 +40,10 @@
   "provider": {
     "google": {
       "name": "Google",
+      "options": {
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
+      },
       "models": {
         "gemini-3.5-flash": {
           "name": "Gemini 3.5 Flash",
@@ -234,7 +238,9 @@
         "include": [
           "reasoning.encrypted_content"
         ],
-        "store": false
+        "store": false,
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
       },
       "models": {
         "gpt-5.2": {
@@ -530,7 +536,9 @@
       "name": "Moonshot",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "https://api.moonshot.ai/v1"
+        "baseURL": "https://api.moonshot.ai/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
       },
       "models": {
         "kimi-k2.5": {
@@ -558,7 +566,9 @@
       "name": "Kimi Code",
       "npm": "@ai-sdk/anthropic",
       "options": {
-        "baseURL": "https://api.kimi.com/coding/v1"
+        "baseURL": "https://api.kimi.com/coding/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
       },
       "models": {
         "k2p5": {
@@ -591,7 +601,9 @@
       "name": "Kimi For Coding (OAuth)",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "https://api.kimi.com/coding/v1"
+        "baseURL": "https://api.kimi.com/coding/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
       },
       "models": {
         "kimi-for-coding": {
@@ -626,7 +638,9 @@
       "name": "Z.AI Coding Plan",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "https://api.z.ai/api/coding/paas/v4"
+        "baseURL": "https://api.z.ai/api/coding/paas/v4",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
       },
       "models": {
         "glm-5": {
@@ -722,7 +736,9 @@
       "name": "DeepSeek",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "https://api.deepseek.com/v1"
+        "baseURL": "https://api.deepseek.com/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
       },
       "models": {
         "deepseek-chat": {
@@ -796,7 +812,9 @@
       "name": "Inception Labs",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "https://api.inceptionlabs.ai/v1"
+        "baseURL": "https://api.inceptionlabs.ai/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
       },
       "models": {
         "mercury-2": {

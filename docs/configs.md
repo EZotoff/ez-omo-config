@@ -356,10 +356,13 @@ These files are symlinked from `~/.config/opencode/` into this repo. Editing eit
 
 | File | Live Path | Store Path |
 |------|-----------|------------|
+| `AGENTS.md` (global) | `~/.config/opencode/AGENTS.md` | `configs/opencode/AGENTS.md` |
 | `opencode.json` | `~/.config/opencode/opencode.json` | `configs/opencode/opencode.json` |
 | `oh-my-openagent.json` | `~/.config/opencode/oh-my-openagent.json` | `configs/oh-my-openagent/oh-my-openagent.json` |
 | `provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` | `configs/opencode/provider-connect-retry.mjs` |
 | `retry-errors.json` | `~/.config/opencode/retry-errors.json` | `configs/retry-errors.json` |
+
+The global `AGENTS.md` is OpenCode's user-level instruction file (loaded on top of any project-level `AGENTS.md`). It is currently scoped to the `/deployment` skill mandate. Tagged `skills+configs` in `install.sh`, so it installs atomically with `--skills` (alongside the `/deployment` skill) and with `--configs`.
 
 ### Installed Plugin Targets
 
@@ -373,6 +376,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
+| `AGENTS.md` (global) | User-level agent instructions loaded on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` | Required |
 | `opencode.json` | Main config: 9 providers, 11 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `dcp.jsonc` | DCP plugin configuration with bounded range archive retention (local patch) | `$HOME/.config/opencode/dcp.jsonc` | Optional |

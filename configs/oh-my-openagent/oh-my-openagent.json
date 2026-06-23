@@ -219,6 +219,32 @@
     "commit_footer": false,
     "include_co_authored_by": false
   },
+  "aspectDynamics": {
+    "activeSets": [
+      "emotions-v1"
+    ],
+    "heuristicPreFilter": true,
+    "contextWindowTurns": 10,
+    "scoringModel": {
+      "providerID": "inception",
+      "modelID": "mercury-2"
+    },
+    "polishingModel": {
+      "providerID": "inception",
+      "modelID": "mercury-2"
+    },
+    "dreamAgent": {
+      "enabled": false,
+      "timeThresholdHours": 24,
+      "minEventCount": 50,
+      "scanThrottleMinutes": 10,
+      "lockStaleHours": 1,
+      "model": {
+        "providerID": "openai",
+        "modelID": "gpt-5.4"
+      }
+    }
+  },
   "hashline_edit": true,
   "monitor": {
     "enabled": true,

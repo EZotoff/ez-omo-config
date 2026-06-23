@@ -1,6 +1,8 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 67 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 68 core artifacts for ez-omo-config repository scaffold.
+
+> **Atomic install pathway**: an item may declare multiple groups via `+`-joined tags (e.g. `skills+configs`). It installs whenever ANY declared group is selected. Used by the global `AGENTS.md`, which must travel with the `/deployment` skill AND read like a config file. See `category_selected` in `install.sh`.
 
 ## Artifacts Table
 
@@ -48,6 +50,7 @@ Complete inventory of 67 core artifacts for ez-omo-config repository scaffold.
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
 | 14 | review-protocol/ | `~/.config/opencode/skills/review-protocol/` | `skills/review-protocol/` | `$HOME/.config/opencode/skills/` | Review Protocol | Required |
 | 16 | deployment/ | `~/.config/opencode/skills/deployment/` | `skills/deployment/` | `$HOME/.config/opencode/skills/` | Deployment | Optional |
+| 16b | AGENTS.md (global) | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Atomic: Deployment + Core Config | Required |
 | 28 | merge-agent/ | `~/.config/opencode/skills/merge-agent/` | `skills/merge-agent/` | `$HOME/.config/opencode/skills/` | Safe Merge | Optional |
 | 29 | parallel-dev/ | `~/.config/opencode/skills/parallel-dev/` | `skills/parallel-dev/` | `$HOME/.config/opencode/skills/` | Parallel Dev | Optional |
 | 30a | vera-hygiene/ | `~/.config/opencode/skills/vera-hygiene/` | `skills/vera-hygiene/` | `$HOME/.config/opencode/skills/` | Vera Hygiene | Optional |
