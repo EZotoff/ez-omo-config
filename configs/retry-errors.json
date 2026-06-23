@@ -118,6 +118,18 @@
       "description": "Provider response headers timeout — provider did not send initial response headers within configured headerTimeout window. Fired by OpenCode's custom fetch wrapper (provider.ts timeoutController).",
       "added_by": "sisyphus",
       "added_at": "2026-06-23"
+    },
+    {
+      "id": "zai-rate-limit-requests",
+      "pattern": "Rate limit reached for requests",
+      "match_type": "regex",
+      "max_retries": 2,
+      "backoff_ms": [2000, 5000],
+      "retry_after_tool_execution": false,
+      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
+      "description": "Z.AI Coding Plan per-minute rate limit on GLM models — 2 quick retries then fallback to Kimi for the rate-limited request. Session stays on GLM for subsequent requests.",
+      "added_by": "sisyphus",
+      "added_at": "2026-06-23"
     }
   ]
 }
