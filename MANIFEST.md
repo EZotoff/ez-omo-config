@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 65 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of 67 core artifacts for ez-omo-config repository scaffold.
 
 ## Artifacts Table
 
@@ -38,6 +38,7 @@ Complete inventory of 65 core artifacts for ez-omo-config repository scaffold.
 | 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
 | 11e | vera-runtime.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Vera Runtime State / Opt-in Watcher Supervision | Required |
+| 11f | subagent-loop-guard.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Subagent Loop Guard | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 12b | patch-tracker/ | `~/.config/opencode/skills/patch-tracker/` | `skills/patch-tracker/` | `$HOME/.config/opencode/skills/` | Patch Registry | Optional |
 | 12c | register-retry-error/ | `~/.config/opencode/skills/register-retry-error/` | `skills/register-retry-error/` | `$HOME/.config/opencode/skills/` | Retry Error Registry | Optional |
@@ -81,6 +82,7 @@ Complete inventory of 65 core artifacts for ez-omo-config repository scaffold.
 | 28f | test_openai_provider.sh | (repo only) | `tests/` | (repo only) | Codex Provider Verification | Required |
 | 28g | test_update_to_latest_skill.sh | (repo only) | `tests/` | (repo only) | Update Pipeline Verification | Required |
 | 28h | test_dcp_payload_budget.sh | (repo only) | `tests/` | (repo only) | DCP Byte-Budget Verification | Required |
+| 28i | test_subagent_loop_guard.sh | (repo only) | `tests/` | (repo only) | Subagent Loop Guard Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/` | (repo only) | Byte-Budget Configuration Reference | Required |
 
@@ -106,6 +108,7 @@ ez-omo-config/
 │   ├── session-id.ts       # Session ID clipboard plugin (intercepts /session-id command)
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
 │   ├── vera-runtime.ts     # Vera runtime state / opt-in watcher supervision plugin
+│   ├── subagent-loop-guard.ts # Configured loop-pattern guard for subagent tool calls
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
 ├── skills/
@@ -140,13 +143,13 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 67 core + 1 external (commands: 4, configs: 18, plugins: 11 files + kdco-primitives dir, skills: 12 dirs + 1 external, scripts: 14 wisdom + 2 worktree + 1 verify + 1 vera-hygiene + 7 Python operator helpers, tests: 22, extras: 1, docs: 6)
+- **Total Artifacts**: 69 core + 1 external (commands: 4, configs: 18, plugins: 12 files + kdco-primitives dir, skills: 12 dirs + 1 external, scripts: 14 wisdom + 2 worktree + 1 verify + 1 vera-hygiene + 7 Python operator helpers, tests: 23, extras: 1, docs: 6)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 18 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets)
-- **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + worktree/ (2 files) + kdco-primitives/ directory
+- **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + subagent-loop-guard.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 11 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`). `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill — its content lives in `parallel-dev/SKILL.md`, `merge-agent/SKILL.md`, and `docs/worktree-state-schema.md`). `knowledge/` removed (deprecated Wisdom compat shim — Wisdom is the sole runtime memory store; shell-script shims deleted alongside).
 - **Scripts**: 17 wisdom shell scripts (15 `wisdom-*` + `knowledge-constants.sh` + `manifest-write.sh`) + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script + 7 Python operator helpers (stack-doctor, drift-detector, patch-guard, path-classifier, secrets-path-audit, source-identity-check, legacy-name-classifier)
-- **Tests**: 22 test scripts
+- **Tests**: 23 test scripts
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

@@ -92,24 +92,24 @@ expected_agent_models = {
 }
 expected_category_models = {
     'ultrabrain': 'openai/gpt-5.5',
-    'deep': 'openai/gpt-5.4',
+    'deep': 'openai/gpt-5.5',
     'quick': 'opencode-go/deepseek-v4-flash',
     'unspecified-low': 'opencode-go/deepseek-v4-flash',
-    'unspecified-high': 'openai/gpt-5.4',
+    'unspecified-high': 'opencode-go/deepseek-v4-pro',
     'mephistopheles': 'openai/gpt-5.5',
 }
 
 expected_gemini_routes = {
     ('agents', 'multimodal-looker'): 'google/gemini-3.5-flash',
-    ('agents', 'frontend-ui-ux-engineer'): 'google/gemini-3.1-pro-preview',
-    ('categories', 'visual-engineering'): 'google/gemini-3.1-pro-preview',
+    ('agents', 'frontend-ui-ux-engineer'): 'google/gemini-3.5-flash',
+    ('categories', 'visual-engineering'): 'google/gemini-3.5-flash',
     ('categories', 'artistry'): 'google/gemini-3.1-pro-preview',
 }
 
 expected_opencode_go_routes = {
     ('agents', 'librarian'): 'opencode-go/minimax-m3',
     ('agents', 'explore'): 'opencode-go/minimax-m3',
-    ('categories', 'writing'): 'opencode-go/kimi-k2.6',
+    ('categories', 'writing'): 'zai-coding-plan/glm-5.2',
 }
 
 agents = omo.get('agents', {})
@@ -123,7 +123,7 @@ print('PASS: retired provider string absent from active JSON config')
 expected_agent_fallbacks = {
     'sisyphus': ['openai/gpt-5.5', 'kimi-for-coding-oauth/kimi-for-coding'],
     'oracle': ['google/gemini-3.1-pro-preview'],
-    'prometheus': ['openai/gpt-5.5', 'zai-coding-plan/glm-5.1'],
+    'prometheus': ['openai/gpt-5.5', 'zai-coding-plan/glm-5.2'],
     'metis': ['google/gemini-3.1-pro-preview'],
     'momus': ['google/gemini-3.1-pro-preview'],
 }
@@ -140,12 +140,12 @@ for name, expected in expected_agent_models.items():
             sys.exit(1)
 
 expected_category_fallbacks = {
-    'ultrabrain': ['zai-coding-plan/glm-5.1'],
+    'ultrabrain': ['zai-coding-plan/glm-5.2'],
     'deep': ['kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.2'],
     'quick': ['kimi-for-coding-oauth/kimi-for-coding'],
     'unspecified-low': ['kimi-for-coding-oauth/kimi-for-coding'],
     'unspecified-high': ['kimi-for-coding-oauth/kimi-for-coding'],
-    'mephistopheles': ['openai/gpt-5.4', 'kimi-for-coding-oauth/kimi-for-coding'],
+    'mephistopheles': ['openai/gpt-5.4', 'opencode-go/kimi-k2.6'],
 }
 
 for name, expected in expected_category_models.items():
@@ -195,7 +195,7 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if meph.get('fallback_models') != ['openai/gpt-5.4', 'kimi-for-coding-oauth/kimi-for-coding']:
+if meph.get('fallback_models') != ['openai/gpt-5.4', 'opencode-go/kimi-k2.6']:
     print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')

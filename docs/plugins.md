@@ -1,6 +1,6 @@
 # Plugin System
 
-The OpenCode plugin system extends agent capabilities through TypeScript-based plugins that hook into the agent lifecycle. Plugins in this repository provide git worktree management, safety enforcement, and review workflow automation.
+The OpenCode plugin system extends agent capabilities through TypeScript-based plugins that hook into the agent lifecycle. Plugins in this repository provide git worktree management, safety enforcement, review workflow automation, and configured loop-pattern mitigation.
 
 ## Overview
 
@@ -220,6 +220,37 @@ Until all six states are verified, agents must use "workflow requires" language,
 
 ---
 
+## subagent-loop-guard.ts
+
+**Purpose**: Configured to catch per-session tool-call loop patterns that OMO's strict consecutive-signature circuit breaker misses.
+
+**Features**:
+
+- **Rule A — Tool-frequency alternation**: configured to flag a tool that appears more than `OMO_LOOP_GUARD_N_A` times in the last `OMO_LOOP_GUARD_WINDOW_A` calls.
+- **Rule B — Same-tool varying-input**: configured to flag a tool that appears more than `OMO_LOOP_GUARD_N_B` times in the last `OMO_LOOP_GUARD_WINDOW_B` calls when adjacent argument signatures differ.
+- **Rule C — Informational threshold**: configured to log a warning after `OMO_LOOP_GUARD_INFO_THRESHOLD` recorded calls without mutating tool args.
+- **Bash no-op mutation**: when Rule A or Rule B fires on a bash tool call, the plugin is configured to replace `command` with `echo "[loop-guard] blocked: <reason>"`.
+- **Fail-open behavior**: hook errors are caught and logged; normal tool execution continues.
+- **Bounded memory**: stores only the last 50 calls per active session and evicts stale or 1000-call sessions.
+
+**Runtime Flags**:
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `OMO_LOOP_GUARD_WINDOW_A` | `50` | Rule A sliding window |
+| `OMO_LOOP_GUARD_N_A` | `30` | Rule A count threshold |
+| `OMO_LOOP_GUARD_WINDOW_B` | `30` | Rule B sliding window |
+| `OMO_LOOP_GUARD_N_B` | `20` | Rule B count threshold |
+| `OMO_LOOP_GUARD_INFO_THRESHOLD` | `300` | Rule C warning threshold |
+| `OMO_LOOP_GUARD_COOLDOWN_MS` | `60000` | Per-session, per-rule cooldown |
+| `OMO_LOOP_GUARD_DISABLE` | unset | Set to `1` to make hooks no-op |
+
+**Evidence State**: `repo_implemented`, `active_config_registered`, and `tests_passed` after `bash tests/test_subagent_loop_guard.sh`. Not verified live: `live_file_installed`, `runtime_loaded`, `real_project_behavior_proven`.
+
+**Install Target**: `$HOME/.opencode/plugin/subagent-loop-guard.ts`
+
+---
+
 ## kdco-primitives/
 
 **Purpose**: Shared library used by all plugins in the bundle. Provides common utilities and type definitions.
@@ -293,6 +324,9 @@ git-safety.ts
 
 review-enforcer.ts
 └── (integrates with review-protocol skill)
+
+subagent-loop-guard.ts
+└── (self-contained)
 ```
 
 ---

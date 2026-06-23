@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 13 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **66 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **68 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -49,31 +49,30 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work
+- **Subagent loop guard** — configured to catch same-tool and same-tool-varying-input loop patterns that strict consecutive-signature detection misses
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
 - **Vera index hygiene** — automatic `.veraignore` management that detects unreadable dirs, heavy generated artifacts, and prevents self-indexing before Vera root-indexes a project
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
-- **Bounded DCP retention** — local patch that caps archived summary tokens during DCP range compression, keeping long-running sessions within a fixed token budget
-- **DCP byte-budget gate** — local patch that enforces a payload byte cap (1,802,240 bytes safe target) on the message list via `pruneByByteBudget()`, preventing 413 Payload Too Large errors from the model provider
-- **Durable DCP patch sync** — installer keeps native runtime, OpenCode package-cache, XDG_CACHE_HOME cache (when set and differing from HOME/.cache), and existing Bun v3 `@tarquinen/opencode-dcp` cache copies aligned with local bounded-retention and byte-budget patch files
+- **Magic Context** — cache-aware infinite context management with cross-session memory, replacing DCP. Transforms messages on every LLM round-trip, preserving the Anthropic prompt cache via m[0]/m[1] layout. Sub-agent sessions get reduced-mode context management automatically.
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 
 ---
 
 ## What's Included
 
-This repository contains 66 core artifacts + 1 external integration organized into 9 categories:
+This repository contains 68 core artifacts + 1 external integration organized into 9 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
-| 6-11 | **Plugins** | 11 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, manual-by-default Vera runtime state, and semantic checkpointing |
+| 6-11 | **Plugins** | 12 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, manual-by-default Vera runtime state, semantic checkpointing, and configured subagent loop guarding |
 | 12-22 | **Skills** | 12 directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, Vera hygiene, and safe update pipelines. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | 21 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
-| 32 | **Tests** | 22 test scripts | Regression tests for config, DCP, plugin, and update pipeline verification |
+| 32 | **Tests** | 23 test scripts | Regression tests for config, plugin, and update pipeline verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
-| 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and byte-budget configuration reference |
+| 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and retired DCP byte-budget reference |
 | 40 | **External** | 1 skill | [Vera](https://github.com/lemon07r/Vera) semantic code search (installed separately) |
 
 ### Complete Artifact Inventory
@@ -86,7 +85,7 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 1d | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
-| 3b | `dcp.jsonc` | `configs/opencode/` | DCP plugin configuration with bounded range archive retention and byte-budget payload cap (local patches) |
+| 3b | `dcp.jsonc.retired` | `configs/opencode/` | Retired DCP plugin config (DCP replaced by @cortexkit/opencode-magic-context on 2026-06-23). Not installed. |
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection and registry-driven error matching |
 | 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models for the retry plugin |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
@@ -101,6 +100,7 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
 | 11e | `vera-runtime.ts` | `plugins/` | Vera runtime state plugin (manual-by-default index lifecycle, opt-in watcher automation, fail-open) |
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
+| 11g | `subagent-loop-guard.ts` | `plugins/` | Configured per-session tool-call loop guard for same-tool frequency and same-tool varying-input patterns |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
 | 12b | `patch-tracker/` | `skills/` | Patch registry CRUD and post-update verification skill |
 | 12c | `register-retry-error/` | `skills/` | Retryable error pattern registration skill |
@@ -155,9 +155,10 @@ This repository contains 66 core artifacts + 1 external integration organized in
 | 50a | `tests/test_vera_hygiene.sh` | `tests/` | Vera hygiene verification — idempotency, safety, and blocker detection tests |
 | 50b | `tests/test_review_enforcer_completion_instruction.sh` | `tests/` | Regression test for PLAN_COMPLETION_INSTRUCTION block extraction and content verification |
 | 50c | `tests/test_openai_provider.sh` | `tests/` | Regression test for Codex display provider presence in opencode.json (`openai` key) |
+| 50d | `tests/test_subagent_loop_guard.sh` | `tests/` | Regression test for subagent loop guard detection, cooldown, per-session tracking, ring eviction, disable flag, and fail-open behavior |
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 | 51a | `aspect-dynamics/sets/emotions-v2.json` | `configs/opencode/` | Versioned distress-focused seed aspect set with profanity-aware heuristics |
-| 52 | `docs/dcp-byte-budget.md` | `docs/` | DCP byte-budget gate configuration reference, safety margin derivation, installation, and rollback |
+| 52 | `docs/dcp-byte-budget.md` | `docs/` | RETIRED 2026-06-23: DCP byte-budget gate reference (replaced by Magic Context). Historical record only. |
 
 ---
 
@@ -305,13 +306,13 @@ The HTML packet is for human review and discussion. The Markdown plan remains ca
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **DCP** (Dynamic Context Pruning) | Enabled | Intelligently removes irrelevant tool outputs to save tokens |
+| **Magic Context** | Enabled | Cache-aware infinite context with cross-session memory. Replaces DCP and OpenCode built-in compaction. Transforms messages on every LLM round-trip. |
 | **Aggressive Truncation** | Enabled | Truncates verbose tool outputs aggressively |
 | **Runtime Fallback** | Enabled | Automatically switches to fallback models on API errors (404, 429, 500, 502, 503, 504) |
 | **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
-| **Preemptive Compaction** | Enabled | Triggers context compaction before the context window is exhausted, preventing runaway token growth in subagent sessions (set in `oh-my-openagent.json#experimental.preemptive_compaction`; paired with `opencode.json#compaction.reserved=30000`) |
-| **Purge Errors (aggressive)** | Enabled (2 turns) | Drops failed tool outputs from context after 2 turns instead of 5, keeping subagent context lean during build/test loops |
-| **Background Task Circuit Breaker** | Enabled (maxToolCalls=500, consecutiveThreshold=15) | Hard-cancels runaway subagent tasks: 500 total tool calls or 15 consecutive identical tool+input signatures triggers automatic task cancellation. OMO default is 4000/20; lowered thresholds catch doom loops earlier |
+| **Purge Errors (2-turn)** | Disabled (was DCP strategy) | DCP-specific pruning; Magic Context handles error purging internally via its transform pipeline |
+| **Background Task Circuit Breaker** | Enabled (maxToolCalls=500, consecutiveThreshold=15) | Configured to cancel runaway subagent tasks when a task reaches 500 total tool calls or 15 consecutive identical tool+input signatures. OMO default is 4000/20; lowered thresholds trip earlier |
+| **Auto-Update Checker** | Disabled | `oh-my-openagent.json#disabled_hooks: ["auto-update-checker"]` opts out of OMO's startup update-check hook. Updates are managed manually via the `update-to-latest` skill |
 
 ### Doom-Loop Mitigations
 
@@ -319,57 +320,77 @@ The configuration includes layered defenses against runaway subagent sessions (f
 
 | Layer | Setting | Effect |
 |-------|---------|--------|
-| **Model demotion** | `categories.visual-engineering.model` = `google/gemini-3.5-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
-| **Preemptive compaction** | `experimental.preemptive_compaction: true` + `opencode.json#compaction.reserved: 30000` | Auto-compact before context exhaustion rather than at exhaustion |
-| **Aggressive error purge** | `experimental.dynamic_context_pruning.strategies.purge_errors.turns: 2` | Failed build/test outputs dropped after 2 turns instead of 5 |
-| **Tool-call circuit breaker** | `background_task.circuitBreaker.maxToolCalls: 500`, `consecutiveThreshold: 15` | Hard-cancel any subagent task that exceeds 500 total tool calls or repeats the same tool+input 15× in a row. Catches 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) still rely on preemptive compaction |
+| **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.5-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
+| **Aggressive error purge** | Disabled (was DCP strategy; MC handles internally) | Previously dropped failed build/test outputs after 2 turns via DCP |
+| **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Intended to catch 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) are NOT cancelled by this setting and rely on Magic Context's continuous transform instead |
+| **Subagent loop guard plugin** | `opencode.json#plugin: file:///home/ezotoff/.opencode/plugin/subagent-loop-guard.ts` | Configured to watch the last 50 tool calls per session, convert bash calls to `echo "[loop-guard] blocked: ..."` when Rule A or Rule B fires, and log a Rule C informational warning past the configured total-call threshold |
 
-**Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. A pattern-aware detector (same tool called N times in a sliding window) is not currently in OMO upstream.
+**Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. The `subagent-loop-guard.ts` plugin is configured to add sliding-window detection as a local add-on.
 
-### DCP Observability
+**Evidence state**: The OMO/config-setting mitigations are `repo_implemented`, `live_file_installed` (via symlink), and `active_config_registered`. The `subagent-loop-guard.ts` row is `repo_implemented` and `active_config_registered` only until `install.sh --plugins` is run. **Not verified live: `live_file_installed` for the new plugin, `runtime_loaded`, `real_project_behavior_proven`**.
 
-The bounded DCP retention patch is a local modification, not upstream standard behavior. After any OpenCode or DCP package update, verify the patch is still intact:
+### Subagent Loop Guard Plugin
 
-```bash
-bash tests/test_dcp_bounded_range.sh
-```
+The built-in OMO circuit breaker cannot catch alternating patterns or same-tool-varying-input patterns (see Known Limitation above). The `subagent-loop-guard.ts` plugin is configured to add sliding-window detection on top of OMO's consecutive-signature detector.
 
-Expected: 0 failed. The proof script checks marker presence across the reference copy, runtime copy, OpenCode package-cache copies, XDG_CACHE_HOME cache copies (when set and differing from HOME/.cache), and existing Bun v3 DCP cache copies; the pass count varies with local cache contents. It also exercises five functional regression cases, including runtime metadata validation of `retentionMode`, `archiveRawMessages`, `maxArchivedSummaryTokens`, `archivedBlockId`, and `truncationOccurred`.
+| Detection Rule | Window | Threshold | Trigger | Configured action |
+|----------------|--------|-----------|---------|--------|
+| **A — Tool-frequency alternation** | Last 50 calls | Same tool >30 times | Configured to catch 14 Jun-class agent-browser cycles | Mutate bash command to no-op + log warning |
+| **B — Same-tool varying-input** | Last 30 calls | Same tool >20 times with all-different signatures | Configured to catch 21 Jun-class build↔test cycles and screenshot-with-varying-URL loops | Mutate bash command to no-op + log warning |
+| **C — Informational threshold** | Per session | >300 total calls | Heads-up before OMO's maxToolCalls=500 fires | Log warning only (no blocking) |
 
-**Fresh-start warning probe**: File-marker checks prove the patch files exist on disk, but they do not prove a running OpenCode process has loaded them. To verify a fresh process does not reject the bounded-retention keys as unknown, also run:
+**Env vars** (all optional, read at plugin init):
+- `OMO_LOOP_GUARD_WINDOW_A` (default 50), `OMO_LOOP_GUARD_N_A` (default 30)
+- `OMO_LOOP_GUARD_WINDOW_B` (default 30), `OMO_LOOP_GUARD_N_B` (default 20)
+- `OMO_LOOP_GUARD_INFO_THRESHOLD` (default 300)
+- `OMO_LOOP_GUARD_COOLDOWN_MS` (default 60000 — per-session per-rule cooldown to avoid transcript spam)
+- `OMO_LOOP_GUARD_DISABLE=1` (kill switch — plugin no-ops all hooks)
 
-```bash
-bash tests/test_dcp_startup_warning.sh
-```
+**Evidence state**: `repo_implemented`, `tests_passed`, and `active_config_registered`. **Not verified live: `live_file_installed`, `runtime_loaded`, `real_project_behavior_proven`** — install via `install.sh` and restart OpenCode to load the plugin.
 
-Expected: 0 failed. This test starts a short-lived `opencode serve` probe and fails if the startup logs contain `Unknown keys: compress.retentionMode`, `compress.maxArchivedSummaryTokens`, `compress.maxPayloadBytes`, or `DCP: config warning`.
+**What the plugin CANNOT do**:
+- Cannot truly cancel a task (no `cancelTask` in plugin SDK). Bash arg-mutation makes individual bash calls into no-ops; other tools (e.g., agent-browser) only get a logged warning.
+- Cannot catch single long-running tool calls (count-based detection only sees discrete tool boundaries).
+- Cannot enforce aggregate caps across sibling subagents (each session tracked independently).
 
-**Stale-process gotcha**: If you see the DCP unknown-key warning in a running OpenCode server or TUI session that was started *before* the latest patch sync, the patched modules may not be loaded in that process. File-marker checks prove patch presence on disk, but long-running processes only load DCP modules at startup. Restart OpenCode to load the patched code.
+### Future Work: Periodic Lead-Agent Inspection
 
-### DCP Byte-Budget Gate Verification
+The mitigations above are reactive (detect-and-block). A complementary proactive mechanism would let the lead agent periodically inspect running subagents without breaking their flow. Sketch of options:
 
-The byte-budget gate is a local patch that prevents prompt payload from exceeding the 2 MiB protocol limit. After any OpenCode or DCP package update, verify the patch is still intact:
+| Option | Mechanism | Breaks Flow? | Complexity |
+|--------|-----------|--------------|------------|
+| **Push (transcript inject)** | Plugin uses `client.session.promptAsync(parentID, status)` every 15 min | Yes — parent processes injection as new user turn | Medium |
+| **Pull (sidecar log)** | Plugin writes status snapshots to `~/.sisyphus/agent-watch/<child>.json`; parent reads when curious | No (passive) | Low |
+| **Pull (transcript annotation)** | Plugin annotates the parent's next tool call args with a status comment | No (in-band) | Medium |
+| **Upstream OMO patch** | Fix `lastMessageAt` assignment in `manager.ts` so the existing babysitter hook fires | No (handled by OMO) | High (requires OMO source patch + maintenance) |
 
-```bash
-bash tests/test_dcp_payload_budget.sh --installed
-```
+Out of current scope. Will revisit after observing how the circuit breaker + loop guard perform in real visual-engineering subagent runs.
 
-Expected: 0 failed. The script checks marker presence across the reference copy, runtime copy, OpenCode package-cache copies, and existing Bun v3 DCP cache copies; the pass count varies with local cache contents. It also exercises 9 functional regression cases covering tool output compaction, repeated scaffold collapse, error loop collapse, todo snapshot preservation, multibyte encoding, threshold behavior, and protected-failover.
+### Magic Context
 
-Configuration reference, safety margin derivation, and uninstall steps are documented in `docs/dcp-byte-budget.md`.
+DCP (`@tarquinen/opencode-dcp@3.1.13`) was replaced by `@cortexkit/opencode-magic-context@latest` on 2026-06-23. Magic Context provides:
 
-For full DCP observability — bounded-range and byte-budget together — run both verification scripts:
+| Capability | Description |
+|------------|-------------|
+| **Cache-aware infinite context** | Context window management with awareness of cached/prompt-cache content, avoiding redundant data |
+| **Cross-session memory** | Context persists across sessions, enabling long-running awareness |
+| **Sub-agent reduced mode** | Automatically reduces context for sub-agents while preserving essential state |
+| **Continuous transform** | Applies context transforms incrementally without needing the old compress tool. Eliminates the 413 Payload Too Large errors that DCP's byte-budget gate was patched to solve |
 
-```bash
-bash tests/test_dcp_bounded_range.sh && bash tests/test_dcp_payload_budget.sh --installed && bash tests/test_dcp_startup_warning.sh
-```
+**Configuration changes**:
+- `compaction.auto` set to `false` — MC owns context management
+- `compaction.prune` set to `false` — MC owns context pruning
+- No separate config file needed (uses defaults from optional `magic-context.jsonc`)
+- 3 OMO hooks disabled: `preemptive-compaction`, `context-window-monitor`, `anthropic-context-window-limit-recovery`
+- `dynamic_context_pruning` disabled (was OMO's DCP config layer)
+
+**Migration**:
+- `dcp.jsonc` archived to `dcp.jsonc.retired`
+- 3 DCP patches retired: bounded-range-archive-mode, byte-budget, compress-tool-prompt-contract
 
 ### Patch Documentation
 
 For install locations, failure string meanings, and reapply instructions:
-- **Bounded-range archive mode**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`
-- **Byte-budget gate**: `.sisyphus/patches/opencode-dcp--byte-budget.md`
-- **Compress tool prompt contract**: `.sisyphus/patches/opencode-dcp--compress-tool-prompt-contract.md`
 - **Context overflow max-token detection**: `.sisyphus/patches/oh-my-openagent--context-overflow-max-token-error.md` (active on OMO v4.12.1)
 - **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.12.1)
 - **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.12.1)
@@ -450,7 +471,7 @@ For in-depth guides on specific components:
 | Compatibility Debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
 | Observability Contract | [docs/configs.md](docs/configs.md) |
 | Live Deployment Verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
-| DCP Byte-Budget Gate | [docs/dcp-byte-budget.md](docs/dcp-byte-budget.md) |
+| DCP Byte-Budget Gate (RETIRED) | [docs/dcp-byte-budget.md](docs/dcp-byte-budget.md) |
 
 ---
 

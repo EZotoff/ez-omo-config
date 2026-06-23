@@ -109,7 +109,7 @@
       "fallback_models": [
         "zai-coding-plan/glm-5.2"
       ],
-      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3.5 Flash (high thinking) for capable multimodal reasoning without the cost profile of Pro Preview. Use ui-quick for simple tasks instead."
+      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3.5 Flash (high thinking) for capable multimodal reasoning without the cost profile of Pro Preview."
     },
     "document-writer": {
       "model": "opencode-go/kimi-k2.6",
@@ -125,7 +125,6 @@
       "fallback_models": [
         "zai-coding-plan/glm-5.2"
       ],
-      "is_unstable_agent": true,
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
     "ultrabrain": {
@@ -193,11 +192,18 @@
   "default_mode": {
     "ultrawork": true
   },
-  "babysitting": {
-    "timeout_ms": 600000
+  "background_task": {
+    "circuitBreaker": {
+      "enabled": true,
+      "maxToolCalls": 500,
+      "consecutiveThreshold": 15
+    }
   },
   "disabled_hooks": [
-    "auto-update-checker"
+    "auto-update-checker",
+    "preemptive-compaction",
+    "context-window-monitor",
+    "anthropic-context-window-limit-recovery"
   ],
   "browser_automation_engine": {
     "provider": "agent-browser"
@@ -244,11 +250,11 @@
     "include_co_authored_by": false
   },
   "experimental": {
-    "preemptive_compaction": true,
+    "preemptive_compaction": false,
     "aggressive_truncation": true,
     "truncate_all_tool_outputs": true,
     "dynamic_context_pruning": {
-      "enabled": true,
+      "enabled": false,
       "notification": "minimal",
       "turn_protection": {
         "enabled": true,

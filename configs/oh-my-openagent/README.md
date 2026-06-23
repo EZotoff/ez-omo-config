@@ -4,7 +4,7 @@ This directory contains the repo-managed Oh-My-OpenAgent configuration and porta
 
 | Path | Purpose | Install target |
 |---|---|---|
-| `oh-my-openagent.json` | Agent/category model assignments, skills, prompt contracts, Team Mode enablement, and default mode preferences | `$HOME/.config/opencode/oh-my-openagent.json` |
+| `oh-my-openagent.json` | Agent/category model assignments, skills, prompt contracts, Team Mode enablement, default mode preferences, background-task circuit breaker (`background_task.circuitBreaker`), and experimental context controls (`experimental.preemptive_compaction`, `dynamic_context_pruning`) | `$HOME/.config/opencode/oh-my-openagent.json` |
 | `portable-assets/` | Portable `rules/`, `teams`, and `templates` fragments only | allowlisted children under `$HOME/.omo/` |
 
 ## Portable Assets Layout

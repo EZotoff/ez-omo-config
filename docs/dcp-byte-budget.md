@@ -1,5 +1,9 @@
 # DCP Byte-Budget Gate — Configuration Reference
 
+> **RETIRED 2026-06-23**: DCP replaced by @cortexkit/opencode-magic-context.
+> MC's continuous transform prevents the content accumulation that caused 413 errors.
+> This document is retained for historical reference only.
+
 > **Patch status**: Local modification (not upstream standard behavior).  
 > **Patch ID**: `opencode-dcp--byte-budget`  
 > **Dependency**: `@tarquinen/opencode-dcp@3.1.9`  

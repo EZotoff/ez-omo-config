@@ -13,6 +13,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `session-id.ts` — copies the invoking session ID to clipboard via `/session-id`, no LLM round-trip.
 - `session-info.ts` — copies `Project <path>:<branch>; Session <title>; ID <session-id>` to clipboard via `/session-info` command, no LLM round-trip.
 - `vera-runtime.ts` — records per-workspace Vera state without blocking session startup, offers opt-in watcher supervision, and fails open when the `vera` binary is unavailable.
+- `subagent-loop-guard.ts` — configured to detect high-frequency same-tool loops and same-tool varying-input loops per session, mutate bash commands to a loop-guard no-op when a configured block rule fires, and log an informational warning past the configured total-call threshold. It is fail-open and stores only the last 50 calls per active session in memory.
 - `kdco-primitives/` — shared helpers used by the plugin bundle, including project ID lookup, shell escaping, tmux detection, temp paths, logging, timeout helpers, and shared types.
 
 ## Dependency notes
@@ -20,6 +21,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `worktree.ts` depends on `./worktree/state` and `./worktree/terminal`, so those files must stay alongside it under `plugins/worktree/`.
 - `worktree.ts`, `worktree/state.ts`, and `worktree/terminal.ts` all depend on `plugins/kdco-primitives/`.
 - `vera-runtime.ts` is self-contained but coordinates with `scripts/worktree-post-create.sh`, `scripts/worktree-pre-delete.sh`, and `docs/worktree-state-schema.md` through the shared `vera-watchers/` state contract.
+- `subagent-loop-guard.ts` is self-contained. Runtime thresholds are read once at plugin init from `OMO_LOOP_GUARD_WINDOW_A`, `OMO_LOOP_GUARD_N_A`, `OMO_LOOP_GUARD_WINDOW_B`, `OMO_LOOP_GUARD_N_B`, `OMO_LOOP_GUARD_INFO_THRESHOLD`, `OMO_LOOP_GUARD_COOLDOWN_MS`, and `OMO_LOOP_GUARD_DISABLE`.
 - `kdco-primitives/` should be installed with the rest of the plugin bundle; moving or removing it breaks worktree-related imports.
 
 ## Portability

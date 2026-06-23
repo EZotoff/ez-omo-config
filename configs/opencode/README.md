@@ -4,9 +4,9 @@ This directory contains the portable OpenCode config bundle copied from the loca
 
 | File | What it configures | Install target |
 |---|---|---|
-| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, and runtime defaults | `$HOME/.config/opencode/opencode.json` |
+| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, compaction headroom (`compaction.reserved=30000` paired with OMO `experimental.preemptive_compaction`), and runtime defaults | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
-| `dcp.jsonc` | DCP plugin configuration with bounded range archive retention and byte-budget payload cap (local patches, synced to XDG_CACHE_HOME cache when active) | `$HOME/.config/opencode/dcp.jsonc` |
+| `dcp.jsonc.retired` | Retired DCP plugin configuration (DCP replaced by @cortexkit/opencode-magic-context on 2026-06-23). Kept for historical reference. | Not installed |
 | `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response detection, and registry-driven error matching | `$HOME/.config/opencode/provider-connect-retry.mjs` |
 | `retry-errors.json` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models consumed by the retry plugin | `$HOME/.config/opencode/retry-errors.json` |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudge dispatch | `$HOME/.config/opencode/aspect-dynamics.mjs` |
@@ -14,6 +14,12 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`, `emotions-v2`) | `$HOME/.config/opencode/aspect-dynamics/sets/` |
 | `worktree.jsonc` | Worktree sync config and hook registration for automated worktree lifecycle management | `$HOME/.opencode/worktree.jsonc` |
 | `extras/ocx.jsonc` | OCX registry configuration pointer used by the OCX CLI | `$HOME/.opencode/ocx.jsonc` |
+
+## Registered Local Plugins
+
+| Plugin | What it is configured to do | Install target |
+|---|---|---|
+| `subagent-loop-guard.ts` | Configured to watch per-session tool-call windows, mutate bash loop calls to a no-op when Rule A or Rule B fires, and log a Rule C warning after the configured total-call threshold. Evidence state: `repo_implemented`, `active_config_registered`; not verified live: `runtime_loaded`, `real_project_behavior_proven`. | `$HOME/.opencode/plugin/subagent-loop-guard.ts` |
 
 ## Worktree Lifecycle Automation
 

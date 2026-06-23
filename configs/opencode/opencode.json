@@ -13,14 +13,15 @@
   "plugin": [
     "file:///home/ezotoff/.config/opencode/provider-connect-retry.mjs",
     "file:///home/ezotoff/.config/opencode/aspect-dynamics.mjs",
-    "@tarquinen/opencode-dcp@3.1.13",
+    "@cortexkit/opencode-magic-context@latest",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
     "@franlol/opencode-md-table-formatter@latest",
     "opencode-kimi-full",
     "file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs",
-    "file:///home/ezotoff/omo-hub/projects/oh-my-openagent"
+    "file:///home/ezotoff/omo-hub/projects/oh-my-openagent",
+    "file:///home/ezotoff/.opencode/plugin/subagent-loop-guard.ts"
   ],
   "agent": {
     "compaction": {
@@ -28,8 +29,8 @@
     }
   },
   "compaction": {
-    "auto": true,
-    "reserved": 30000
+    "auto": false,
+    "prune": false
   },
   "provider": {
     "google": {

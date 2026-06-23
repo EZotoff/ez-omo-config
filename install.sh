@@ -30,7 +30,6 @@ ITEMS=(
     "commands|commands/session-info.md|$HOME/.config/opencode/command/session-info.md"
     "configs|configs/opencode/opencode.json|$HOME/.config/opencode/opencode.json"
     "configs|configs/opencode/opencode.jsonc|$HOME/.opencode/opencode.jsonc"
-    "configs|configs/opencode/dcp.jsonc|$HOME/.config/opencode/dcp.jsonc"
     "configs|configs/opencode/provider-connect-retry.mjs|$HOME/.config/opencode/provider-connect-retry.mjs"
     "configs|configs/opencode/aspect-dynamics.mjs|$HOME/.config/opencode/aspect-dynamics.mjs"
     "configs|configs/opencode/aspect-dynamics|$HOME/.config/opencode/aspect-dynamics"
@@ -47,6 +46,7 @@ ITEMS=(
     "plugins|plugins/session-id.ts|$HOME/.opencode/plugin/session-id.ts"
     "plugins|plugins/session-info.ts|$HOME/.opencode/plugin/session-info.ts"
     "plugins|plugins/vera-runtime.ts|$HOME/.opencode/plugin/vera-runtime.ts"
+    "plugins|plugins/subagent-loop-guard.ts|$HOME/.opencode/plugin/subagent-loop-guard.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
     "skills|skills/debate|$HOME/.config/opencode/skills/debate"
@@ -79,14 +79,6 @@ ITEMS=(
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
     "scripts|scripts/verify-live-deployment.sh|$HOME/.sisyphus/scripts/verify-live-deployment.sh"
     "scripts|scripts/vera-hygiene.sh|$HOME/.sisyphus/scripts/vera-hygiene.sh"
-)
-
-# DCP v3.1.13+ ships as a single tsup-bundled dist/index.js.
-# Patch sync copies the bundle (and source map) from the reference install
-# to all runtime/cache copies. Per-module .js files no longer exist.
-DCP_PATCH_FILES=(
-    "index.js"
-    "index.js.map"
 )
 
 usage() {
@@ -395,82 +387,6 @@ selected_groups() {
     printf '%s\n' "${groups[*]}"
 }
 
-sync_dcp_local_patch() {
-    if [[ "$INSTALL_CONFIGS" -ne 1 ]]; then
-        return 0
-    fi
-
-    local source_root="$HOME/.config/opencode/node_modules/@tarquinen/opencode-dcp/dist"
-    local -a destination_roots=(
-        "$HOME/.cache/opencode/node_modules/@tarquinen/opencode-dcp/dist"
-        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist"
-        "$HOME/.cache/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist"
-    )
-
-    # XDG_CACHE_HOME guard: prevents unpatched snap/XDG cache copies from
-    # emitting DCP unknown-key warnings. Deduplicated against HOME/.cache.
-    if [[ -n "${XDG_CACHE_HOME:-}" && "${XDG_CACHE_HOME}" != "$HOME/.cache" ]]; then
-        destination_roots+=(
-            "$XDG_CACHE_HOME/opencode/node_modules/@tarquinen/opencode-dcp/dist"
-            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@latest/node_modules/@tarquinen/opencode-dcp/dist"
-            "$XDG_CACHE_HOME/opencode/packages/@tarquinen/opencode-dcp@3.1.13/node_modules/@tarquinen/opencode-dcp/dist"
-        )
-    fi
-
-    # Bun-compiled OpenCode can resolve npm plugins through Bun's install cache
-    # before the OpenCode package cache. Keep existing v3 DCP cache copies patched
-    # so stale package resolution cannot reintroduce DCP unknown-key warnings.
-    local bun_destination_root
-    for bun_destination_root in "$HOME"/.bun/install/cache/@tarquinen/opencode-dcp@3.*@@@*/dist; do
-        [[ -d "$bun_destination_root" ]] && destination_roots+=("$bun_destination_root")
-    done
-
-    if [[ ! -d "$source_root" ]]; then
-        log "DCP patch sync: skipped (reference copy not found: $source_root)"
-        return 0
-    fi
-
-    local file
-    local missing_source_files=0
-    for file in "${DCP_PATCH_FILES[@]}"; do
-        if [[ ! -f "$source_root/$file" ]]; then
-            log "DCP patch sync: skipped (missing source file: $source_root/$file)"
-            missing_source_files=1
-        fi
-    done
-
-    if [[ "$missing_source_files" -eq 1 ]]; then
-        return 0
-    fi
-
-    local destination_root
-    local destinations_seen=0
-    for destination_root in "${destination_roots[@]}"; do
-        if [[ ! -d "$destination_root" ]]; then
-            log "DCP patch sync: destination not present, skipping: $destination_root"
-            continue
-        fi
-
-        destinations_seen=$((destinations_seen + 1))
-
-        if [[ "$DRY_RUN" -eq 1 ]]; then
-            log "[DRY-RUN] DCP patch sync: would update $destination_root"
-            continue
-        fi
-
-        for file in "${DCP_PATCH_FILES[@]}"; do
-            mkdir -p "$(dirname "$destination_root/$file")"
-            cp -p "$source_root/$file" "$destination_root/$file"
-        done
-
-        log "DCP patch sync: updated $destination_root"
-    done
-
-    if [[ "$destinations_seen" -eq 0 ]]; then
-        log "DCP patch sync: no cache copies found to update."
-    fi
-}
-
 print_summary() {
     log ""
     log "Install summary"
@@ -505,8 +421,6 @@ main() {
             install_item "$source_rel" "$target"
         fi
     done
-
-    sync_dcp_local_patch
 
     print_summary
 }
