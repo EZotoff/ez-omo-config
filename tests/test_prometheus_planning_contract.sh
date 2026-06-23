@@ -29,21 +29,20 @@ if pa is None or not isinstance(pa, str):
 with open('_test_prometheus_prompt_append.txt', 'w') as out:
     out.write(pa)
 
-# Required contract literals from the HTML Proposal+Design Packet contract
+# Required contract literals for the config-layer prompt_append.
+# The HTML Proposal+Design Packet contract lives in the OMO prometheus agent
+# source (~/oh-my-openagent/src/agents/prometheus/), not in this config field.
 required_literals = [
-    'HTML Proposal+Design Packet',
-    '.sisyphus/drafts/<topic-slug>-proposal.html',
-    '.sisyphus/plans/*.md',
-    'Goal Coverage Map',
-    'FULL',
-    'PARTIAL',
-    'DEFERRED',
-    'DELTA',
-    'autonomous by default',
-    'checkpoint happens before writing the executable Markdown plan',
-    'canonical execution source',
-    'same-content Markdown fallback',
-    'Do not introduce reusable HTML template',
+    'wisdom',
+    'wisdom-search.sh',
+    'Vera tool-selection decision tree',
+    'vera search',
+    'vera grep',
+    'repo_implemented',
+    'live_file_installed',
+    'active_config_registered',
+    'runtime_loaded',
+    'real_project_behavior_proven',
 ]
 
 all_pass = True
