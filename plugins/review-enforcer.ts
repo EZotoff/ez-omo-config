@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
+import { appendFileSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync } from "node:fs"
 import { dirname } from "node:path"
 import type { Plugin } from "@opencode-ai/plugin"
 
@@ -11,6 +11,8 @@ import type { Plugin } from "@opencode-ai/plugin"
  */
 
 const LOG_PATH = `${process.env.HOME}/.opencode/plugin/review-enforcer.log`
+const LOG_MAX_BYTES = 10 * 1024 * 1024 // 10 MB before rotation
+const DEBUG_ENABLED = process.env.OMO_REVIEW_ENFORCER_DEBUG === "1"
 
 const FAILURE_MARKERS = [
 	"Task failed",
@@ -96,11 +98,32 @@ let planCompletionTriggered = false
 const processedCallIDs = new Set<string>()
 
 /** Best-effort file log — never throws */
+/** Rotate log when it exceeds size cap (keeps one backup .1) */
+function rotateLogIfNeeded(): void {
+	try {
+		const stat = statSync(LOG_PATH)
+		if (stat.size > LOG_MAX_BYTES) {
+			const backup = `${LOG_PATH}.1`
+			try { unlinkSync(backup) } catch { /* ignore */ }
+			try {
+				renameSync(LOG_PATH, backup)
+			} catch {
+				try { unlinkSync(LOG_PATH) } catch { /* ignore */ }
+			}
+		}
+	} catch {
+		/* file doesn't exist yet — nothing to rotate */
+	}
+}
+
+/** Best-effort file log — never throws */
 function log(level: string, message: string): void {
+	if (level === "debug" && !DEBUG_ENABLED) return
 	const timestamp = new Date().toISOString()
 	const line = `[${timestamp}] [${level.toUpperCase()}] ${message}\n`
 	try {
 		mkdirSync(dirname(LOG_PATH), { recursive: true })
+		rotateLogIfNeeded()
 		appendFileSync(LOG_PATH, line)
 	} catch {
 		// intentionally swallowed

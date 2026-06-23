@@ -1,4 +1,4 @@
-import { existsSync, unlinkSync, writeFileSync } from "node:fs"
+import { existsSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs"
 import { appendFile, mkdir } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, posix, resolve } from "node:path"
@@ -257,12 +257,31 @@ function shouldIgnoreHelperSession(sessionId: string, title: string): boolean {
 // =============================================================================
 
 const LOG_PATH = `${process.env.HOME}/.opencode/plugin/auto-checkpoint.log`
+const LOG_MAX_BYTES = 10 * 1024 * 1024 // 10 MB before rotation
 const FILE_LOGGING_ENABLED = process.env.OPENCODE_AUTO_CHECKPOINT_FILE_LOG === "1"
 let logDirectoryReady: Promise<void> | undefined
 
 function ensureLogDirectory(): Promise<void> {
 	logDirectoryReady ??= mkdir(dirname(LOG_PATH), { recursive: true })
 	return logDirectoryReady
+}
+
+/** Rotate log when it exceeds size cap (keeps one backup .1) */
+function rotateLogIfNeeded(): void {
+	try {
+		const stat = statSync(LOG_PATH)
+		if (stat.size > LOG_MAX_BYTES) {
+			const backup = `${LOG_PATH}.1`
+			try { unlinkSync(backup) } catch { /* ignore */ }
+			try {
+				renameSync(LOG_PATH, backup)
+			} catch {
+				try { unlinkSync(LOG_PATH) } catch { /* ignore */ }
+			}
+		}
+	} catch {
+		/* file doesn't exist yet — nothing to rotate */
+	}
 }
 
 function log(level: string, message: string): void {
@@ -273,7 +292,7 @@ function log(level: string, message: string): void {
 	const timestamp = new Date().toISOString()
 	const line = `[${timestamp}] [${level.toUpperCase()}] ${message}\n`
 	void ensureLogDirectory()
-		.then(() => appendFile(LOG_PATH, line))
+		.then(() => { rotateLogIfNeeded(); return appendFile(LOG_PATH, line) })
 		.catch(() => {})
 }
 

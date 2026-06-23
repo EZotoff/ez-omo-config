@@ -11,6 +11,7 @@ import {
 	mkdirSync,
 	readFileSync,
 	renameSync,
+	statSync,
 	unlinkSync,
 	writeFileSync,
 } from "node:fs"
@@ -42,6 +43,7 @@ type OpenCodeEvent = { type?: string } & Record<string, unknown>
 
 const STATE_BASE = `${process.env.HOME}/.local/share/opencode/worktree-state`
 const LOG_PATH = `${process.env.HOME}/.opencode/plugin/vera-runtime.log`
+const LOG_MAX_BYTES = 10 * 1024 * 1024 // 10 MB before rotation
 const STALENESS_MS = 5 * 60 * 1000
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000
 const KILL_WAIT_SECONDS = 5
@@ -49,6 +51,7 @@ const MAX_RESTART_ATTEMPTS = 3
 const RESTART_WINDOW_MS = 10 * 60 * 1000
 const SESSION_ID_LIMIT = 50
 const MAX_SAFE_PID = 4194304
+const DEBUG_ENABLED = envFlagEnabled("OMO_VERA_RUNTIME_DEBUG")
 const watcherStateWriteLocks = new Set<string>()
 const healthCheckTimers = new Map<string, ReturnType<typeof setInterval>>()
 const VALID_STATUSES = new Set<VeraWatcherState["status"]>([
@@ -78,11 +81,30 @@ function veraAvailable(): boolean {
 	}
 }
 
+function rotateLogIfNeeded(): void {
+	try {
+		const stat = statSync(LOG_PATH)
+		if (stat.size > LOG_MAX_BYTES) {
+			const backup = `${LOG_PATH}.1`
+			try { unlinkSync(backup) } catch { /* ignore */ }
+			try {
+				renameSync(LOG_PATH, backup)
+			} catch {
+				try { unlinkSync(LOG_PATH) } catch { /* ignore */ }
+			}
+		}
+	} catch {
+		/* file doesn't exist yet — nothing to rotate */
+	}
+}
+
 function log(level: string, message: string): void {
+	if (level === "debug" && !DEBUG_ENABLED) return
 	const timestamp = new Date().toISOString()
 	const line = `[${timestamp}] [${level.toUpperCase()}] ${message}\n`
 	try {
 		mkdirSync(dirname(LOG_PATH), { recursive: true })
+		rotateLogIfNeeded()
 		appendFileSync(LOG_PATH, line)
 	} catch {
 		/* intentionally swallowed */
