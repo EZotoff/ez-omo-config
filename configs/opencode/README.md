@@ -7,6 +7,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `AGENTS.md` | Global user-level agent instructions loaded by OpenCode on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs` — installs with `--skills` (alongside the `/deployment` skill) AND with `--configs`. | `$HOME/.config/opencode/AGENTS.md` |
 | `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, compaction headroom (`compaction.reserved=30000` paired with OMO `experimental.preemptive_compaction`), and runtime defaults | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
+| `magic-context.jsonc` | Magic Context configuration (cache-aware infinite context, replaces DCP) | `$HOME/.config/opencode/magic-context.jsonc` |
 | `dcp.jsonc.retired` | Retired DCP plugin configuration (DCP replaced by @cortexkit/opencode-magic-context on 2026-06-23). Kept for historical reference. | Not installed |
 | `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response detection, and registry-driven error matching | `$HOME/.config/opencode/provider-connect-retry.mjs` |
 | `retry-errors.json` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models consumed by the retry plugin | `$HOME/.config/opencode/retry-errors.json` |

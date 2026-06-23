@@ -120,7 +120,8 @@ Expected: 0 failed. This test verifies marker presence in the version-pinned and
 
 For detailed install locations, verification commands, failure string meanings, and reapply instructions, see the patch registry entry at `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
 
-**Install Target**: `$HOME/.config/opencode/dcp.jsonc`
+**Install Target**: (not installed — DCP retired 2026-06-23, replaced by @cortexkit/opencode-magic-context). Historical config at `dcp.jsonc.retired`.
+
 
 **Status**: Optional
 
@@ -379,7 +380,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 | `AGENTS.md` (global) | User-level agent instructions loaded on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` | Required |
 | `opencode.json` | Main config: 9 providers, 11 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
-| `dcp.jsonc` | DCP plugin configuration with bounded range archive retention (local patch) | `$HOME/.config/opencode/dcp.jsonc` | Optional |
+| `magic-context.jsonc` | Magic Context plugin configuration (cache-aware infinite context, replaces DCP) | `$HOME/.config/opencode/magic-context.jsonc` | Required |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
 | `retry-errors.json` | Retryable error pattern registry with backoff and fallback rules | `$HOME/.config/opencode/retry-errors.json` | Required |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |
@@ -438,7 +439,7 @@ Every observability event produced by a config-layer system must include these f
 | `counts` | object | Numeric aggregates (e.g., `{"aspectsScored": 7, "nudgesDispatched": 1}`) |
 | `error` | object | Sanitized error information. Contains only `class` and `message`. Never a stack trace |
 | `version` | string | System version or commit hash |
-| `config_hash` | string | Fingerprint of the active configuration (e.g., hash of `aspect-dynamics.mjs` or `dcp.jsonc`) |
+| `config_hash` | string | Fingerprint of the active configuration (e.g., hash of `aspect-dynamics.mjs` or `magic-context.jsonc`) |
 
 ### Redaction Rules
 
