@@ -1,0 +1,20 @@
+{
+  // Magic Context configuration.
+  // See: https://github.com/cortexkit/magic-context for full schema.
+  //
+  // Defaults (used when key is absent):
+  //   enabled: true
+  //   execute_threshold_percentage: 65 (capped at 80 for cache safety)
+  //   cache_ttl: "5m"
+  //   history_budget_percentage: 0.15
+  //   ctx_reduce_enabled: true
+  //   protected_tags: 20
+  //   clear_reasoning_age: 50
+
+  "enabled": true,
+
+  "historian": {
+    "model": "opencode-go/deepseek-v4-flash",
+    "fallback_models": ["opencode-go/kimi-k2.6"]
+  }
+}
