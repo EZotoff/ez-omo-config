@@ -198,6 +198,7 @@
   "disabled_hooks": [
     "auto-update-checker",
     "preemptive-compaction",
+    "context-window-monitor",
     "anthropic-context-window-limit-recovery"
   ],
   "browser_automation_engine": {
@@ -238,6 +239,7 @@
     "preemptive_compaction": false,
     "aggressive_truncation": true,
     "truncate_all_tool_outputs": true,
+    "task_system": true,
     "dynamic_context_pruning": {
       "enabled": false,
       "notification": "minimal",
