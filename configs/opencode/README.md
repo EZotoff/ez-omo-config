@@ -20,6 +20,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | Plugin | What it is configured to do | Install target |
 |---|---|---|
 | `subagent-loop-guard.ts` | Configured to watch per-session tool-call windows, mutate bash loop calls to a no-op when Rule A or Rule B fires, and log a Rule C warning after the configured total-call threshold. Evidence state: `repo_implemented`, `active_config_registered`; not verified live: `runtime_loaded`, `real_project_behavior_proven`. | `$HOME/.opencode/plugin/subagent-loop-guard.ts` |
+| `clickable-links.ts` | Injects a system-prompt instruction on every session via `experimental.chat.system.transform` so file references render as clickable `[label](file:///abs/path)` markdown links in the TUI. Closes the gap between built-in prompts (which claim backtick paths are clickable) and the OpenTUI renderer (which only linkifies real markdown links). Evidence state: `repo_implemented`, `active_config_registered`; not verified live: `runtime_loaded`, `real_project_behavior_proven`. | `$HOME/.opencode/plugin/clickable-links.ts` |
 
 ## Worktree Lifecycle Automation
 

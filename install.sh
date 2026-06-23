@@ -48,6 +48,7 @@ ITEMS=(
     "plugins|plugins/session-info.ts|$HOME/.opencode/plugin/session-info.ts"
     "plugins|plugins/vera-runtime.ts|$HOME/.opencode/plugin/vera-runtime.ts"
     "plugins|plugins/subagent-loop-guard.ts|$HOME/.opencode/plugin/subagent-loop-guard.ts"
+    "plugins|plugins/clickable-links.ts|$HOME/.opencode/plugin/clickable-links.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"
     "skills|skills/debate|$HOME/.config/opencode/skills/debate"

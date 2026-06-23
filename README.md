@@ -6,7 +6,7 @@
 
 > Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 13 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **68 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **69 curated artifacts** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
 
 > **NEW**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — hybrid BM25+vector retrieval with cross-encoder reranking for 70%+ token reduction during codebase discovery. See [Implementation Plan](docs/vera-implementation-plan.md).
 
@@ -50,6 +50,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work
 - **Subagent loop guard** — configured to catch same-tool and same-tool-varying-input loop patterns that strict consecutive-signature detection misses
+- **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
 - **Vera index hygiene** — automatic `.veraignore` management that detects unreadable dirs, heavy generated artifacts, and prevents self-indexing before Vera root-indexes a project
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
@@ -60,13 +61,13 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 68 core artifacts + 1 external integration organized into 9 categories:
+This repository contains 69 core artifacts + 1 external integration organized into 9 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
-| 6-11 | **Plugins** | 12 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, manual-by-default Vera runtime state, semantic checkpointing, and configured subagent loop guarding |
+| 6-11 | **Plugins** | 13 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, manual-by-default Vera runtime state, semantic checkpointing, configured subagent loop guarding, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | 12 directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, Vera hygiene, and safe update pipelines. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | 21 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
 | 32 | **Tests** | 23 test scripts | Regression tests for config, plugin, and update pipeline verification |
@@ -101,6 +102,7 @@ This repository contains 68 core artifacts + 1 external integration organized in
 | 11e | `vera-runtime.ts` | `plugins/` | Vera runtime state plugin (manual-by-default index lifecycle, opt-in watcher automation, fail-open) |
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
 | 11g | `subagent-loop-guard.ts` | `plugins/` | Configured per-session tool-call loop guard for same-tool frequency and same-tool varying-input patterns |
+| 11h | `clickable-links.ts` | `plugins/` | System-prompt injection via `experimental.chat.system.transform` — tells every agent to format file references as `[label](file:///abs/path)` markdown links so they are clickable in the TUI |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
 | 12b | `patch-tracker/` | `skills/` | Patch registry CRUD and post-update verification skill |
 | 12c | `register-retry-error/` | `skills/` | Retryable error pattern registration skill |

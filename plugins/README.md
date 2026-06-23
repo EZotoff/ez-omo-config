@@ -14,6 +14,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `session-info.ts` — copies `Project <path>:<branch>; Session <title>; ID <session-id>` to clipboard via `/session-info` command, no LLM round-trip.
 - `vera-runtime.ts` — records per-workspace Vera state without blocking session startup, offers opt-in watcher supervision, and fails open when the `vera` binary is unavailable.
 - `subagent-loop-guard.ts` — configured to detect high-frequency same-tool loops and same-tool varying-input loops per session, mutate bash commands to a loop-guard no-op when a configured block rule fires, and log an informational warning past the configured total-call threshold. It is fail-open and stores only the last 50 calls per active session in memory.
+- `clickable-links.ts` — injects a system-prompt instruction on every session (root + subagent, all agents, all models) via `experimental.chat.system.transform` telling the model to format file references as `[label](file:///abs/path)` markdown links so they are clickable in the TUI. Closes the gap between the built-in prompts' aspirational "inline-code paths are clickable" claim and the OpenTUI renderer, which only makes real markdown links clickable (OSC 8).
 - `kdco-primitives/` — shared helpers used by the plugin bundle, including project ID lookup, shell escaping, tmux detection, temp paths, logging, timeout helpers, and shared types.
 
 ## Dependency notes

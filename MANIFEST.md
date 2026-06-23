@@ -39,6 +39,7 @@ Complete inventory of 67 core artifacts for ez-omo-config repository scaffold.
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
 | 11e | vera-runtime.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Vera Runtime State / Opt-in Watcher Supervision | Required |
 | 11f | subagent-loop-guard.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Subagent Loop Guard | Required |
+| 11h | clickable-links.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Clickable File Links (TUI) | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 12b | patch-tracker/ | `~/.config/opencode/skills/patch-tracker/` | `skills/patch-tracker/` | `$HOME/.config/opencode/skills/` | Patch Registry | Optional |
 | 12c | register-retry-error/ | `~/.config/opencode/skills/register-retry-error/` | `skills/register-retry-error/` | `$HOME/.config/opencode/skills/` | Retry Error Registry | Optional |
@@ -109,6 +110,7 @@ ez-omo-config/
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
 │   ├── vera-runtime.ts     # Vera runtime state / opt-in watcher supervision plugin
 │   ├── subagent-loop-guard.ts # Configured loop-pattern guard for subagent tool calls
+│   ├── clickable-links.ts  # System-prompt injection: file refs as clickable markdown links in TUI
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
 ├── skills/
@@ -146,7 +148,7 @@ ez-omo-config/
 - **Total Artifacts**: 69 core + 1 external (commands: 4, configs: 18, plugins: 12 files + kdco-primitives dir, skills: 12 dirs + 1 external, scripts: 14 wisdom + 2 worktree + 1 verify + 1 vera-hygiene + 7 Python operator helpers, tests: 23, extras: 1, docs: 6)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 18 files (opencode.json, opencode.jsonc, dcp.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets)
-- **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + subagent-loop-guard.ts + worktree/ (2 files) + kdco-primitives/ directory
+- **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + subagent-loop-guard.ts + clickable-links.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 11 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`). `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill — its content lives in `parallel-dev/SKILL.md`, `merge-agent/SKILL.md`, and `docs/worktree-state-schema.md`). `knowledge/` removed (deprecated Wisdom compat shim — Wisdom is the sole runtime memory store; shell-script shims deleted alongside).
 - **Scripts**: 17 wisdom shell scripts (15 `wisdom-*` + `knowledge-constants.sh` + `manifest-write.sh`) + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script + 7 Python operator helpers (stack-doctor, drift-detector, patch-guard, path-classifier, secrets-path-audit, source-identity-check, legacy-name-classifier)
 - **Tests**: 23 test scripts
