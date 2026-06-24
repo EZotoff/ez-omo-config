@@ -9,7 +9,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 
 const SessionIdPlugin: Plugin = async () => {
 	return {
-		"command.execute.before": async (input, _output) => {
+		"command.execute.before": async (input, output) => {
 			if (input.command !== "session-id") return
 
 			const result = input.sessionID
@@ -24,13 +24,15 @@ const SessionIdPlugin: Plugin = async () => {
 				console.error(
 					`[session-id] Failed to copy to clipboard (exit ${clipResult.exitCode}). Is xclip installed?`,
 				)
-				throw new Error("__session_id_handled__")
+			} else {
+				console.error("[session-id] Copied invoking session ID to clipboard.")
 			}
 
-			console.error("[session-id] Copied invoking session ID to clipboard.")
-
-			// Abort the pipeline so the command never reaches the LLM
-			throw new Error("__session_id_handled__")
+			// Suppress the command from reaching the LLM by clearing parts in place.
+			// We cannot throw to abort (OpenCode 1.17.5+ surfaces plugin hook errors as TUI
+			// toasts via session.error SSE — upstream issue #32253).
+			output.parts.length = 0
+			output.parts.push({ type: "text", text: "" })
 		},
 	}
 }

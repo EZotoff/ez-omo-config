@@ -13,7 +13,7 @@ const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 	const dir = worktree || directory
 
 	return {
-		"command.execute.before": async (input, _output) => {
+		"command.execute.before": async (input, output) => {
 			if (input.command !== "session-info") return
 
 			let branch = ""
@@ -53,15 +53,17 @@ const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 				console.error(
 					`[session-info] Failed to copy to clipboard (exit ${clipResult.exitCode}). Is xclip installed?`,
 				)
-				throw new Error("__session_info_handled__")
+			} else {
+				console.error("[session-info] Copied session info to clipboard.")
 			}
 
-			console.error("[session-info] Copied session info to clipboard.")
-
-			// Abort the pipeline so the command never reaches the LLM
-			throw new Error("__session_info_handled__")
+			// Suppress the command from reaching the LLM by clearing parts in place.
+			// We cannot throw to abort (OpenCode 1.17.5+ surfaces plugin hook errors as TUI
+			// toasts via session.error SSE — upstream issue #32253).
+			output.parts.length = 0
+			output.parts.push({ type: "text", text: "" })
 		},
+		}
 	}
-}
 
 export default SessionInfoPlugin

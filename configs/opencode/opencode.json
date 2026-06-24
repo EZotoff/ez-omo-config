@@ -21,7 +21,10 @@
     "file:///home/ezotoff/omo-hub/browser-lifecycle-plugin/index.mjs",
     "file:///home/ezotoff/omo-hub/projects/oh-my-openagent",
     "file:///home/ezotoff/.opencode/plugin/subagent-loop-guard.ts",
-    "file:///home/ezotoff/.opencode/plugin/clickable-links.ts"
+    "file:///home/ezotoff/.opencode/plugin/clickable-links.ts",
+    "file:///home/ezotoff/.opencode/plugin/session-info.ts",
+    "file:///home/ezotoff/.opencode/plugin/session-id.ts",
+    "file:///home/ezotoff/.opencode/plugin/vscode.ts"
   ],
   "agent": {
     "compaction": {

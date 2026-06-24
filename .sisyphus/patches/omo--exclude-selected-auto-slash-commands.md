@@ -7,11 +7,11 @@ status: "active"
 applied_date: "2026-05-14"
 dep_version: "4.12.1"
 upstream_issue: "none"
-verification_pattern: "\"vera\"|\"gad-experiment\""
+verification_pattern: "\"vera\"|\"gad-experiment\"|\"session-info\"|\"session-id\"|\"vscode\""
 note: "v4.12.1 monorepo restructure: EXCLUDED_COMMANDS moved to packages/skills-loader-core. omo-opencode/constants.ts is now a 1-line re-export stub. hook.ts has different control flow (partsContainAutoSlashCommandTags, resolveSessionEventID). Cross-package edit required."
 ---
 
-# Exclude Selected Auto-Slash Commands (vera, gad-experiment)
+# Exclude Selected Auto-Slash Commands (vera, gad-experiment, session-info, session-id, vscode)
 
 ## Problem
 The auto-slash-command hook exposed `/vera` and `/gad-experiment` as user-facing slash commands, causing UI clutter and accidental invocation in chat. These commands are niche/power-user skills that should remain programmatically available to agents (via `mergedSkills`) but not appear as user-typable slash completions. Simply disabling the skills via config would break agent access.
@@ -20,7 +20,7 @@ The auto-slash-command hook exposed `/vera` and `/gad-experiment` as user-facing
 Added `vera` and `gad-experiment` to the existing `EXCLUDED_COMMANDS` set, and added an exclusion guard to the `command.execute.before` handler (which previously bypassed the detector exclusion path).
 
 **Files changed (2):**
-- `src/hooks/auto-slash-command/constants.ts` — Added `"vera"` and `"gad-experiment"` to `EXCLUDED_COMMANDS` Set.
+- `src/hooks/auto-slash-command/constants.ts` — Added `vera`, `gad-experiment`, `session-info`, `session-id`, `vscode` to `EXCLUDED_COMMANDS` Set.
 - `src/hooks/auto-slash-command/hook.ts` — Imported `EXCLUDED_COMMANDS` from constants; added a `command.execute.before` guard that returns early if `input.command.toLowerCase()` is in the excluded set, before constructing a `parsed` object and calling `executeSlashCommand`.
 
 **Before (hook.ts):**
@@ -59,7 +59,7 @@ grep -c '"frontend-ui-ux"' /home/ezotoff/omo-hub/projects/oh-my-openagent/src/ho
 ```
 
 ## Reapply Instructions
-1. In `src/hooks/auto-slash-command/constants.ts`, add `"vera"` and `"gad-experiment"` to the `EXCLUDED_COMMANDS` Set:
+1. In `src/hooks/auto-slash-command/constants.ts`, add all excluded commands to the `EXCLUDED_COMMANDS` Set:
    ```ts
    export const EXCLUDED_COMMANDS = new Set([
      "ralph-loop",
@@ -67,6 +67,9 @@ grep -c '"frontend-ui-ux"' /home/ezotoff/omo-hub/projects/oh-my-openagent/src/ho
      "ulw-loop",
      "vera",
      "gad-experiment",
+     "session-info",
+     "session-id",
+     "vscode",
    ])
    ```
 2. In `src/hooks/auto-slash-command/hook.ts`:
