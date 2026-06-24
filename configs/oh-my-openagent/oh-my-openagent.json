@@ -205,7 +205,8 @@
     "provider": "agent-browser"
   },
   "runtime_fallback": {
-    "enabled": true,
+    "_comment": "Disabled because OMO's runtime-fallback dispatch gets stuck in prompt-async-gate ('latest assistant is still active') after aborting a rate-limited stream. Fallback is now handled by provider-connect-retry.mjs, which sees session.error, message.updated, and session.status retry signals.",
+    "enabled": false,
     "retry_on_errors": [
       404,
       429,
