@@ -3,13 +3,13 @@ patch_id: "omo--parent-wake-sync-mode-for-tui-render"
 dependency: "oh-my-openagent"
 target_file: "dist/index.js (sendParentWakePrompt function, ~line 119744)"
 target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
-status: "active"
+status: "rolled_back"
 applied_date: "2026-06-24"
 dep_version: "4.12.1"
 upstream_issue: "https://github.com/code-yeongyu/oh-my-openagent/issues/5189"
 verification_pattern: 'forceNoReply !== true && input.latestWake.shouldReply ? "sync"'
-post_update_status: "reapply_required"
-note: "Fixes invisible-message bug: assistant responses to background-task-completion parent-wake continuations are persisted but not live-rendered in the TUI because OpenCode's promptAsync path doesn't reliably deliver message.part.delta SSE events to an already-open TUI. Switching to sync session.prompt() for shouldReply wakes routes through the TUI's normal message stream. noReply (informational) wakes remain async."
+post_update_status: "do_not_reapply"
+note: "ROLLED BACK 2026-06-25: Patch was ineffective. Changing dispatch mode from async to sync did not fix the TUI rendering issue. Root cause confirmed as upstream OpenCode TUI bug (#26671/#27380/#32010): the TUI does not reliably render messages produced by plugin-initiated continuations, regardless of sync/async dispatch mode. Messages ARE persisted (confirmed via REST API) but the TUI's SSE event processing doesn't update for plugin-initiated turns. Do NOT reapply this patch."
 ---
 
 # Parent-Wake Sync Mode for TUI Live-Render
