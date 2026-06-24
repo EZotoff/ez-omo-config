@@ -1,6 +1,6 @@
 # DCP Byte-Budget Gate — Configuration Reference
 
-> **RETIRED 2026-06-23**: DCP replaced by @cortexkit/opencode-magic-context.
+> **RETIRED 2026-06-23**: DCP was retired; Magic Context was tried as the replacement and is currently disabled.
 > MC's continuous transform prevents the content accumulation that caused 413 errors.
 > This document is retained for historical reference only.
 

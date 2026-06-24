@@ -11,7 +11,7 @@
   //   protected_tags: 20
   //   clear_reasoning_age: 50
 
-  "enabled": true,
+  "enabled": false,
 
   "historian": {
     "model": "opencode-go/deepseek-v4-flash",

@@ -54,7 +54,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery (requires separate `vera` install, see [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md))
 - **Vera index hygiene** — automatic `.veraignore` management that detects unreadable dirs, heavy generated artifacts, and prevents self-indexing before Vera root-indexes a project
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
-- **Magic Context** — cache-aware infinite context management with cross-session memory, replacing DCP. Transforms messages on every LLM round-trip, preserving the Anthropic prompt cache via m[0]/m[1] layout. Sub-agent sessions get reduced-mode context management automatically.
+- **OpenCode/OMO context management** — OpenCode compaction and OMO preemptive compaction/context-window hooks are enabled; Magic Context is retained only as a disabled config file.
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 - **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
 
@@ -87,7 +87,7 @@ This repository contains 68 core artifacts + 1 external integration organized in
 | 1d | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
-| 3b | `dcp.jsonc.retired` | `configs/opencode/` | Retired DCP plugin config (DCP replaced by @cortexkit/opencode-magic-context on 2026-06-23). Not installed. |
+| 3b | `dcp.jsonc.retired` | `configs/opencode/` | Retired DCP plugin config. Magic Context was tried as the replacement on 2026-06-23 and is currently disabled. Not installed. |
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection and registry-driven error matching |
 | 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models for the retry plugin |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
@@ -162,7 +162,7 @@ This repository contains 68 core artifacts + 1 external integration organized in
 | 50d | `tests/test_subagent_loop_guard.sh` | `tests/` | Regression test for subagent loop guard detection, cooldown, per-session tracking, ring eviction, disable flag, and fail-open behavior |
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 | 51a | `aspect-dynamics/sets/emotions-v2.json` | `configs/opencode/` | Versioned distress-focused seed aspect set with profanity-aware heuristics |
-| 52 | `docs/dcp-byte-budget.md` | `docs/` | RETIRED 2026-06-23: DCP byte-budget gate reference (replaced by Magic Context). Historical record only. |
+| 52 | `docs/dcp-byte-budget.md` | `docs/` | RETIRED 2026-06-23: DCP byte-budget gate reference. Magic Context was tried as the replacement and is currently disabled. Historical record only. |
 
 ---
 
@@ -310,11 +310,13 @@ The HTML packet is for human review and discussion. The Markdown plan remains ca
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **Magic Context** | Enabled | Cache-aware infinite context with cross-session memory. Replaces DCP and OpenCode built-in compaction. Transforms messages on every LLM round-trip. |
+| **Magic Context** | Disabled | Plugin removed from `opencode.json#plugin`; `magic-context.jsonc#enabled=false` is retained for rollback/reference only. |
+| **OpenCode Compaction** | Enabled | `opencode.json#compaction.auto=true` and `compaction.prune=true`; OpenCode owns built-in context compaction/pruning. |
+| **OMO Context Hooks** | Enabled | `preemptive-compaction`, `context-window-monitor`, and `anthropic-context-window-limit-recovery` are no longer listed in `disabled_hooks`; `experimental.preemptive_compaction=true`. |
 | **Aggressive Truncation** | Enabled | Truncates verbose tool outputs aggressively |
 | **Runtime Fallback** | Enabled | Automatically switches to fallback models on API errors (404, 429, 500, 502, 503, 504) |
 | **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
-| **Purge Errors (2-turn)** | Disabled (was DCP strategy) | DCP-specific pruning; Magic Context handles error purging internally via its transform pipeline |
+| **Purge Errors (2-turn)** | Enabled | OMO `dynamic_context_pruning.strategies.purge_errors` is enabled with a 2-turn retention window. |
 | **Background Task Circuit Breaker** | Enabled (maxToolCalls=500, consecutiveThreshold=15) | Configured to cancel runaway subagent tasks when a task reaches 500 total tool calls or 15 consecutive identical tool+input signatures. OMO default is 4000/20; lowered thresholds trip earlier |
 | **Auto-Update Checker** | Disabled | `oh-my-openagent.json#disabled_hooks: ["auto-update-checker"]` opts out of OMO's startup update-check hook. Updates are managed manually via the `update-to-latest` skill |
 
@@ -325,8 +327,8 @@ The configuration includes layered defenses against runaway subagent sessions (f
 | Layer | Setting | Effect |
 |-------|---------|--------|
 | **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.5-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
-| **Aggressive error purge** | Disabled (was DCP strategy; MC handles internally) | Previously dropped failed build/test outputs after 2 turns via DCP |
-| **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Intended to catch 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) are NOT cancelled by this setting and rely on Magic Context's continuous transform instead |
+| **Aggressive error purge** | Enabled via OMO dynamic context pruning | Drops failed build/test outputs after 2 turns using OMO's context-pruning strategy. |
+| **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Intended to catch 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) are NOT cancelled by this setting and rely on the subagent loop guard sliding-window detector. |
 | **Subagent loop guard plugin** | `opencode.json#plugin: file:///home/ezotoff/.opencode/plugin/subagent-loop-guard.ts` | Configured to watch the last 50 tool calls per session, convert bash calls to `echo "[loop-guard] blocked: ..."` when Rule A or Rule B fires, and log a Rule C informational warning past the configured total-call threshold |
 
 **Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. The `subagent-loop-guard.ts` plugin is configured to add sliding-window detection as a local add-on.
@@ -370,27 +372,22 @@ The mitigations above are reactive (detect-and-block). A complementary proactive
 
 Out of current scope. Will revisit after observing how the circuit breaker + loop guard perform in real visual-engineering subagent runs.
 
-### Magic Context
+### Context Management
 
-DCP (`@tarquinen/opencode-dcp@3.1.13`) was replaced by `@cortexkit/opencode-magic-context@latest` on 2026-06-23. Magic Context provides:
+Magic Context (`@cortexkit/opencode-magic-context@latest`) is disabled. It is no longer registered in `opencode.json#plugin`, and `magic-context.jsonc#enabled` is `false` for rollback/reference only.
 
-| Capability | Description |
-|------------|-------------|
-| **Cache-aware infinite context** | Context window management with awareness of cached/prompt-cache content, avoiding redundant data |
-| **Cross-session memory** | Context persists across sessions, enabling long-running awareness |
-| **Sub-agent reduced mode** | Automatically reduces context for sub-agents while preserving essential state |
-| **Continuous transform** | Applies context transforms incrementally without needing the old compress tool. Eliminates the 413 Payload Too Large errors that DCP's byte-budget gate was patched to solve |
+OpenCode and OMO now own context management:
 
-**Configuration changes**:
-- `compaction.auto` set to `false` — MC owns context management
-- `compaction.prune` set to `false` — MC owns context pruning
-- No separate config file needed (uses defaults from optional `magic-context.jsonc`)
-- 3 OMO hooks disabled: `preemptive-compaction`, `context-window-monitor`, `anthropic-context-window-limit-recovery`
-- `dynamic_context_pruning` disabled (was OMO's DCP config layer)
+- `opencode.json#compaction.auto=true` — OpenCode automatic compaction is enabled.
+- `opencode.json#compaction.prune=true` — OpenCode compaction pruning is enabled.
+- `oh-my-openagent.json#experimental.preemptive_compaction=true` — OMO preemptive compaction is enabled.
+- `oh-my-openagent.json#disabled_hooks` only disables `auto-update-checker`; context hooks are active.
+- `oh-my-openagent.json#experimental.dynamic_context_pruning.enabled=true` — OMO dynamic context pruning is enabled, including 2-turn error purging and write-supersession deduplication.
 
-**Migration**:
-- `dcp.jsonc` archived to `dcp.jsonc.retired`
-- 3 DCP patches retired: bounded-range-archive-mode, byte-budget, compress-tool-prompt-contract
+Historical context:
+
+- DCP (`@tarquinen/opencode-dcp@3.1.13`) remains retired; `dcp.jsonc` is archived to `dcp.jsonc.retired`.
+- The 3 DCP patches remain retired: bounded-range-archive-mode, byte-budget, compress-tool-prompt-contract.
 
 ### Patch Documentation
 
@@ -400,6 +397,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.12.1)
 - **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.12.1)
 - **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (active on OMO v4.12.1)
+- **Parent-wake sync mode for TUI render**: `.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md` (active on OMO v4.12.1) — fixes invisible assistant messages after background-task-completion parent-wake
 - **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (superseded by upstream v4.12.1 works-map architecture)
 - **Remove activity stagnation bypass**: `.sisyphus/patches/omo--remove-activity-stagnation-bypass.md` (upstreamed in OMO commit df7e1ae1)
 

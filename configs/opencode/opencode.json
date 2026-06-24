@@ -13,7 +13,6 @@
   "plugin": [
     "file:///home/ezotoff/.config/opencode/provider-connect-retry.mjs",
     "file:///home/ezotoff/.config/opencode/aspect-dynamics.mjs",
-    "@cortexkit/opencode-magic-context@latest",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
@@ -30,8 +29,8 @@
     }
   },
   "compaction": {
-    "auto": false,
-    "prune": false,
+    "auto": true,
+    "prune": true,
     "tail_turns": 3
   },
   "experimental": {

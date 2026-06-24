@@ -15,7 +15,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 **What it Configures**:
 
 - **Providers**: 10 provider configurations for different AI services
-- **Plugins**: 11 plugin registrations and their settings
+- **Plugins**: 10 plugin registrations and their settings
 - **Model Settings**: Provider model catalogs, default models, limits, and timeouts
 - **Runtime Defaults**: Agent behavior, output preferences
 - **Feature Flags**: Experimental features and toggles
@@ -56,6 +56,26 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 **Install Target**: `$HOME/.opencode/opencode.jsonc`
 
 **Status**: Required
+
+---
+
+## magic-context.jsonc
+
+**Purpose**: Disabled Magic Context configuration retained for rollback/reference. Magic Context is not registered in `opencode.json#plugin`, and `magic-context.jsonc#enabled` is `false`.
+
+**Current Context Owner**: OpenCode built-in compaction plus OMO context-management hooks.
+
+**Active Context Settings**:
+
+- `opencode.json#compaction.auto=true`
+- `opencode.json#compaction.prune=true`
+- `oh-my-openagent.json#experimental.preemptive_compaction=true`
+- `oh-my-openagent.json#experimental.dynamic_context_pruning.enabled=true`
+- `oh-my-openagent.json#disabled_hooks` does not disable context hooks (`preemptive-compaction`, `context-window-monitor`, `anthropic-context-window-limit-recovery`)
+
+**Install Target**: `$HOME/.config/opencode/magic-context.jsonc`
+
+**Status**: Optional disabled reference config
 
 ---
 
@@ -120,7 +140,7 @@ Expected: 0 failed. This test verifies marker presence in the version-pinned and
 
 For detailed install locations, verification commands, failure string meanings, and reapply instructions, see the patch registry entry at `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`.
 
-**Install Target**: (not installed — DCP retired 2026-06-23, replaced by @cortexkit/opencode-magic-context). Historical config at `dcp.jsonc.retired`.
+**Install Target**: (not installed — DCP retired 2026-06-23; Magic Context was tried as the replacement and is currently disabled). Historical config at `dcp.jsonc.retired`.
 
 
 **Status**: Optional
@@ -247,7 +267,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 
 **Notable Model Assignments**: GPT-family routes use the Codex/OpenAI provider (`openai/*`). `agents.multimodal-looker.model` uses `google/gemini-3.5-flash` for image/PDF analysis. The `visual-engineering` category and the `frontend-ui-ux-engineer` agent use `google/gemini-3.5-flash` (high thinking) for frontend work — demoted from `gemini-3.1-pro-preview` on 21 Jun 2025 to cap per-session cost after forensic analysis of two runaway subagent sessions. The `artistry` category still uses `google/gemini-3.1-pro-preview` as its primary. Specialist fallbacks (`oracle`, `metis`, `momus`) still use `gemini-3.1-pro-preview` as a strong secondary when `openai/gpt-5.5` is unavailable. Both Google models are defined in `opencode.json` under `provider.google.models`. OpenCode Go-backed discovery agents use `opencode-go/minimax-m3`, and the `writing` category uses `opencode-go/kimi-k2.6` as its primary (with `zai-coding-plan/glm-5.2` as fallback) — K2.6 general-purpose is preferred over the `kimi-for-coding` alias for non-coding contexts because that alias auto-routes to the coding-focused K2.7 Code when reasoning is on.
 
-**Doom-Loop Mitigations** (added 21 Jun 2025): Four layered defenses against runaway subagent sessions — (1) `experimental.preemptive_compaction: true` is configured to trigger compaction before context exhaustion; (2) `opencode.json#compaction.reserved: 30000` reserves 30k tokens of headroom so compaction fires earlier; (3) `experimental.dynamic_context_pruning.strategies.purge_errors.turns: 2` drops failed tool outputs after 2 turns instead of 5; (4) `background_task.circuitBreaker` is configured to cancel any subagent task reaching 500 tool calls or 15 consecutive identical tool+input signatures (down from OMO defaults of 4000/20). The circuit breaker only catches strictly-consecutive identical signatures — alternating patterns (`build → test → build → test`) defeat the consecutive detector and are not cancelled by this setting; they rely on the `maxToolCalls` total cap and preemptive compaction instead. Additionally, `disabled_hooks: ["auto-update-checker"]` opts out of OMO's startup update-check hook; updates are managed manually via the `update-to-latest` skill. **Evidence state**: `repo_implemented` + `live_file_installed` + `active_config_registered`; **not verified live: `runtime_loaded`, `real_project_behavior_proven`** — restart OpenCode to load the new settings.
+**Doom-Loop Mitigations** (added 21 Jun 2025): Four layered defenses against runaway subagent sessions — (1) `experimental.preemptive_compaction: true` is configured to trigger compaction before context exhaustion; (2) `opencode.json#compaction.auto: true` and `opencode.json#compaction.prune: true` enable OpenCode built-in compaction and pruning; (3) `experimental.dynamic_context_pruning.strategies.purge_errors.turns: 2` drops failed tool outputs after 2 turns instead of 5; (4) `background_task.circuitBreaker` is configured to cancel any subagent task reaching 500 tool calls or 15 consecutive identical tool+input signatures (down from OMO defaults of 4000/20). The circuit breaker only catches strictly-consecutive identical signatures — alternating patterns (`build → test → build → test`) defeat the consecutive detector and are not cancelled by this setting; they rely on the `maxToolCalls` total cap and preemptive compaction instead. Additionally, `disabled_hooks: ["auto-update-checker"]` opts out of OMO's startup update-check hook; updates are managed manually via the `update-to-latest` skill. **Evidence state**: `repo_implemented` + `live_file_installed` + `active_config_registered`; **not verified live: `runtime_loaded`, `real_project_behavior_proven`** — restart OpenCode to load the new settings.
 
 ### Prometheus HTML Proposal+Design Packet Contract
 
@@ -378,9 +398,9 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
 | `AGENTS.md` (global) | User-level agent instructions loaded on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` | Required |
-| `opencode.json` | Main config: 9 providers, 11 plugins, models, limits, defaults | `$HOME/.config/opencode/opencode.json` | Required |
+| `opencode.json` | Main config: 9 providers, 10 plugins, models, limits, OpenCode compaction, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
-| `magic-context.jsonc` | Magic Context plugin configuration (cache-aware infinite context, replaces DCP) | `$HOME/.config/opencode/magic-context.jsonc` | Required |
+| `magic-context.jsonc` | Disabled Magic Context reference config (`enabled=false`; plugin not registered) | `$HOME/.config/opencode/magic-context.jsonc` | Optional |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
 | `retry-errors.json` | Retryable error pattern registry with backoff and fallback rules | `$HOME/.config/opencode/retry-errors.json` | Required |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |

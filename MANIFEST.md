@@ -14,7 +14,7 @@ Complete inventory of 68 core artifacts for ez-omo-config repository scaffold.
 | 1d | session-info.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
 | 2 | opencode.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 3 | opencode.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
-| 3b | dcp.jsonc.retired | `configs/opencode/` | `configs/opencode/` | (not installed) | RETIRED 2026-06-23 — DCP replaced by Magic Context | Archived |
+| 3b | dcp.jsonc.retired | `configs/opencode/` | `configs/opencode/` | (not installed) | RETIRED 2026-06-23 — DCP retired; Magic Context currently disabled | Archived |
 | 4 | provider-connect-retry.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 4b | retry-errors.json | `~/.config/opencode/` | `configs/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 4c | worktree.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Worktree Config | Required |
@@ -150,7 +150,7 @@ ez-omo-config/
 
 - **Total Artifacts**: 68 core + 1 external (commands: 4, configs: 17, plugins: 12 files + kdco-primitives dir, skills: 13 dirs + 1 external, scripts: 14 wisdom + 2 worktree + 1 verify + 1 vera-hygiene + 7 Python operator helpers, tests: 19 active + 4 retired, extras: 1, docs: 6)
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
-- **Core Configs**: 17 files (opencode.json, opencode.jsonc, magic-context.jsonc, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
+- **Core Configs**: 17 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + subagent-loop-guard.ts + clickable-links.ts + worktree/ (2 files) + kdco-primitives/ directory
 - **Skills**: 13 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`). `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill — its content lives in `parallel-dev/SKILL.md`, `merge-agent/SKILL.md`, and `docs/worktree-state-schema.md`). `knowledge/` removed (deprecated Wisdom compat shim — Wisdom is the sole runtime memory store; shell-script shims deleted alongside).
 - **Scripts**: 17 wisdom shell scripts (15 `wisdom-*` + `knowledge-constants.sh` + `manifest-write.sh`) + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script + 7 Python operator helpers (stack-doctor, drift-detector, patch-guard, path-classifier, secrets-path-audit, source-identity-check, legacy-name-classifier)
@@ -169,9 +169,9 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 
 | # | Patch ID | Dependency | Status | Applied | Verification |
 |---|----------|------------|--------|---------|-------------|
-| 1 | `opencode-dcp--bounded-range-archive-mode` | `@tarquinen/opencode-dcp@3.1.x` | retired 2026-06-23 | 2026-04-30 | RETIRED — DCP replaced by Magic Context |
-| 2 | `opencode-dcp--byte-budget` | `@tarquinen/opencode-dcp@3.1.9` | retired 2026-06-23 | 2026-05-16 | RETIRED — DCP replaced by Magic Context |
-| 3 | `opencode-dcp--compress-tool-prompt-contract` | `@tarquinen/opencode-dcp@3.1.9` | retired 2026-06-23 | 2026-05-17 | RETIRED — DCP replaced by Magic Context |
+| 1 | `opencode-dcp--bounded-range-archive-mode` | `@tarquinen/opencode-dcp@3.1.x` | retired 2026-06-23 | 2026-04-30 | RETIRED — DCP retired; Magic Context currently disabled |
+| 2 | `opencode-dcp--byte-budget` | `@tarquinen/opencode-dcp@3.1.9` | retired 2026-06-23 | 2026-05-16 | RETIRED — DCP retired; Magic Context currently disabled |
+| 3 | `opencode-dcp--compress-tool-prompt-contract` | `@tarquinen/opencode-dcp@3.1.9` | retired 2026-06-23 | 2026-05-17 | RETIRED — DCP retired; Magic Context currently disabled |
 | 4 | `omo--boulder-worktree-authoritative-state` | `oh-my-openagent` | active | 2026-05-19 | `grep -n "worktreePath\|effectiveDirectory\|displayDirectory" ~/omo-hub/projects/oh-my-openagent/src/hooks/atlas/resolve-active-boulder-session.ts` |
 | 5 | `ez-omo-config--commit-policy-override` | `ez-omo-config` | deprecated | 2026-04-28 | `grep -n "Never commit without explicit user direction" AGENTS.md` |
 | 6 | `oh-my-openagent--context-overflow-max-token-error` | `oh-my-openagent@3.17.5` | active | 2026-05-14 | `grep -n "isRequestTokenOverflowMessage" ~/omo-hub/projects/oh-my-openagent/src/hooks/todo-continuation-enforcer/token-limit-detection.ts` |

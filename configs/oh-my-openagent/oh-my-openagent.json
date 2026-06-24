@@ -196,10 +196,7 @@
     }
   },
   "disabled_hooks": [
-    "auto-update-checker",
-    "preemptive-compaction",
-    "context-window-monitor",
-    "anthropic-context-window-limit-recovery"
+    "auto-update-checker"
   ],
   "browser_automation_engine": {
     "provider": "agent-browser"
@@ -263,12 +260,12 @@
     "max_members": 8
   },
   "experimental": {
-    "preemptive_compaction": false,
+    "preemptive_compaction": true,
     "aggressive_truncation": true,
     "truncate_all_tool_outputs": true,
     "task_system": true,
     "dynamic_context_pruning": {
-      "enabled": false,
+      "enabled": true,
       "notification": "minimal",
       "turn_protection": {
         "enabled": true,
