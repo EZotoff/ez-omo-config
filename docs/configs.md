@@ -69,7 +69,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 - `opencode.json#compaction.auto=true`
 - `opencode.json#compaction.prune=true`
-- `oh-my-openagent.json#experimental.preemptive_compaction=true`
+- `oh-my-openagent.json#experimental.preemptive_compaction=false` (disabled to prevent premature compaction on large-context models)
 - `oh-my-openagent.json#experimental.dynamic_context_pruning.enabled=true`
 - `oh-my-openagent.json#disabled_hooks` does not disable context hooks (`preemptive-compaction`, `context-window-monitor`, `anthropic-context-window-limit-recovery`)
 

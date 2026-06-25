@@ -370,7 +370,7 @@ OpenCode and OMO now own context management:
 
 - `opencode.json#compaction.auto=true` — OpenCode automatic compaction is enabled.
 - `opencode.json#compaction.prune=true` — OpenCode compaction pruning is enabled.
-- `oh-my-openagent.json#experimental.preemptive_compaction=true` — OMO preemptive compaction is enabled.
+- `oh-my-openagent.json#experimental.preemptive_compaction=false` — OMO preemptive compaction is disabled (was triggering premature compaction on GLM 5.2/GPT 5.5 with 1M context windows).
 - `oh-my-openagent.json#disabled_hooks` only disables `auto-update-checker`; context hooks are active.
 - `oh-my-openagent.json#experimental.dynamic_context_pruning.enabled=true` — OMO dynamic context pruning is enabled, including 2-turn error purging and write-supersession deduplication.
 
