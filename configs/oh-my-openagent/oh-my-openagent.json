@@ -8,10 +8,9 @@
         "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "skills": [
-        "wisdom",
-        "vera"
+        "wisdom"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.",
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.",
       "variant": "high"
     },
     "hephaestus": {
@@ -30,21 +29,13 @@
       "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "librarian": {
-      "model": "opencode-go/minimax-m3",
-      "skills": [
-        "vera"
-      ],
-      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
+      "model": "opencode-go/minimax-m3"
     },
     "explore": {
       "model": "opencode-go/minimax-m3",
       "fallback_models": [
         "opencode-go/deepseek-v4-flash"
-      ],
-      "skills": [
-        "vera"
-      ],
-      "prompt_append": "For code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery."
+      ]
     },
     "multimodal-looker": {
       "model": "google/gemini-3.5-flash"
@@ -57,10 +48,9 @@
         "zai-coding-plan/glm-5.2"
       ],
       "skills": [
-        "wisdom",
-        "vera"
+        "wisdom"
       ],
-      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor code search and discovery, follow the Vera tool-selection decision tree in AGENTS.md: use `vera search` for conceptual discovery, `vera grep` for exact strings/regex, LSP for symbol navigation, and `glob` for file discovery.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "metis": {
       "model": "openai/gpt-5.5",
@@ -260,7 +250,7 @@
     "max_members": 8
   },
   "experimental": {
-    "preemptive_compaction": true,
+    "preemptive_compaction": false,
     "aggressive_truncation": true,
     "truncate_all_tool_outputs": true,
     "task_system": true,
