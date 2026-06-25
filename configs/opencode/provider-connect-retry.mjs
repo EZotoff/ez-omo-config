@@ -178,12 +178,6 @@ function getEventError(event) {
   const props = event?.properties ?? {};
   if (event?.type === "session.error") return props.error;
   if (event?.type === "message.updated" && props.info?.role === "assistant") return props.info?.error;
-  if (event?.type === "session.status") {
-    const status = props.status;
-    if (status?.type === "retry" && typeof status?.message === "string" && status.message.length > 0) {
-      return { message: status.message };
-    }
-  }
   return undefined;
 }
 
@@ -235,25 +229,7 @@ function getFailedAssistantMessageID(event, messages) {
     }
   }
 
-  // session.status retry signals (e.g. provider rate-limit retries) may not yet
-  // mark the assistant message with an error object. Fall back to the latest
-  // assistant message ID so retries/fallbacks can still be deduplicated.
-  if (event?.type === "session.status") {
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const info = messages[i]?.info;
-      if (info?.role === "assistant" && typeof info.id === "string" && info.id.length > 0) {
-        return info.id;
-      }
-    }
-  }
-
   return undefined;
-}
-
-function getSessionStatusRetryKey(event) {
-  const status = event?.properties?.status;
-  if (status?.type !== "retry") return undefined;
-  return `${status.attempt ?? 0}:${status.message ?? ""}`;
 }
 
 function getMessageID(message) {
@@ -583,7 +559,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         }
       }
 
-      if (event?.type !== "session.error" && event?.type !== "message.updated" && event?.type !== "session.status") return;
+      if (event?.type !== "session.error" && event?.type !== "message.updated") return;
 
       const error = getEventError(event);
       const errorMessage = getErrorMessage(error);
@@ -619,12 +595,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           log("warn", `Skipping retry for "${matchedRule.id}" — no failed assistant message ID available`);
           return;
         }
-        const sessionStatusRetryKey = getSessionStatusRetryKey(event);
-        if (event?.type !== "session.status" && handledErrorsBySession.get(sessionID) === failedAssistantMessageID) return;
-        if (event?.type === "session.status") {
-          const currentState = attemptsBySession.get(sessionID);
-          if (currentState?.lastSessionStatusRetryKey === sessionStatusRetryKey) return;
-        }
+        if (handledErrorsBySession.get(sessionID) === failedAssistantMessageID) return;
 
         const lastUserMessageIndex = getLastUserMessageIndex(messages);
         const lastUserMessage = lastUserMessageIndex >= 0 ? messages[lastUserMessageIndex] : undefined;
@@ -660,7 +631,6 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
             attempts: Math.min(nextAttempt, matchedRule.max_retries),
             ruleID: matchedRule.id,
             userMessageID: retryMessageID,
-            ...(sessionStatusRetryKey ? { lastSessionStatusRetryKey: sessionStatusRetryKey } : {}),
           });
           handledErrorsBySession.set(sessionID, failedAssistantMessageID);
 
@@ -733,7 +703,6 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           attempts: nextAttempt,
           ruleID: matchedRule.id,
           nudgeParts: useNudge ? nudgeParts : undefined,
-          ...(sessionStatusRetryKey ? { lastSessionStatusRetryKey: sessionStatusRetryKey } : {}),
         }));
         handledErrorsBySession.set(sessionID, failedAssistantMessageID);
       } catch (dispatchError) {

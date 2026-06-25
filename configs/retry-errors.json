@@ -120,21 +120,6 @@
       "added_at": "2026-06-23"
     },
     {
-      "id": "zai-rate-limit-requests",
-      "pattern": "Rate limit reached for requests",
-      "match_type": "regex",
-      "max_retries": 8,
-      "backoff_ms": [15000, 30000, 30000, 60000, 60000, 60000, 60000, 60000],
-      "retry_after_tool_execution": true,
-      "fallback_model": "openai/gpt-5.5",
-      "nudge_prompts": {
-        "default": ["Continue with the task."]
-      },
-      "description": "Z.AI Coding Plan per-minute request rate throttle — transient, not plan-quota exhaustion. Retries on the same model with escalating cooldown (15s to 60s) using a minimal nudge to avoid replaying tool side-effects. retry_after_tool_execution=true because rate limits can fire mid-turn after tools have run; the nudge avoids duplicating the user's original message in the TUI. Falls back to gpt-5.5 only after 8 retries (~6 minutes).",
-      "added_by": "sisyphus",
-      "added_at": "2026-06-23"
-    },
-    {
       "id": "model-token-limit-exceeded",
       "pattern": "(?:exceeded model token limit|request exceeded model token limit|tokens in request more than max)",
       "match_type": "regex",
