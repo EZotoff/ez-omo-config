@@ -678,7 +678,8 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
               path: { id: sessionID },
               ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
               body: {
-                ...(fallbackMessageID ? { messageID: fallbackMessageID } : {}),
+                // messageID omitted — passing the original user message ID causes
+                // OpenCode to append fallback text into the existing message bubble.
                 ...(agent ? { agent } : {}),
                 model: fallback,
                 ...(system ? { system } : {}),
