@@ -192,7 +192,7 @@
     "provider": "agent-browser"
   },
   "runtime_fallback": {
-    "_comment": "Disabled because OMO's runtime-fallback dispatch gets stuck in prompt-async-gate ('latest assistant is still active') after aborting a rate-limited stream. Fallback is now handled by provider-connect-retry.mjs, which sees session.error, message.updated, and session.status retry signals.",
+    "_comment": "Disabled because OMO's runtime-fallback dispatch gets stuck in prompt-async-gate ('latest assistant is still active') after aborting a rate-limited stream. provider-connect-retry.mjs handles terminal session.error and assistant message.updated errors only; session.status retry telemetry is left to OpenCode/provider internals.",
     "enabled": false,
     "retry_on_errors": [
       404,

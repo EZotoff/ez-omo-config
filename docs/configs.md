@@ -160,11 +160,13 @@ For detailed install locations, verification commands, failure string meanings, 
 
 **How it Works**:
 
-The plugin registers an `event` handler that watches three event types:
+The plugin registers an `event` handler for terminal provider errors and idle-time empty responses:
 
 1. **`session.error`** and **`message.updated` (with error)** — When a provider returns an error, the plugin loads `retry-errors.json` at runtime, matches the error message against compiled regex patterns, and dispatches a retry if a rule matches. It aborts the failed turn, waits for the configured backoff, then re-prompts the session with the last user message (or an agent-specific nudge). Retries are capped by `max_retries` and deduplicated per failed assistant message ID.
 
 2. **`session.idle`** — When a session goes idle, the plugin checks whether the most recent assistant message is empty (no text parts, no tool calls). If the `retry-errors.json` registry contains a rule with `detect_empty_response: true`, the plugin treats the empty response like an error and triggers the same retry / nudge / fallback flow. This catches stalls where the provider returns HTTP 200 with zero content.
+
+`session.status` retry events are **not** handled by this plugin. Those events are provider/OpenCode retry progress telemetry (not terminal failures) and must be left to OpenCode/provider internals.
 
 **Key Fields**:
 
