@@ -4,11 +4,9 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 13 specialized agents, semantic code search, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains **68 curated artifacts + 1 repo-tracked skill overlay** — reusable presets, plugins, skills, and scripts — organized into a portable configuration you can fork and adapt.
-
-> **RESTORED**: [Vera](https://github.com/lemon07r/Vera) semantic code search integration — now with guarded autostart (ON by default), per-session bounded logging, binary discovery with cache revalidation, and a repo-tracked skill overlay at `skills/vera/`. See [Implementation Plan](docs/vera-implementation-plan.md).
+Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains reusable presets, plugins, skills, and scripts organized into a portable configuration you can fork and adapt.
 
 ---
 
@@ -51,8 +49,6 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Review enforcement** — automated code review triggers after completing implementation work
 - **Subagent loop guard** — configured to catch same-tool and same-tool-varying-input loop patterns that strict consecutive-signature detection misses
 - **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
-- **Semantic code search** — Vera integration for 70%+ token reduction during codebase discovery. Guarded autostart is ON by default (`OMO_VERA_RUNTIME_AUTOSTART=0` to disable). Per-session bounded logging with 7-day retention. Repo-tracked skill overlay at `skills/vera/` installs via `install.sh --skills`. See [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md)
-- **Vera index hygiene** — automatic `.veraignore` management that detects unreadable dirs, heavy generated artifacts, and prevents self-indexing before Vera root-indexes a project
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **OpenCode/OMO context management** — OpenCode compaction and OMO preemptive compaction/context-window hooks are enabled; Magic Context is retained only as a disabled config file.
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
@@ -62,20 +58,19 @@ After running `./install.sh`, your OpenCode CLI gains:
 
 ## What's Included
 
-This repository contains 68 core artifacts + 1 repo-tracked skill overlay + 1 external binary organized into 9 categories:
+This repository contains a portable OpenCode/OMO configuration bundle organized into 8 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
-| 6-11 | **Plugins** | 13 files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, Vera runtime state with guarded autostart and bounded logging, semantic checkpointing, configured subagent loop guarding, and TUI clickable-link system-prompt injection |
-| 12-22 | **Skills** | 13 directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, Vera hygiene, safe update pipelines, and a repo-tracked Vera skill overlay. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
-| 22-31 | **Scripts** | 21 shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, and Vera hygiene scripts |
-| 32 | **Tests** | 23 test scripts | Regression tests for config, plugin, and update pipeline verification |
+| 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, configured subagent loop guarding, and TUI clickable-link system-prompt injection |
+| 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, and review workflows. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
+| 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, and live deployment verification scripts |
+| 32 | **Tests** | Test scripts | Regression tests for config, plugin, and update pipeline verification |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
 | 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and retired DCP byte-budget reference |
-| 40 | **External** | 1 binary | [Vera](https://github.com/lemon07r/Vera) semantic code search binary (installed separately via `vera agent install --client opencode`). The skill overlay is repo-tracked at `skills/vera/`. |
 
 ### Complete Artifact Inventory
 
@@ -100,7 +95,6 @@ This repository contains 68 core artifacts + 1 repo-tracked skill overlay + 1 ex
 | 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
 | 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id, no LLM round-trip) |
 | 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
-| 11e | `vera-runtime.ts` | `plugins/` | Vera runtime state plugin (guarded-autostart index lifecycle ON by default, binary discovery with cache revalidation, per-session bounded logging, fail-open) |
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
 | 11g | `subagent-loop-guard.ts` | `plugins/` | Configured per-session tool-call loop guard for same-tool frequency and same-tool varying-input patterns |
 | 11h | `clickable-links.ts` | `plugins/` | System-prompt injection via `experimental.chat.system.transform` — tells every agent to format file references as `[label](file:///abs/path)` markdown links so they are clickable in the TUI |
@@ -133,16 +127,13 @@ This repository contains 68 core artifacts + 1 repo-tracked skill overlay + 1 ex
 | 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
-| 30a | `vera-hygiene/` | `skills/` | Vera index hygiene skill — `.veraignore` management and pre-indexing cleanup |
 | 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
-| 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, Docker start, and Vera state recording. Guarded autostart is ON by default. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
-| 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, state cleanup, and Vera watcher cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
-| 32a | `vera-hygiene.sh` | `scripts/` | Vera hygiene script — detects unreadable dirs, heavy artifacts, and updates `.veraignore`. Install: `$HOME/.sisyphus/scripts/vera-hygiene.sh` |
+| 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
+| 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
 | 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
 | 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
 | 36 | `worktree-state-schema.md` | `docs/` | Runtime state file formats and locations |
-| 37 | `vera/` (repo-tracked overlay) | `skills/vera/` | Semantic code search skill overlay with self-heal protocol (cold-index check, stale-index update, diagnostics before fallback). Installs to `~/.config/opencode/skills/vera/` via `install.sh --skills`. The Vera binary itself is external. |
 | 38 | `aspect-dynamics.mjs` | `configs/opencode/` | Config-layer plugin entry: heuristic scoring and advisory nudge dispatch |
 | 39 | `aspect-dynamics/config.mjs` | `configs/opencode/` | Config loader with deferred-field safeguards |
 | 40 | `aspect-dynamics/context.mjs` | `configs/opencode/` | Conversation context extraction and recursion guard |
@@ -156,7 +147,6 @@ This repository contains 68 core artifacts + 1 repo-tracked skill overlay + 1 ex
 | 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
 | 49 | `scripts/verify-live-deployment.sh` | `scripts/` | Live deployment verifier with evidence-state validation |
 | 50 | `tests/test_live_deployment_contract.sh` | `tests/` | Repo-safe contract tests for live deployment verification |
-| 50a | `tests/test_vera_hygiene.sh` | `tests/` | Vera hygiene verification — idempotency, safety, and blocker detection tests |
 | 50b | `tests/test_review_enforcer_completion_instruction.sh` | `tests/` | Regression test for PLAN_COMPLETION_INSTRUCTION block extraction and content verification |
 | 50c | `tests/test_openai_provider.sh` | `tests/` | Regression test for Codex display provider presence in opencode.json (`openai` key) |
 | 50d | `tests/test_subagent_loop_guard.sh` | `tests/` | Regression test for subagent loop guard detection, cooldown, per-session tracking, ring eviction, disable flag, and fail-open behavior |
@@ -212,8 +202,8 @@ This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenAgent** 
 - **Commands**: Slash command prompts for repeatable OpenCode workflows
 - **Configs**: Provider definitions, model configurations, and retry logic
 - **Plugins**: TypeScript extensions that add worktree management, git safety checks, and review enforcement
-- **Skills**: Specialized agent capabilities for browser testing, deployment, UI/UX design, and Vera index hygiene
-- **Scripts**: Shell utilities for the wisdom propagation system, worktree lifecycle, live deployment verification, and Vera hygiene
+- **Skills**: Specialized agent capabilities for browser testing, deployment, UI/UX design, updates, and review workflows
+- **Scripts**: Shell utilities for the wisdom propagation system, worktree lifecycle, and live deployment verification
 - **Extras**: Optional registry and utility configurations
 
 ---
@@ -469,7 +459,6 @@ For in-depth guides on specific components:
 | Plugin Development | [docs/plugins.md](docs/plugins.md) |
 | Skill Authoring | [docs/skills.md](docs/skills.md) |
 | Wisdom System | [docs/wisdom.md](docs/wisdom.md) |
-| Vera Integration | [docs/vera-implementation-plan.md](docs/vera-implementation-plan.md) |
 | Compatibility Debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
 | Observability Contract | [docs/configs.md](docs/configs.md) |
 | Live Deployment Verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |

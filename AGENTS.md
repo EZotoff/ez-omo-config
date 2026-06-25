@@ -67,104 +67,16 @@ The symlinked config behavior described in the Config Locations table and How It
 
 If any live/runtime evidence state is unverified, final answers must say `Not verified live: [missing state]`.
 
-When searching for code or understanding codebase structure, follow this strict decision tree:
+When searching for code or understanding codebase structure, use this vanilla discovery protocol:
 
-### Step 1: Check Index Availability
+| Task Type | Primary Tool | Notes |
+|-----------|--------------|-------|
+| Conceptual/codebase discovery — "how does X work", "where is Y logic" | `codegraph_explore` | Use first when available; it returns relevant source and relationships in one call. |
+| Symbol precision — goto definition, references, rename safety | LSP tools | Use `lsp_goto_definition`, `lsp_find_references`, and `lsp_rename` for exact language-server results. |
+| Exact text/regex — identifiers, imports, TODOs, config strings | `grep` / `rg` | Use for literal or regex search, especially outside indexed code. |
+| File discovery — list files by pattern | `glob` | Use for path patterns such as `**/*.test.ts` or `docs/**/*.md`. |
 
-Before any semantic search, verify Vera has indexed the repository:
-```bash
-test -d .vera && echo "index exists" || echo "no index"
-```
-If no index exists → run `vera index .` first (see Cold Start below).
-
-### Step 2: Choose the Right Tool
-
-| Task Type | Primary Tool | Example |
-|-----------|-------------|---------|
-| **Conceptual discovery** — "how does X work", "where is Y logic" | `vera search "query"` | `vera search "JWT validation middleware"` |
-| **Exact string/regex** — specific identifiers, TODOs, imports | `vera grep "pattern"` | `vera grep "TODO\|FIXME"` |
-| **Symbol precision** — goto definition, find all references | LSP tools | `lsp_goto_definition`, `lsp_find_references` |
-| **Bulk file discovery** — list files by pattern | `glob` | `glob "**/*.test.ts"` |
-| **Raw text search** — files outside index, find-and-replace | `rg` / `grep` | `rg "old_function_name"` |
-
-### Step 3: Escalation Path
-
-1. **Start with Vera search** for conceptual queries (semantic first protocol)
-2. **If Vera returns no relevant results**, try:
-   - 2-3 varied phrasings of the query
-   - `vera search --deep "query"` (RAG-fusion expansion)
-   - `vera search --intent "goal" "query"` (goal-based reranking)
-3. **If still no results**, fall back to `rg` / `grep`
-4. **For precise symbol navigation**, use LSP tools (never use Vera for goto-definition)
-
-### Step 4: Post-Edit Index Freshness
-
-After making significant edits (refactoring, renaming, adding files):
-```bash
-vera update .        # Incremental update
-# OR
-vera watch .         # Start background watcher (if not already running)
-```
-
-### Cold Start Protocol
-
-When entering a new repository for the first time:
-
-1. **Check for existing index**:
-   ```bash
-   test -d .vera && echo "indexed" || echo "cold"
-   ```
-
-2. **If cold, index before discovery**:
-   ```bash
-   vera index .        # Full index (typically 5-30 seconds)
-   ```
-
-3. **Verify index created**:
-   ```bash
-   vera stats          # Show index statistics
-   ```
-
-4. **Proceed with semantic search**
-
-### Vera Lifecycle Automation
-
-Vera watcher management is manual by default to keep OpenCode session startup responsive in large or first-time projects. Runtime automation can be enabled explicitly with environment flags when the startup cost is acceptable.
-
-**Worktree hooks** (`scripts/worktree-post-create.sh` / `scripts/worktree-pre-delete.sh`):
-- Record manual Vera state when a worktree is created; set `OMO_VERA_RUNTIME_AUTOSTART=1` to allow synchronous Vera index bootstrap during worktree creation
-- Automatically stop and cleanup the Vera watcher when a worktree is deleted
-- State file locations are documented in `docs/worktree-state-schema.md`
-
-**Runtime plugin** (`plugins/vera-runtime.ts`):
-- Records Vera watcher state during active sessions without running `vera index .` on startup by default
-- Set `OMO_VERA_RUNTIME_AUTOSTART=1` to restore automatic watcher start/recovery
-- Set `OMO_VERA_RUNTIME_TOOL_UPDATE=1` to allow `tool.execute.before` to run `vera update .`
-- Fails open: if the `vera` binary is missing, normal operation continues without error
-
-**Manual operation**:
-```bash
-vera update .        # One-time incremental update
-vera watch . &       # Start background watcher manually
-```
-
-### Index Freshness Checklist
-
-Before running semantic search after significant edits:
-- [ ] Watcher active? Check `~/.local/share/opencode/worktree-state/<project-id>/vera-watchers/` for PID files
-- [ ] If watcher missing: `vera update .` (or `vera watch . &` for continuous monitoring)
-- [ ] If index corrupted: `vera repair` → `vera index .`
-
-### Anti-Patterns
-
-| Anti-Pattern | Severity | Why |
-|-------------|----------|-----|
-| Using `rg` for conceptual discovery | **CRITICAL** | Wastes tokens, returns irrelevant matches, pollutes context |
-| Using Vera for goto-definition | **HIGH** | LSP is precise; Vera is fuzzy semantic search |
-| Searching without checking index exists | **HIGH** | Will fail or return stale results |
-| Starting multiple `vera watch` instances | **MEDIUM** | Wastes resources; check if already running |
-| Ignoring `--limit` on Vera search | **MEDIUM** | Default may return too many results; use `--limit 5` for focused queries |
-
+Prefer codegraph/LSP facts over memory. If a tool is unavailable or returns no useful result, fall back to the next appropriate vanilla tool without bootstrapping any repo-local search service.
 ## Documentation Sync Requirements
 
 Because this repo IS the live configuration, any change to config files, plugins, skills, scripts, or install targets must keep all repo documentation accurate. Agents making changes must:

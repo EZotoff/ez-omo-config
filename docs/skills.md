@@ -235,61 +235,6 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
-### vera-hygiene/
-
-**Purpose**: Vera index hygiene and `.veraignore` management. Prevents indexing failures by excluding unreadable, heavy, or generated paths.
-
-**Features**:
-
-- Detects unreadable directories (e.g., container-owned data dirs)
-- Detects heavy/generated directories (`node_modules/`, `.next/`, `build/`, etc.)
-- Prevents Vera self-indexing (always excludes `.vera/`)
-- Preserves all existing user `.veraignore` content
-- Marker-managed block (`# BEGIN OMO VERA HYGIENE` / `# END OMO VERA HYGIENE`)
-- Tracked-file safety: skips broad parent dirs if git-tracked files exist underneath
-- Three modes: `--check`, `--dry-run`, `--apply`
-
-**Dependencies**: `scripts/vera-hygiene.sh`
-
-**Use Case**: Pre-indexing hygiene for large/external projects, fixing permission-denied or zero-files indexing failures
-
-**Status**: Optional (Recommended)
-
-**Install Target**: `$HOME/.config/opencode/skills/vera-hygiene/` (skill), `$HOME/.sisyphus/scripts/vera-hygiene.sh` (script)
-
-**Install Method**: `install.sh --skills` or `install.sh --scripts`
-
----
-
-### vera/
-
-**Purpose**: Semantic code search and discovery for efficient codebase navigation.
-
-**Features**:
-
-- Hybrid retrieval: BM25 + vector search + cross-encoder reranking
-- Local-first: single Rust binary, ONNX embeddings, no API keys needed
-- Fast indexing: ~8 seconds for multi-MB codebases
-- Token-efficient Markdown output (40% smaller than JSON)
-- Background watcher for automatic index freshness
-- Dead code detection and symbol reference tracing
-
-**Dependencies**: None (self-contained binary)
-
-**Use Case**: Codebase discovery, finding logic by concept, semantic search, avoiding token-wasting grep for discovery
-
-**Status**: Optional (Recommended)
-
-**Install Target**: `$HOME/.config/opencode/skills/vera/` (installed via `vera agent install --client opencode`)
-
-**Agents Using This Skill**: `explore`, `sisyphus`, `librarian`, `prometheus`
-
-**Install Method**: `vera agent install --client opencode --scope global`
-
-**Note**: Vera is installed globally via its own CLI. Global scope is recommended so all projects and agents share the same Vera installation. Project scope is optional and only needed if the global install fails. Vera is NOT managed by `install.sh`. See [Vera Implementation Plan](../docs/vera-implementation-plan.md) for details.
-
----
-
 ## Dependency Clusters
 
 ```
@@ -316,8 +261,6 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
 | update-to-latest/ | Optional | `$HOME/.config/opencode/skills/update-to-latest/` | `install.sh` |
 | debate/ | Optional | `$HOME/.config/opencode/skills/debate/` | `install.sh` |
-| vera-hygiene/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera-hygiene/` | `install.sh` |
-| vera/ | Optional (Recommended) | `$HOME/.config/opencode/skills/vera/` | `vera agent install --client opencode` |
 
 **Note**: `playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are intentionally NOT vendored here. OMO registers them automatically when `bunx oh-my-openagent install` is run.
 

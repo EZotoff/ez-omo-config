@@ -22,3 +22,14 @@ The skill reserves a port range, allocates the next free port, and records the s
 - Anything that only opens outbound connections
 
 If you are unsure whether the work binds a port, assume it does and invoke the skill.
+
+When searching for code or understanding codebase structure, use this vanilla discovery protocol:
+
+| Task Type | Primary Tool | Notes |
+|-----------|--------------|-------|
+| Conceptual/codebase discovery — "how does X work", "where is Y logic" | `codegraph_explore` | Use first when available; it returns relevant source and relationships in one call. |
+| Symbol precision — goto definition, references, rename safety | LSP tools | Use `lsp_goto_definition`, `lsp_find_references`, and `lsp_rename` for exact language-server results. |
+| Exact text/regex — identifiers, imports, TODOs, config strings | `grep` / `rg` | Use for literal or regex search, especially outside indexed code. |
+| File discovery — list files by pattern | `glob` | Use for path patterns such as `**/*.test.ts` or `docs/**/*.md`. |
+
+Prefer codegraph/LSP facts over memory. If a tool is unavailable or returns no useful result, fall back to the next appropriate vanilla tool without bootstrapping any repo-local search service.

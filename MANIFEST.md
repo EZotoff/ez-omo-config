@@ -1,6 +1,6 @@
 # ez-omo-config Artifact Manifest
 
-Complete inventory of 68 core artifacts for ez-omo-config repository scaffold.
+Complete inventory of repo-managed artifacts for ez-omo-config repository scaffold.
 
 > **Atomic install pathway**: an item may declare multiple groups via `+`-joined tags (e.g. `skills+configs`). It installs whenever ANY declared group is selected. Used by the global `AGENTS.md`, which must travel with the `/deployment` skill AND read like a config file. See `category_selected` in `install.sh`.
 
@@ -39,7 +39,6 @@ Complete inventory of 68 core artifacts for ez-omo-config repository scaffold.
 | 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
 | 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
-| 11e | vera-runtime.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Vera Runtime State / Opt-in Watcher Supervision | Required |
 | 11f | subagent-loop-guard.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Subagent Loop Guard | Required |
 | 11h | clickable-links.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Clickable File Links (TUI) | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
@@ -53,7 +52,6 @@ Complete inventory of 68 core artifacts for ez-omo-config repository scaffold.
 | 16b | AGENTS.md (global) | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Atomic: Deployment + Core Config | Required |
 | 28 | merge-agent/ | `~/.config/opencode/skills/merge-agent/` | `skills/merge-agent/` | `$HOME/.config/opencode/skills/` | Safe Merge | Optional |
 | 29 | parallel-dev/ | `~/.config/opencode/skills/parallel-dev/` | `skills/parallel-dev/` | `$HOME/.config/opencode/skills/` | Parallel Dev | Optional |
-| 30a | vera-hygiene/ | `~/.config/opencode/skills/vera-hygiene/` | `skills/vera-hygiene/` | `$HOME/.config/opencode/skills/` | Vera Hygiene | Optional |
 | 30b | update-to-latest/ | `~/.config/opencode/skills/update-to-latest/` | `skills/update-to-latest/` | `$HOME/.config/opencode/skills/` | Update Pipeline | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
@@ -75,12 +73,10 @@ Complete inventory of 68 core artifacts for ez-omo-config repository scaffold.
 | 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
-| 26d | vera-hygiene.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Vera Hygiene | Optional |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 | 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
 | 28a | test_dcp_bounded_range.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Verification | Archived (`.retired`) |
 | 28b | test_dcp_startup_warning.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Verification | Archived (`.retired`) |
-| 28c | test_vera_hygiene.sh | (repo only) | `tests/` | (repo only) | Vera Hygiene Verification | Required |
 | 28d | test_review_enforcer_completion_instruction.sh | (repo only) | `tests/` | (repo only) | Review Enforcer Verification | Required |
 | 28e | test_prometheus_planning_contract.sh | (repo only) | `tests/` | (repo only) | Prometheus Planning Contract | Required |
 | 28f | test_openai_provider.sh | (repo only) | `tests/` | (repo only) | Codex Provider Verification | Required |
@@ -111,7 +107,6 @@ ez-omo-config/
 │   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
 │   ├── session-id.ts       # Session ID clipboard plugin (intercepts /session-id command)
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
-│   ├── vera-runtime.ts     # Vera runtime state / opt-in watcher supervision plugin
 │   ├── subagent-loop-guard.ts # Configured loop-pattern guard for subagent tool calls
 │   ├── clickable-links.ts  # System-prompt injection: file refs as clickable markdown links in TUI
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
@@ -126,12 +121,10 @@ ez-omo-config/
 │   ├── deployment/         # Deployment helper skill
 │   ├── merge-agent/        # Safe branch merging with guardrails
 │   ├── parallel-dev/       # Multi-agent orchestration with decision framework
-│   ├── vera-hygiene/       # Vera index hygiene and .veraignore management
 │   └── update-to-latest/   # Safe OpenCode/OMO update pipeline with approval gate
 ├── scripts/
 │   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
-│   └── vera-hygiene.sh     # Vera hygiene script
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, live deployment verification, and observability contract
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
@@ -148,20 +141,19 @@ ez-omo-config/
 
 ## Artifact Summary
 
-- **Total Artifacts**: 68 core + 1 external (commands: 4, configs: 17, plugins: 12 files + kdco-primitives dir, skills: 13 dirs + 1 external, scripts: 14 wisdom + 2 worktree + 1 verify + 1 vera-hygiene + 7 Python operator helpers, tests: 19 active + 4 retired, extras: 1, docs: 6)
+- **Total Artifacts**: repo-managed OpenCode/OMO commands, configs, plugins, skills, scripts, tests, docs, extras, and Docker templates.
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 17 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
-- **Plugins**: 7 main files + auto-checkpoint.ts + vscode.ts + session-id.ts + session-info.ts + vera-runtime.ts + subagent-loop-guard.ts + clickable-links.ts + worktree/ (2 files) + kdco-primitives/ directory
-- **Skills**: 13 directories (managed by install.sh) + 1 external (Vera, managed by `vera agent install`). `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill — its content lives in `parallel-dev/SKILL.md`, `merge-agent/SKILL.md`, and `docs/worktree-state-schema.md`). `knowledge/` removed (deprecated Wisdom compat shim — Wisdom is the sole runtime memory store; shell-script shims deleted alongside).
-- **Scripts**: 17 wisdom shell scripts (15 `wisdom-*` + `knowledge-constants.sh` + `manifest-write.sh`) + 2 worktree hook scripts + 1 live deployment verification script + 1 vera hygiene script + 7 Python operator helpers (stack-doctor, drift-detector, patch-guard, path-classifier, secrets-path-audit, source-identity-check, legacy-name-classifier)
-- **Tests**: 19 active test scripts + 4 retired DCP test scripts (`.retired` suffix, kept for historical reference)
+- **Plugins**: worktree, git safety, review, checkpoint, session clipboard, loop guard, clickable-link, worktree support, and shared primitive files.
+- **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
+- **Scripts**: wisdom shell scripts, worktree hook scripts, live deployment verification script, and Python operator helpers.
+- **Tests**: active repo verification scripts plus retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
 
 | # | Artifact | Path | Purpose | Install Command |
 |---|----------|------|---------|-----------------|
-| 28 | vera/ | `~/.config/opencode/skills/vera/` | Semantic code search skill | `vera agent install --client opencode --scope global` |
 
 ## Patch Registry
 
@@ -177,10 +169,11 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 6 | `oh-my-openagent--context-overflow-max-token-error` | `oh-my-openagent@3.17.5` | active | 2026-05-14 | `grep -n "isRequestTokenOverflowMessage" ~/omo-hub/projects/oh-my-openagent/src/hooks/todo-continuation-enforcer/token-limit-detection.ts` |
 | 7 | `omo--clean-agent-display-names` | `oh-my-openagent@4.4.0` | active | 2026-04-30 | `grep -n 'sisyphus: "Sisyphus"' ~/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js` |
 | 8 | `omo--commit-policy-alignment` | `oh-my-openagent` | active | 2026-05-02 | `grep -n "Git commits: follow the active git workflow" ~/oh-my-openagent/src/agents/sisyphus.ts` |
-| 9 | `omo--exclude-selected-auto-slash-commands` | `oh-my-openagent` | active | 2026-05-14 | `grep -n '"vera"|"gad-experiment"' ~/omo-hub/projects/oh-my-openagent/src/hooks/auto-slash-command/constants.ts` |
+| 9 | `omo--exclude-selected-auto-slash-commands` | `oh-my-openagent` | active | 2026-05-14 | `grep -n 'gad-experiment' ~/omo-hub/projects/oh-my-openagent/src/hooks/auto-slash-command/constants.ts` |
 | 10 | `omo--glm-preemptive-compaction-threshold` | `oh-my-openagent` | active | 2026-04-10 | `grep -n "GLM_PREEMPTIVE_COMPACTION_THRESHOLD" ~/omo-hub/projects/oh-my-openagent/src/hooks/preemptive-compaction.ts` |
 | 11 | `omo--remove-activity-stagnation-bypass` | `oh-my-openagent` | active | 2026-04-10 | `grep -n '"none" \| "todo"' ~/omo-hub/projects/oh-my-openagent/src/hooks/todo-continuation-enforcer/session-state.ts` |
 | 12 | `opencode--commit-policy-unblock` | `opencode` | active | 2026-05-02 | `grep -n "Git commits: follow the active git workflow" ~/src/opencode/packages/opencode/src/tool/bash.txt` |
+| 13 | `omo--parent-wake-sync-mode-for-tui-render` | `oh-my-openagent` | rolled_back | 2026-06-24 | Do not reapply; ineffective workaround for upstream OpenCode TUI SSE rendering issue |
 
 ## Operator Tools (Repo-Only, Not Installed)
 
@@ -200,7 +193,6 @@ These Python helpers and config files support stack health, drift detection, and
 ## Dependency Clusters
 
 1. **Worktree Plugin Cluster**: worktree.ts → worktree/state.ts, worktree/terminal.ts, kdco-primitives/
-2. **Vera Runtime Cluster**: vera-runtime.ts → (self-contained, manual-by-default, fails open if vera binary absent)
-3. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by all 8 other wisdom scripts)
-4. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
-5. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json + sets/emotions-v2.json
+2. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by wisdom scripts)
+3. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
+4. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json + sets/emotions-v2.json

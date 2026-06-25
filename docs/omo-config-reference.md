@@ -79,7 +79,7 @@
 | `openclaw` | `OpenClawConfig` | — | Bidirectional integrations (Discord/Telegram/HTTP/shell + reply listener) | [openclaw.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/openclaw.ts) |
 | `i18n` | `I18nConfig` | — | Plugin locale override (e.g. `"en"`, `"zh"`) — falls back to `LANG` env | [i18n.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/i18n.ts) |
 | `monitor` | `MonitorConfig` | — | Live command monitor (see §13) | [monitor.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/monitor.ts) |
-| `codegraph` | `CodegraphConfig` | — | Codegraph (Vera) indexing controls (see §14) | [codegraph.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/codegraph.ts) |
+| `codegraph` | `CodegraphConfig` | — | Codegraph indexing controls (see §14) | [codegraph.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/codegraph.ts) |
 | `team_mode` | `TeamModeConfig` | — | Team Mode (off by default) (see §15) | [team-mode.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/team-mode.ts) (re-exported from `@oh-my-opencode/team-core/config`) |
 | `keyword_detector` | `KeywordDetectorConfig` | — | IntentGate keyword expansion control (see §16) | [keyword-detector.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/keyword-detector.ts) |
 | `babysitting` | `BabysittingConfig` | — | Unstable-agent babysitter timeout (see §17) | [babysitting.ts](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/babysitting.ts) |
@@ -285,7 +285,7 @@ Every entry below appears in `HookNameSchema` and may be added to `disabled_hook
 | 13 | `rules-injector` | PreToolUse+PostToolUse | Injects `.claude/rules/` and `.omo/rules/**` content |
 | 14 | `background-notification` | Event | Notifies on background agent completion |
 | 15 | `auto-update-checker` | Event | Checks for new versions on session creation |
-| 16 | `codegraph-bootstrap` | Event | Codegraph (Vera) provisioning |
+| 16 | `codegraph-bootstrap` | Event | Codegraph provisioning |
 | 17 | `ast-grep-sg-provision` | Event | Provision `ast-grep` tool |
 | 18 | `startup-toast` | Event | Version + Sisyphus status toast (sub-feature of `auto-update-checker`) |
 | 19 | `keyword-detector` | Message+Transform | IntentGate — activates `ultrawork`/`ulw`/`search`/`analyze`/`team`/`hyperplan`/`hyperplan-ultrawork` |
@@ -499,14 +499,14 @@ Manual refresh: `bunx oh-my-openagent refresh-model-capabilities`.
 
 ---
 
-## 14. `codegraph` — Vera (codegraph) indexing
+## 14. `codegraph` — codegraph indexing
 
 **Source**: [codegraph.ts#L3-L9](https://github.com/code-yeongyu/oh-my-openagent/blob/v4.12.1/packages/omo-opencode/src/config/schema/codegraph.ts#L3-L9)
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `auto_provision` | `boolean` | `true` | Auto-provision codegraph index |
-| `enabled` | `boolean` | `true` | Enable codegraph (Vera) integration |
+| `enabled` | `boolean` | `true` | Enable codegraph integration |
 | `install_dir` | `string` | — | Custom install directory |
 | `telemetry` | `boolean` | — | Telemetry opt-in/out |
 | `watch_debounce_ms` | `number (non-negative)` | — | File-watch debounce delay |

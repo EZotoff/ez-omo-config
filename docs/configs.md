@@ -15,7 +15,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 **What it Configures**:
 
 - **Providers**: 10 provider configurations for different AI services
-- **Plugins**: 10 plugin registrations and their settings
+- **Plugins**: local plugin registrations and their settings
 - **Model Settings**: Provider model catalogs, default models, limits, and timeouts
 - **Runtime Defaults**: Agent behavior, output preferences
 - **Feature Flags**: Experimental features and toggles
