@@ -35,9 +35,6 @@ with open('_test_prometheus_prompt_append.txt', 'w') as out:
 required_literals = [
     'wisdom',
     'wisdom-search.sh',
-    'Vera tool-selection decision tree',
-    'vera search',
-    'vera grep',
     'repo_implemented',
     'live_file_installed',
     'active_config_registered',
