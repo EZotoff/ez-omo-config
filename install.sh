@@ -46,7 +46,6 @@ ITEMS=(
     "plugins|plugins/vscode.ts|$HOME/.opencode/plugin/vscode.ts"
     "plugins|plugins/session-id.ts|$HOME/.opencode/plugin/session-id.ts"
     "plugins|plugins/session-info.ts|$HOME/.opencode/plugin/session-info.ts"
-    "plugins|plugins/vera-runtime.ts|$HOME/.opencode/plugin/vera-runtime.ts"
     "plugins|plugins/subagent-loop-guard.ts|$HOME/.opencode/plugin/subagent-loop-guard.ts"
     "plugins|plugins/clickable-links.ts|$HOME/.opencode/plugin/clickable-links.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
@@ -59,7 +58,6 @@ ITEMS=(
     "skills|skills/session-id|$HOME/.config/opencode/skills/session-id"
     "skills|skills/merge-agent|$HOME/.config/opencode/skills/merge-agent"
     "skills|skills/parallel-dev|$HOME/.config/opencode/skills/parallel-dev"
-    "skills|skills/vera-hygiene|$HOME/.config/opencode/skills/vera-hygiene"
     "skills|skills/update-to-latest|$HOME/.config/opencode/skills/update-to-latest"
     "skills|skills/atlas-review-handler|$HOME/.config/opencode/skills/atlas-review-handler"
     "skills|skills/review-protocol|$HOME/.config/opencode/skills/review-protocol"
@@ -83,7 +81,6 @@ ITEMS=(
     "scripts|scripts/worktree-post-create.sh|$HOME/.opencode/scripts/worktree-post-create.sh"
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
     "scripts|scripts/verify-live-deployment.sh|$HOME/.sisyphus/scripts/verify-live-deployment.sh"
-    "scripts|scripts/vera-hygiene.sh|$HOME/.sisyphus/scripts/vera-hygiene.sh"
 )
 
 usage() {
