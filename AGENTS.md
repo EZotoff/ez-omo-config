@@ -103,3 +103,38 @@ cd ez-omo-config
 ./install.sh --symlink
 # Then update any machine-specific file:// paths in configs/opencode/opencode.json
 ```
+
+## Patching OpenCode Binary
+
+When fixing bugs in the OpenCode Go/TypeScript binary, follow this procedure EXACTLY.
+
+### NEVER
+
+- **NEVER replace the live binary with a dev-branch build.** The live binary is version-pinned (e.g. 1.17.9). A dev-branch build has a different version string, different dependencies, and potentially hundreds of unreviewed changes. This breaks the live environment.
+- **NEVER build from `origin/dev` or any non-release branch** when the intent is to patch the live version.
+- **NEVER use `mv` to hot-swap the binary while servers are running** without coordinating a restart.
+
+### ALWAYS
+
+1. **Identify the live version**: `~/.opencode/bin/opencode --version`
+2. **Check out the source at that exact version**: `cd ~/src/opencode && git checkout v<VERSION> -b fix/<bug-name>` (use the release tag, not `dev`)
+3. **Apply the minimal fix** to the checked-out source
+4. **Build from that version**: `cd packages/opencode && bun run script/build.ts --single --skip-install --skip-embed-web-ui`
+5. **Verify the build version** matches: `dist/opencode-linux-x64/bin/opencode --version` should show the live version (not `0.0.0-...`)
+6. **Backup the live binary to the side**: `cp ~/.opencode/bin/opencode ~/.opencode/bin/opencode.backup-<version>-<description>-<timestamp>`
+7. **Stop servers**: `systemctl --user restart omo-tg.service opencode.service` (or stop, swap, start)
+8. **Install the patched binary**: `cp dist/opencode-linux-x64/bin/opencode ~/.opencode/bin/opencode && chmod +x ~/.opencode/bin/opencode`
+9. **Restart servers**: `systemctl --user start omo-tg.service opencode.service`
+10. **Test the live version**: verify the fix works on the real surface (TUI, background tasks, etc.)
+11. **Roll back if needed**: `cp ~/.opencode/bin/opencode.backup-<...> ~/.opencode/bin/opencode`
+
+### Skill
+
+Use the `patch-opencode` skill for the full procedure with version detection, source checkout, build, install, and test steps.
+
+### Source repo
+
+- Local source: `~/src/opencode` (remote: `anomalyco/opencode`)
+- Fork: `EZotoff/opencode` (for PRs)
+- Release tags: `v1.17.9`, `v1.17.8`, etc. (NOT `v0.1.17*` — those are different)
+- Build script: `packages/opencode/script/build.ts` (flags: `--single` current platform only, `--skip-install` no global install, `--skip-embed-web-ui` skip web UI bundle)
