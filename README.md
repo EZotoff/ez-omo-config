@@ -388,6 +388,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.12.1)
 - **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (active on OMO v4.12.1)
 - **Parent-wake sync mode for TUI render**: `.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md` (ROLLED BACK — ineffective; root cause is upstream OpenCode TUI SSE bug, not OMO dispatch mode)
+- **Parent-wake live-route rollback**: `oh-my-openagent.json#experimental.disable_live_parent_wake_routing=true` keeps parent wakes on the in-process dispatch path because externally routed parent-wake turns can be persisted without live-rendering in the current OpenCode TUI.
 - **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (superseded by upstream v4.12.1 works-map architecture)
 - **Remove activity stagnation bypass**: `.sisyphus/patches/omo--remove-activity-stagnation-bypass.md` (upstreamed in OMO commit df7e1ae1)
 

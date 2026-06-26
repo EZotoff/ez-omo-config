@@ -251,6 +251,7 @@
   },
   "experimental": {
     "preemptive_compaction": false,
+    "disable_live_parent_wake_routing": true,
     "aggressive_truncation": true,
     "truncate_all_tool_outputs": true,
     "task_system": true,

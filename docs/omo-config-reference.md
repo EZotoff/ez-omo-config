@@ -380,7 +380,7 @@ Every entry below appears in `HookNameSchema` and may be added to `disabled_hook
 | `hashline_edit` | `boolean` | — | Hashline edit tool (also root-level) |
 | `model_fallback_title` | `boolean` | `false` | Append fallback model info to session title |
 | `max_tools` | `number (≥1)` | — | Max tools to register (e.g. OpenAI 128-tool cap). Accounts for ~20 OpenCode built-in. |
-| `disable_live_parent_wake_routing` | `boolean` | — | Rollback parent-targeted internal prompts to pre-migration dispatch |
+| `disable_live_parent_wake_routing` | `boolean` | `true` in this repo | Roll back parent-targeted internal prompts to the in-process dispatch path. Enabled here because OpenCode TUI can persist but not live-render externally routed parent-wake turns. |
 
 ### 8.1 `dynamic_context_pruning`
 
