@@ -50,6 +50,13 @@ LIVE_VERSION=$(~/.opencode/bin/opencode --version 2>&1)
 # Fetch latest tags
 git fetch --tags origin
 
+# Verify the source tree is clean before checkout
+if [ -n "$(git status --porcelain)" ]; then
+  echo "FATAL: Source tree is dirty. Commit or stash before checking out the release tag."
+  git status --porcelain
+  exit 1
+fi
+
 # Create a fix branch from the EXACT release tag
 git checkout "v${LIVE_VERSION}" -b "fix/${FIX_NAME}"
 ```
@@ -74,7 +81,9 @@ git diff --stat
 
 ```bash
 cd "$SOURCE_DIR/packages/opencode"
-bun run script/build.ts --single --skip-install --skip-embed-web-ui
+OPENCODE_VERSION="$LIVE_VERSION" bun run script/build.ts --single --skip-install --skip-embed-web-ui
+# CRITICAL: OPENCODE_VERSION must be set explicitly. Without it, the build script
+# derives version from the branch name and produces 0.0.0-fix/... instead of $LIVE_VERSION
 ```
 
 Flags:
@@ -94,7 +103,17 @@ echo "Built version: $BUILT_VERSION"
 if [ "$BUILT_VERSION" != "$LIVE_VERSION" ]; then
   echo "FATAL: Version mismatch! Built $BUILT_VERSION, expected $LIVE_VERSION"
   echo "Do NOT install this binary. The source was not checked out at the right tag."
+  echo "If the version is 0.0.0-fix/..., you forgot to set OPENCODE_VERSION in Step 3."
   exit 1
+fi
+
+# Verify the patch is present in the built binary
+# Replace <PATCHED_SYMBOL> with a string unique to your fix
+# Note: Bun minifies locals, so grep for a string literal you added, not a function name
+PATCH_PROOF=$(grep -c '<PATCHED_SYMBOL>' dist/opencode-linux-x64/bin/opencode || true)
+if [ "$PATCH_PROOF" -eq 0 ]; then
+  echo "WARNING: Could not verify patch presence via grep. Minified binaries rename locals."
+  echo "Record source + test evidence before installing this binary."
 fi
 ```
 
@@ -103,8 +122,10 @@ fi
 ```bash
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BACKUP_NAME="opencode.backup-${LIVE_VERSION}-${FIX_NAME}-${TIMESTAMP}"
-cp ~/.opencode/bin/opencode "~/.opencode/bin/${BACKUP_NAME}"
-echo "Backed up to: ${BACKUP_NAME}"
+BACKUP_PATH="$HOME/.opencode/bin/${BACKUP_NAME}"
+cp "$HOME/.opencode/bin/opencode" "$BACKUP_PATH"
+test -x "$BACKUP_PATH" || { echo "FATAL: backup was not created: $BACKUP_PATH"; exit 1; }
+echo "Backed up to: ${BACKUP_PATH}"
 ```
 
 ### Step 6: Stop servers, swap binary, restart
@@ -113,15 +134,23 @@ echo "Backed up to: ${BACKUP_NAME}"
 # Stop servers
 systemctl --user stop omo-tg.service opencode.service 2>/dev/null
 
+# If the binary is still busy, inspect remaining matching processes before killing anything.
+mapfile -t remaining < <(pgrep -af 'opencode serve' || true)
+if [ "${#remaining[@]}" -gt 0 ]; then
+  printf '%s\n' "${remaining[@]}"
+  echo "FATAL: opencode serve process(es) still running. Stop the specific service-owned PID shown above, then rerun."
+  exit 1
+fi
+
 # Swap binary
-cp dist/opencode-linux-x64/bin/opencode ~/.opencode/bin/opencode
-chmod +x ~/.opencode/bin/opencode
+cp dist/opencode-linux-x64/bin/opencode "$HOME/.opencode/bin/opencode"
+chmod +x "$HOME/.opencode/bin/opencode"
 
 # Restart servers
 systemctl --user start omo-tg.service opencode.service 2>/dev/null
 
 # Verify version
-~/.opencode/bin/opencode --version
+"$HOME/.opencode/bin/opencode" --version
 ```
 
 ### Step 7: Test the fix
@@ -143,8 +172,8 @@ If anything breaks:
 
 ```bash
 systemctl --user stop omo-tg.service opencode.service 2>/dev/null
-cp "~/.opencode/bin/${BACKUP_NAME}" ~/.opencode/bin/opencode
-chmod +x ~/.opencode/bin/opencode
+cp "$BACKUP_PATH" "$HOME/.opencode/bin/opencode"
+chmod +x "$HOME/.opencode/bin/opencode"
 systemctl --user start omo-tg.service opencode.service 2>/dev/null
 ```
 
@@ -160,13 +189,23 @@ git remote add fork https://github.com/EZotoff/opencode.git 2>/dev/null || true
 git push fork "fix/${FIX_NAME}"
 
 # Create PR
+# VERIFY the base branch — it may be 'main' depending on repo state
+PR_BASE="${PR_BASE:-dev}"
 gh pr create \
   --repo anomalyco/opencode \
   --head "EZotoff:fix/${FIX_NAME}" \
-  --base dev \
+  --base "$PR_BASE" \
   --title "fix: <description>" \
   --body "<PR body with reproduction, root cause, and fix description>"
 ```
+
+### PR Template Compliance
+
+The OpenCode compliance bot auto-closes PRs within hours if the description does not match the template headers verbatim. Required headers:
+- `### Issue for this PR`
+- `### Type of change`
+
+Do not use AI-generated prose that ignores the template. The bot gives roughly a 2-hour window before auto-closing.
 
 ## Common Pitfalls
 
@@ -179,3 +218,7 @@ gh pr create \
 | Not stopping servers before swap | "Text file busy" error | Stop servers, swap, restart |
 | Building for wrong architecture | Binary won't run | Use `--single` flag (builds for current platform) |
 | Including unrelated changes from dev branch | Hundreds of unreviewed changes in production binary | Checkout release tag, apply minimal fix only |
+| Building without `OPENCODE_VERSION` env var | Binary reports `0.0.0-fix/...` instead of live version; Step 4 fails | Always set `OPENCODE_VERSION=$LIVE_VERSION` before `bun run build` |
+| Non-systemd `opencode serve` still running | `cp` to live binary fails with `Text file busy` | Inspect matching PIDs and stop only the specific service-owned process before swapping |
+| Dirty source tree at checkout | Uncommitted changes from prior work carried into fix branch | Verify `git status --porcelain` is empty before `git checkout` |
+| PR closed by compliance bot | Hours of delay; must reopen | Match `### Issue for this PR` / `### Type of change` template headers verbatim |
