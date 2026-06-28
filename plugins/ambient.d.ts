@@ -91,12 +91,15 @@ declare module "@opencode-ai/plugin" {
 	}
 	type HookBeforeOutput = { args: any }
 	type HookAfterOutput = { output?: string }
+	type CommandHookInput = { command: string; sessionID: string }
+	type CommandHookOutput = { parts: Array<{ type: "text"; text: string }>; cancelled: boolean }
 	type PluginContext = { directory: string; client: any }
 	type PluginDefinition = {
 		tool?: Record<string, any>
 		event?: (input: { event: any }) => Promise<void> | void
 		"tool.execute.before"?: (input: HookInput, output: HookBeforeOutput) => Promise<void> | void
 		"tool.execute.after"?: (input: HookInput, output: HookAfterOutput) => Promise<void> | void
+		"command.execute.before"?: (input: CommandHookInput, output: CommandHookOutput) => Promise<void> | void
 	}
 
 	export type Plugin = (ctx: PluginContext) => Promise<PluginDefinition> | PluginDefinition

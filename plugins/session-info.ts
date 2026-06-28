@@ -62,6 +62,7 @@ const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 			// toasts via session.error SSE — upstream issue #32253).
 			output.parts.length = 0
 			output.parts.push({ type: "text", text: "" })
+			output.cancelled = true
 		},
 		}
 	}

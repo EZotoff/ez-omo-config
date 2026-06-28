@@ -6,11 +6,10 @@
 # plugins previously used `throw new Error("__xxx_handled__")` to abort the command
 # pipeline. This throw now causes TUI error spam. The fix is:
 #   1. Register the plugins in opencode.json#plugin (they were never registered).
-#   2. Replace the throw with output.parts in-place mutation.
-#   3. Exclude the commands from OMO's auto-slash-command hook.
+#   2. Replace the throw with output.cancelled (plus in-place parts clearing for compatibility).
+#   3. Patch local OpenCode core to honor output.cancelled.
+#   4. Exclude the commands from OMO's auto-slash-command hook.
 #
-# This test verifies all three aspects.
-
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,7 +53,7 @@ for plugin in plugins/session-info.ts plugins/session-id.ts plugins/vscode.ts; d
 done
 
 # ---------------------------------------------------------------------------
-# 3. Plugins use output.parts in-place mutation for non-throw suppression
+# 3. Plugins use output.parts in-place mutation and output.cancelled for non-throw suppression
 # ---------------------------------------------------------------------------
 
 for plugin in plugins/session-info.ts plugins/session-id.ts plugins/vscode.ts; do
@@ -64,10 +63,40 @@ for plugin in plugins/session-info.ts plugins/session-id.ts plugins/vscode.ts; d
 	else
 		fail "${plugin} missing output.parts.length = 0"
 	fi
+	if grep -q 'output\.cancelled = true' "${filepath}" 2>/dev/null; then
+		ok "${plugin} sets output.cancelled = true"
+	else
+		fail "${plugin} missing output.cancelled = true"
+	fi
 done
 
 # ---------------------------------------------------------------------------
-# 4. OMO EXCLUDED_COMMANDS includes session-info, session-id, vscode
+# 4. OpenCode source patch honors output.cancelled
+# ---------------------------------------------------------------------------
+
+OPENCODE_SRC="${OPENCODE_SRC:-/home/ezotoff/src/opencode}"
+if [ -d "${OPENCODE_SRC}" ]; then
+	if grep -q 'cancelled: boolean' "${OPENCODE_SRC}/packages/plugin/src/index.ts" 2>/dev/null; then
+		ok "OpenCode plugin SDK exposes command output.cancelled"
+	else
+		fail "OpenCode plugin SDK missing command output.cancelled"
+	fi
+	if grep -q 'commandOutput.cancelled' "${OPENCODE_SRC}/packages/opencode/src/session/prompt.ts" 2>/dev/null; then
+		ok "OpenCode command path checks commandOutput.cancelled"
+	else
+		fail "OpenCode command path missing commandOutput.cancelled check"
+	fi
+	if grep -q 'HttpServerResponse\.empty()' "${OPENCODE_SRC}/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts" 2>/dev/null; then
+		ok "OpenCode HTTP handler converts cancelled command to empty response"
+	else
+		fail "OpenCode HTTP handler missing HttpServerResponse.empty() for cancelled commands"
+	fi
+else
+	echo "SKIP: OpenCode source not found at ${OPENCODE_SRC} (set OPENCODE_SRC env to test)"
+fi
+
+# ---------------------------------------------------------------------------
+# 5. OMO EXCLUDED_COMMANDS includes session-info, session-id, vscode
 # ---------------------------------------------------------------------------
 
 OMO_DIST="${OMO_DIST:-/home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js}"
@@ -84,7 +113,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Patch documentation reflects the extended exclusion list
+# 6. Patch documentation reflects the extended exclusion list and OpenCode cancellation patch
 # ---------------------------------------------------------------------------
 
 PATCH_DOC="${REPO_ROOT}/.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md"
@@ -98,6 +127,17 @@ if [ -f "${PATCH_DOC}" ]; then
 	done
 else
 	fail "Patch doc not found: ${PATCH_DOC}"
+fi
+
+OPENCODE_PATCH_DOC="${REPO_ROOT}/.sisyphus/patches/opencode--command-hook-cancellation.md"
+if [ -f "${OPENCODE_PATCH_DOC}" ]; then
+	if grep -q 'commandOutput.cancelled' "${OPENCODE_PATCH_DOC}" 2>/dev/null; then
+		ok "OpenCode cancellation patch doc mentions commandOutput.cancelled"
+	else
+		fail "OpenCode cancellation patch doc missing commandOutput.cancelled"
+	fi
+else
+	fail "OpenCode cancellation patch doc not found: ${OPENCODE_PATCH_DOC}"
 fi
 
 # ---------------------------------------------------------------------------
