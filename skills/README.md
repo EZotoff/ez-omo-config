@@ -46,6 +46,12 @@ Safe OpenCode/OMO update pipeline with explicit human approval gate, patch-track
 - **Use Case**: Analyzing and executing OpenCode/OMO updates safely
 - **Install**: `install.sh --skills`
 
+### patch-opencode/
+Minimal-fix procedure for patching the live OpenCode binary. Builds from the exact release tag that matches the running version — never from `dev` or any other branch. Covers version pinning via `OPENCODE_VERSION`, source cleanliness verification, two-server stop sequence, patch-presence verification, and PR filing with template compliance notes.
+- **Dependencies**: None (standalone procedure)
+- **Use Case**: Patching upstream OpenCode bugs locally when waiting for PR merge is not viable
+- **Install**: `install.sh --skills`
+
 ### debate/
 Structured adversarial debate protocol with configurable judge panels, scoring rubrics, and 6 distinct modes for rigorous technical analysis.
 - **Dependencies**: None

@@ -59,6 +59,7 @@ ITEMS=(
     "skills|skills/merge-agent|$HOME/.config/opencode/skills/merge-agent"
     "skills|skills/parallel-dev|$HOME/.config/opencode/skills/parallel-dev"
     "skills|skills/update-to-latest|$HOME/.config/opencode/skills/update-to-latest"
+    "skills|skills/patch-opencode|$HOME/.config/opencode/skills/patch-opencode"
     "skills|skills/atlas-review-handler|$HOME/.config/opencode/skills/atlas-review-handler"
     "skills|skills/review-protocol|$HOME/.config/opencode/skills/review-protocol"
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"

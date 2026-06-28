@@ -210,6 +210,30 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
+### patch-opencode/
+
+**Purpose**: Minimal-fix procedure for patching the live OpenCode binary from the exact release tag that matches the running version.
+
+**Features**:
+
+- Verifies the live OpenCode version before source checkout
+- Requires a clean source tree before creating a release-tag fix branch
+- Builds with `OPENCODE_VERSION` so patched binaries preserve the live version string
+- Covers backup, service stop/start, patch-presence verification, rollback, and PR template caveats
+- Enforces evidence-state language for runtime/live verification claims
+
+**Dependencies**: Local OpenCode source checkout at `~/src/opencode`; `bun`; systemd user services when patching the live server surfaces
+
+**Use Case**: Applying a local OpenCode binary patch safely while waiting for upstream merge/release.
+
+**Status**: Optional
+
+**Install Target**: `$HOME/.config/opencode/skills/patch-opencode/`
+
+**Install Method**: `install.sh --skills`
+
+---
+
 ### debate/
 
 **Purpose**: Structured adversarial debate protocol for rigorous technical analysis. Orchestrates multi-agent debates with formal rules, evidence tracking, and consensus building.
@@ -260,6 +284,7 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | review-protocol/ | Required | `$HOME/.config/opencode/skills/review-protocol/` | `install.sh` |
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
 | update-to-latest/ | Optional | `$HOME/.config/opencode/skills/update-to-latest/` | `install.sh` |
+| patch-opencode/ | Optional | `$HOME/.config/opencode/skills/patch-opencode/` | `install.sh` |
 | debate/ | Optional | `$HOME/.config/opencode/skills/debate/` | `install.sh` |
 
 **Note**: `playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are intentionally NOT vendored here. OMO registers them automatically when `bunx oh-my-openagent install` is run.
