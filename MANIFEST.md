@@ -53,6 +53,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28 | merge-agent/ | `~/.config/opencode/skills/merge-agent/` | `skills/merge-agent/` | `$HOME/.config/opencode/skills/` | Safe Merge | Optional |
 | 29 | parallel-dev/ | `~/.config/opencode/skills/parallel-dev/` | `skills/parallel-dev/` | `$HOME/.config/opencode/skills/` | Parallel Dev | Optional |
 | 30b | update-to-latest/ | `~/.config/opencode/skills/update-to-latest/` | `skills/update-to-latest/` | `$HOME/.config/opencode/skills/` | Update Pipeline | Optional |
+| 30c | patch-opencode/ | `~/.config/opencode/skills/patch-opencode/` | `skills/patch-opencode/` | `$HOME/.config/opencode/skills/` | OpenCode Binary Patching | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
@@ -121,7 +122,8 @@ ez-omo-config/
 │   ├── deployment/         # Deployment helper skill
 │   ├── merge-agent/        # Safe branch merging with guardrails
 │   ├── parallel-dev/       # Multi-agent orchestration with decision framework
-│   └── update-to-latest/   # Safe OpenCode/OMO update pipeline with approval gate
+│   ├── update-to-latest/   # Safe OpenCode/OMO update pipeline with approval gate
+│   └── patch-opencode/     # Minimal-fix procedure for the live OpenCode binary
 ├── scripts/
 │   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
@@ -174,6 +176,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 11 | `omo--remove-activity-stagnation-bypass` | `oh-my-openagent` | active | 2026-04-10 | `grep -n '"none" \| "todo"' ~/omo-hub/projects/oh-my-openagent/src/hooks/todo-continuation-enforcer/session-state.ts` |
 | 12 | `opencode--commit-policy-unblock` | `opencode` | active | 2026-05-02 | `grep -n "Git commits: follow the active git workflow" ~/src/opencode/packages/opencode/src/tool/bash.txt` |
 | 13 | `omo--parent-wake-sync-mode-for-tui-render` | `oh-my-openagent` | rolled_back | 2026-06-24 | Do not reapply; ineffective workaround for upstream OpenCode TUI SSE rendering issue |
+| 14 | `opencode--command-hook-cancellation` | `opencode` | active | 2026-06-26 | `grep -ER "cancelled: boolean|commandOutput.cancelled|HttpServerResponse.empty\(\)" ~/src/opencode/packages/plugin/src/index.ts ~/src/opencode/packages/opencode/src/session/prompt.ts ~/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts` |
 
 ## Operator Tools (Repo-Only, Not Installed)
 
