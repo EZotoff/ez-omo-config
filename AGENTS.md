@@ -63,6 +63,10 @@ When reporting what has been done, agents must distinguish between six evidence 
 
 The symlinked config behavior described in the Config Locations table and How It Works section applies **only** to the listed symlinked config files (`opencode.json`, `oh-my-openagent.json`, `provider-connect-retry.mjs`, `retry-errors.json`). Installed plugin targets such as `$HOME/.opencode/plugin/*.ts` are **separate deployable artifacts** and do not share the "one file, not two" symlink property. Plugin files are copied or symlinked by `install.sh` and must be treated as distinct deployment targets.
 
+### Plugin Registration Caveat
+
+Plugins in `~/.opencode/plugin/*.ts` are auto-loaded by OpenCode at startup, **but command-pipeline interception only works for plugins registered in `opencode.json#plugin`**. A plugin file symlinked to `~/.opencode/plugin/` is not enough if it needs to intercept commands, hooks, or system transforms. Always verify the plugin appears in the `plugin` array of `opencode.json` before debugging plugin behavior.
+
 ### Unverified State Rule
 
 If any live/runtime evidence state is unverified, final answers must say `Not verified live: [missing state]`.
@@ -117,15 +121,15 @@ When fixing bugs in the OpenCode Go/TypeScript binary, follow this procedure EXA
 ### ALWAYS
 
 1. **Identify the live version**: `~/.opencode/bin/opencode --version`
-2. **Check out the source at that exact version**: `cd ~/src/opencode && git checkout v<VERSION> -b fix/<bug-name>` (use the release tag, not `dev`)
+2. **Check out the source at that exact version**: First ensure the source tree is clean (`git status --porcelain` empty, `git log --oneline -1` on a known ref). Then `cd ~/src/opencode && git checkout v<VERSION> -b fix/<bug-name>` (use the release tag, not `dev`). A dirty source tree carries uncommitted changes into the fix branch.
 3. **Apply the minimal fix** to the checked-out source
-4. **Build from that version**: `cd packages/opencode && bun run script/build.ts --single --skip-install --skip-embed-web-ui`
-5. **Verify the build version** matches: `dist/opencode-linux-x64/bin/opencode --version` should show the live version (not `0.0.0-...`)
+4. **Build from that version**: `cd packages/opencode && OPENCODE_VERSION=$(~/.opencode/bin/opencode --version) bun run script/build.ts --single --skip-install --skip-embed-web-ui`. The build script (`generate.ts`) derives the version from the git branch name; without `OPENCODE_VERSION`, a `fix/*` branch produces `0.0.0-fix/...` and the version check in step 5 will fail.
+5. **Verify the build version AND patch presence**: `dist/opencode-linux-x64/bin/opencode --version` must show the live version (not `0.0.0-...`). Also confirm the fix is embedded in the built binary — grep the dist for a string unique to the patch (e.g. `grep -c '<patched-symbol>' dist/opencode-linux-x64/bin/opencode`). Minified Bun binaries rename locals, so verify by source + test + built version, not by internal symbol names.
 6. **Backup the live binary to the side**: `cp ~/.opencode/bin/opencode ~/.opencode/bin/opencode.backup-<version>-<description>-<timestamp>`
-7. **Stop servers**: `systemctl --user restart omo-tg.service opencode.service` (or stop, swap, start)
+7. **Stop servers (both surfaces)**: Stop `systemctl --user stop omo-tg.service opencode.service`. If a non-systemd `opencode serve` process is still running (e.g. omo-tg spawns its own), inspect `pgrep -af 'opencode serve'` and stop only the specific service-owned PID that is holding the live binary. Do not run broad `pkill`/`kill -9` loops; if more processes match than expected, stop and choose manually. Otherwise the swap can fail with `Text file busy` or kill unrelated sessions.
 8. **Install the patched binary**: `cp dist/opencode-linux-x64/bin/opencode ~/.opencode/bin/opencode && chmod +x ~/.opencode/bin/opencode`
 9. **Restart servers**: `systemctl --user start omo-tg.service opencode.service`
-10. **Test the live version**: verify the fix works on the real surface (TUI, background tasks, etc.)
+10. **Test the live version**: verify the fix works on the real surface (TUI, background tasks, etc.). State explicitly `Not verified live: runtime_loaded, real_project_behavior_proven` until the patched behavior is observed end-to-end in a real session.
 11. **Roll back if needed**: `cp ~/.opencode/bin/opencode.backup-<...> ~/.opencode/bin/opencode`
 
 ### Skill
