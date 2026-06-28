@@ -23,9 +23,9 @@ This directory contains the portable OpenCode config bundle copied from the loca
 |---|---|---|
 | `subagent-loop-guard.ts` | Watches per-session tool-call windows, mutates bash loop calls to a no-op when configured rules fire, and logs threshold warnings. | `$HOME/.opencode/plugin/subagent-loop-guard.ts` |
 | `clickable-links.ts` | Injects a system-prompt instruction so file references render as clickable markdown links in the TUI. | `$HOME/.opencode/plugin/clickable-links.ts` |
-| `session-info.ts` | Intercepts `/session-info` and copies project/session metadata to clipboard without an LLM round-trip. | `$HOME/.opencode/plugin/session-info.ts` |
-| `session-id.ts` | Intercepts `/session-id` and copies the invoking session ID to clipboard. | `$HOME/.opencode/plugin/session-id.ts` |
-| `vscode.ts` | Intercepts `/vscode` and launches VS Code in the current directory. | `$HOME/.opencode/plugin/vscode.ts` |
+| `session-info.ts` | Intercepts `/session-info`, copies project/session metadata to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch for true no-LLM behavior. | `$HOME/.opencode/plugin/session-info.ts` |
+| `session-id.ts` | Intercepts `/session-id`, copies the invoking session ID to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/session-id.ts` |
+| `vscode.ts` | Intercepts `/vscode`, launches VS Code in the current directory, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/vscode.ts` |
 
 ## Worktree Lifecycle Automation
 

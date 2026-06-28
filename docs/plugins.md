@@ -27,15 +27,16 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ## session-id.ts
 
-**Purpose**: Copies the invoking OpenCode session ID to the clipboard without any LLM round-trip.
+**Purpose**: Copies the invoking OpenCode session ID to the clipboard and cancels the command pipeline via the local OpenCode command-hook cancellation patch.
 
 **Features**:
 
 - Intercepts `/session-id` via `command.execute.before`
 - Uses the invoking hook's `sessionID` directly
 - Writes the raw session ID to the system clipboard with `xclip`
+- Clears `output.parts` and sets `output.cancelled = true`; true no-LLM behavior requires the active `opencode--command-hook-cancellation` local OpenCode patch
 
-**Dependencies**: None (self-contained)
+**Dependencies**: Active local OpenCode `opencode--command-hook-cancellation` patch for true no-LLM cancellation
 
 **Install Target**: `$HOME/.opencode/plugin/session-id.ts`
 
@@ -43,7 +44,7 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ## session-info.ts
 
-**Purpose**: Copies project path, git branch, session title, and invoking session ID to the clipboard without any LLM round-trip.
+**Purpose**: Copies project path, git branch, session title, and invoking session ID to the clipboard and cancels the command pipeline via the local OpenCode command-hook cancellation patch.
 
 **Features**:
 
@@ -51,8 +52,9 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 - Resolves the active branch from the current worktree/project directory
 - Reads the invoking session title from the SDK using the hook's `sessionID`
 - Writes `Project <path>:<branch>; Session <title>; ID <session-id>` to the system clipboard with `xclip`
+- Clears `output.parts` and sets `output.cancelled = true`; true no-LLM behavior requires the active `opencode--command-hook-cancellation` local OpenCode patch
 
-**Dependencies**: OpenCode plugin client session API
+**Dependencies**: OpenCode plugin client session API; active local OpenCode `opencode--command-hook-cancellation` patch for true no-LLM cancellation
 
 **Install Target**: `$HOME/.opencode/plugin/session-info.ts`
 

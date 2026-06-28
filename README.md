@@ -39,8 +39,8 @@ ls -la ~/.opencode/plugin/
 After running `./install.sh`, your OpenCode CLI gains:
 
 - **`/models-preset`** — view all 13 agent model assignments, category presets, compaction model, and small model at a glance
-- **`/session-id`** — copy the invoking session ID to clipboard (no LLM round-trip)
-- **`/session-info`** — copy project path, session title, and invoking session ID to clipboard (no LLM round-trip)
+- **`/session-id`** — copy the invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
+- **`/session-info`** — copy project path, session title, and invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
 - **Git safety guardrails** — automatic prevention of destructive git operations
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
@@ -92,9 +92,9 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 9 | `git-safety.ts` | `plugins/` | Git safety protocol enforcement |
 | 10 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
 | 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
-| 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode, no LLM round-trip) |
-| 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id, no LLM round-trip) |
-| 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info, no LLM round-trip) |
+| 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
+| 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
+| 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
 | 11g | `subagent-loop-guard.ts` | `plugins/` | Configured per-session tool-call loop guard for same-tool frequency and same-tool varying-input patterns |
 | 11h | `clickable-links.ts` | `plugins/` | System-prompt injection via `experimental.chat.system.transform` — tells every agent to format file references as `[label](file:///abs/path)` markdown links so they are clickable in the TUI |
@@ -128,6 +128,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
 | 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
+| 30c | `patch-opencode/` | `skills/` | Minimal-fix procedure for patching the live OpenCode binary from the exact release tag |
 | 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
 | 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
@@ -385,6 +386,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Context overflow max-token detection**: `.sisyphus/patches/oh-my-openagent--context-overflow-max-token-error.md` (active on OMO v4.12.1)
 - **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.12.1)
 - **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.12.1)
+- **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on local OpenCode 1.17.9 binary)
 - **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.12.1)
 - **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (active on OMO v4.12.1)
 - **Parent-wake sync mode for TUI render**: `.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md` (ROLLED BACK — ineffective; root cause is upstream OpenCode TUI SSE bug, not OMO dispatch mode)
