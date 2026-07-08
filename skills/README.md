@@ -53,7 +53,7 @@ Minimal-fix procedure for patching the live OpenCode binary. Builds from the exa
 - **Install**: `install.sh --skills`
 
 ### debate/
-Structured adversarial debate protocol with configurable judge panels, scoring rubrics, and 6 distinct modes for rigorous technical analysis.
+Structured adversarial analysis protocol. Quick single-agent modes (challenge, panel, pre-mortem, red team) plus a decision-review protocol where one agent proposes, one critiques, the proposer revises, and a binding/advisory judge panel decides ADOPT/REVISE/REJECT/ESCALATE.
 - **Dependencies**: None
 - **Use Case**: Surfacing hidden assumptions, testing argument robustness, making complex architectural decisions
 - **Install**: `install.sh --skills`

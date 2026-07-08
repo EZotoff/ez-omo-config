@@ -236,16 +236,17 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ### debate/
 
-**Purpose**: Structured adversarial debate protocol for rigorous technical analysis. Orchestrates multi-agent debates with formal rules, evidence tracking, and consensus building.
+**Purpose**: Structured adversarial analysis protocol. Provides quick single-agent modes and a primary decision-review protocol where one agent proposes, one critiques, the proposer revises, and a judge panel decides whether to ADOPT, REVISE, REJECT, or ESCALATE.
 
 **Features**:
 
-- 5-segment debate protocol (S1-S5): Core Thesis → Evidence & Reasoning → Steel-Man & Counter → Implications → Cross-Examination
-- 6 distinct modes for different analytical needs
-- Configurable judge panels with scoring rubrics
-- Deterministic label blinding (Alpha/Beta only — judges never see agent names)
-- Evidence tracking with formal citation requirements
-- Consensus building through adversarial examination
+- Decision-review protocol: block-level thesis tree → critique (strict / generous-steelman / neutral) → revision → judge evaluation
+- Decision-action verdicts: ADOPT / REVISE / REJECT / ESCALATE (not winner-picking)
+- Binding/advisory judge weights — Analyst is binding by default; Aesthete and Stylist are advisory
+- Quick single-agent modes: 1:1 Direct Challenge, Panel Review, Pre-mortem, Red Team, Architecture Adversary
+- Three decision-review modes: Architecture Decision, Comparative Analysis, Writing Refinement
+- Persist-on-collect rule for all judge/reviewer output
+- Retry & recovery protocol with quorum logic
 
 **Dependencies**: None (orchestrates other agents via `task()`)
 
