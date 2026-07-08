@@ -235,7 +235,7 @@
   },
   "hashline_edit": true,
   "monitor": {
-    "enabled": true,
+    "enabled": false,
     "live_mode_enabled": true
   },
   "model_capabilities": {
