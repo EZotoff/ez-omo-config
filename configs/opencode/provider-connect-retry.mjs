@@ -579,9 +579,21 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         }).catch(() => null);
 
         const parentID = getEventParentID(event) ?? sessionResponse?.data?.parentID;
-        if (typeof parentID === "string" && parentID.length > 0) {
-          log("info", `Skipping retry for child session ${sessionID}`);
+        const isChildSession = typeof parentID === "string" && parentID.length > 0;
+        const ruleHasFallback = typeof matchedRule.fallback_model === "string"
+          && matchedRule.fallback_model.length > 0;
+        if (isChildSession && !ruleHasFallback) {
+          log(
+            "info",
+            `Skipping retry for child session ${sessionID} (rule "${matchedRule.id}" has no fallback_model)`,
+          );
           return;
+        }
+        if (isChildSession) {
+          log(
+            "info",
+            `Child session ${sessionID} entering retry path (rule "${matchedRule.id}" has fallback_model="${matchedRule.fallback_model}")`,
+          );
         }
 
         const messagesResponse = await ctx.client.session.messages({
