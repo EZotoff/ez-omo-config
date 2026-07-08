@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-06-26"
 dep_version: "1.17.9-local"
-upstream_issue: "none"
+upstream_issue: "https://github.com/anomalyco/opencode/pull/35913"
 verification_pattern: "location\\?\\.workspaceID === undefined \\|\\| event\\.location\\.workspaceID"
 ---
 

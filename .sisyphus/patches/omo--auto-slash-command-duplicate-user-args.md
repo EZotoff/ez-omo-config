@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
 status: "active"
 applied_date: "2026-07-06"
 dep_version: "4.12.1"
-upstream_issue: "none"
+upstream_issue: "https://github.com/code-yeongyu/oh-my-openagent/pull/5983"
 verification_pattern: "\\*\\*User Arguments\\*\\*"
 ---
 
