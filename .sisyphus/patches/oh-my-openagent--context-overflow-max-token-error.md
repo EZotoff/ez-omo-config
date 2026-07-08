@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
 status: "active"
 applied_date: "2026-05-14"
 dep_version: "4.12.1"
-upstream_issue: "https://github.com/anomalyco/opencode/pull/35920"
+upstream_issue: "https://github.com/anomalyco/opencode/pull/35920 (closed — upstream isContextOverflow in @opencode-ai/llm already covers these patterns; OMO-local patch still needed because v4.12.1 regressed by re-adding max_tokens keyword)"
 verification_pattern: "isRequestTokenOverflowMessage"
 note: "v4.12.1 REGRESSED: upstream re-added 'max_tokens' to TOKEN_LIMIT_KEYWORDS (the false-positive this patch removes). Patch is MORE necessary on v4.12.1. Surrounding parser.ts code refactored with isRecord/readStringProperty/parseJsonOrNull helpers from @oh-my-opencode/utils."
 ---
