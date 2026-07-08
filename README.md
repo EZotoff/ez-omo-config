@@ -102,7 +102,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 12b | `patch-tracker/` | `skills/` | Patch registry CRUD and post-update verification skill |
 | 12c | `register-retry-error/` | `skills/` | Retryable error pattern registration skill |
 | 12d | `session-id/` | `skills/` | Session ID clipboard (skill form, mirrors the `/session-id` plugin) |
-| 12e | `debate/` | `skills/` | Structured adversarial debate protocol with configurable judge panels and 6 distinct modes |
+| 12e | `debate/` | `skills/` | Structured adversarial analysis: quick modes (challenge, panel, pre-mortem, red team) plus a decision-review protocol with binding/advisory judges producing ADOPT/REVISE/REJECT/ESCALATE verdicts |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
 | 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
 | 16 | `deployment/` | `skills/` | Infrastructure deployment helpers |
@@ -387,7 +387,10 @@ For install locations, failure string meanings, and reapply instructions:
 - **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.12.1)
 - **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.12.1)
 - **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on local OpenCode 1.17.9 binary)
+- **OpenCode SSE directory filter removal**: `.sisyphus/patches/opencode--sse-directory-filter-removal.md` (active on local OpenCode 1.17.9 binary)
+- **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (active on local OpenCode 1.17.9 binary; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line)
 - **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.12.1)
+- **Auto-slash-command duplicate user args**: `.sisyphus/patches/omo--auto-slash-command-duplicate-user-args.md` (active on OMO v4.12.1)
 - **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (active on OMO v4.12.1)
 - **Parent-wake sync mode for TUI render**: `.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md` (ROLLED BACK — ineffective; root cause is upstream OpenCode TUI SSE bug, not OMO dispatch mode)
 - **Parent-wake live-route rollback**: `oh-my-openagent.json#experimental.disable_live_parent_wake_routing=true` keeps parent wakes on the in-process dispatch path because externally routed parent-wake turns can be persisted without live-rendering in the current OpenCode TUI.

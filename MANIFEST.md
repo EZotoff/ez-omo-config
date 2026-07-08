@@ -177,6 +177,9 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 12 | `opencode--commit-policy-unblock` | `opencode` | active | 2026-05-02 | `grep -n "Git commits: follow the active git workflow" ~/src/opencode/packages/opencode/src/tool/bash.txt` |
 | 13 | `omo--parent-wake-sync-mode-for-tui-render` | `oh-my-openagent` | rolled_back | 2026-06-24 | Do not reapply; ineffective workaround for upstream OpenCode TUI SSE rendering issue |
 | 14 | `opencode--command-hook-cancellation` | `opencode` | active | 2026-06-26 | `grep -ER "cancelled: boolean|commandOutput.cancelled|HttpServerResponse.empty\(\)" ~/src/opencode/packages/plugin/src/index.ts ~/src/opencode/packages/opencode/src/session/prompt.ts ~/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts` |
+| 15 | `opencode--sse-directory-filter-removal` | `opencode` | active | 2026-06-26 | `grep -q 'location?\.workspaceID === undefined' ~/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts` — removes directory filter that broke TUI rendering for worktree/plugin-initiated sessions |
+| 16 | `opencode--link-click-wrapped-osc8` | `opencode` | active | 2026-07-06 | `grep -n 'buffers\.attributes\[idx\] >>> 8' ~/src/opencode/packages/tui/src/routes/session/index.tsx` — TS-level onMouseUp workaround for Alacritty wrapped OSC 8 hyperlink click bug |
+| 17 | `omo--auto-slash-command-duplicate-user-args` | `oh-my-openagent@4.12.1` | active | 2026-07-06 | `test $(grep -c '## User Request' ~/oh-my-openagent-v4.12.1/dist/index.js) -eq 0` — removes duplicate user arguments footer from formatCommandTemplate |
 
 ## Operator Tools (Repo-Only, Not Installed)
 
