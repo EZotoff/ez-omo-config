@@ -9,7 +9,7 @@ dep_version: "4.12.1"
 upstream_issue: "https://github.com/code-yeongyu/oh-my-openagent/issues/5189"
 verification_pattern: 'forceNoReply !== true && input.latestWake.shouldReply ? "sync"'
 post_update_status: "do_not_reapply"
-note: "ROLLED BACK 2026-06-25: Patch was ineffective. Changing dispatch mode from async to sync did not fix the TUI rendering issue. Root cause confirmed as upstream OpenCode TUI bug (#26671/#27380/#32010): the TUI does not reliably render messages produced by plugin-initiated continuations, regardless of sync/async dispatch mode. Messages ARE persisted (confirmed via REST API) but the TUI's SSE event processing doesn't update for plugin-initiated turns. Do NOT reapply this patch."
+note: "ROLLED BACK 2026-06-25: Patch was ineffective. Changing dispatch mode from async to sync did not fix the TUI rendering issue. REAL root cause confirmed as OpenCode SSE event directory filter (event.ts: event.location?.directory === instance.directory) dropping events for sessions whose location.directory diverges from the server instance directory. Fixed by local patch opencode--sse-directory-filter-removal (active, applied 2026-06-26) which removes the directory check entirely. Also tracked as upstream PR #33737. The config-only mitigation experimental.disable_live_parent_wake_routing: true (commit 360868a) was a stopgap before the binary patch was built. Do NOT reapply this sync-mode patch."
 ---
 
 # Parent-Wake Sync Mode for TUI Live-Render
