@@ -58,7 +58,7 @@ if provider.get('openai', {}).get('name') != 'Codex':
 print('PASS: provider.openai exists and is labeled Codex')
 
 openai_models = provider.get('openai', {}).get('models', {})
-expected_models = ['gpt-5.2', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-2026-03-05', 'gpt-5.3-codex', 'gpt-5.3-codex-spark', 'gpt-5.1-codex-max']
+expected_models = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.2', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-2026-03-05', 'gpt-5.3-codex', 'gpt-5.3-codex-spark', 'gpt-5.1-codex-max']
 missing = [m for m in expected_models if m not in openai_models]
 if missing:
     print(f'FAIL: missing expected models: {missing}')
@@ -84,23 +84,23 @@ print('PASS: opencode-openai-codex-auth plugin entry exists')
 
 expected_agent_models = {
     'sisyphus': 'zai-coding-plan/glm-5.2',
-    'hephaestus': 'openai/gpt-5.4',
-    'oracle': 'openai/gpt-5.5',
+    'hephaestus': 'openai/gpt-5.6-sol',
+    'oracle': 'openai/gpt-5.6-sol',
     'prometheus': 'zai-coding-plan/glm-5.2',
-    'metis': 'openai/gpt-5.5',
-    'momus': 'openai/gpt-5.5',
+    'metis': 'openai/gpt-5.6-sol',
+    'momus': 'openai/gpt-5.6-sol',
+    'multimodal-looker': 'openai/gpt-5.6-terra',
 }
 expected_category_models = {
-    'ultrabrain': 'openai/gpt-5.5',
-    'deep': 'openai/gpt-5.5',
+    'ultrabrain': 'openai/gpt-5.6-sol',
+    'deep': 'openai/gpt-5.6-sol',
     'quick': 'opencode-go/deepseek-v4-flash',
     'unspecified-low': 'opencode-go/deepseek-v4-flash',
     'unspecified-high': 'opencode-go/deepseek-v4-pro',
-    'mephistopheles': 'openai/gpt-5.5',
+    'mephistopheles': 'openai/gpt-5.6-sol',
 }
 
 expected_gemini_routes = {
-    ('agents', 'multimodal-looker'): 'google/gemini-3.5-flash',
     ('agents', 'frontend-ui-ux-engineer'): 'google/gemini-3.5-flash',
     ('categories', 'visual-engineering'): 'google/gemini-3.5-flash',
     ('categories', 'artistry'): 'google/gemini-3.1-pro-preview',
@@ -121,9 +121,9 @@ if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
 print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
-    'sisyphus': ['openai/gpt-5.5', 'kimi-for-coding-oauth/kimi-for-coding'],
+    'sisyphus': ['openai/gpt-5.6-sol', 'kimi-for-coding-oauth/kimi-for-coding'],
     'oracle': ['google/gemini-3.1-pro-preview'],
-    'prometheus': ['openai/gpt-5.5', 'zai-coding-plan/glm-5.2'],
+    'prometheus': ['openai/gpt-5.6-sol', 'zai-coding-plan/glm-5.2'],
     'metis': ['google/gemini-3.1-pro-preview'],
     'momus': ['google/gemini-3.1-pro-preview'],
 }
@@ -145,7 +145,7 @@ expected_category_fallbacks = {
     'quick': ['kimi-for-coding-oauth/kimi-for-coding'],
     'unspecified-low': ['kimi-for-coding-oauth/kimi-for-coding'],
     'unspecified-high': ['kimi-for-coding-oauth/kimi-for-coding'],
-    'mephistopheles': ['openai/gpt-5.4', 'opencode-go/kimi-k2.6'],
+    'mephistopheles': ['opencode-go/kimi-k2.6'],
 }
 
 for name, expected in expected_category_models.items():
@@ -195,13 +195,13 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if meph.get('fallback_models') != ['openai/gpt-5.4', 'opencode-go/kimi-k2.6']:
+if meph.get('fallback_models') != ['opencode-go/kimi-k2.6']:
     print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')
 
 dream_model = omo.get('aspectDynamics', {}).get('dreamAgent', {}).get('model', {})
-if dream_model != {'providerID': 'openai', 'modelID': 'gpt-5.4'}:
+if dream_model != {'providerID': 'openai', 'modelID': 'gpt-5.6-sol'}:
     print(f'FAIL: aspectDynamics.dreamAgent.model has unexpected value: {dream_model!r}')
     sys.exit(1)
 print('PASS: aspectDynamics dream agent GPT route prefers openai')

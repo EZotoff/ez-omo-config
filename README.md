@@ -260,7 +260,7 @@ cd ez-omo-config
 | Provider | Description | Key Models |
 |----------|-------------|------------|
 | **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
-| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.2, GPT 5.5, GPT 5.4, GPT 5.3 Codex, GPT 5.1 Codex Max |
+| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.2, GPT 5.5, GPT 5.4, GPT 5.3 Codex, GPT 5.1 Codex Max |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
 | **Moonshot** | Kimi models via OpenAI-compatible API | Kimi K2.5, Kimi K2.6, Kimi K2.7 Code |
 | **Kimi Code** | Kimi coding models via Anthropic-compatible API | Kimi K2.5 (`k2p5`) |
@@ -273,19 +273,19 @@ cd ez-omo-config
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `zai-coding-plan/glm-5.2` | default | `kimi-for-coding-oauth/kimi-for-coding`, `openai/gpt-5.4` | Orchestrator with wisdom injection |
-| **prometheus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.5`, `zai-coding-plan/glm-5.2` | Planner, deep reasoning, HTML proposal packets before executable plans |
-| **sisyphus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.5`, `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
-| **sisyphus-junior** | `zai-coding-plan/glm-5.2` | default | `openai/gpt-5.4` | Category task executor |
+| **atlas** | `zai-coding-plan/glm-5.2` | default | `kimi-for-coding-oauth/kimi-for-coding`, `openai/gpt-5.6-sol` | Orchestrator with wisdom injection |
+| **prometheus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol`, `zai-coding-plan/glm-5.2` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **sisyphus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol`, `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
+| **sisyphus-junior** | `zai-coding-plan/glm-5.2` | default | `openai/gpt-5.6-sol` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | (none) | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `opencode-go/deepseek-v4-flash` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `google/gemini-3.5-flash` | high | `zai-coding-plan/glm-5.2` | Complex frontend work |
 | **document-writer** | `opencode-go/kimi-k2.6` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
-| **multimodal-looker** | `google/gemini-3.5-flash` | default | (none) | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.5` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
-| **metis** | `openai/gpt-5.5` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
-| **momus** | `openai/gpt-5.5` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
-| **hephaestus** | `openai/gpt-5.4` | xhigh | (none) | Infrastructure, deployment |
+| **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
+| **oracle** | `openai/gpt-5.6-sol` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **metis** | `openai/gpt-5.6-sol` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
+| **momus** | `openai/gpt-5.6-sol` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
+| **hephaestus** | `openai/gpt-5.6-sol` | xhigh | (none) | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
 
