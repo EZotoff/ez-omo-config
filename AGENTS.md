@@ -30,7 +30,7 @@ Live configs are symlinks pointing into this repo:
 1. **Edit the store path** (files in this repo). The symlinks ensure OpenCode sees the change.
 2. **No propagation needed.** The old copy-and-adapt workflow is dead. There is no second file to sync.
 3. **Never commit auth/API keys.** `~/.local/share/opencode/auth.json` is machine-local.
-4. **Machine-specific values are acceptable.** The store contains `file://` paths with absolute paths (e.g. `file:///home/ezotoff/...`). This is expected — new machines adapt these via `install.sh`.
+4. **No machine-specific paths.** `opencode.json` uses relative paths for all local plugins (e.g. `./provider-connect-retry.mjs`, `../../.opencode/plugin/subagent-loop-guard.ts`), resolved by OpenCode against the config file's directory. No manual path updates are needed on a new machine.
 5. **Validate JSON after editing.** Run `python3 -c "import json; json.load(open('path'))"` on changed files.
 
 ## Live Deployment Claim Discipline
@@ -96,7 +96,7 @@ Because this repo IS the live configuration, any change to config files, plugins
 ## Provider Setup
 
 - **Built-in providers** (e.g. `google`, `opencode-go`): Only need an entry in `enabled_providers` array + API key in `auth.json`. No `npm` or `options.baseURL` needed.
-- **Custom/OpenAI-compatible providers** (e.g. `moonshot`, `kimi-code`, `deepseek`): Need full provider block with `npm: "@ai-sdk/openai-compatible"`, `options.baseURL`, and model definitions.
+- **Custom/OpenAI-compatible providers** (e.g. `deepseek`, `zai-coding-plan`, `kimi-for-coding-oauth`): Need full provider block with `npm: "@ai-sdk/openai-compatible"`, `options.baseURL`, and model definitions.
 - **Auth keys**: Stored in `~/.local/share/opencode/auth.json` under the provider ID. Format: `{ "type": "api", "key": "sk-..." }`. Never commit this file.
 
 ## New Machine Setup
@@ -105,8 +105,13 @@ Because this repo IS the live configuration, any change to config files, plugins
 git clone https://github.com/EZotoff/ez-omo-config.git
 cd ez-omo-config
 ./install.sh --symlink
-# Then update any machine-specific file:// paths in configs/opencode/opencode.json
+# Set up API keys:
+cp auth.json.example ~/.local/share/opencode/auth.json
+# Edit auth.json with your provider keys
+./scripts/check-prerequisites.sh
 ```
+
+No manual path updates are needed — `opencode.json` uses relative paths for all local plugins, resolved against the config file's directory by OpenCode.
 
 ## Patching OpenCode Binary
 

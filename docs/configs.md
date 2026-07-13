@@ -482,7 +482,7 @@ The following values must **never** appear in any observability event:
 | Full message text | Message ID, role, and token count |
 | Prompt content | Prompt hash or `prompt_sha256` |
 | Model response | Response length in tokens and finish reason |
-| API key | Provider ID only (e.g., `openai`, `moonshot`) |
+| API key | Provider ID only (e.g., `openai`, `deepseek`) |
 | File path with secrets | File name only, or a redaction marker `<redacted>` |
 
 ### Retention Rules

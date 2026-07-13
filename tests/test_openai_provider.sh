@@ -58,7 +58,7 @@ if provider.get('openai', {}).get('name') != 'Codex':
 print('PASS: provider.openai exists and is labeled Codex')
 
 openai_models = provider.get('openai', {}).get('models', {})
-expected_models = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.2', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-2026-03-05', 'gpt-5.3-codex', 'gpt-5.3-codex-spark', 'gpt-5.1-codex-max']
+expected_models = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']
 missing = [m for m in expected_models if m not in openai_models]
 if missing:
     print(f'FAIL: missing expected models: {missing}')

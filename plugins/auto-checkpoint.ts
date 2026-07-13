@@ -46,7 +46,7 @@ const CONFIG = {
 		helperPollIntervalMs: 1_000,
 		proposalMaxDiffBytes: 120_000,
 		maxCandidateFiles: 40,
-		model: "openai/gpt-5.3-codex-spark",
+		model: "openai/gpt-5.6-luna",
 	},
 } as const
 

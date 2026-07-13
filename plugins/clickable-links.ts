@@ -28,7 +28,7 @@ When you mention a file the user may want to open — deliveries, status/progres
 - Target: a file:// URL with an ABSOLUTE path. Relative targets are not clickable.
 - Label: the workspace-relative path, optionally with :line or :line:col.
 - Apply this to every user-facing file reference. Inside fenced code blocks, bare paths are fine.
-- Example: Edited [configs/opencode/opencode.json:15](file:///home/ezotoff/ez-omo-config/configs/opencode/opencode.json)`
+- Example: Edited [configs/opencode/opencode.json:15](file:///abs/path/to/configs/opencode/opencode.json)`
 
 const ClickableLinksPlugin: Plugin = async () => {
 	return {

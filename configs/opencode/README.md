@@ -5,7 +5,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | File | What it configures | Install target |
 |---|---|---|
 | `AGENTS.md` | Global user-level agent instructions loaded by OpenCode on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers and uses vanilla code discovery guidance. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` |
-| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, and runtime defaults | `$HOME/.config/opencode/opencode.json` |
+| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, and runtime defaults. **Uses relative paths for all local plugins** — no manual path updates needed on new machines. OMO is loaded as `oh-my-openagent@latest` from npm. | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
 | `magic-context.jsonc` | Disabled Magic Context configuration retained for rollback/reference | `$HOME/.config/opencode/magic-context.jsonc` |
 | `dcp.jsonc.retired` | Retired DCP plugin configuration. Kept for historical reference. | Not installed |
@@ -26,6 +26,22 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `session-info.ts` | Intercepts `/session-info`, copies project/session metadata to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch for true no-LLM behavior. | `$HOME/.opencode/plugin/session-info.ts` |
 | `session-id.ts` | Intercepts `/session-id`, copies the invoking session ID to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/session-id.ts` |
 | `vscode.ts` | Intercepts `/vscode`, launches VS Code in the current directory, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/vscode.ts` |
+
+## Plugin Array Path Resolution
+
+`opencode.json` declares local plugins using **relative paths**, resolved by OpenCode against the config file's directory (`~/.config/opencode/`):
+
+| Plugin spec | Resolves to |
+|-------------|-------------|
+| `./provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` |
+| `./aspect-dynamics.mjs` | `~/.config/opencode/aspect-dynamics.mjs` |
+| `../../.opencode/plugin/subagent-loop-guard.ts` | `~/.opencode/plugin/subagent-loop-guard.ts` |
+| `../../.opencode/plugin/clickable-links.ts` | `~/.opencode/plugin/clickable-links.ts` |
+| `../../.opencode/plugin/session-info.ts` | `~/.opencode/plugin/session-info.ts` |
+| `../../.opencode/plugin/session-id.ts` | `~/.opencode/plugin/session-id.ts` |
+| `../../.opencode/plugin/vscode.ts` | `~/.opencode/plugin/vscode.ts` |
+
+OMO is loaded as `"oh-my-openagent@latest"` (npm package), auto-cached on first launch. The `browser-lifecycle-plugin` (agent-browser session cleanup) is optional and not included in the default config — add it manually if needed.
 
 ## Worktree Lifecycle Automation
 

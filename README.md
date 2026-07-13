@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 7 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains reusable presets, plugins, skills, and scripts organized into a portable configuration you can fork and adapt.
 
@@ -12,25 +12,40 @@ Clone, run `./install.sh`, and get a fully configured AI coding environment in s
 
 ## Quick Start
 
-Get up and running in three steps:
+Get up and running in six steps:
 
 ```bash
-# 1. Clone the repository
+# 1. Install prerequisites
+#    OpenCode CLI:  https://opencode.ai
+#    bun:           https://bun.sh
+#    Docker (optional, for worktree isolation): https://docker.com
+
+# 2. Clone the repository
 git clone https://github.com/EZotoff/ez-omo-config.git
 cd ez-omo-config
 
-# 2. Run the installer (dry-run first to preview changes)
+# 3. Run the installer (dry-run first to preview changes)
 ./install.sh --dry-run
 
-# 3. Install for real
+# 4. Install for real
 ./install.sh
+
+# 5. Set up API keys
+cp auth.json.example ~/.local/share/opencode/auth.json
+#    Edit the file and replace YOUR_*_API_KEY placeholders.
+#    OAuth providers (openai, kimi-for-coding-oauth) auto-populate via:
+#      opencode auth login openai
+#      opencode auth login kimi-for-coding-oauth
+
+# 6. Verify prerequisites and start
+./scripts/check-prerequisites.sh
+opencode
 ```
 
-Verify installation by checking the installed configs:
-```bash
-ls -la ~/.config/opencode/
-ls -la ~/.opencode/plugin/
-```
+The installer uses relative paths in `opencode.json` — no manual path
+updates are needed on a new machine. Config files are symlinked from
+`~/.config/opencode/` into this repo, so editing either path updates the
+same file.
 
 ---
 
@@ -255,18 +270,16 @@ cd ez-omo-config
 
 ## Configuration Highlights
 
-### 9 Enabled Providers
+### 7 Enabled Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
 | **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
-| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.2, GPT 5.5, GPT 5.4, GPT 5.3 Codex, GPT 5.1 Codex Max |
+| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
-| **Moonshot** | Kimi models via OpenAI-compatible API | Kimi K2.5, Kimi K2.6, Kimi K2.7 Code |
-| **Kimi Code** | Kimi coding models via Anthropic-compatible API | Kimi K2.5 (`k2p5`) |
 | **Kimi For Coding (OAuth)** | Kimi K2.7 Code via device-flow OAuth | Kimi K2.7 Code (`kimi-for-coding` alias auto-routes to K2.7 Code with thinking on, falls back to K2.6 with thinking off) |
 | **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1, GLM 5.2 |
-| **DeepSeek** | DeepSeek V3.2 + V4 | DeepSeek Chat, DeepSeek Reasoner, DeepSeek V4 Flash, DeepSeek V4 Pro |
+| **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
 
 ### 13 Agent Model Assignments
@@ -277,8 +290,8 @@ cd ez-omo-config
 | **prometheus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol`, `zai-coding-plan/glm-5.2` | Planner, deep reasoning, HTML proposal packets before executable plans |
 | **sisyphus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol`, `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
 | **sisyphus-junior** | `zai-coding-plan/glm-5.2` | default | `openai/gpt-5.6-sol` | Category task executor |
-| **librarian** | `opencode-go/minimax-m3` | default | (none) | Search, documentation |
-| **explore** | `opencode-go/minimax-m3` | default | `opencode-go/deepseek-v4-flash` | Discovery, exploration |
+| **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.2` | Search, documentation |
+| **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.2` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `google/gemini-3.5-flash` | high | `zai-coding-plan/glm-5.2` | Complex frontend work |
 | **document-writer** | `opencode-go/kimi-k2.6` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
@@ -320,7 +333,7 @@ The configuration includes layered defenses against runaway subagent sessions (f
 | **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.5-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
 | **Aggressive error purge** | Enabled via OMO dynamic context pruning | Drops failed build/test outputs after 2 turns using OMO's context-pruning strategy. |
 | **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Intended to catch 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) are NOT cancelled by this setting and rely on the subagent loop guard sliding-window detector. |
-| **Subagent loop guard plugin** | `opencode.json#plugin: file:///home/ezotoff/.opencode/plugin/subagent-loop-guard.ts` | Configured to watch the last 50 tool calls per session, convert bash calls to `echo "[loop-guard] blocked: ..."` when Rule A or Rule B fires, and log a Rule C informational warning past the configured total-call threshold |
+| **Subagent loop guard plugin** | `opencode.json#plugin: ../../.opencode/plugin/subagent-loop-guard.ts` (relative path) | Configured to watch the last 50 tool calls per session, convert bash calls to `echo "[loop-guard] blocked: ..."` when Rule A or Rule B fires, and log a Rule C informational warning past the configured total-call threshold |
 
 **Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. The `subagent-loop-guard.ts` plugin is configured to add sliding-window detection as a local add-on.
 
@@ -407,12 +420,19 @@ For install locations, failure string meanings, and reapply instructions:
 
 ## Dependencies
 
-Before using this configuration, ensure you have:
+Before using this configuration, install the following prerequisites:
 
-1. **OpenCode CLI** - The core AI coding assistant ([installation guide](https://opencode.ai))
-2. **Oh-My-OpenAgent** - Enhancement layer for OpenCode
+| Dependency | Required? | Install |
+|------------|-----------|--------|
+| **OpenCode CLI** | Required | [opencode.ai](https://opencode.ai) — `curl -fsSL https://opencode.ai/install \| bash` |
+| **bun** | Required | [bun.sh](https://bun.sh) — `curl -fsSL https://bun.sh/install \| bash` |
+| **Oh-My-OpenAgent** | Auto-installed | Loaded as `oh-my-openagent@latest` npm package on first OpenCode launch. No manual install needed. |
+| **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
+| **API keys** | Required | See `auth.json.example` for the 7 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
 
-The installer handles placing configuration files in the correct locations. It does not install OpenCode or OMO themselves.
+The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, or Docker — those must be installed separately. OMO is loaded as an npm package and auto-cached on first launch.
+
+**Binary patches** (optional): Several features (true no-LLM `/session-id`, `/session-info`, `/vscode` cancellation) require patches to the OpenCode binary or OMO npm cache. These are documented in `.sisyphus/patches/` but NOT auto-applied by `install.sh`. Use the `patch-opencode` skill or follow the patch docs manually.
 
 ---
 

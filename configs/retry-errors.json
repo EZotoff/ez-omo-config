@@ -126,8 +126,8 @@
       "max_retries": 0,
       "backoff_ms": [1000],
       "retry_after_tool_execution": false,
-      "fallback_model": "openai/gpt-5.5",
-      "description": "Request size exceeds the current model's context window (e.g., 262144 limit on Kimi). Immediately fall back to gpt-5.5 (1M context) so the session can continue while OpenCode/OMO context management compacts or prunes history.",
+      "fallback_model": "openai/gpt-5.6-sol",
+      "description": "Request size exceeds the current model's context window (e.g., 262144 limit on Kimi). Immediately fall back to gpt-5.6-sol (1.05M context) so the session can continue while OpenCode/OMO context management compacts or prunes history.",
       "added_by": "sisyphus",
       "added_at": "2026-06-24"
     }

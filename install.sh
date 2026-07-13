@@ -417,6 +417,24 @@ print_summary() {
     else
         log "No backups were needed."
     fi
+
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+        log ""
+        log "Next steps:"
+        log "  1. Set up API keys:"
+        log "     cp auth.json.example ~/.local/share/opencode/auth.json"
+        log "     # Edit the file and replace YOUR_*_API_KEY placeholders"
+        log "     # OAuth providers (openai, kimi-for-coding-oauth) auto-populate via:"
+        log "     #   opencode auth login <provider>"
+        log ""
+        log "  2. Verify prerequisites:"
+        log "     ./scripts/check-prerequisites.sh"
+        log ""
+        log "  3. Binary patches (optional, required for true no-LLM /session-id, /session-info, /vscode):"
+        log "     See .sisyphus/patches/ for manual apply instructions."
+        log ""
+        log "  4. Start OpenCode: opencode"
+    fi
 }
 
 main() {

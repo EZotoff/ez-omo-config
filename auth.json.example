@@ -1,0 +1,40 @@
+{
+  "_comment": "Copy this file to ~/.local/share/opencode/auth.json and replace placeholder values. OAuth providers (openai, kimi-for-coding-oauth) are auto-populated by running 'opencode auth login <provider>' — do NOT manually edit those entries.",
+
+  "google": {
+    "type": "api",
+    "key": "YOUR_GOOGLE_AI_STUDIO_API_KEY"
+  },
+
+  "openai": {
+    "_comment": "Auto-populated by Codex OAuth. Run: opencode auth login openai",
+    "type": "oauth",
+    "key": "AUTO_GENERATED_DO_NOT_EDIT"
+  },
+
+  "opencode-go": {
+    "type": "api",
+    "key": "YOUR_OPENCODE_GO_API_KEY"
+  },
+
+  "kimi-for-coding-oauth": {
+    "_comment": "Auto-populated by device-flow OAuth. Run: opencode auth login kimi-for-coding-oauth",
+    "type": "oauth",
+    "key": "AUTO_GENERATED_DO_NOT_EDIT"
+  },
+
+  "zai-coding-plan": {
+    "type": "api",
+    "key": "YOUR_ZAI_CODING_PLAN_API_KEY"
+  },
+
+  "deepseek": {
+    "type": "api",
+    "key": "YOUR_DEEPSEEK_API_KEY"
+  },
+
+  "inception": {
+    "type": "api",
+    "key": "YOUR_INCEPTION_LABS_API_KEY"
+  }
+}

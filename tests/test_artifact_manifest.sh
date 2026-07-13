@@ -98,7 +98,7 @@ assert_grep '\$HOME/.config/opencode/provider-connect-retry.mjs' "$REPO_ROOT/con
 assert_grep '\$HOME/.opencode/ocx.jsonc' "$REPO_ROOT/configs/opencode/README.md"
 
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/commands/models-preset.md"
-# opencode.json is symlinked to live config — machine-specific file:// paths are expected
+assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/extras/ocx.jsonc"

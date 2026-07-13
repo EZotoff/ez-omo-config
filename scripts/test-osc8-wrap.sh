@@ -22,8 +22,8 @@ printf '\n=== OSC 8 Multi-line Hyperlink Test ===\n\n'
 # Link 1: long file path that wraps at 40 cols
 printf 'Link 1 (file path, wraps at ~40 cols):\n'
 tput cuf 0  # ensure left margin
-printf "$OSC8_OPEN" "file:///home/ezotoff/ez-omo-config/configs/opencode/opencode.json"
-printf '/home/ezotoff/ez-omo-config/configs/opencode/opencode.json'
+printf "$OSC8_OPEN" "file://$HOME/ez-omo-config/configs/opencode/opencode.json"
+printf '$HOME/ez-omo-config/configs/opencode/opencode.json'
 printf "$OSC8_CLOSE"
 printf '\n\n'
 

@@ -29,12 +29,17 @@
       "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "librarian": {
-      "model": "opencode-go/minimax-m3"
+      "model": "opencode-go/minimax-m3",
+      "fallback_models": [
+        "openai/gpt-5.6-terra",
+        "zai-coding-plan/glm-5.2"
+      ]
     },
     "explore": {
       "model": "opencode-go/minimax-m3",
       "fallback_models": [
-        "opencode-go/deepseek-v4-flash"
+        "openai/gpt-5.6-luna",
+        "zai-coding-plan/glm-5.2"
       ]
     },
     "multimodal-looker": {

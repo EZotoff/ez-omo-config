@@ -15,7 +15,7 @@
 //
 // The test reads the live registry at ~/.config/opencode/retry-errors.json.
 // It relies on two stock rules:
-//   - model-token-limit-exceeded (fallback_model: "openai/gpt-5.5", max_retries: 0)
+//   - model-token-limit-exceeded (fallback_model: "openai/gpt-5.6-sol", max_retries: 0)
 //   - sse-read-timeout (no fallback_model, max_retries: 3, backoff [1000,6000,36000])
 
 import assert from "node:assert";
@@ -79,7 +79,7 @@ async function run() {
     const mock = makeMockClient("ses_parent_root"); // child has parentID
     const plugin = await ProviderConnectRetryPlugin({ client: mock.client, directory: "/tmp" });
     // "request exceeded model token limit" matches model-token-limit-exceeded
-    // (fallback_model: "openai/gpt-5.5", max_retries: 0 → immediate fallback)
+    // (fallback_model: "openai/gpt-5.6-sol", max_retries: 0 → immediate fallback)
     await plugin.event(makeErrorEvent(childSessionID, "request exceeded model token limit"));
 
     assert.strictEqual(
@@ -98,8 +98,8 @@ async function run() {
     );
     assert.strictEqual(
       mock.promptAsyncCalls[0].body.model.modelID,
-      "gpt-5.5",
-      `Case 1: expected fallback model "gpt-5.5", got "${mock.promptAsyncCalls[0].body.model.modelID}"`,
+      "gpt-5.6-sol",
+      `Case 1: expected fallback model "gpt-5.6-sol", got "${mock.promptAsyncCalls[0].body.model.modelID}"`,
     );
     console.log("PASS case 1: child session + fallback rule → fallback dispatched");
   }
