@@ -10,74 +10,48 @@ upstream_issue: "none"
 verification_pattern: "__linkLabelPatch"
 ---
 
-# OpenCode TUI link-click workaround for wrapped OSC 8 hyperlinks
+# OpenCode TUI link rendering + click workaround for markdown links
 
 ## Problem
-File links (`[label](file:///abs/path)`) in assistant markdown messages render via OpenTUI's native `.link` chunk mechanism, which emits OSC 8 terminal hyperlinks. Two bugs combine to make wrapped links only clickable on their first visual line:
 
-1. **OpenTUI detectLinks gap**: After tree-sitter highlighting replaces initial streaming chunks, `detectLinks` only re-tags `markup.link.url` chunks (the concealed URL) with `.link`, not `markup.link.label` chunks (the visible label). Label cells lose their linkId, so OSC 8 is no longer emitted for them. Ctrl+Click on the visible label text stops working entirely after tree-sitter completes.
+Three bugs combine to make markdown file links render poorly and wrap-break:
 
-2. **Alacritty hyperlink_at regression**: Even when label cells retain linkId (during the streaming window before tree-sitter), Alacritty's `hyperlink_at` (`alacritty/src/display/hint.rs:425`) only returns contiguous cells within a single row — a regression from commit `275726f` (March 2024). Ctrl+Click on the second+ visual line of a wrapped OSC 8 region opens nothing. Not fixed in any Alacritty version through 0.18.0-dev. Other terminals (kitty, WezTerm, Ghostty, iTerm2) handle multi-line OSC 8 correctly.
+1. **OpenTUI conceal gap**: Conceal hides `[`/`]` brackets but NOT the URL text. `[label](file:///long/path)` renders as `label (file:///long/path)` — the long URL wraps across terminal lines.
+2. **OpenTUI detectLinks gap**: After tree-sitter, only `markup.link.url` chunks get `.link`, not `markup.link.label` chunks. Labels lose linkId and are not clickable.
+3. **Alacritty hyperlink_at regression** (commit 275726f): Wrapped OSC 8 URLs only resolve on the first visual line — clicking the second line opens a truncated path.
 
 ## Patch Description
-Two mechanisms in `packages/tui/src/routes/session/index.tsx`, both in the `TextPart` component:
 
-**Primary — `_onChunks` override (fixes Ctrl+Click on wrapped lines):**
-A `ref` callback on the `<markdown>` element patches `_onChunks` to also tag `markup.link.label` chunks with their corresponding URL after `detectLinks` runs. This preserves linkId on all label cells so OSC 8 covers every visual line, making terminal-level hyperlink click resolution work regardless of wrapping. Guard: `el.__linkLabelPatch` prevents double-patching.
+Overrides `_linkifyMarkdownChunks` via a `ref` on the `<markdown>` element:
 
-**Secondary — `onMouseUp` handler (fallback for regular clicks):**
-An `onMouseUp` handler on the `<box>` container reads the cell linkId from `renderer.currentRenderBuffer.buffers.attributes` at the click position. If linkId > 0, resolves the URL via `(renderer as any).lib.linkGetUrl(lid)`. If linkId is absent, falls back to parsing `[label](url)` patterns from the markdown content and matching the clicked line text against known labels. Skips when text selection is active.
+1. **Conceal URL filtering**: When conceal is ON, filters out `](url)` syntax and URL chunks so only the label renders — no wrapping.
+2. **Label tagging**: Tags label chunks with `.link = { url }` so labels carry linkId and are clickable via OSC 8.
 
-84 insertions, 1 deletion. Purely additive — no behavior change for non-link cells.
+Also adds an `onMouseUp` fallback on the container `<box>` for regular clicks (linkId resolution + text-based `[label](url)` matching).
+
+Key detail: the markdown renderable exposes `_linkifyMarkdownChunks` (not `_onChunks`).
 
 ## Verification
+
 ```bash
-# Primary fix: _onChunks patch marker
-grep -n "__linkLabelPatch" \
-  /home/ezotoff/src/opencode/packages/tui/src/routes/session/index.tsx
-
-# Secondary fix: onMouseUp handler present
-grep -n "buffers\.attributes\[idx\] >>> 8" \
-  /home/ezotoff/src/opencode/packages/tui/src/routes/session/index.tsx
-
-# Import
-grep -n 'import open from "open"' \
-  /home/ezotoff/src/opencode/packages/tui/src/routes/session/index.tsx
+grep -n "__linkLabelPatch" /home/ezotoff/src/opencode/packages/tui/src/routes/session/index.tsx
+grep -n "isUrlOrSyntax" /home/ezotoff/src/opencode/packages/tui/src/routes/session/index.tsx
 ```
 
-Binary verification:
-```bash
-grep -a -o '__linkLabelPatch' ~/.opencode/bin/opencode | wc -l  # expect 2
-grep -a -o 'linkGetUrl' ~/.opencode/bin/opencode | wc -l        # expect 8 (stock: 7)
-```
-
-Runtime verification (after TUI restart):
-- Ctrl+Click the SECOND visual line of a wrapped file link in a freshly-printed assistant message
-- The file should open in the default application
-- On the stock binary, only the first line would be clickable
+Runtime: with conceal ON, `[label](url)` renders as just `label` (clickable, no URL visible).
 
 ## Reapply Instructions
-1. Open `/home/ezotoff/src/opencode/packages/tui/src/routes/session/index.tsx`.
-2. Add `import open from "open"` after `import { openEditor } from "../../editor"`.
-3. In `function TextPart(...)`, add `const renderer = useRenderer()` after `const { theme, syntax } = useTheme()`.
-4. Add `onMouseUp` handler to the `<box>` that wraps `<markdown>`:
-   - Skip if `renderer.getSelection()?.getSelectedText()` is truthy
-   - Read cell linkId: `(buf.buffers.attributes[e.y * buf.width + e.x] >>> 8) & 0xffffff`
-   - If linkId > 0, call `(renderer as any).lib?.linkGetUrl?.(lid)` and `open(url)`
-   - Fallback: parse `[label](url)` from content, match clicked line text against labels
-5. Add `ref` callback to `<markdown>` that patches `el._onChunks` to tag label chunks:
-   - Guard with `el.__linkLabelPatch`
-   - Save `const orig = el._onChunks`
-   - Replace with wrapper that calls `orig`, then parses `[label](url)` patterns from `context.content`
-   - For each pattern, find chunks overlapping the label text range and set `chunk.link = { url }` if not already set
-6. Rebuild: `cd /home/ezotoff/src/opencode/packages/opencode && OPENCODE_VERSION="$(/home/ezotoff/.opencode/bin/opencode --version)" PATH=/home/ezotoff/.bun/bin:$PATH /home/ezotoff/.bun/bin/bun run script/build.ts --single --skip-install --skip-embed-web-ui`.
-7. Back up `~/.opencode/bin/opencode`, then `rm` + `cp` to swap (avoids ETXTBSY).
-8. Restart `omo-tg.service` and `opencode.service`. The running TUI session must also be restarted.
+
+1. In `packages/tui/src/routes/session/index.tsx`, add `import open from "open"`.
+2. In `TextPart`, add `const renderer = useRenderer()`.
+3. Add `onMouseUp` on `<box>`: linkId resolution + text fallback.
+4. Add `ref` on `<markdown>`: patch `el._linkifyMarkdownChunks` to tag labels and filter URLs when concealing.
+5. Rebuild, swap binary, restart services.
 
 ## Durable Alternative
-1. **Alacritty upstream fix**: Revert the `hyperlink_at` regression from commit `275726f` so click resolution walks adjacent rows. Fixes the bug for ALL OSC 8 hyperlinks. No tracking issue on alacritty/alacritty as of 2026-07-08.
-2. **OpenTUI upstream fix**: Patch `detectLinks` to also tag `markup.link.label` chunks, not just `markup.link.url`. This would eliminate the need for the `_onChunks` override.
-3. **Switch terminal**: kitty, WezTerm, Ghostty, iTerm2 handle multi-line OSC 8 clicks correctly.
-4. **Upstream opencode PR**: Submit both the `_onChunks` label-tagging patch and the onMouseUp fallback to opencode/OpenTUI as resilience improvements.
 
-Status: blocked-by-upstream (Alacritty regression + OpenTUI detectLinks gap; no upstream fix available for either)
+1. OpenTUI: fix conceal to hide full link syntax, fix detectLinks to tag labels.
+2. Alacritty: revert hyperlink_at regression from commit 275726f.
+3. Switch terminal (kitty, WezTerm, Ghostty).
+
+Status: blocked-by-upstream
