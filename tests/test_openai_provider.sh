@@ -65,6 +65,12 @@ if missing:
     sys.exit(1)
 print(f'PASS: all expected models present ({len(expected_models)})')
 
+openai_whitelist = provider.get('openai', {}).get('whitelist')
+if openai_whitelist != expected_models:
+    print(f'FAIL: provider.openai.whitelist expected {expected_models!r}, got {openai_whitelist!r}')
+    sys.exit(1)
+print('PASS: OpenAI picker whitelist contains only Sol, Terra, and Luna')
+
 google_models = provider.get('google', {}).get('models', {})
 if 'gemini-3.5-flash' not in google_models:
     print('FAIL: provider.google.models.gemini-3.5-flash missing')
@@ -145,7 +151,7 @@ expected_category_fallbacks = {
     'quick': ['kimi-for-coding-oauth/kimi-for-coding'],
     'unspecified-low': ['kimi-for-coding-oauth/kimi-for-coding'],
     'unspecified-high': ['kimi-for-coding-oauth/kimi-for-coding'],
-    'mephistopheles': ['opencode-go/kimi-k2.6'],
+    'mephistopheles': ['kimi-for-coding-oauth/kimi-for-coding'],
 }
 
 for name, expected in expected_category_models.items():
@@ -195,7 +201,7 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if meph.get('fallback_models') != ['opencode-go/kimi-k2.6']:
+if meph.get('fallback_models') != ['kimi-for-coding-oauth/kimi-for-coding']:
     print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')

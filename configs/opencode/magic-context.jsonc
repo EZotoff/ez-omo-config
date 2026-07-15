@@ -15,6 +15,6 @@
 
   "historian": {
     "model": "opencode-go/deepseek-v4-flash",
-    "fallback_models": ["opencode-go/kimi-k2.6"]
+    "fallback_models": ["kimi-for-coding-oauth/kimi-for-coding"]
   }
 }

@@ -130,6 +130,18 @@
       "description": "Request size exceeds the current model's context window (e.g., 262144 limit on Kimi). Immediately fall back to gpt-5.6-sol (1.05M context) so the session can continue while OpenCode/OMO context management compacts or prunes history.",
       "added_by": "sisyphus",
       "added_at": "2026-06-24"
+    },
+    {
+      "id": "provider-usage-limit-reached",
+      "pattern": "usage limit",
+      "match_type": "regex",
+      "max_retries": 0,
+      "backoff_ms": [1000],
+      "retry_after_tool_execution": false,
+      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
+      "description": "Provider monthly/quota usage limit exhausted (opencode-go gateway or Codex OAuth). Non-transient — retrying the same provider is pointless, so fall back immediately to a different provider (Kimi K2.7 Code via OAuth — free, separate quota). Matches both 'The usage limit has been reached' (openai) and 'Monthly usage limit reached' (opencode-go gateway). provider-connect-retry.mjs handles child sessions by calling session.abort() then session.promptAsync() directly — bypasses OMO's prompt-async-gate that blocks OMO's own session.error dispatch path.",
+      "added_by": "sisyphus",
+      "added_at": "2026-07-15"
     }
   ]
 }

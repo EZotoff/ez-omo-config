@@ -275,7 +275,7 @@ cd ez-omo-config
 | Provider | Description | Key Models |
 |----------|-------------|------------|
 | **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
-| **Codex** | GPT models via Codex OAuth (`openai` provider key) | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
+| **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
 | **Kimi For Coding (OAuth)** | Kimi K2.7 Code via device-flow OAuth | Kimi K2.7 Code (`kimi-for-coding` alias auto-routes to K2.7 Code with thinking on, falls back to K2.6 with thinking off) |
 | **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1, GLM 5.2 |
@@ -293,7 +293,7 @@ cd ez-omo-config
 | **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.2` | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.2` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `google/gemini-3.5-flash` | high | `zai-coding-plan/glm-5.2` | Complex frontend work |
-| **document-writer** | `opencode-go/kimi-k2.6` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
+| **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
 | **oracle** | `openai/gpt-5.6-sol` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `openai/gpt-5.6-sol` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
@@ -318,7 +318,7 @@ The HTML packet is for human review and discussion. The Markdown plan remains ca
 | **OpenCode Compaction** | Enabled | `opencode.json#compaction.auto=true` and `compaction.prune=true`; OpenCode owns built-in context compaction/pruning. |
 | **OMO Context Hooks** | Enabled | `preemptive-compaction`, `context-window-monitor`, and `anthropic-context-window-limit-recovery` are no longer listed in `disabled_hooks`; `experimental.preemptive_compaction=true`. |
 | **Aggressive Truncation** | Enabled | Truncates verbose tool outputs aggressively |
-| **Runtime Fallback** | Enabled | Automatically switches to fallback models on API errors (404, 429, 500, 502, 503, 504) |
+| **Runtime Fallback** | Enabled | OMO `runtime_fallback.enabled=true` — session.status path dispatches fallback models on API errors (404, 429, 500, 502, 503, 504). Works for both synchronous and background sub-agents. |
 | **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
 | **Purge Errors (2-turn)** | Enabled | OMO `dynamic_context_pruning.strategies.purge_errors` is enabled with a 2-turn retention window. |
 | **Background Task Circuit Breaker** | Enabled (maxToolCalls=500, consecutiveThreshold=15) | Configured to cancel runaway subagent tasks when a task reaches 500 total tool calls or 15 consecutive identical tool+input signatures. OMO default is 4000/20; lowered thresholds trip earlier |
