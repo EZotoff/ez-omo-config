@@ -409,6 +409,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Parent-wake live-route rollback**: `oh-my-openagent.json#experimental.disable_live_parent_wake_routing=true` keeps parent wakes on the in-process dispatch path because externally routed parent-wake turns can be persisted without live-rendering in the current OpenCode TUI.
 - **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (superseded by upstream v4.12.1 works-map architecture)
 - **Remove activity stagnation bypass**: `.sisyphus/patches/omo--remove-activity-stagnation-bypass.md` (upstreamed in OMO commit df7e1ae1)
+- **Sync delegate_task result bloat**: `.sisyphus/patches/omo--sync-delegate-task-result-bloat.md` (active — config-level mitigation via prompt_append on atlas/sisyphus agents; durable fix requires OMO code change in `fetchSyncResult`)
 
 ---
 
