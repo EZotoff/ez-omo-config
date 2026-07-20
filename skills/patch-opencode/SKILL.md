@@ -201,9 +201,15 @@ gh pr create \
 
 ### PR Template Compliance
 
-The OpenCode compliance bot auto-closes PRs within hours if the description does not match the template headers verbatim. Required headers:
+The OpenCode compliance bot auto-closes PRs within hours if the description does not match the template headers verbatim. The bot checks for ALL SIX required sections from `.github/pull_request_template.md`:
 - `### Issue for this PR`
-- `### Type of change`
+- `### Type of change` (with at least one checkbox)
+- `### What does this PR do?`
+- `### How did you verify your code works?`
+- `### Screenshots / recordings` (even just \`none\` for non-UI changes)
+- `### Checklist` (with both items present)
+
+Missing ANY of these triggers the bot. Verified empirically: a PR with only the first two headers was closed twice (#32771, #37905). A PR with all six (#37929) passed compliance on first try.
 
 Do not use AI-generated prose that ignores the template. The bot gives roughly a 2-hour window before auto-closing.
 
@@ -221,4 +227,4 @@ Do not use AI-generated prose that ignores the template. The bot gives roughly a
 | Building without `OPENCODE_VERSION` env var | Binary reports `0.0.0-fix/...` instead of live version; Step 4 fails | Always set `OPENCODE_VERSION=$LIVE_VERSION` before `bun run build` |
 | Non-systemd `opencode serve` still running | `cp` to live binary fails with `Text file busy` | Inspect matching PIDs and stop only the specific service-owned process before swapping |
 | Dirty source tree at checkout | Uncommitted changes from prior work carried into fix branch | Verify `git status --porcelain` is empty before `git checkout` |
-| PR closed by compliance bot | Hours of delay; must reopen | Match `### Issue for this PR` / `### Type of change` template headers verbatim |
+| PR closed by compliance bot | Hours of delay; must open new PR | Match ALL SIX template headers (`### Issue for this PR`, `### Type of change`, `### What does this PR do?`, `### How did you verify your code works?`, `### Screenshots / recordings`, `### Checklist`) verbatim — see https://github.com/anomalyco/opencode/blob/dev/.github/pull_request_template.md |
