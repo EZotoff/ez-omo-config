@@ -43,7 +43,7 @@
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],
       "retry_after_tool_execution": false,
-      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
+      "fallback_model": "kimi-for-coding-oauth/k3",
       "description": "GLM API parameter validation error — transient Z.AI API issue, retry before falling back to Kimi",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
@@ -55,7 +55,7 @@
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],
       "retry_after_tool_execution": false,
-      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
+      "fallback_model": "kimi-for-coding-oauth/k3",
       "description": "GLM documentation-check error variant — retries generic doc-check failures but explicitly excludes deterministic 'messages parameter is illegal' request errors",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
@@ -67,7 +67,7 @@
       "max_retries": 5,
       "backoff_ms": [5000, 10000, 20000, 40000, 60000],
       "retry_after_tool_execution": false,
-      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
+      "fallback_model": "kimi-for-coding-oauth/k3",
       "description": "Generic server errors from any provider — retry with backoff before falling back to Kimi",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
@@ -79,7 +79,7 @@
       "max_retries": 5,
       "backoff_ms": [2000, 4000, 8000, 15000, 30000],
       "retry_after_tool_execution": true,
-      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
+      "fallback_model": "kimi-for-coding-oauth/k3",
       "detect_empty_response": true,
       "nudge_prompts": {
         "sisyphus": [
@@ -127,7 +127,7 @@
       "backoff_ms": [1000],
       "retry_after_tool_execution": false,
       "fallback_model": "openai/gpt-5.6-sol",
-      "description": "Request size exceeds the current model's context window (e.g., 262144 limit on Kimi). Immediately fall back to gpt-5.6-sol (1.05M context) so the session can continue while OpenCode/OMO context management compacts or prunes history.",
+      "description": "Request size exceeds the current model's context window (e.g., 1048576 limit on Kimi K3). Immediately fall back to gpt-5.6-sol (1.05M context) so the session can continue while OpenCode/OMO context management compacts or prunes history.",
       "added_by": "sisyphus",
       "added_at": "2026-06-24"
     },
@@ -138,8 +138,8 @@
       "max_retries": 0,
       "backoff_ms": [1000],
       "retry_after_tool_execution": false,
-      "fallback_model": "kimi-for-coding-oauth/kimi-for-coding",
-      "description": "Provider monthly/quota usage limit exhausted (opencode-go gateway or Codex OAuth). Non-transient — retrying the same provider is pointless, so fall back immediately to a different provider (Kimi K2.7 Code via OAuth — free, separate quota). Matches both 'The usage limit has been reached' (openai) and 'Monthly usage limit reached' (opencode-go gateway). provider-connect-retry.mjs handles child sessions by calling session.abort() then session.promptAsync() directly — bypasses OMO's prompt-async-gate that blocks OMO's own session.error dispatch path.",
+      "fallback_model": "kimi-for-coding-oauth/k3",
+      "description": "Provider monthly/quota usage limit exhausted (opencode-go gateway or Codex OAuth). Non-transient — retrying the same provider is pointless, so fall back immediately to a different provider (Kimi K3 via OAuth — free, separate quota). Matches both 'The usage limit has been reached' (openai) and 'Monthly usage limit reached' (opencode-go gateway). provider-connect-retry.mjs handles child sessions by calling session.abort() then session.promptAsync() directly — bypasses OMO's prompt-async-gate that blocks OMO's own session.error dispatch path.",
       "added_by": "sisyphus",
       "added_at": "2026-07-15"
     }

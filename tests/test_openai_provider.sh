@@ -92,22 +92,22 @@ expected_agent_models = {
     'sisyphus': 'zai-coding-plan/glm-5.2',
     'hephaestus': 'openai/gpt-5.6-sol',
     'oracle': 'openai/gpt-5.6-sol',
-    'prometheus': 'zai-coding-plan/glm-5.2',
-    'metis': 'openai/gpt-5.6-sol',
+    'prometheus': 'kimi-for-coding-oauth/k3',
+    'metis': 'zai-coding-plan/glm-5.2',
     'momus': 'openai/gpt-5.6-sol',
     'multimodal-looker': 'openai/gpt-5.6-terra',
+    'frontend-ui-ux-engineer': 'zai-coding-plan/glm-5.2',
 }
 expected_category_models = {
-    'ultrabrain': 'openai/gpt-5.6-sol',
-    'deep': 'openai/gpt-5.6-sol',
+    'ultrabrain': 'kimi-for-coding-oauth/k3',
+    'deep': 'zai-coding-plan/glm-5.2',
     'quick': 'opencode-go/deepseek-v4-flash',
     'unspecified-low': 'opencode-go/deepseek-v4-flash',
-    'unspecified-high': 'opencode-go/deepseek-v4-pro',
+    'unspecified-high': 'openai/gpt-5.6-sol',
     'mephistopheles': 'openai/gpt-5.6-sol',
 }
 
 expected_gemini_routes = {
-    ('agents', 'frontend-ui-ux-engineer'): 'google/gemini-3.5-flash',
     ('categories', 'visual-engineering'): 'google/gemini-3.5-flash',
     ('categories', 'artistry'): 'google/gemini-3.1-pro-preview',
 }
@@ -127,9 +127,9 @@ if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
 print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
-    'sisyphus': ['openai/gpt-5.6-sol', 'kimi-for-coding-oauth/kimi-for-coding'],
+    'sisyphus': ['openai/gpt-5.6-sol'],
     'oracle': ['google/gemini-3.1-pro-preview'],
-    'prometheus': ['openai/gpt-5.6-sol', 'zai-coding-plan/glm-5.2'],
+    'prometheus': ['zai-coding-plan/glm-5.2', 'openai/gpt-5.6-sol'],
     'metis': ['google/gemini-3.1-pro-preview'],
     'momus': ['google/gemini-3.1-pro-preview'],
 }
@@ -146,12 +146,12 @@ for name, expected in expected_agent_models.items():
             sys.exit(1)
 
 expected_category_fallbacks = {
-    'ultrabrain': ['zai-coding-plan/glm-5.2'],
-    'deep': ['kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.2'],
-    'quick': ['kimi-for-coding-oauth/kimi-for-coding'],
-    'unspecified-low': ['kimi-for-coding-oauth/kimi-for-coding'],
-    'unspecified-high': ['kimi-for-coding-oauth/kimi-for-coding'],
-    'mephistopheles': ['kimi-for-coding-oauth/kimi-for-coding'],
+    'ultrabrain': ['zai-coding-plan/glm-5.2', 'openai/gpt-5.6-sol'],
+    'deep': ['openai/gpt-5.6-sol', 'kimi-for-coding-oauth/k3'],
+    'quick': ['zai-coding-plan/glm-5.2'],
+    'unspecified-low': ['zai-coding-plan/glm-5.2'],
+    'unspecified-high': ['zai-coding-plan/glm-5.2'],
+    'mephistopheles': ['zai-coding-plan/glm-5.2'],
 }
 
 for name, expected in expected_category_models.items():
@@ -171,7 +171,7 @@ for name in ('quick', 'unspecified-low'):
         print(f'FAIL: categories.{name}.variant expected None, got {route.get("variant")!r}')
         sys.exit(1)
     fallbacks = route.get('fallback_models', [])
-    if fallbacks != ['kimi-for-coding-oauth/kimi-for-coding']:
+    if fallbacks != ['zai-coding-plan/glm-5.2']:
         print(f'FAIL: categories.{name}.fallback_models expected kimi fallback, got {fallbacks!r}')
         sys.exit(1)
 print('PASS: quick and unspecified-low use DeepSeek V4 Flash with kimi fallback')
@@ -193,7 +193,7 @@ for (scope, name), expected in expected_opencode_go_routes.items():
 print('PASS: OpenCode Go routes use current Minimax and Kimi models')
 
 unspecified_high = categories.get('unspecified-high', {})
-if unspecified_high.get('fallback_models') != ['kimi-for-coding-oauth/kimi-for-coding']:
+if unspecified_high.get('fallback_models') != ['zai-coding-plan/glm-5.2']:
     print(f'FAIL: categories.unspecified-high.fallback_models has unexpected order: {unspecified_high.get("fallback_models")!r}')
     sys.exit(1)
 
@@ -201,7 +201,7 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if meph.get('fallback_models') != ['kimi-for-coding-oauth/kimi-for-coding']:
+if meph.get('fallback_models') != ['zai-coding-plan/glm-5.2']:
     print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')

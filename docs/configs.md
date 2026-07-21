@@ -162,7 +162,7 @@ For detailed install locations, verification commands, failure string meanings, 
 
 The plugin registers an `event` handler for terminal provider errors and idle-time empty responses:
 
-1. **`session.error`** and **`message.updated` (with error)** — When a provider returns an error, the plugin loads `retry-errors.json` at runtime, matches the error message against compiled regex patterns, and dispatches a retry if a rule matches. It aborts the failed turn, waits for the configured backoff, then re-prompts the session with the last user message (or an agent-specific nudge). Retries are capped by `max_retries` and deduplicated per failed assistant message ID.
+1. **`session.error`** and **`message.updated` (with error)** — When a provider returns an error, the plugin loads `retry-errors.json` at runtime, matches the error message against compiled regex patterns, and dispatches a retry if a rule matches. It aborts the failed turn, waits for the configured backoff, then re-prompts the session with the last user message (or an agent-specific nudge). Retries are capped by `max_retries` and deduplicated per failed assistant message ID. **Self-fallback guard**: if the failing provider is the same as the rule's `fallback_model` provider, the dispatch is skipped and a TUI toast is shown instead — this prevents the K3→K3 (or any same-provider) infinite loop that previously spammed the TUI when a provider hit usage limits and the configured fallback was the same provider.
 
 2. **`session.idle`** — When a session goes idle, the plugin checks whether the most recent assistant message is empty (no text parts, no tool calls). If the `retry-errors.json` registry contains a rule with `detect_empty_response: true`, the plugin treats the empty response like an error and triggers the same retry / nudge / fallback flow. This catches stalls where the provider returns HTTP 200 with zero content.
 
@@ -183,7 +183,7 @@ When a rule defines `nudge_prompts`, the plugin sends a short agent-specific tex
 
 **Fallback Behavior**:
 
-After exhausting `max_retries`, if `fallback_model` is set, the plugin aborts the session and re-prompts using the fallback provider and model, preserving the original message parts, agent, system prompt, tools, and variant. If no fallback is configured, it logs a warning and stops.
+After exhausting `max_retries`, if `fallback_model` is set, the plugin aborts the session and re-prompts using the fallback provider and model, preserving the original message parts, agent, system prompt, tools, and variant. If no fallback is configured, it logs a warning and stops. **Self-fallback guard**: if `model.providerID === fallback.providerID` (the failing provider is the same as the fallback target), the dispatch is skipped and a TUI toast is shown instead — falling back to the same provider would create an infinite loop because each new failed prompt produces a new message ID that bypasses the `handledErrorsBySession` dedup. This is the root cause that produced the 2026-07-20 K3 quota-error spam (14+ fallback dispatches in 8 minutes on a single child session).
 
 **State Tracking**:
 
@@ -198,6 +198,15 @@ The plugin reads `~/.config/opencode/retry-errors.json` fresh on every event. Ch
 **Install Target**: `$HOME/.config/opencode/provider-connect-retry.mjs`
 
 **Status**: Required
+
+**Error Display**:
+
+User-facing output goes through `ctx.client.tui.showToast({body: {title?, message, variant, duration?}})`, which publishes a `tui.toast.show` event the TUI renders as a real toast popup. The plugin reserves toasts for terminal conditions only:
+- Self-fallback detected (failing provider === fallback provider) — `variant: error`, 15s
+- Retries exhausted with no `fallback_model` configured — `variant: warning`, 10s
+- Retry dispatch failure (catch block) — `variant: error`, 10s
+
+Routine operation (retry attempts, nudges, successful fallbacks) is silent at the TUI layer — diagnostic detail is written to `~/.config/opencode/retry-plugin.log` only. The plugin MUST NOT use `console.warn`/`console.info` for user-facing output; that text goes to server stderr/stdout and leaks into the TUI viewport as raw spam. See the global `AGENTS.md` \"Plugin Error Display\" section for the full mechanism and source-of-truth citations.
 
 
 
@@ -269,7 +278,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - OMO workflow integrations
 - Extension point configurations
 
-**Notable Model Assignments**: GPT-family routes use the Codex/OpenAI provider (`openai/*`). `provider.openai.whitelist` limits the model picker to `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`; OpenCode's built-in provider catalog would otherwise add older GPT models and fast/pro variants. `agents.multimodal-looker.model` uses `openai/gpt-5.6-terra` for image/PDF analysis. The `visual-engineering` category and the `frontend-ui-ux-engineer` agent use `google/gemini-3.5-flash` (high thinking) for frontend work — demoted from `gemini-3.1-pro-preview` on 21 Jun 2025 to cap per-session cost after forensic analysis of two runaway subagent sessions. The `artistry` category still uses `google/gemini-3.1-pro-preview` as its primary. Specialist agents (`oracle`, `metis`, `momus`) use `openai/gpt-5.6-sol` as primary with `gemini-3.1-pro-preview` as a strong secondary fallback. Both Google models are defined in `opencode.json` under `provider.google.models`. OpenCode Go-backed discovery agents use `opencode-go/minimax-m3`, and the `writing` category uses `kimi-for-coding-oauth/kimi-for-coding` as its primary (with `zai-coding-plan/glm-5.2` as fallback).
+**Notable Model Assignments**: GPT-family routes use the Codex/OpenAI provider (`openai/*`). `provider.openai.whitelist` limits the model picker to `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`; OpenCode's built-in provider catalog would otherwise add older GPT models and fast/pro variants. `agents.multimodal-looker.model` uses `openai/gpt-5.6-terra` for image/PDF analysis. The `visual-engineering` category uses `google/gemini-3.5-flash` (high thinking) for frontend work — demoted from `gemini-3.1-pro-preview` on 21 Jun 2025 to cap per-session cost after forensic analysis of two runaway subagent sessions. The `frontend-ui-ux-engineer` agent uses `zai-coding-plan/glm-5.2` (high thinking) with `openai/gpt-5.6-sol` fallback. The `artistry` category still uses `google/gemini-3.1-pro-preview` as its primary. Specialist agents (`oracle`, `metis`, `momus`) use `openai/gpt-5.6-sol` as primary with `gemini-3.1-pro-preview` as a strong secondary fallback. Both Google models are defined in `opencode.json` under `provider.google.models`. OpenCode Go-backed discovery agents use `opencode-go/minimax-m3`, and the `writing` category uses `openai/gpt-5.6-sol` as its primary (with `zai-coding-plan/glm-5.2` as fallback). K3 (`kimi-for-coding-oauth/k3`) is reserved for high-leverage roles only: `prometheus` (primary) and `ultrabrain` category (primary), with `atlas` retaining K3 as a deep fallback (after Sol).
 
 **Doom-Loop Mitigations** (added 21 Jun 2025): Four layered defenses against runaway subagent sessions — (1) `experimental.preemptive_compaction: true` is configured to trigger compaction before context exhaustion; (2) `opencode.json#compaction.auto: true` and `opencode.json#compaction.prune: true` enable OpenCode built-in compaction and pruning; (3) `experimental.dynamic_context_pruning.strategies.purge_errors.turns: 2` drops failed tool outputs after 2 turns instead of 5; (4) `background_task.circuitBreaker` is configured to cancel any subagent task reaching 500 tool calls or 15 consecutive identical tool+input signatures (down from OMO defaults of 4000/20). The circuit breaker only catches strictly-consecutive identical signatures — alternating patterns (`build → test → build → test`) defeat the consecutive detector and are not cancelled by this setting; they rely on the `maxToolCalls` total cap and preemptive compaction instead. Additionally, `disabled_hooks: ["auto-update-checker"]` opts out of OMO's startup update-check hook; updates are managed manually via the `update-to-latest` skill. **Evidence state**: `repo_implemented` + `live_file_installed` + `active_config_registered`; **not verified live: `runtime_loaded`, `real_project_behavior_proven`** — restart OpenCode to load the new settings.
 

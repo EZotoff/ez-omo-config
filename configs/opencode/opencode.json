@@ -402,29 +402,26 @@
         "headerTimeout": 300000
       },
       "models": {
-        "kimi-for-coding": {
-          "name": "Kimi K2.7 Code",
+        "k3": {
+          "name": "Kimi K3",
           "reasoning": true,
           "options": {},
+          "interleaved": {
+            "field": "reasoning_content"
+          },
           "limit": {
-            "context": 262144,
+            "context": 1048576,
             "output": 262144
           },
           "variants": {
-            "off": {
-              "reasoning_effort": "off"
-            },
-            "auto": {
-              "reasoning_effort": "auto"
-            },
             "low": {
               "reasoning_effort": "low"
             },
-            "medium": {
-              "reasoning_effort": "medium"
-            },
             "high": {
               "reasoning_effort": "high"
+            },
+            "max": {
+              "reasoning_effort": "max"
             }
           }
         }

@@ -98,8 +98,8 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
 | 3b | `dcp.jsonc.retired` | `configs/opencode/` | Retired DCP plugin config. Magic Context was tried as the replacement on 2026-06-23 and is currently disabled. Not installed. |
-| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection and registry-driven error matching |
-| 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, nudge prompts, and fallback models for the retry plugin |
+| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection (finish `other` AND `stop` with zero tokens), escalating nudge prompts, per-message model fallback, and registry-driven error matching |
+| 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, 5-stage escalating nudge prompts (sisyphus/atlas/default), per-message fallback models, and empty-response detection rules for GLM |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
 | 6 | `worktree.ts` | `plugins/` | Git worktree management plugin |
 | 7 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |
@@ -277,7 +277,7 @@ cd ez-omo-config
 | **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
 | **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
-| **Kimi For Coding (OAuth)** | Kimi K2.7 Code via device-flow OAuth | Kimi K2.7 Code (`kimi-for-coding` alias auto-routes to K2.7 Code with thinking on, falls back to K2.6 with thinking off) |
+| **Kimi For Coding (OAuth)** | Kimi K3 via device-flow OAuth (Allegretto+ tier) | Kimi K3 (`k3` model id; supports low/high/max reasoning_effort, up to 1M context) |
 | **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1, GLM 5.2 |
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
@@ -286,17 +286,17 @@ cd ez-omo-config
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `zai-coding-plan/glm-5.2` | default | `kimi-for-coding-oauth/kimi-for-coding`, `openai/gpt-5.6-sol` | Orchestrator with wisdom injection |
-| **prometheus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol`, `zai-coding-plan/glm-5.2` | Planner, deep reasoning, HTML proposal packets before executable plans |
-| **sisyphus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol`, `kimi-for-coding-oauth/kimi-for-coding` | Executor, focused tasks |
+| **atlas** | `zai-coding-plan/glm-5.2` | default | `openai/gpt-5.6-sol`, `kimi-for-coding-oauth/k3` | Orchestrator with wisdom injection |
+| **prometheus** | `kimi-for-coding-oauth/k3` | high | `zai-coding-plan/glm-5.2`, `openai/gpt-5.6-sol` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **sisyphus** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol` | Executor, focused tasks |
 | **sisyphus-junior** | `zai-coding-plan/glm-5.2` | default | `openai/gpt-5.6-sol` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.2` | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.2` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `google/gemini-3.5-flash` | high | `zai-coding-plan/glm-5.2` | Complex frontend work |
-| **document-writer** | `kimi-for-coding-oauth/kimi-for-coding` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
+| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol` | Complex frontend work |
+| **document-writer** | `openai/gpt-5.6-sol` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
 | **oracle** | `openai/gpt-5.6-sol` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
-| **metis** | `openai/gpt-5.6-sol` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
+| **metis** | `zai-coding-plan/glm-5.2` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
 | **momus** | `openai/gpt-5.6-sol` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `openai/gpt-5.6-sol` | xhigh | (none) | Infrastructure, deployment |
 
@@ -386,7 +386,7 @@ OpenCode and OMO now own context management:
 - `opencode.json#compaction.prune=true` — OpenCode compaction pruning is enabled.
 - `oh-my-openagent.json#experimental.preemptive_compaction=false` — OMO preemptive compaction is disabled (was triggering premature compaction on GLM 5.2/GPT 5.5 with 1M context windows).
 - `oh-my-openagent.json#disabled_hooks` only disables `auto-update-checker`; context hooks are active.
-- `oh-my-openagent.json#experimental.dynamic_context_pruning.enabled=true` — OMO dynamic context pruning is enabled, including 2-turn error purging and write-supersession deduplication.
+- `oh-my-openagent.json#experimental.dynamic_context_pruning.enabled=true` — OMO dynamic context pruning is enabled, including 2-turn error purging, write-supersession deduplication, and `background_output` protection from dedup truncation.
 
 Historical context:
 

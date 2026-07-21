@@ -4,13 +4,12 @@
     "sisyphus": {
       "model": "zai-coding-plan/glm-5.2",
       "fallback_models": [
-        "openai/gpt-5.6-sol",
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "openai/gpt-5.6-sol"
       ],
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## Subagent Result Bloat Prevention\n\nSync `delegate_task` results inject the subagent's full final response directly into your context. For substantial tasks (categories `deep`, `ultrabrain`, or any task touching 3+ files), this can exceed 100KB per result and saturate your context window.\n\n**RULE**: For substantial tasks, set `run_in_background: true` and collect via `background_output(task_id=\"...\", full_session=false)`. The default returns only the last assistant message — sufficient for verdicts. Use `full_session=true` with `message_limit=5` and `include_tool_results=false` only for failed-task diagnostics. For trivial single-file tasks (`quick`), sync mode is acceptable.\n\nIn task prompts, instruct subagents to keep final summaries under 2000 characters — file-change counts and pass/fail status suffice, not full diffs.",
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## Subagent Result Bloat Prevention\n\nSync `delegate_task` results inject the subagent's full final response directly into your context. For substantial tasks (categories `deep`, `ultrabrain`, or any task touching 3+ files), this can exceed 100KB per result and saturate your context window.\n\n**RULE**: For substantial tasks, set `run_in_background: true` and collect via `background_output(task_id=\"...\", full_session=false)`. The default returns only the last assistant message \u2014 sufficient for verdicts. Use `full_session=true` with `message_limit=5` and `include_tool_results=false` only for failed-task diagnostics. For trivial single-file tasks (`quick`), sync mode is acceptable.\n\nIn task prompts, instruct subagents to keep final summaries under 2000 characters \u2014 file-change counts and pass/fail status suffice, not full diffs.\n\n## Background Result Collection\n\nCollect `background_output` results ONE AT A TIME \u2014 process each (mark checkbox, note outcome) before collecting the next. Batch-collecting injects hundreds of KB in one turn and triggers compaction pruning of those results. On re-collection (if pruned), use `background_output(task_id=\"...\", full_session=true, from_end=true)` to bypass the incremental cursor that returns \"No new output\" after first consumption.",
       "variant": "high"
     },
     "hephaestus": {
@@ -46,11 +45,11 @@
       "model": "openai/gpt-5.6-terra"
     },
     "prometheus": {
-      "model": "zai-coding-plan/glm-5.2",
+      "model": "kimi-for-coding-oauth/k3",
       "variant": "high",
       "fallback_models": [
-        "openai/gpt-5.6-sol",
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.2",
+        "openai/gpt-5.6-sol"
       ],
       "skills": [
         "wisdom"
@@ -58,7 +57,7 @@
       "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
     },
     "metis": {
-      "model": "openai/gpt-5.6-sol",
+      "model": "zai-coding-plan/glm-5.2",
       "variant": "high",
       "fallback_models": [
         "google/gemini-3.1-pro-preview"
@@ -80,13 +79,13 @@
     "atlas": {
       "model": "zai-coding-plan/glm-5.2",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding",
-        "openai/gpt-5.6-sol"
+        "openai/gpt-5.6-sol",
+        "kimi-for-coding-oauth/k3"
       ],
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code — consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## Subagent Result Bloat Prevention\n\nSync `delegate_task` results inject the subagent's full final response directly into your context. For substantial tasks (categories `deep`, `ultrabrain`, or any task touching 3+ files), this can exceed 100KB per result and saturate your context window — observed root cause of empty-response session halts on 2026-07-16 (ses_09b88d5eaffezIacu5K4KFGvi6: two 529KB+535KB sync results caused glm-5.2 to produce an empty response and exit the loop).\n\n**RULE**: For substantial tasks, set `run_in_background: true` on the `delegate_task` call. Wait for the `<system-reminder>` completion notification, then collect with `background_output(task_id=\"...\", full_session=false)`. The default returns only the last assistant message — sufficient for verdict + checkbox marking. Use `full_session=true` with `message_limit=5` and `include_tool_results=false` only for failed-task diagnostics. For trivial single-file tasks (`quick` category), sync mode is acceptable.\n\nIn task prompts, instruct subagents to keep final summaries under 2000 characters. File-change counts and pass/fail status suffice — do NOT include full diffs or raw test output in the summary."
+      "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## Subagent Result Bloat Prevention\n\nSync `delegate_task` results inject the subagent's full final response directly into your context. For substantial tasks (categories `deep`, `ultrabrain`, or any task touching 3+ files), this can exceed 100KB per result and saturate your context window \u2014 observed root cause of empty-response session halts on 2026-07-16 (ses_09b88d5eaffezIacu5K4KFGvi6: two 529KB+535KB sync results caused glm-5.2 to produce an empty response and exit the loop).\n\n**RULE**: For substantial tasks, set `run_in_background: true` on the `delegate_task` call. Wait for the `<system-reminder>` completion notification, then collect with `background_output(task_id=\"...\", full_session=false)`. The default returns only the last assistant message \u2014 sufficient for verdict + checkbox marking. Use `full_session=true` with `message_limit=5` and `include_tool_results=false` only for failed-task diagnostics. For trivial single-file tasks (`quick` category), sync mode is acceptable.\n\nIn task prompts, instruct subagents to keep final summaries under 2000 characters. File-change counts and pass/fail status suffice \u2014 do NOT include full diffs or raw test output in the summary.\n\n## Background Result Collection Protocol\n\nWhen collecting completed background tasks, follow these rules to avoid pruning-induced result loss (root cause of the 2026-07-16 session halts):\n\n1. **Collect one at a time**: Process each `background_output` result immediately (mark checkbox, note outcome) before collecting the next. Batch-collecting 6+ results injects hundreds of KB in a single turn and triggers immediate compaction pruning of those exact results.\n2. **Bypass cursor on re-collection**: If a prior collection was pruned from context, re-collect with `background_output(task_id=\"...\", full_session=true, from_end=true)`. The default mode uses an incremental cursor that returns \"No new output\" after first consumption (OMO #2915).\n3. **Enforce compact summaries**: In every `delegate_task` prompt to subagents, include: \"Keep your final summary under 2000 characters. Report file-change counts and pass/fail status only \u2014 do NOT include full diffs, code listings, or raw test output.\""
     },
     "sisyphus-junior": {
       "model": "zai-coding-plan/glm-5.2",
@@ -99,15 +98,15 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "google/gemini-3.5-flash",
+      "model": "zai-coding-plan/glm-5.2",
       "variant": "high",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "openai/gpt-5.6-sol"
       ],
-      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses Gemini 3.5 Flash (high thinking) for capable multimodal reasoning without the cost profile of Pro Preview."
+      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses GLM 5.2 (high thinking) for strong reasoning and instruction-following on complex frontend work."
     },
     "document-writer": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "openai/gpt-5.6-sol",
       "fallback_models": [
         "zai-coding-plan/glm-5.2"
       ]
@@ -123,56 +122,58 @@
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
     "ultrabrain": {
-      "model": "openai/gpt-5.6-sol",
+      "model": "kimi-for-coding-oauth/k3",
       "variant": "xhigh",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.2",
+        "openai/gpt-5.6-sol"
       ]
     },
     "artistry": {
       "model": "google/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding",
+        "zai-coding-plan/glm-5.2",
         "openai/gpt-5.6-sol"
       ]
     },
     "quick": {
       "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "zai-coding-plan/glm-5.2"
       ]
     },
     "unspecified-low": {
       "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "zai-coding-plan/glm-5.2"
       ]
     },
     "unspecified-high": {
-      "model": "opencode-go/deepseek-v4-pro",
+      "model": "openai/gpt-5.6-sol",
+      "variant": "low",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "zai-coding-plan/glm-5.2"
       ]
     },
     "writing": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "openai/gpt-5.6-sol",
       "fallback_models": [
         "zai-coding-plan/glm-5.2"
       ]
     },
     "deep": {
-      "model": "openai/gpt-5.6-sol",
+      "model": "zai-coding-plan/glm-5.2",
       "variant": "high",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding",
-        "zai-coding-plan/glm-5.2"
+        "openai/gpt-5.6-sol",
+        "kimi-for-coding-oauth/k3"
       ]
     },
     "mephistopheles": {
       "model": "openai/gpt-5.6-sol",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "zai-coding-plan/glm-5.2"
       ],
       "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless \u2014 you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly.",
       "variant": "high"
@@ -196,7 +197,7 @@
     "provider": "agent-browser"
   },
   "runtime_fallback": {
-    "_comment": "Enabled 2026-07-15. Was disabled due to session.error dispatch deadlock in prompt-async-gate (OMO 4.3.1, fixed upstream in v4.18.1 PR #5357). Re-enabled because: (1) the session.status path works correctly — it aborts before dispatching fallback, avoiding the gate deadlock; (2) for quota/usage errors, session.status fires first and handles the fallback; (3) synchronous sub-agents have NO fallback at all when this is disabled — only background tasks get fallback via OMO's task manager tryFallbackRetry, which is independent of this setting. The session.error deadlock remains an edge case for rate-limit retries but is strictly better than no fallback.",
+    "_comment": "Enabled 2026-07-15. Was disabled due to session.error dispatch deadlock in prompt-async-gate (OMO 4.3.1, fixed upstream in v4.18.1 PR #5357). Re-enabled because: (1) the session.status path works correctly \u2014 it aborts before dispatching fallback, avoiding the gate deadlock; (2) for quota/usage errors, session.status fires first and handles the fallback; (3) synchronous sub-agents have NO fallback at all when this is disabled \u2014 only background tasks get fallback via OMO's task manager tryFallbackRetry, which is independent of this setting. The session.error deadlock remains an edge case for rate-limit retries but is strictly better than no fallback.",
     "enabled": true,
     "retry_on_errors": [
       404,
@@ -268,6 +269,7 @@
       },
       "protected_tools": [
         "task",
+        "background_output",
         "todowrite",
         "todoread",
         "lsp_rename",
