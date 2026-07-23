@@ -121,22 +121,26 @@ When fixing bugs in the OpenCode Go/TypeScript binary, follow this procedure EXA
 ### NEVER
 
 - **NEVER replace the live binary with a dev-branch build.** The live binary is version-pinned (e.g. 1.17.9). A dev-branch build has a different version string, different dependencies, and potentially hundreds of unreviewed changes. This breaks the live environment.
-- **NEVER build from `origin/dev` or any non-release branch** when the intent is to patch the live version.
+- **NEVER build from `origin/dev` or any non-release branch** when the intent is to patch the live version. When rebuilding to layer additional patches, branch from the current patch-carrying branch (e.g. `fix/turn-summary-timestamp-v1.17.9`), NOT from a clean release tag — otherwise previously-applied tracked patches are silently dropped.
 - **NEVER use `mv` to hot-swap the binary while servers are running** without coordinating a restart.
+- **NEVER run `cp <anything> ~/.opencode/bin/opencode` (or `mv`, `install`, `>`) without first running `scripts/verify-live-patches.sh <new-binary>` and confirming every active patch's `verification_pattern` is present in the new binary.** The patch-tracker registry at `.sisyphus/patches/*.md` is the source of truth. An unpatched binary silently regresses features the user spent days building.
+- **NEVER use `@latest` for any opencode plugin that has tracked patches.** Pin exact versions in `opencode.json#plugin`. Silent `@latest` resolution on cache refresh is how the 2026-07-13 OMO incident lost 8 of 9 tracked patches. Any new patch registered against a plugin-published package MUST be accompanied by a version pin update in `configs/opencode/opencode.json`.
 
 ### ALWAYS
 
 1. **Identify the live version**: `~/.opencode/bin/opencode --version`
-2. **Check out the source at that exact version**: First ensure the source tree is clean (`git status --porcelain` empty, `git log --oneline -1` on a known ref). Then `cd ~/src/opencode && git checkout v<VERSION> -b fix/<bug-name>` (use the release tag, not `dev`). A dirty source tree carries uncommitted changes into the fix branch.
+2. **Check out the source at that exact version**: First ensure the source tree is clean (`git status --porcelain` empty, `git log --oneline -1` on a known ref). Then `cd ~/src/opencode && git checkout v<VERSION> -b fix/<bug-name>` (use the release tag, not `dev`). A dirty source tree carries uncommitted changes into the fix branch. **When layering on top of existing patches, branch from the patch-carrying branch instead.**
 3. **Apply the minimal fix** to the checked-out source
 4. **Build from that version**: `cd packages/opencode && OPENCODE_VERSION=$(~/.opencode/bin/opencode --version) bun run script/build.ts --single --skip-install --skip-embed-web-ui`. The build script (`generate.ts`) derives the version from the git branch name; without `OPENCODE_VERSION`, a `fix/*` branch produces `0.0.0-fix/...` and the version check in step 5 will fail.
 5. **Verify the build version AND patch presence**: `dist/opencode-linux-x64/bin/opencode --version` must show the live version (not `0.0.0-...`). Also confirm the fix is embedded in the built binary — grep the dist for a string unique to the patch (e.g. `grep -c '<patched-symbol>' dist/opencode-linux-x64/bin/opencode`). Minified Bun binaries rename locals, so verify by source + test + built version, not by internal symbol names.
-6. **Backup the live binary to the side**: `cp ~/.opencode/bin/opencode ~/.opencode/bin/opencode.backup-<version>-<description>-<timestamp>`
-7. **Stop servers (both surfaces)**: Stop `systemctl --user stop omo-tg.service opencode.service`. If a non-systemd `opencode serve` process is still running (e.g. omo-tg spawns its own), inspect `pgrep -af 'opencode serve'` and stop only the specific service-owned PID that is holding the live binary. Do not run broad `pkill`/`kill -9` loops; if more processes match than expected, stop and choose manually. Otherwise the swap can fail with `Text file busy` or kill unrelated sessions.
-8. **Install the patched binary**: `cp dist/opencode-linux-x64/bin/opencode ~/.opencode/bin/opencode && chmod +x ~/.opencode/bin/opencode`
-9. **Restart servers**: `systemctl --user start omo-tg.service opencode.service`
-10. **Test the live version**: verify the fix works on the real surface (TUI, background tasks, etc.). State explicitly `Not verified live: runtime_loaded, real_project_behavior_proven` until the patched behavior is observed end-to-end in a real session.
-11. **Roll back if needed**: `cp ~/.opencode/bin/opencode.backup-<...> ~/.opencode/bin/opencode`
+6. **Run `scripts/verify-live-patches.sh dist/opencode-linux-x64/bin/opencode`** to confirm every active patch in `.sisyphus/patches/*.md` will be preserved by the new binary. Address any `STALE` or `MISSING-TARGET` result before proceeding.
+7. **Backup the live binary to the side**: `cp ~/.opencode/bin/opencode ~/.opencode/bin/opencode.backup-<version>-<description>-<timestamp>`
+8. **Stop servers (both surfaces)**: Stop `systemctl --user stop omo-tg.service opencode.service`. If a non-systemd `opencode serve` process is still running (e.g. omo-tg spawns its own), inspect `pgrep -af 'opencode serve'` and stop only the specific service-owned PID that is holding the live binary. Do not run broad `pkill`/`kill -9` loops; if more processes match than expected, stop and choose manually. Otherwise the swap can fail with `Text file busy` or kill unrelated sessions.
+9. **Install the patched binary**: `cp dist/opencode-linux-x64/bin/opencode ~/.opencode/bin/opencode && chmod +x ~/.opencode/bin/opencode`. If the `cp` fails with `Text file busy` because interactive TUI clients hold the old inode, use the Linux `mv` + `cp` pattern: `mv ~/.opencode/bin/opencode ~/.opencode/bin/opencode.old-<v>-pre-<desc> && cp dist/.../opencode ~/.opencode/bin/opencode`. Running TUI clients keep the old inode; new invocations get the new binary.
+10. **Restart servers**: `systemctl --user start omo-tg.service opencode.service`
+11. **Test the live version**: verify the fix works on the real surface (TUI, background tasks, etc.). State explicitly `Not verified live: runtime_loaded, real_project_behavior_proven` until the patched behavior is observed end-to-end in a real session.
+12. **Roll back if needed**: `cp ~/.opencode/bin/opencode.backup-<...> ~/.opencode/bin/opencode`
+13. **For OMO plugin updates specifically**: OMO version advances cannot be applied by file-level patches alone because patches target `packages/omo-opencode/src/...` while runtime loads `dist/index.js`. Any OMO update MUST go through the `update-to-latest` skill (13-phase pipeline). Do NOT rely on `@latest` resolution.
 
 ### Skill
 
