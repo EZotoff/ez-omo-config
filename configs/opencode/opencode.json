@@ -21,8 +21,7 @@
     "../../.opencode/plugin/clickable-links.ts",
     "../../.opencode/plugin/session-info.ts",
     "../../.opencode/plugin/session-id.ts",
-    "../../.opencode/plugin/vscode.ts",
-    "../../.opencode/plugin/live-patch-guard.ts"
+    "../../.opencode/plugin/vscode.ts"
   ],
   "agent": {
     "compaction": {
