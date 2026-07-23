@@ -26,7 +26,6 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `session-info.ts` | Intercepts `/session-info`, copies project/session metadata to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch for true no-LLM behavior. | `$HOME/.opencode/plugin/session-info.ts` |
 | `session-id.ts` | Intercepts `/session-id`, copies the invoking session ID to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/session-id.ts` |
 | `vscode.ts` | Intercepts `/vscode`, launches VS Code in the current directory, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/vscode.ts` |
-| `live-patch-guard.ts` | Blocks unaudited writes to the live OpenCode binary and OMO package install/upgrade commands. The `patch-opencode` and `update-to-latest` workflows may bypass only after their preservation checks. | `$HOME/.opencode/plugin/live-patch-guard.ts` |
 
 ## Plugin Array Path Resolution
 
@@ -41,7 +40,6 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `../../.opencode/plugin/session-info.ts` | `~/.opencode/plugin/session-info.ts` |
 | `../../.opencode/plugin/session-id.ts` | `~/.opencode/plugin/session-id.ts` |
 | `../../.opencode/plugin/vscode.ts` | `~/.opencode/plugin/vscode.ts` |
-| `../../.opencode/plugin/live-patch-guard.ts` | `~/.opencode/plugin/live-patch-guard.ts` |
 
 OMO is loaded as `"file:///home/ezotoff/oh-my-openagent-v4.12.1"` (fork via `file://`), replacing the previous `"oh-my-openagent@latest"` (npm package) reference after the 2026-07-13 silent-bump incident. The fork carries the tracked OMO patches; the file:// reference makes it the canonical runtime source. The `browser-lifecycle-plugin` (agent-browser session cleanup) is optional and not included in the default config — add it manually if needed.
 

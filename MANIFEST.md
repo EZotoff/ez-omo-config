@@ -41,7 +41,6 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
 | 11f | subagent-loop-guard.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Subagent Loop Guard | Required |
 | 11h | clickable-links.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Clickable File Links (TUI) | Required |
-| 11j | live-patch-guard.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Live-Patch Guard (binary swap + plugin install interceptor) | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 12b | patch-tracker/ | `~/.config/opencode/skills/patch-tracker/` | `skills/patch-tracker/` | `$HOME/.config/opencode/skills/` | Patch Registry | Optional |
 | 12c | register-retry-error/ | `~/.config/opencode/skills/register-retry-error/` | `skills/register-retry-error/` | `$HOME/.config/opencode/skills/` | Retry Error Registry | Optional |
@@ -76,7 +75,6 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
-| 26d | verify-live-patches.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Patch-Tracker Verification (APPLIED/STALE/MISSING-TARGET/VERSION-DRIFT) | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 | 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
 | 28a | test_dcp_bounded_range.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Verification | Archived (`.retired`) |
@@ -113,7 +111,6 @@ ez-omo-config/
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
 │   ├── subagent-loop-guard.ts # Configured loop-pattern guard for subagent tool calls
 │   ├── clickable-links.ts  # System-prompt injection: file refs as clickable markdown links in TUI
-│   ├── live-patch-guard.ts # Blocks unaudited binary swaps and patched-plugin upgrades
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
 ├── skills/
@@ -132,7 +129,6 @@ ez-omo-config/
 ├── scripts/
 │   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
-│   ├── verify-live-patches.sh # Runtime-resolved patch presence and version-drift verifier
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, live deployment verification, and observability contract
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
@@ -152,9 +148,9 @@ ez-omo-config/
 - **Total Artifacts**: repo-managed OpenCode/OMO commands, configs, plugins, skills, scripts, tests, docs, extras, and Docker templates.
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 17 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
-- **Plugins**: worktree, git safety, review, checkpoint, session clipboard, loop guard, clickable-link, live-patch guard, worktree support, and shared primitive files.
+- **Plugins**: worktree, git safety, review, checkpoint, session clipboard, loop guard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
-- **Scripts**: wisdom shell scripts, worktree hook scripts, live deployment verification, live patch verification, and Python operator helpers.
+- **Scripts**: wisdom shell scripts, worktree hook scripts, live deployment verification script, and Python operator helpers.
 - **Tests**: active repo verification scripts plus retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 

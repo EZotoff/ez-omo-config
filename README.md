@@ -113,7 +113,6 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
 | 11g | `subagent-loop-guard.ts` | `plugins/` | Configured per-session tool-call loop guard for same-tool frequency and same-tool varying-input patterns |
 | 11h | `clickable-links.ts` | `plugins/` | System-prompt injection via `experimental.chat.system.transform` — tells every agent to format file references as `[label](file:///abs/path)` markdown links so they are clickable in the TUI |
-| 11j | `live-patch-guard.ts` | `plugins/` | Blocks unaudited OpenCode binary swaps and OMO install/upgrade commands; structured patch workflows may bypass after verification |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
 | 12b | `patch-tracker/` | `skills/` | Patch registry CRUD and post-update verification skill |
 | 12c | `register-retry-error/` | `skills/` | Retryable error pattern registration skill |
@@ -148,7 +147,6 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 30c | `patch-opencode/` | `skills/` | Minimal-fix procedure for patching the live OpenCode binary from the exact release tag |
 | 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
 | 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
-| 32b | `verify-live-patches.sh` | `scripts/` | Verifies tracked patches against runtime-resolved installs and reports APPLIED/STALE/MISSING-TARGET/VERSION-DRIFT |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
 | 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
 | 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
