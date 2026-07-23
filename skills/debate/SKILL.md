@@ -653,6 +653,58 @@ synthesis_scores:
 
 ---
 
+
+## Result Delivery — Reader-First Result Summaries
+
+The most common debate-skill regression: after rounds complete, the orchestrator summarizes results to the user in process language — "X was discarded in favour of Y", judge role labels, block IDs, scores — as if the user had read every judge output. That reads as insider baseball and breaks the reader contract.
+
+Load the `reader-report` skill (`load_skills=["reader-report"]`) whenever the orchestrator produces a **user-facing** summary. Apply it only at synthesis points — never to raw judge agents or intermediate stage outputs.
+
+### Three-tier output classification
+
+Every debate artifact falls into one of three tiers with different rules.
+
+| Tier | Artifacts | Rule |
+|------|-----------|------|
+| **Audit record** | `judges/judge-*.md`, `debate.yaml` (raw stages), `transcript.md`, raw proposal/critique/revision stage outputs | Preserve full process detail — judge labels, scores, critiques, retries. These exist for traceability. Unchanged by this section. |
+| **Reader deliverable** | `panel-review.md`, `pre-mortem.md`, `red-team-report.md`, `architecture-challenge.md`, the final decision document | Follow the `reader-report` contract: open with the result in plain language, define terms inline, strip process provenance from the *framing* (process detail may appear in supporting sections, not as the opening). |
+| **Chat summary** | The in-conversation message the orchestrator sends after rounds complete | A **projection** of the canonical reader deliverable — same verdict, same uncertainty, same next action. Never independently synthesized. No judge labels, block IDs, scores, or comparative-discarded language. One-line pointer to the full artifact at the end. |
+
+The chat summary and the reader deliverable must agree. If they diverge, the reader deliverable is canonical; fix the chat summary.
+
+### Mode-specific delivery
+
+Apply the delivery rules only at the modes that produce a user-facing result, and shape the summary to what the mode actually produces.
+
+| Mode | Chat summary shape | Loads `reader-report`? |
+|------|--------------------|----------------------|
+| 1:1 Direct Challenge | One or two sentences: the challenge landed / the position held or shifted. Often no separate summary. | Only if producing a final artifact |
+| Panel Review | Consensus first, then the main disagreement, then the recommendation (if the panel supports one). | Yes, on the synthesis |
+| Pre-mortem | Lead with the top failure mode, not a "verdict". Pre-mortems produce risks, not decisions. | Yes, on `pre-mortem.md` |
+| Red Team | Lead with the highest-severity finding. Red teams produce vulnerabilities, not verdicts. | Yes, on `red-team-report.md` |
+| Architecture Adversary (quick) | Lead with the revised position or the unresolved tension. | Yes, if producing `architecture-challenge.md` |
+| Decision Review | Verdict (`ADOPT`/`REVISE`/`REJECT`/`ESCALATE`) + one-line reason + the strongest objection + next action. | Yes, always — this is the primary binding case |
+| Comparative Analysis | Recommendation + the deciding condition + the dealbreaker (if any). | Yes, always |
+| Writing Refinement | Deliver the revised text + a concise change summary (what changed and why). | Yes, always |
+
+Never load `reader-report` onto raw judge agents, the proposer, or the critic — it would dilute their task. Load it only on the orchestrator's synthesis step.
+
+### Bad → good (drawn from a real regression)
+
+An omo-pulse panel-review opened with:
+
+> *"All three judges independently identified the same problem: the original draft framed Omo Pulse as AI governance/surveillance…"* followed by a "Key Lines Contributed by Judges" table attributing sentences to Aesthete/Stylist/Analyst.
+
+That is the failure: it narrates the debate to a reader who never saw the debate.
+
+The contract-compliant version opens with the result:
+
+> *"The post reframes Omo Pulse from a governance dashboard (surveillance) to a throughput tool (herding). The single line that carries the value prop: AI saves your time per-project; Omo Pulse saves the AI's time waiting for you. Full reasoning and the five line-level edits in panel-review.md."*
+
+Same content. Reader-first.
+
+---
+
 ## Quick Start
 
 **1:1 Direct Challenge**: Load skill, dispatch Mephistopheles directly
@@ -718,4 +770,5 @@ Output: `debate.yaml` with `revised_draft` and change log
 | Ad-hoc hang recovery | Burns context on improvised retry logic | Follow retry protocol: 10 min → cancel → retry once → skip |
 | Letting advisory judges override binding judges | Defeats the point of binding/advisory distinction | Advisory criteria can flag `REVISE`; they cannot force `ADOPT` past a binding veto |
 | Skipping the revision stage | Loses the synthesis quality that distinguishes decision review from debate | Stage 3 is mandatory; critiques must be addressed or explicitly declined with rationale |
+| Summarizing debate results in process language | Reads as insider baseball — judge labels, block IDs, scores, "X was discarded in favour of Y" assume the user read every judge output | Lead with the self-contained verdict in plain language; load `reader-report` at synthesis points; chat summary is a projection of the canonical reader deliverable, not an independent synthesis |
 | Treating `REVISE` as failure | `REVISE` is the productive middle outcome — the proposal has merit | Return to Stage 3 with the specific binding-judge directives; do not restart from scratch |
