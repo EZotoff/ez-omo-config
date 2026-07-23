@@ -12,6 +12,13 @@ verification_pattern: "shortDateTime\\(completed\\)"
 
 # OpenCode TUI turn-summary timestamp (local customization: shortDateTime 24h+date format)
 
+## Regression History
+
+- **2026-07-22 22:41 CEST** — Patch silently lost. Another agent (opencode log `run=73012e84`) ran `OPENCODE_VERSION=1.17.9 bun run script/build.ts --single --skip-install --skip-embed-web-ui` from a non-patched branch (likely `feat/turn-summary-completion-time` or `origin/dev`), then swapped the resulting unpatched binary into `~/.opencode/bin/opencode`. Detected by user after system reboot when timestamps disappeared from TUI.
+- **2026-07-23 09:31 CEST** — Restored from backup `opencode.backup-1.17.9-turn-summary-v3-20260720-094806`.
+
+**Systemic risk**: any agent that rebuilds opencode from a branch lacking the local patches will silently overwrite the live binary. Mitigation: when rebuilding, ALWAYS branch from `fix/turn-summary-timestamp-v1.17.9` (or its successor carrying the same patches). Detection: `python3 -c "d=open('/home/ezotoff/.opencode/bin/opencode','rb').read(); print('time? count:', d.count(b'time?'))"` should print 35, not 34.
+
 ## Problem
 
 The TUI turn-summary line (rendered after each assistant turn completes) shows `▣ {agent} · {model} · {duration}` with no wall-clock time. Reviewing long sessions, especially across multiple days, gives no clue when each turn ran. Issue [sst/opencode#35348](https://github.com/sst/opencode/issues/35348) requests start/completion timestamps; PR [sst/opencode#32771](https://github.com/sst/opencode/pull/32771) implemented this exact feature but was auto-closed by the `needs:compliance` bot within 2 hours (template-formatter issue, not rejected on merits).
@@ -84,8 +91,8 @@ This patch is layered on top of branch `fix/sse-directory-filter-v1.17.9` (which
 
 ## Durable Alternative
 
-1. **Upstream PR (PREFERRED) — SUBMITTED 2026-07-20** — Opened [anomalyco/opencode#37905](https://github.com/anomalyco/opencode/pull/37905) as a faithful revival of PR #32771 (which had been auto-closed by the `needs:compliance` bot for missing template headers, not rejected on merits). The upstream PR uses `Locale.time()` (locale-aware, time-only) — the user-facing default that respects every user's system settings. When merged and released, the upstream code path will produce locale-formatted times; this local patch will continue to override that with `Locale.shortDateTime()` (24-hour, date-inclusive) as a personal format customization.
+1. **Upstream PR (PREFERRED) — SUBMITTED 2026-07-20** — Opened [anomalyco/opencode#37929](https://github.com/anomalyco/opencode/pull/37929) (first attempt #37905 was auto-closed by the same compliance bot that killed the original #32771, for missing 4 of 6 required template sections). The upstream PR uses `Locale.time()` (locale-aware, time-only) — the user-facing default that respects every user's system settings. When merged and released, the upstream code path will produce locale-formatted times; this local patch will continue to override that with `Locale.shortDateTime()` (24-hour, date-inclusive) as a personal format customization.
 2. Plugin/hook — Not viable: the turn summary is rendered deep inside the TUI scrollback writer; no plugin or system-prompt transform can inject text into that line.
 3. Config option — Not viable: no config knob exists for the turn-summary format, and adding one is more invasive than the patch itself.
 
-Status: pursued (upstream PR #37905 opened 2026-07-20, awaiting review).
+Status: pursued (upstream PR #37929 opened 2026-07-20, all compliance checks green, awaiting maintainer review as of 2026-07-23).
