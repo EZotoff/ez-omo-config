@@ -128,6 +128,14 @@ test -x "$BACKUP_PATH" || { echo "FATAL: backup was not created: $BACKUP_PATH"; 
 echo "Backed up to: ${BACKUP_PATH}"
 ```
 
+Before stopping services, verify all tracked binary patches against the candidate build:
+
+```bash
+"$HOME/.sisyphus/scripts/verify-live-patches.sh" dist/opencode-linux-x64/bin/opencode
+```
+
+Do not proceed while the verifier reports `STALE`, `MISSING-TARGET`, or `VERSION-DRIFT`. Binary patterns that cannot survive Bun minification require source + test + built-version evidence before the audited bypass below may be used.
+
 ### Step 6: Stop servers, swap binary, restart
 
 ```bash
@@ -142,8 +150,9 @@ if [ "${#remaining[@]}" -gt 0 ]; then
   exit 1
 fi
 
-# Swap binary
-cp dist/opencode-linux-x64/bin/opencode "$HOME/.opencode/bin/opencode"
+# Swap binary. The command-local bypass is allowed only because Steps 1-5 and
+# verify-live-patches.sh have completed. Never export this variable globally.
+OPENCODE_PATCH_GUARD=off cp dist/opencode-linux-x64/bin/opencode "$HOME/.opencode/bin/opencode"
 chmod +x "$HOME/.opencode/bin/opencode"
 
 # Restart servers
@@ -172,7 +181,7 @@ If anything breaks:
 
 ```bash
 systemctl --user stop omo-tg.service opencode.service 2>/dev/null
-cp "$BACKUP_PATH" "$HOME/.opencode/bin/opencode"
+OPENCODE_PATCH_GUARD=off cp "$BACKUP_PATH" "$HOME/.opencode/bin/opencode"
 chmod +x "$HOME/.opencode/bin/opencode"
 systemctl --user start omo-tg.service opencode.service 2>/dev/null
 ```

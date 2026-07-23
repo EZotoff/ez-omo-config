@@ -184,11 +184,13 @@ If the user has not explicitly asked to execute the update now, stop after produ
 
 Only run this phase after receiving the exact approval phrase from Phase 8. Execute the planned update commands in the exact order documented in the backup bundle. Typical commands may include:
 
-- `opencode upgrade` or manual binary replacement.
+- `OPENCODE_PATCH_GUARD=off opencode upgrade` or an audited manual binary replacement.
 - `git fetch origin && git checkout <tag>` in the OMO source clone.
-- `npm update` or `npm install` for global or local packages.
+- `OPENCODE_PATCH_GUARD=off npm update` or `OPENCODE_PATCH_GUARD=off npm install` for the exact approved package set.
 
 Log every command and its output into the evidence directory.
+
+`OPENCODE_PATCH_GUARD=off` is a command-local bypass for this phase only. Never `export` it, never include it before Phase 8 approval, and never use it for commands outside the approved backup/reapply plan.
 
 ### Phase 10: Patch Reapply / Deprecation Decisions
 

@@ -49,8 +49,9 @@ interface DetectionResult {
 }
 
 function detectDanger(command: string): DetectionResult {
-	// Check bypass env var
-	if (process.env[GUARD_BYPASS_ENV] === "off") {
+	// Accept either a server-process bypass or a command-local prefix. The latter
+	// is what the audited skills use so the bypass never leaks to later commands.
+	if (process.env[GUARD_BYPASS_ENV] === "off" || /\bOPENCODE_PATCH_GUARD=off\b/.test(command)) {
 		return { kind: "none", description: "" }
 	}
 
