@@ -198,6 +198,24 @@ At each evidence state, agents may only use approved claim language:
 
 ---
 
+## live-patch-guard.ts
+
+**Purpose**: Prevents agents from bypassing the structured patch-preservation workflows when replacing the live OpenCode binary or advancing a patched OMO package.
+
+**Behavior**:
+
+- Blocks `cp`, `mv`, `install`, and `dd` commands targeting `$HOME/.opencode/bin/opencode`.
+- Blocks explicit OMO install/upgrade commands such as `opencode upgrade` and package-manager commands that name `oh-my-openagent` or `oh-my-opencode`.
+- Allows the audited `patch-opencode` and `update-to-latest` workflows to bypass with `OPENCODE_PATCH_GUARD=off` after backup, registry review, and verification.
+- Exposes `live_patch_check`, which runs `$HOME/.sisyphus/scripts/verify-live-patches.sh` against the runtime-resolved artifact paths.
+- Shows a TUI error toast at startup if a patched OMO package is configured with `@latest`.
+
+**Dependencies**: `$HOME/.sisyphus/scripts/verify-live-patches.sh` and `.sisyphus/patches/*.md`
+
+**Install Target**: `$HOME/.opencode/plugin/live-patch-guard.ts`
+
+---
+
 ## kdco-primitives/
 
 **Purpose**: Shared library used by all plugins in the bundle. Provides common utilities and type definitions.
@@ -274,6 +292,9 @@ review-enforcer.ts
 
 subagent-loop-guard.ts
 └── (self-contained)
+
+live-patch-guard.ts
+└── verify-live-patches.sh
 ```
 
 ---
