@@ -47,6 +47,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 12c | register-retry-error/ | `~/.config/opencode/skills/register-retry-error/` | `skills/register-retry-error/` | `$HOME/.config/opencode/skills/` | Retry Error Registry | Optional |
 | 12d | session-id/ | `~/.config/opencode/skills/session-id/` | `skills/session-id/` | `$HOME/.config/opencode/skills/` | Session ID Clipboard (skill form) | Optional |
 | 12e | debate/ | `~/.config/opencode/skills/debate/` | `skills/debate/` | `$HOME/.config/opencode/skills/` | Structured Adversarial Analysis | Optional |
+| 12f | reader-report/ | `~/.config/opencode/skills/reader-report/` | `skills/reader-report/` | `$HOME/.config/opencode/skills/` | Reader-First Report Writing | Optional |
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
 | 14 | review-protocol/ | `~/.config/opencode/skills/review-protocol/` | `skills/review-protocol/` | `$HOME/.config/opencode/skills/` | Review Protocol | Required |
 | 16 | deployment/ | `~/.config/opencode/skills/deployment/` | `skills/deployment/` | `$HOME/.config/opencode/skills/` | Deployment | Optional |
@@ -126,7 +127,8 @@ ez-omo-config/
 │   ├── merge-agent/        # Safe branch merging with guardrails
 │   ├── parallel-dev/       # Multi-agent orchestration with decision framework
 │   ├── update-to-latest/   # Safe OpenCode/OMO update pipeline with approval gate
-│   └── patch-opencode/     # Minimal-fix procedure for the live OpenCode binary
+│   ├── patch-opencode/     # Minimal-fix procedure for the live OpenCode binary
+│   └── reader-report/     # Reader-first writing for reports/summaries/briefs
 ├── scripts/
 │   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)

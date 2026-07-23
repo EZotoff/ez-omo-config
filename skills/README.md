@@ -57,3 +57,9 @@ Structured adversarial analysis protocol. Quick single-agent modes (challenge, p
 - **Dependencies**: None
 - **Use Case**: Surfacing hidden assumptions, testing argument robustness, making complex architectural decisions
 - **Install**: `install.sh --skills`
+
+### reader-report/
+Reader-first writing for any deliverable a human reads to understand a result — HTML reports, MD design docs, debate-result summaries, executive briefs, survey dashboards, handoff notes. Writes for a reader who has NOT read the preceding material. Encodes a reader contract (lead with the answer, strip process provenance, self-contained, distinguish fact/inference/recommendation), editorial preferences (no AI-speak, qualitative summaries), channel profiles (chat summary vs rendered report vs decision artifact), an HTML styling guide synthesising the proven house style with impeccable anti-slop tells, and lint-then-independent-review enforcement.
+- **Dependencies**: None
+- **Use Case**: Producing or editing any reader-facing report/summary/brief; loaded by `/debate` at result-synthesis points
+- **Install**: `install.sh --skills`

@@ -119,6 +119,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 12c | `register-retry-error/` | `skills/` | Retryable error pattern registration skill |
 | 12d | `session-id/` | `skills/` | Session ID clipboard (skill form, mirrors the `/session-id` plugin) |
 | 12e | `debate/` | `skills/` | Structured adversarial analysis: quick modes (challenge, panel, pre-mortem, red team) plus a decision-review protocol with binding/advisory judges producing ADOPT/REVISE/REJECT/ESCALATE verdicts |
+| 12f | `reader-report/` | `skills/` | Reader-first writing for reports/summaries/briefs: reader contract, no AI-speak, HTML styling guide, lint+independent-review enforcement. Loaded by `/debate` at result-synthesis points |
 | 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
 | 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
 | 16 | `deployment/` | `skills/` | Infrastructure deployment helpers |
