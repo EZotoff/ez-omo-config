@@ -429,11 +429,11 @@ Before using this configuration, install the following prerequisites:
 |------------|-----------|--------|
 | **OpenCode CLI** | Required | [opencode.ai](https://opencode.ai) — `curl -fsSL https://opencode.ai/install \| bash` |
 | **bun** | Required | [bun.sh](https://bun.sh) — `curl -fsSL https://bun.sh/install \| bash` |
-| **Oh-My-OpenAgent** | Auto-installed | Loaded as `oh-my-openagent@latest` npm package on first OpenCode launch. No manual install needed. |
+| **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.12.1`. The fork is the canonical runtime source while tracked OMO patches remain active. |
 | **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
 | **API keys** | Required | See `auth.json.example` for the 7 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
 
-The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, or Docker — those must be installed separately. OMO is loaded as an npm package and auto-cached on first launch.
+The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, or the local OMO fork. This machine's `opencode.json` references `/home/ezotoff/oh-my-openagent-v4.12.1`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
 
 **Binary patches** (optional): Several features (true no-LLM `/session-id`, `/session-info`, `/vscode` cancellation) require patches to the OpenCode binary or OMO npm cache. These are documented in `.sisyphus/patches/` but NOT auto-applied by `install.sh`. Use the `patch-opencode` skill or follow the patch docs manually.
 

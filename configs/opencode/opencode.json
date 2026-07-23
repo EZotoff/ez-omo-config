@@ -16,7 +16,7 @@
     "opencode-anthropic-auth",
     "@franlol/opencode-md-table-formatter@latest",
     "opencode-kimi-full",
-    "oh-my-openagent@latest",
+    "file:///home/ezotoff/oh-my-openagent-v4.12.1",
     "../../.opencode/plugin/subagent-loop-guard.ts",
     "../../.opencode/plugin/clickable-links.ts",
     "../../.opencode/plugin/session-info.ts",

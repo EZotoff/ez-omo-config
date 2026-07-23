@@ -5,7 +5,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | File | What it configures | Install target |
 |---|---|---|
 | `AGENTS.md` | Global user-level agent instructions loaded by OpenCode on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers and uses vanilla code discovery guidance. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` |
-| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, and runtime defaults. **Uses relative paths for all local plugins** — no manual path updates needed on new machines. OMO is loaded as `oh-my-openagent@latest` from npm. | `$HOME/.config/opencode/opencode.json` |
+| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, and runtime defaults. Local repo plugins use relative paths. The patched OMO fork is loaded through the explicit machine-local `file:///home/ezotoff/oh-my-openagent-v4.12.1` reference. | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
 | `magic-context.jsonc` | Disabled Magic Context configuration retained for rollback/reference | `$HOME/.config/opencode/magic-context.jsonc` |
 | `dcp.jsonc.retired` | Retired DCP plugin configuration. Kept for historical reference. | Not installed |
@@ -43,7 +43,8 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `../../.opencode/plugin/vscode.ts` | `~/.opencode/plugin/vscode.ts` |
 | `../../.opencode/plugin/live-patch-guard.ts` | `~/.opencode/plugin/live-patch-guard.ts` |
 
-OMO is loaded as `"oh-my-openagent@latest"` (npm package), auto-cached on first launch. The `browser-lifecycle-plugin` (agent-browser session cleanup) is optional and not included in the default config — add it manually if needed.
+OMO is loaded as `"file:///home/ezotoff/oh-my-openagent-v4.12.1"` (fork via `file://`), replacing the previous `"oh-my-openagent@latest"` (npm package) reference after the 2026-07-13 silent-bump incident. The fork carries the tracked OMO patches; the file:// reference makes it the canonical runtime source. The `browser-lifecycle-plugin` (agent-browser session cleanup) is optional and not included in the default config — add it manually if needed.
+
 
 ## Worktree Lifecycle Automation
 
