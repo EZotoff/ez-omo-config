@@ -82,6 +82,7 @@ ITEMS=(
     "scripts|scripts/worktree-post-create.sh|$HOME/.opencode/scripts/worktree-post-create.sh"
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
     "scripts|scripts/verify-live-deployment.sh|$HOME/.sisyphus/scripts/verify-live-deployment.sh"
+    "scripts|scripts/verify-live-patches.sh|$HOME/.sisyphus/scripts/verify-live-patches.sh"
 )
 
 usage() {
