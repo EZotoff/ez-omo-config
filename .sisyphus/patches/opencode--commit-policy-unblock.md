@@ -1,7 +1,7 @@
 ---
 patch_id: "opencode--commit-policy-unblock"
 dependency: "opencode"
-target_file: "packages/opencode/src/tool/shell/shell.txt, packages/opencode/src/session/prompt/default.txt, packages/opencode/src/session/prompt/trinity.txt"
+target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-05-02"

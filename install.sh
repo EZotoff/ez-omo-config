@@ -83,6 +83,11 @@ ITEMS=(
     "scripts|scripts/worktree-post-create.sh|$HOME/.opencode/scripts/worktree-post-create.sh"
     "scripts|scripts/worktree-pre-delete.sh|$HOME/.opencode/scripts/worktree-pre-delete.sh"
     "scripts|scripts/verify-live-deployment.sh|$HOME/.sisyphus/scripts/verify-live-deployment.sh"
+    "scripts|scripts/verify-live-patches.sh|$HOME/.sisyphus/scripts/verify-live-patches.sh"
+    "scripts|scripts/watch-runtime-patches.sh|$HOME/.sisyphus/scripts/watch-runtime-patches.sh"
+    "scripts|systemd/user/opencode-patch-watcher.service|$HOME/.config/systemd/user/opencode-patch-watcher.service"
+    "scripts|systemd/user/opencode-patch-integrity-check.service|$HOME/.config/systemd/user/opencode-patch-integrity-check.service"
+    "scripts|systemd/user/opencode-patch-integrity-check.timer|$HOME/.config/systemd/user/opencode-patch-integrity-check.timer"
 )
 
 usage() {

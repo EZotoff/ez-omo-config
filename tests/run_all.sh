@@ -9,6 +9,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOTAL_PASSED=0
 TOTAL_FAILED=0
 
+# Run regression corpus (non-blocking — report but continue)
+echo ""
+echo "Running regression corpus..."
+echo "----------------------------------------"
+if bash "$SCRIPT_DIR/run_regressions.sh"; then
+    echo "Regression corpus: PASS"
+else
+    echo "Regression corpus: FAIL (continuing with standard tests)"
+fi
+echo ""
 # Auto-discover test scripts
 tests_found=0
 for test_script in "$SCRIPT_DIR"/test_*.sh; do

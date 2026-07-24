@@ -25,8 +25,21 @@ function log(level, msg) {
   const ts = new Date().toISOString();
   const line = `[${ts}] [${level}] ${msg}\n`;
   try { rotateLogIfNeeded(); fs.appendFileSync(LOG_PATH, line); } catch {}
-  if (level === "warn" || level === "error") console.warn(`[retry-plugin] ${msg}`);
-  else console.info(`[retry-plugin] ${msg}`);
+  // User-facing output MUST go through ctx.client.tui.showToast (see surfaceToast helper).
+  // console.warn/info would leak into the TUI viewport / journald as raw spam.
+}
+
+async function surfaceToast(ctx, { title, message, variant = "info", duration = 5000 }) {
+  // Publishes a tui.toast.show event via POST /tui/show-toast. The TUI subscribes
+  // (packages/tui/src/app.tsx:990) and renders a real toast popup. Safe to call
+  // unconditionally — if no TUI is connected the event is silently dropped.
+  try {
+    await ctx.client.tui.showToast({
+      body: { ...(title ? { title } : {}), message, variant, duration },
+    });
+  } catch (error) {
+    log("warn", `Toast call failed: ${error?.message ?? error}; intended message: ${message}`);
+  }
 }
 
 
@@ -414,6 +427,18 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                 if (nextAttempt > emptyRule.max_retries || attemptIndex >= emptyRule.backoff_ms.length) {
                   const fallback = parseFallbackModel(emptyRule.fallback_model);
                   if (fallback) {
+                    // Self-fallback guard: failing provider === fallback provider would loop forever
+                    const failingProviderID = model?.providerID;
+                    if (failingProviderID && fallback.providerID === failingProviderID) {
+                      log("warn", `Skipping self-fallback for "${emptyRule.id}" — failing provider "${failingProviderID}" is the fallback target`);
+                      await surfaceToast(ctx, {
+                        title: "Provider unavailable",
+                        message: `${failingProviderID} failed and the configured fallback is also ${failingProviderID}. Update retry-errors.json rule "${emptyRule.id}" to use a different fallback_model.`,
+                        variant: "error",
+                        duration: 15000,
+                      });
+                      return;
+                    }
                     const fallbackParts = tracked.originalParts ?? retryParts;
                     const fallbackMessageID = tracked.originalMessageID ?? retryMessageID;
                     log("info", `Exhausted empty-response retries for "${emptyRule.id}" — falling back to ${emptyRule.fallback_model}`);
@@ -431,7 +456,13 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                       },
                     });
                   } else {
-                    log("warn", `Exhausted empty-response retries for "${emptyRule.id}"`);
+                    log("warn", `Exhausted empty-response retries for "${emptyRule.id}" (no fallback_model configured)`);
+                    await surfaceToast(ctx, {
+                      title: "Retries exhausted",
+                      message: `Rule "${emptyRule.id}" exhausted ${emptyRule.max_retries} empty-response retries with no fallback_model configured.`,
+                      variant: "warning",
+                      duration: 10000,
+                    });
                   }
                 } else {
                   const delayMs = emptyRule.backoff_ms[attemptIndex];
@@ -476,6 +507,12 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
               }
             } catch (dispatchError) {
               log("warn", `Failed to dispatch empty-response retry: ${dispatchError?.message ?? dispatchError}`);
+              await surfaceToast(ctx, {
+                title: "Retry dispatch failed",
+                message: `Failed to dispatch empty-response retry for rule "${emptyRule?.id ?? "unknown"}": ${dispatchError?.message ?? dispatchError}`,
+                variant: "error",
+                duration: 10000,
+              });
             } finally {
               inFlightSessions.delete(sessionID);
             }
@@ -500,9 +537,13 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           const msgID = typeof info.id === "string" && info.id.length > 0 ? info.id : undefined;
 
           if (finish) {
-            // This is a COMPLETION event (model finished generating)
-            if (finish === "other" && (tokens.output ?? 0) === 0) {
-              // Model returned finish_reason "other" with zero output tokens → STALL
+            // This is a COMPLETION event (model finished generating).
+            // Catch both "other" (stall) and "stop" (silent stop) with zero output tokens.
+            // GLM-5.2 on context saturation returns finish="stop" with 0 tokens.
+            // The 2026-04-18 narrowing (commit 36947f9) excluded "stop" to avoid false
+            // positives, but legitimate stop completions always have output > 0.
+            if ((finish === "other" || finish === "stop") && (tokens.output ?? 0) === 0) {
+              // Model returned zero output tokens → STALL (context saturation or API issue)
               const registry = loadRegistry();
               const emptyRule = findEmptyResponseRule(registry);
               if (emptyRule && !inFlightSessions.has(sessionID)) {
@@ -648,6 +689,18 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
 
           const fallback = parseFallbackModel(matchedRule.fallback_model);
           if (fallback) {
+            // Self-fallback guard: failing provider === fallback provider would loop forever
+            const failingProviderID = model?.providerID;
+            if (failingProviderID && fallback.providerID === failingProviderID) {
+              log("warn", `Skipping self-fallback for "${matchedRule.id}" — failing provider "${failingProviderID}" is the fallback target`);
+              await surfaceToast(ctx, {
+                title: "Provider quota exhausted",
+                message: `${failingProviderID} is failing and the configured fallback is also ${failingProviderID}. Update retry-errors.json rule "${matchedRule.id}" to use a different fallback_model.`,
+                variant: "error",
+                duration: 15000,
+              });
+              return;
+            }
             const fallbackParts = current?.originalParts ?? retryParts;
             const fallbackMessageID = current?.originalMessageID ?? retryMessageID;
             log("info", `Exhausted retries for "${matchedRule.id}" — falling back to ${matchedRule.fallback_model}`);
@@ -670,7 +723,13 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
               },
             });
           } else {
-            log("warn", `Exhausted retries for "${matchedRule.id}" (${matchedRule.max_retries}/${matchedRule.max_retries})`);
+            log("warn", `Exhausted retries for "${matchedRule.id}" (${matchedRule.max_retries}/${matchedRule.max_retries}) — no fallback_model configured`);
+            await surfaceToast(ctx, {
+              title: "Retries exhausted",
+              message: `Rule "${matchedRule.id}" exhausted ${matchedRule.max_retries} retries with no fallback_model configured.`,
+              variant: "warning",
+              duration: 10000,
+            });
           }
           return;
         }
@@ -725,6 +784,12 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         }
 
         log("warn", `Failed to dispatch retry for "${matchedRule.id}": ${dispatchError?.message ?? dispatchError}`);
+        await surfaceToast(ctx, {
+          title: "Retry dispatch failed",
+          message: `Failed to dispatch retry for rule "${matchedRule.id}": ${dispatchError?.message ?? dispatchError}`,
+          variant: "error",
+          duration: 10000,
+        });
       } finally {
         inFlightSessions.delete(sessionID);
       }

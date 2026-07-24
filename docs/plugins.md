@@ -20,7 +20,7 @@ Plugins in this bundle are copied from the local OpenCode plugin registry and pa
 
 This document covers TypeScript plugins under `plugins/`. The repository also includes two config-layer JavaScript plugins that live in `configs/opencode/` and are documented in [Configuration Documentation](configs.md):
 
-- **`provider-connect-retry.mjs`** — Consumes the `retry-errors.json` registry for error pattern matching, backoff scheduling, nudge prompts, and fallback model selection.
+- **`provider-connect-retry.mjs`** — Consumes the `retry-errors.json` registry for error pattern matching, backoff scheduling, nudge prompts, and fallback model selection. Surfaces terminal conditions (self-fallback, retries exhausted, dispatch failures) as TUI toasts via `ctx.client.tui.showToast`; routine operation is logged to `~/.config/opencode/retry-plugin.log` only. See [Configuration Documentation](configs.md) for the self-fallback guard and toast behavior.
 - **`aspect-dynamics.mjs`** — Performs deterministic heuristic scoring on conversation transcripts and dispatches transcript-visible advisory nudges. Uses 7 support modules under `aspect-dynamics/` and loads seed aspect sets from `aspect-dynamics/sets/`. No model-backed scoring in MVP; deferred fields (`scoringModel`, `polishingModel`, `dreamAgent`) are reserved for future use.
 
 ---
@@ -109,6 +109,7 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 - Automatic review triggers on task completion
 - Enforces review quality gates
 - Integrates with review-protocol skill
+- Runs `tests/run_regressions.sh` and includes the regression corpus output in review and plan-completion instructions
 - Ensures consistent review coverage across tasks
 - **Live Deployment Gate**: Agents must report evidence states accurately. Unverified live or runtime states must be flagged with `Not verified live: [missing state]`.
 
@@ -295,3 +296,9 @@ subagent-loop-guard.ts
 - [Skills Documentation](skills.md) — Review protocol integration
 - [MANIFEST.md](../MANIFEST.md) — Complete artifact inventory
 - `plugins/README.md` — Quick reference
+
+---
+
+## Dropped Command-Level Patch Guard
+
+The command-level patch guard plugin was dropped in Track B v2. It was superseded by the inotify watcher (`opencode-patch-watcher.service`), which catches writes at the kernel event level regardless of mechanism. The regex-based allowlist approach could not cover the unbounded set of file-writing mechanisms on Linux.

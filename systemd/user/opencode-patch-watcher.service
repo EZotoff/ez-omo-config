@@ -1,0 +1,13 @@
+[Unit]
+Description=OpenCode Patch Watcher — inotify-based runtime binary integrity monitor
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.sisyphus/scripts/watch-runtime-patches.sh
+Restart=always
+RestartSec=5
+Environment=EZ_OMO_CONFIG_REPO=%h/ez-omo-config
+
+[Install]
+WantedBy=default.target

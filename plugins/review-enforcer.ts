@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync } from "node:fs"
 import { dirname } from "node:path"
+import { execSync } from "node:child_process"
 import type { Plugin } from "@opencode-ai/plugin"
 
 /**
@@ -207,6 +208,24 @@ function getPlanProgress(): { total: number; checked: number; complete: boolean 
 	return { total, checked, complete: checked === total }
 }
 
+/** Run regression tests and return the output, or null on failure. Never throws. */
+function runRegressionTests(projectPath: string): string | null {
+	try {
+		const output = execSync("bash tests/run_regressions.sh", {
+			cwd: projectPath,
+			encoding: "utf-8",
+			timeout: 30000,
+			stdio: ["ignore", "pipe", "pipe"],
+		}).trim()
+		log("info", `Regression tests ran successfully:\n${output}`)
+		return output
+	} catch (err) {
+		const errMsg = err instanceof Error ? err.message : String(err)
+		log("warn", `Regression tests could not run — ${errMsg}`)
+		return null
+	}
+}
+
 export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 	const { client } = ctx
 
@@ -264,17 +283,24 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 				}
 				const safeProgress = progressElapsed > 5000 ? null : progress
 
+				// Run regression tests for review context
+				const projectPath = (ctx as { directory?: string }).directory ?? (process as any).cwd()
+				const regressionResults = runRegressionTests(projectPath)
+				const regressionSection = regressionResults
+					? `\n## Regression Corpus Results\n${regressionResults}\n`
+					: ""
+				
 				if (safeProgress?.complete && !planCompletionTriggered) {
 					planCompletionTriggered = true
-					output.output = taskOutput + PLAN_COMPLETION_INSTRUCTION
+					output.output = taskOutput + regressionSection + PLAN_COMPLETION_INSTRUCTION
 					log("info", `INJECT (plan-complete) — All ${safeProgress.total} tasks checked. Appended plan completion instructions.`)
 					appLog("info", `review-enforcer: plan complete (${safeProgress.checked}/${safeProgress.total}) — injected full-branch review for callID=${input.callID}`)
-
+					
 					if (callID) processedCallIDs.add(callID)
 					return
 				}
-
-				output.output = taskOutput + REVIEW_INSTRUCTION
+				
+				output.output = taskOutput + regressionSection + REVIEW_INSTRUCTION
 
 				log("info", `INJECT — Appended review instructions (${REVIEW_INSTRUCTION.length} chars) to task output`)
 				appLog("info", `review-enforcer: injected review instructions for task callID=${input.callID}`)

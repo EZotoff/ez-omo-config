@@ -87,6 +87,13 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28i | test_subagent_loop_guard.sh | (repo only) | `tests/` | (repo only) | Subagent Loop Guard Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/` | (repo only) | Byte-Budget Configuration Reference | Required |
+| 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
+| 54 | `watch-runtime-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | inotify watcher for runtime binary integrity | Required |
+| 55 | `opencode-patch-watcher.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | systemd user service for watcher | Optional |
+| 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
+| 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
+| 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 9 paired regression tests (18 files total) | Required |
 
 ## Directory Structure
 
@@ -129,12 +136,15 @@ ez-omo-config/
 ├── scripts/
 │   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
+│   ├── verify-live-patches.sh # Runtime-resolved tracked-patch verifier
+│   └── watch-runtime-patches.sh # Runtime binary inotify watcher
+├── systemd/user/           # Watcher service and periodic integrity-check units
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, live deployment verification, and observability contract
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
 │   ├── live-deployment-verification.md  # Live Deployment Verification Gate documentation
-├── tests/                  # Bash verification suite and helpers
+├── tests/                  # Bash verification suite, 18-file regression corpus, and helpers
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities
 │   └── audit-wisdom-first.sh  # Validates no contradictory dual-system language remains
 ├── install.sh              # Bootstrap installer
@@ -150,8 +160,9 @@ ez-omo-config/
 - **Core Configs**: 17 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, loop guard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
-- **Scripts**: wisdom shell scripts, worktree hook scripts, live deployment verification script, and Python operator helpers.
-- **Tests**: active repo verification scripts plus retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, and Python operator helpers.
+- **Systemd**: watcher service plus a periodic integrity-check service and 30-minute timer.
+- **Tests**: active repo verification scripts, the 9-pair regression corpus (18 files), its harness, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

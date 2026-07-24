@@ -1,7 +1,7 @@
 ---
 patch_id: "opencode--link-click-wrapped-osc8"
 dependency: "opencode"
-target_file: "packages/tui/src/routes/session/index.tsx"
+target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-07-06"

@@ -1,13 +1,13 @@
 ---
 patch_id: "opencode--turn-summary-timestamp"
 dependency: "opencode"
-target_file: "packages/opencode/src/cli/cmd/run/turn-summary.ts"
+target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-07-19"
 dep_version: "1.17.9-local"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/37929"
-verification_pattern: "shortDateTime\\(completed\\)"
+verification_pattern: "todayTimeOrDateTime"
 ---
 
 # OpenCode TUI turn-summary timestamp (local customization: shortDateTime 24h+date format)

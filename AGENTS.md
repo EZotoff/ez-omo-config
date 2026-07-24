@@ -68,6 +68,40 @@ The symlinked config behavior described in the Config Locations table and How It
 
 Plugins in `~/.opencode/plugin/*.ts` are auto-loaded by OpenCode at startup, **but command-pipeline interception only works for plugins registered in `opencode.json#plugin`**. A plugin file symlinked to `~/.opencode/plugin/` is not enough if it needs to intercept commands, hooks, or system transforms. Always verify the plugin appears in the `plugin` array of `opencode.json` before debugging plugin behavior.
 
+### Plugin Error Display (TUI Toasts vs console.* spam)
+
+Server plugins (registered in `opencode.json#plugin`) receive a `ctx` of shape `{client, project, worktree, directory, experimental_workspace, serverUrl, $}`. **There is no `ctx.logger`, `ctx.toast`, `ctx.notify`, or `ctx.error` field.** Plugins MUST NOT use `console.log`/`console.warn`/`console.info`/`console.error` for user-facing output — that text goes to the server process stderr/stdout and leaks into the TUI viewport or journald as raw spam (this was the root cause of the `[retry-plugin]` quota-error spam regression).
+
+**The proper channel is `ctx.client.tui.showToast`** — it publishes a `tui.toast.show` event that the TUI subscribes to and renders as a real toast popup:
+
+```javascript
+await ctx.client.tui.showToast({
+  body: {
+    title: "Provider quota exhausted",       // optional
+    message: "K3 fallback also failed.",        // required
+    variant: "error",                        // 'info' | 'success' | 'warning' | 'error'
+    duration: 10000,                          // optional, default 5000ms
+  },
+})
+```
+
+Source-of-truth citations (OpenCode tree at `~/src/opencode`):
+- SDK method: `packages/sdk/js/src/gen/sdk.gen.ts:1118` (`POST /tui/show-toast`)
+- Server handler: `packages/opencode/src/server/routes/instance/httpapi/handlers/tui.ts:79-84`
+- Event schema: `packages/schema/src/tui-event.ts:40-50`
+- TUI subscription: `packages/tui/src/app.tsx:990-998`
+- If no TUI is connected, the event is silently dropped — safe to call unconditionally.
+
+**Automatic channels** (no plugin code needed):
+- `session.error` events are auto-toasted by the TUI with `variant=error`, 5s duration (`packages/tui/src/app.tsx:1018-1029`; filters out `MessageAbortedError`). Plugins that propagate errors through the regular session lifecycle do NOT need to call `showToast`.
+- `session.status` events with `status.type="retry"` and `status.action` (`packages/schema/src/session-status-event.ts:13-28`) open a `DialogRetryAction` modal (`packages/tui/src/routes/session/index.tsx:364`) with `title/message/label/link`. Use this for actionable retry prompts.
+
+**Diagnostic logging**: keep routine operation (retry attempts, nudges, fallbacks) in the plugin's local log file (e.g. `~/.config/opencode/retry-plugin.log`) — NOT in the TUI, NOT on stderr. The TUI auto-toasts `session.error` events; routine retry activity is already visible as session message activity.
+
+**TUI plugins are a separate system** (loaded via `tui.*` config fields, NOT `opencode.json#plugin`): they run inside the Solid tree and get a `TuiPluginApi` with direct `ui.toast`, `ui.Dialog`, `ui.DialogAlert`, `ui.DialogConfirm`, `ui.DialogPrompt`, `ui.DialogSelect`, `keymap`, `route`, `kv` access (`packages/tui/src/plugin/adapters.tsx:173-285`). Server plugins cannot reach TUI plugin APIs directly — the two systems are disjoint.
+
+Reference: wisdom entry `20260720-104500-tst1` (search wisdom with `~/.sisyphus/scripts/wisdom-search.sh "plugin TUI toast"`).
+
 ### Unverified State Rule
 
 If any live/runtime evidence state is unverified, final answers must say `Not verified live: [missing state]`.
@@ -123,6 +157,7 @@ When fixing bugs in the OpenCode Go/TypeScript binary, follow this procedure EXA
 - **NEVER replace the live binary with a dev-branch build.** The live binary is version-pinned (e.g. 1.17.9). A dev-branch build has a different version string, different dependencies, and potentially hundreds of unreviewed changes. This breaks the live environment.
 - **NEVER build from `origin/dev` or any non-release branch** when the intent is to patch the live version.
 - **NEVER use `mv` to hot-swap the binary while servers are running** without coordinating a restart.
+- **NEVER use `@latest` for any opencode plugin that has tracked patches.** Pin exact versions in `opencode.json#plugin`. Silent `@latest` resolution on cache refresh is how the 2026-07-13 OMO incident lost 8 of 9 tracked patches. Any new patch registered against a plugin-published package MUST be accompanied by a version pin update in `configs/opencode/opencode.json`.
 
 ### ALWAYS
 
@@ -148,3 +183,22 @@ Use the `patch-opencode` skill for the full procedure with version detection, so
 - Fork: `EZotoff/opencode` (for PRs)
 - Release tags: `v1.17.9`, `v1.17.8`, etc. (NOT `v0.1.17*` — those are different)
 - Build script: `packages/opencode/script/build.ts` (flags: `--single` current platform only, `--skip-install` no global install, `--skip-embed-web-ui` skip web UI bundle)
+
+## Patch-Preservation Safety Infrastructure
+
+Three-layer defense against patch drift (Track B v2):
+
+1. **Regression Corpus** (`tests/regressions/`) — paired `.sh` + `.kill.sh` tests for every bug ever fixed. Run via `bash tests/run_regressions.sh`.
+2. **Rewritten Verifier** (`scripts/verify-live-patches.sh`) — verifies every tracked patch against runtime-resolved paths. Exit 0 = all APPLIED, exit 1 = issues found.
+3. **inotify Watcher** (`opencode-patch-watcher.service`) — kernel-level detection of writes to `~/.opencode/bin/`. Reactive, not preventive.
+4. **Periodic Integrity Check** (`opencode-patch-integrity-check.timer`) — runs `verify-live-patches.sh` every 30 minutes as a backstop for inotify bypass cases.
+
+**Prerequisite**: `sudo apt install -y inotify-tools` for the watcher service.
+
+### Cooperation Contract
+
+1. Runtime path writes trigger the inotify watcher automatically. Check `journalctl --user -u opencode-patch-watcher.service` for alerts.
+2. Before committing to master, run `bash tests/run_all.sh`. The review-enforcer plugin consumes the regression corpus output.
+3. When fixing a bug, add a paired `.sh` + `.kill.sh` to `tests/regressions/`. This is the only durable defense against agent memory resets.
+4. Never `kill` the `opencode-patch-watcher.service` process. It is the reactive detection layer.
+5. Structural fixes are mandatory for new bash/python tooling: `set -euo pipefail` for bash, `subprocess.run([...])` list-form for Python, no string interpolation into Python source.

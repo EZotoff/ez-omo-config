@@ -1,0 +1,8 @@
+[Unit]
+Description=OpenCode Patch Integrity Check — periodic verify-live-patches run
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/ez-omo-config/scripts/verify-live-patches.sh
+Environment=EZ_OMO_CONFIG_REPO=%h/ez-omo-config

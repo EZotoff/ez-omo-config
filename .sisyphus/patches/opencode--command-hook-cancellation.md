@@ -1,13 +1,13 @@
 ---
 patch_id: "opencode--command-hook-cancellation"
 dependency: "opencode"
-target_file: "packages/plugin/src/index.ts, packages/opencode/src/session/prompt.ts, packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts"
+target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-06-26"
 dep_version: "1.17.9-local"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/18559"
-verification_pattern: "cancelled: boolean|commandOutput.cancelled|HttpServerResponse.empty\(\)"
+verification_pattern: "cancelled:!1.*?command\.execute\.before.*?\.cancelled\)return"
 ---
 
 # OpenCode command.execute.before cancellation

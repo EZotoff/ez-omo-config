@@ -61,19 +61,20 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
 - **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit
 - **Wisdom system** — learning management that captures and reuses development knowledge
-- **Review enforcement** — automated code review triggers after completing implementation work
+- **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions
 - **Subagent loop guard** — configured to catch same-tool and same-tool-varying-input loop patterns that strict consecutive-signature detection misses
 - **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **OpenCode/OMO context management** — OpenCode compaction and OMO preemptive compaction/context-window hooks are enabled; Magic Context is retained only as a disabled config file.
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 - **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
+- **Patch-preservation safety infrastructure** — regression corpus, rewritten verifier, inotify watcher, and periodic integrity check protect against patch drift during updates
 
 ---
 
 ## What's Included
 
-This repository contains a portable OpenCode/OMO configuration bundle organized into 8 categories:
+This repository contains a portable OpenCode/OMO configuration bundle organized into 9 categories:
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
@@ -81,8 +82,9 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
 | 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, configured subagent loop guarding, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, and review workflows. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
-| 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, and live deployment verification scripts |
-| 32 | **Tests** | Test scripts | Regression tests for config, plugin, and update pipeline verification |
+| 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
+| 31a | **Systemd** | 3 user units | Reactive inotify watcher plus a periodic patch-integrity service and timer |
+| 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, and the 9-pair patch-preservation corpus |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
 | 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and retired DCP byte-budget reference |
@@ -170,6 +172,13 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 | 51a | `aspect-dynamics/sets/emotions-v2.json` | `configs/opencode/` | Versioned distress-focused seed aspect set with profanity-aware heuristics |
 | 52 | `docs/dcp-byte-budget.md` | `docs/` | RETIRED 2026-06-23: DCP byte-budget gate reference. Magic Context was tried as the replacement and is currently disabled. Historical record only. |
+| 53 | `verify-live-patches.sh` | `scripts/` | Rewritten patch verifier with all 7 structural fixes and runtime-resolved target checks |
+| 54 | `watch-runtime-patches.sh` | `scripts/` | inotify watcher for runtime binary integrity |
+| 55 | `opencode-patch-watcher.service` | `systemd/user/` | systemd user service for write detection |
+| 56 | `opencode-patch-integrity-check.service` | `systemd/user/` | Periodic integrity check service |
+| 57 | `opencode-patch-integrity-check.timer` | `systemd/user/` | 30-minute periodic timer |
+| 58 | `run_regressions.sh` | `tests/` | Regression corpus harness |
+| 59 | `regressions/` | `tests/` | 9 paired regression tests, 18 files total |
 
 ---
 
@@ -275,7 +284,7 @@ cd ez-omo-config
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
-| **Google** | Gemini and Antigravity-hosted models | Gemini 3.5 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
+| **Google** | Gemini and Antigravity-hosted models | Gemini 3.6 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
 | **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
 | **Kimi For Coding (OAuth)** | Kimi K3 via device-flow OAuth (Allegretto+ tier) | Kimi K3 (`k3` model id; supports low/high/max reasoning_effort, up to 1M context) |
@@ -296,7 +305,7 @@ cd ez-omo-config
 | **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.2` | high | `openai/gpt-5.6-sol` | Complex frontend work |
 | **document-writer** | `openai/gpt-5.6-sol` | default | `zai-coding-plan/glm-5.2` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.6-sol` | high | `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **oracle** | `openai/gpt-5.6-sol` | high | `kimi-for-coding-oauth/k3`, `zai-coding-plan/glm-5.2`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `zai-coding-plan/glm-5.2` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
 | **momus** | `openai/gpt-5.6-sol` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `openai/gpt-5.6-sol` | xhigh | (none) | Infrastructure, deployment |
@@ -331,7 +340,7 @@ The configuration includes layered defenses against runaway subagent sessions (f
 
 | Layer | Setting | Effect |
 |-------|---------|--------|
-| **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.5-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
+| **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.6-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
 | **Aggressive error purge** | Enabled via OMO dynamic context pruning | Drops failed build/test outputs after 2 turns using OMO's context-pruning strategy. |
 | **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Intended to catch 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) are NOT cancelled by this setting and rely on the subagent loop guard sliding-window detector. |
 | **Subagent loop guard plugin** | `opencode.json#plugin: ../../.opencode/plugin/subagent-loop-guard.ts` (relative path) | Configured to watch the last 50 tool calls per session, convert bash calls to `echo "[loop-guard] blocked: ..."` when Rule A or Rule B fires, and log a Rule C informational warning past the configured total-call threshold |
@@ -430,9 +439,10 @@ Before using this configuration, install the following prerequisites:
 | **bun** | Required | [bun.sh](https://bun.sh) — `curl -fsSL https://bun.sh/install \| bash` |
 | **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.12.1`. The fork is the canonical runtime source while tracked OMO patches remain active. |
 | **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
+| **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
 | **API keys** | Required | See `auth.json.example` for the 7 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
 
-The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, or the local OMO fork. This machine's `opencode.json` references `/home/ezotoff/oh-my-openagent-v4.12.1`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
+The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, `inotify-tools`, or the local OMO fork. This machine's `opencode.json` references `/home/ezotoff/oh-my-openagent-v4.12.1`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
 
 **Binary patches** (optional): Several features (true no-LLM `/session-id`, `/session-info`, `/vscode` cancellation) require patches to the OpenCode binary or OMO npm cache. These are documented in `.sisyphus/patches/` but NOT auto-applied by `install.sh`. Use the `patch-opencode` skill or follow the patch docs manually.
 

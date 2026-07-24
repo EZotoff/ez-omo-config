@@ -1,13 +1,13 @@
 ---
 patch_id: "opencode--sse-directory-filter-removal"
 dependency: "opencode"
-target_file: "packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts"
+target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-06-26"
 dep_version: "1.17.9-local"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/35913"
-verification_pattern: "location\\?\\.workspaceID === undefined \\|\\| event\\.location\\.workspaceID"
+verification_pattern: "location\?\.workspaceID===void 0\|\|"
 ---
 
 # OpenCode SSE event stream directory filter removal
