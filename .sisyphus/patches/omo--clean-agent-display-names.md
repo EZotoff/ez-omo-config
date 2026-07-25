@@ -7,9 +7,9 @@ status: "active"
 applied_date: "2026-04-30"
 dep_version: "4.12.1"
 upstream_issue: "none"
-verification_pattern: "sisyphus: \"Sisyphus\""
+verification_pattern: "sisyphus: \\"Sisyphus\\""
 post_update_status: "reapply_required"
-note: "v4.12.1 ships source-only (no dist/ for omo-opencode). Patch now targets source files + bun build. event-handlers.ts refactored to 4-line barrel; handleMessageUpdated moved to event-message-handlers.ts (new file). Previous post_update_status 'unaffected' was FALSE — v4.12.1 source still has all 8 verbose display names."
+note: "2026-07-25: source-level fix landed in fork branch fix/clean-display-names-source-v4.12.1 (commit df87198). AGENT_DISPLAY_NAMES values are now plain names at the source; earlier iterations of this patch only edited the dist bundle, which silently regressed on every rebuild. Regression test: ez-omo-config/tests/test_display_names_no_verbose_suffix.sh."
 ---
 
 # Clean Agent Display Names
