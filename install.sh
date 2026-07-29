@@ -46,7 +46,6 @@ ITEMS=(
     "plugins|plugins/vscode.ts|$HOME/.opencode/plugin/vscode.ts"
     "plugins|plugins/session-id.ts|$HOME/.opencode/plugin/session-id.ts"
     "plugins|plugins/session-info.ts|$HOME/.opencode/plugin/session-info.ts"
-    "plugins|plugins/subagent-loop-guard.ts|$HOME/.opencode/plugin/subagent-loop-guard.ts"
     "plugins|plugins/clickable-links.ts|$HOME/.opencode/plugin/clickable-links.ts"
     "plugins|plugins/kdco-primitives|$HOME/.opencode/plugin/kdco-primitives"
     "skills|skills/wisdom|$HOME/.config/opencode/skills/wisdom"

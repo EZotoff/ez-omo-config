@@ -33,3 +33,18 @@ When searching for code or understanding codebase structure, use this vanilla di
 | File discovery — list files by pattern | `glob` | Use for path patterns such as `**/*.test.ts` or `docs/**/*.md`. |
 
 Prefer codegraph/LSP facts over memory. If a tool is unavailable or returns no useful result, fall back to the next appropriate vanilla tool without bootstrapping any repo-local search service.
+
+## Claude CLI auth model — subscription OAuth only, NO API key
+
+This machine uses the **Claude Pro/Max subscription** (OAuth credentials in `~/.claude/.credentials.json`). There is no `ANTHROPIC_API_KEY` and one must **not** be provisioned.
+
+**Consequences for any `claude` / `claude -p` invocation or wrapper:**
+
+- **NEVER pass `--bare`.** It ignores OAuth/keychain and requires `ANTHROPIC_API_KEY` (or `apiKeyHelper` via `--settings`), which does not exist here. The invocation will fail auth.
+- **NEVER set `ANTHROPIC_API_KEY=...`** in wrapper scripts, env files, MCP server configs, or skill instructions to "make it work". That routes through pay-per-token billing instead of the subscription and breaks the subscription commitment.
+- The non-bare path is correct and intended: OAuth credentials are read automatically from `~/.claude/.credentials.json`. Hooks, `CLAUDE.md`, and skills auto-load — this is desired, not bleed to mitigate.
+- To scope an invocation, use `--allowedTools`, `--add-dir`, `--permission-mode`, `--model`, `--system-prompt` / `--append-system-prompt`, `--max-turns`. **Not** `--bare`.
+
+If a tool, plugin, skill, or proposal requires `--bare` or `ANTHROPIC_API_KEY`, it is wrong for this machine; redesign it to use the OAuth path.
+
+Reference: wisdom entry `20260729-<id>` (search wisdom with `~/.sisyphus/scripts/wisdom-search.sh "claude subscription bare"`).

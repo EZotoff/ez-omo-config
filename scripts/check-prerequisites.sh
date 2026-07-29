@@ -71,7 +71,6 @@ echo
 echo "Local Plugins"
 
 for p in \
-  subagent-loop-guard.ts \
   clickable-links.ts \
   session-info.ts \
   session-id.ts \

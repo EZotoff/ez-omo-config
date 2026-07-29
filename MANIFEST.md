@@ -39,7 +39,6 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
 | 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
-| 11f | subagent-loop-guard.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Subagent Loop Guard | Required |
 | 11h | clickable-links.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Clickable File Links (TUI) | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 12b | patch-tracker/ | `~/.config/opencode/skills/patch-tracker/` | `skills/patch-tracker/` | `$HOME/.config/opencode/skills/` | Patch Registry | Optional |
@@ -84,7 +83,6 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28f | test_openai_provider.sh | (repo only) | `tests/` | (repo only) | Codex Provider Verification | Required |
 | 28g | test_update_to_latest_skill.sh | (repo only) | `tests/` | (repo only) | Update Pipeline Verification | Required |
 | 28h | test_dcp_payload_budget.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Byte-Budget Verification | Archived (`.retired`) |
-| 28i | test_subagent_loop_guard.sh | (repo only) | `tests/` | (repo only) | Subagent Loop Guard Verification | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/` | (repo only) | Byte-Budget Configuration Reference | Required |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
@@ -116,7 +114,6 @@ ez-omo-config/
 │   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
 │   ├── session-id.ts       # Session ID clipboard plugin (intercepts /session-id command)
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)
-│   ├── subagent-loop-guard.ts # Configured loop-pattern guard for subagent tool calls
 │   ├── clickable-links.ts  # System-prompt injection: file refs as clickable markdown links in TUI
 │   ├── worktree/           # Worktree subdirectory (state.ts, terminal.ts)
 │   └── kdco-primitives/    # Shared library
@@ -158,7 +155,7 @@ ez-omo-config/
 - **Total Artifacts**: repo-managed OpenCode/OMO commands, configs, plugins, skills, scripts, tests, docs, extras, and Docker templates.
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
 - **Core Configs**: 17 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
-- **Plugins**: worktree, git safety, review, checkpoint, session clipboard, loop guard, clickable-link, worktree support, and shared primitive files.
+- **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, and Python operator helpers.
 - **Systemd**: watcher service plus a periodic integrity-check service and 30-minute timer.

@@ -62,7 +62,6 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions
-- **Subagent loop guard** — configured to catch same-tool and same-tool-varying-input loop patterns that strict consecutive-signature detection misses
 - **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
 - **OpenCode/OMO context management** — OpenCode compaction and OMO preemptive compaction/context-window hooks are enabled; Magic Context is retained only as a disabled config file.
@@ -80,7 +79,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
 | 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
-| 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, configured subagent loop guarding, and TUI clickable-link system-prompt injection |
+| 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, and review workflows. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
 | 31a | **Systemd** | 3 user units | Reactive inotify watcher plus a periodic patch-integrity service and timer |
@@ -113,7 +112,6 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
 | 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
 | 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
-| 11g | `subagent-loop-guard.ts` | `plugins/` | Configured per-session tool-call loop guard for same-tool frequency and same-tool varying-input patterns |
 | 11h | `clickable-links.ts` | `plugins/` | System-prompt injection via `experimental.chat.system.transform` — tells every agent to format file references as `[label](file:///abs/path)` markdown links so they are clickable in the TUI |
 | 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
 | 12b | `patch-tracker/` | `skills/` | Patch registry CRUD and post-update verification skill |
@@ -168,7 +166,6 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 50 | `tests/test_live_deployment_contract.sh` | `tests/` | Repo-safe contract tests for live deployment verification |
 | 50b | `tests/test_review_enforcer_completion_instruction.sh` | `tests/` | Regression test for PLAN_COMPLETION_INSTRUCTION block extraction and content verification |
 | 50c | `tests/test_openai_provider.sh` | `tests/` | Regression test for Codex display provider presence in opencode.json (`openai` key) |
-| 50d | `tests/test_subagent_loop_guard.sh` | `tests/` | Regression test for subagent loop guard detection, cooldown, per-session tracking, ring eviction, disable flag, and fail-open behavior |
 | 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
 | 51a | `aspect-dynamics/sets/emotions-v2.json` | `configs/opencode/` | Versioned distress-focused seed aspect set with profanity-aware heuristics |
 | 52 | `docs/dcp-byte-budget.md` | `docs/` | RETIRED 2026-06-23: DCP byte-budget gate reference. Magic Context was tried as the replacement and is currently disabled. Historical record only. |
@@ -342,36 +339,15 @@ The configuration includes layered defenses against runaway subagent sessions (f
 |-------|---------|--------|
 | **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.6-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
 | **Aggressive error purge** | Enabled via OMO dynamic context pruning | Drops failed build/test outputs after 2 turns using OMO's context-pruning strategy. |
-| **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Intended to catch 14 Jun-class loops; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) are NOT cancelled by this setting and rely on the subagent loop guard sliding-window detector. |
-| **Subagent loop guard plugin** | `opencode.json#plugin: ../../.opencode/plugin/subagent-loop-guard.ts` (relative path) | Configured to watch the last 50 tool calls per session, convert bash calls to `echo "[loop-guard] blocked: ..."` when Rule A or Rule B fires, and log a Rule C informational warning past the configured total-call threshold |
+| **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Catches 14 Jun-class stuck-repeat loops only; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) reset the consecutive counter each call and are NOT cancelled by this setting. |
 
-**Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. The `subagent-loop-guard.ts` plugin is configured to add sliding-window detection as a local add-on.
+**Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) and same-tool varying-input patterns (screenshot-with-varying-URL) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. Shape-based alternation detection is planned as a sliding-window extension to OMO's circuit breaker (where task cancellation actually works), not as an OpenCode plugin.
 
-**Evidence state**: The OMO/config-setting mitigations are `repo_implemented`, `live_file_installed` (via symlink), and `active_config_registered`. The `subagent-loop-guard.ts` row is `repo_implemented` and `active_config_registered` only until `install.sh --plugins` is run. **Not verified live: `live_file_installed` for the new plugin, `runtime_loaded`, `real_project_behavior_proven`**.
+**Evidence state**: The OMO/config-setting mitigations are `repo_implemented`, `live_file_installed` (via symlink), and `active_config_registered`.
 
-### Subagent Loop Guard Plugin
+### Removed: Subagent Loop Guard Plugin (2026-07-25)
 
-The built-in OMO circuit breaker cannot catch alternating patterns or same-tool-varying-input patterns (see Known Limitation above). The `subagent-loop-guard.ts` plugin is configured to add sliding-window detection on top of OMO's consecutive-signature detector.
-
-| Detection Rule | Window | Threshold | Trigger | Configured action |
-|----------------|--------|-----------|---------|--------|
-| **A — Tool-frequency alternation** | Last 50 calls | Same tool >30 times | Configured to catch 14 Jun-class agent-browser cycles | Mutate bash command to no-op + log warning |
-| **B — Same-tool varying-input** | Last 30 calls | Same tool >20 times with all-different signatures | Configured to catch 21 Jun-class build↔test cycles and screenshot-with-varying-URL loops | Mutate bash command to no-op + log warning |
-| **C — Informational threshold** | Per session | >300 total calls | Heads-up before OMO's maxToolCalls=500 fires | Log warning only (no blocking) |
-
-**Env vars** (all optional, read at plugin init):
-- `OMO_LOOP_GUARD_WINDOW_A` (default 50), `OMO_LOOP_GUARD_N_A` (default 30)
-- `OMO_LOOP_GUARD_WINDOW_B` (default 30), `OMO_LOOP_GUARD_N_B` (default 20)
-- `OMO_LOOP_GUARD_INFO_THRESHOLD` (default 300)
-- `OMO_LOOP_GUARD_COOLDOWN_MS` (default 60000 — per-session per-rule cooldown to avoid transcript spam)
-- `OMO_LOOP_GUARD_DISABLE=1` (kill switch — plugin no-ops all hooks)
-
-**Evidence state**: `repo_implemented`, `tests_passed`, and `active_config_registered`. **Not verified live: `live_file_installed`, `runtime_loaded`, `real_project_behavior_proven`** — install via `install.sh` and restart OpenCode to load the plugin.
-
-**What the plugin CANNOT do**:
-- Cannot truly cancel a task (no `cancelTask` in plugin SDK). Bash arg-mutation makes individual bash calls into no-ops; other tools (e.g., agent-browser) only get a logged warning.
-- Cannot catch single long-running tool calls (count-based detection only sees discrete tool boundaries).
-- Cannot enforce aggregate caps across sibling subagents (each session tracked independently).
+The `subagent-loop-guard.ts` plugin was removed. Post-incident analysis showed its sliding-window rules (same-tool frequency, same-tool varying-input) matched legitimate tool-dense investigation work far more often than real doom loops, its only enforcement action was mutating bash calls into no-op echoes (agents simply routed around it by switching tools), and it hooked every session including root orchestrators despite being named for subagents. OMO's `consecutiveThreshold` already covers strict-repeat loops with real task cancellation. The one genuine gap it leaves — alternation/varying-input shape detection — is planned as an extension to OMO's own circuit breaker in `manager.ts`, scoped to background subagent tasks, where cancellation authority exists.
 
 ### Future Work: Periodic Lead-Agent Inspection
 
@@ -384,7 +360,7 @@ The mitigations above are reactive (detect-and-block). A complementary proactive
 | **Pull (transcript annotation)** | Plugin annotates the parent's next tool call args with a status comment | No (in-band) | Medium |
 | **Upstream OMO patch** | Fix `lastMessageAt` assignment in `manager.ts` so the existing babysitter hook fires | No (handled by OMO) | High (requires OMO source patch + maintenance) |
 
-Out of current scope. Will revisit after observing how the circuit breaker + loop guard perform in real visual-engineering subagent runs.
+Out of current scope. Will revisit after observing how the circuit breaker performs in real visual-engineering subagent runs.
 
 ### Context Management
 
