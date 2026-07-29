@@ -117,8 +117,11 @@ pattern_matches() {
     local pattern="$1"
     shift
     local check_path
+    # ALL listed targets must match — a single match is not sufficient.
+    # This prevents silent patch loss when a rebuild drops the marker from
+    # dist/index.js but the source file still contains it.
     for check_path in "$@"; do
-        if VERIFY_PATTERN="$pattern" VERIFY_PATH="$check_path" python3 -c '
+        if ! VERIFY_PATTERN="$pattern" VERIFY_PATH="$check_path" python3 -c '
 import os
 import re
 import sys
@@ -134,10 +137,10 @@ except re.error:
     matched = pattern in text
 sys.exit(0 if matched else 1)
 '; then
-            return 0
+            return 1
         fi
     done
-    return 1
+    return 0
 }
 
 JSON_OUTPUT=0

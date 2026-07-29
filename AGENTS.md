@@ -30,7 +30,7 @@ Live configs are symlinks pointing into this repo:
 1. **Edit the store path** (files in this repo). The symlinks ensure OpenCode sees the change.
 2. **No propagation needed.** The old copy-and-adapt workflow is dead. There is no second file to sync.
 3. **Never commit auth/API keys.** `~/.local/share/opencode/auth.json` is machine-local.
-4. **No machine-specific paths.** `opencode.json` uses relative paths for all local plugins (e.g. `./provider-connect-retry.mjs`, `../../.opencode/plugin/subagent-loop-guard.ts`), resolved by OpenCode against the config file's directory. No manual path updates are needed on a new machine.
+4. **No machine-specific paths.** `opencode.json` uses relative paths for all local plugins (e.g. `./provider-connect-retry.mjs`, `../../.opencode/plugin/clickable-links.ts`), resolved by OpenCode against the config file's directory. No manual path updates are needed on a new machine.
 5. **Validate JSON after editing.** Run `python3 -c "import json; json.load(open('path'))"` on changed files.
 6. **Server vs TUI restart.** Closing/reopening the TUI does NOT restart the `opencode serve` server process. Plugins, OMO runtime, and in-memory session state are initialized once at server startup. Config changes (plugin array, agent settings) require `systemctl --user restart opencode.service omo-tg.service` to take full effect. Always verify with `ps -eo pid,lstart,etime,args | grep 'opencode serve'` that the server start time actually changed before assuming a restart worked.
 
@@ -172,6 +172,19 @@ When fixing bugs in the OpenCode Go/TypeScript binary, follow this procedure EXA
 9. **Restart servers**: `systemctl --user start omo-tg.service opencode.service`
 10. **Test the live version**: verify the fix works on the real surface (TUI, background tasks, etc.). State explicitly `Not verified live: runtime_loaded, real_project_behavior_proven` until the patched behavior is observed end-to-end in a real session.
 11. **Roll back if needed**: `cp ~/.opencode/bin/opencode.backup-<...> ~/.opencode/bin/opencode`
+
+### Multi-Surface Rendering (CRITICAL for patch correctness)
+
+OpenCode has multiple independent rendering paths for the same logical output. A patch that modifies one path may silently stop working when a version update changes which package renders the feature.
+
+**Rendering surfaces**:
+- **CLI run** — `packages/opencode/src/cli/cmd/run/` (the `opencode run` scrollback renderer)
+- **TUI interactive** — `packages/tui/src/routes/session/` (the interactive SolidJS TUI launched by bare `opencode`)
+- **Server API** — event handlers, HTTP routes, plugin triggers
+
+**Rule**: when creating or updating a patch that modifies rendering/UI code, identify ALL surfaces where the feature appears. Use the `surfaces` field in the patch YAML frontmatter. A patch that only covers `cli-run` may leave `tui-interactive` broken after a version bump that migrates rendering between packages (this happened with the turn-summary-timestamp patch in the v1.17→v1.18 migration).
+
+**Verification**: after building, exercise the feature on EACH surface. Send a test prompt via both `opencode run` and the interactive TUI. Grep alone is insufficient — code may be present in the bundle but unreachable at runtime.
 
 ### Skill
 

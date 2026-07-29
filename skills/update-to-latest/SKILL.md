@@ -117,14 +117,19 @@ Classify each available update into one of the following categories:
 
 **Rule**: any classification of `unknown` automatically escalates the regression suite to **Deep**.
 
+**Rendering path migration check**: examine the release notes and source diff for evidence that feature rendering moved between packages (e.g., from `packages/opencode/src/cli/cmd/run/` to `packages/tui/src/routes/session/`). If any rendering migration is detected, flag ALL patches whose `surfaces` field or `target_file` paths reference the old package for re-evaluation in Phase 4. This is the #1 cause of silent patch regression across major version bumps.
+
 ### Phase 4: Patch Registry Review
 
 Read every `.sisyphus/patches/*.md` entry. For each active patch:
 
-1. Identify the `target_file` and `target_install_path`.
-2. Determine whether the upcoming update touches the same file paths or subsystems.
-3. Flag any patch whose target file is mentioned in upstream release notes, changelogs, or commit diffs.
-4. Record a preliminary risk level: `none`, `low`, `medium`, or `high`.
+1. Identify the `target_file`, `target_install_path`, `dep_version`, and `upstream_issue`.
+2. **Compare `dep_version` to the target update version.** If the target version is >= the version mentioned in the patch's `## Durable Alternative` section as containing the upstream fix, flag the patch for **retire-vs-reapply evaluation** in Phase 10.
+3. Determine whether the upcoming update touches the same file paths or subsystems.
+4. Flag any patch whose target file is mentioned in upstream release notes, changelogs, or commit diffs.
+5. **Read the patch's `## Durable Alternative` section** for any re-check warnings (e.g., "re-verify it does not hit the same race before deprecating"). Record these as Phase 12 regression requirements.
+6. Record a preliminary risk level: `none`, `low`, `medium`, or `high`.
+7. **Cross-package rendering check**: for each patch that modifies rendering/UI code (identified by `surfaces` field, or by `target_file` paths in `cli/cmd/run/`, `tui/src/routes/`, or similar rendering directories), search the new version for ALL files that render the same logical output across ALL packages. If the rendering path moved to a different package (e.g., `packages/opencode/` → `packages/tui/`), the patch must be extended to cover the new path before proceeding. Failure to do this is the most common cause of 'patch was applied but feature is missing' regressions.
 
 ### Phase 5: Benefit / Effort / Risk Recommendation
 
@@ -204,6 +209,12 @@ For each patch flagged in Phase 4, classify its post-update state:
 
 **Obsolete classifications must be deprecated with rationale, NOT deleted.** Update the patch entry's `status` field to `deprecated` or `upstreamed`, and record the reason in the entry body.
 
+**Before classifying a patch as `obsolete-upstreamed`, the agent MUST:**
+1. Verify the upstream fix version (from `upstream_issue` or release notes) matches or exceeds the target update version.
+2. Consult the patch's `## Durable Alternative` section for any re-check warnings (e.g., "re-verify it does not hit the same flag-consumption race before deprecating"). These warnings are mandatory Phase 12 regression requirements.
+3. Confirm the upstream implementation is functionally equivalent, not just superficially similar. A conditional fix upstream does NOT obsolete an unconditional patch if the condition was the root cause.
+4. Record the evidence (commit hash, PR number, version) supporting the deprecation in the patch entry body.
+
 ### Phase 11: Patch Tracker Updates
 
 For every patch whose classification changed in Phase 10, update the corresponding `.sisyphus/patches/*.md` entry:
@@ -223,6 +234,10 @@ Run the regression suite selected in Phase 6:
 - **Deep** — full `bash tests/run_all.sh` + DCP startup checks + rollback drill.
 
 Record all test results in the evidence directory. Any failure in a critical test triggers the Rollback Policy.
+
+**Patch-specific verification enforcement**: for each patch classified as `obsolete-upstreamed`, `needs-redesign`, or `conflicted` in Phase 10, run the patch's own verification commands from its `## Verification` section. A patch-specific verification failure after update is a critical regression that triggers the Rollback Policy — even if the general regression suite passes.
+
+**Surface coverage verification**: for each patch that modifies rendering/UI code (identified by `surfaces` field or rendering-directory `target_file` paths), verify the feature is visible on ALL user-facing surfaces by exercising the feature in the target binary. Send a test prompt in both `opencode run` mode AND the interactive TUI, and confirm the patched feature appears in both. Pattern-grepping the binary is insufficient — the rendering code may be present in the bundle but unreachable at runtime due to architectural changes (e.g., the TUI switched from the `run/` scrollback to SolidJS components between v1.17 and v1.18).
 
 ### Phase 13: Evidence Report and Claim Discipline
 
