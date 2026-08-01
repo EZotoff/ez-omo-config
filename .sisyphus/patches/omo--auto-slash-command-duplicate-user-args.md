@@ -2,10 +2,10 @@
 patch_id: "omo--auto-slash-command-duplicate-user-args"
 dependency: "oh-my-openagent"
 target_file: "dist/index.js"
-target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
 status: "active"
 applied_date: "2026-07-06"
-dep_version: "4.12.1"
+dep_version: "4.19.2"
 upstream_issue: "https://github.com/code-yeongyu/oh-my-openagent/pull/5983"
 verification_pattern: "\\*\\*User Arguments\\*\\*"
 ---
@@ -34,20 +34,20 @@ The header `**User Arguments**: ${args}` is retained, consistent with `formatLoa
 Positive check — retained header exists:
 
 ```bash
-grep -n 'User Arguments' /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js && echo "APPLIED" || echo "STALE"
+grep -n 'User Arguments' /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js && echo "APPLIED" || echo "STALE"
 ```
 
 Negative check — duplicate footer removed (adjacency test):
 
 ```bash
 # Patched: substitutedContent.trim() is immediately followed by return sections.join
-grep -A1 'substitutedContent\.trim' /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js | grep -q 'return sections\.join' && echo "APPLIED" || echo "STALE"
+grep -A1 'substitutedContent\.trim' /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js | grep -q 'return sections\.join' && echo "APPLIED" || echo "STALE"
 ```
 
 Also confirm `## User Request` is globally absent from the dist:
 
 ```bash
-test $(grep -c '## User Request' /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js) -eq 0 && echo "APPLIED" || echo "STALE"
+test $(grep -c '## User Request' /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js) -eq 0 && echo "APPLIED" || echo "STALE"
 ```
 
 Source repo check:
@@ -58,7 +58,7 @@ test $(grep -c '## User Request' /home/ezotoff/oh-my-openagent-candidate/src/hoo
 
 ## Reapply Instructions
 
-1. Open `dist/index.js` in the installed OMO directory (`/home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js`)
+1. Open `dist/index.js` in the installed OMO directory (`/home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js`)
 2. Find the function `formatCommandTemplate` (search for `async function formatCommandTemplate`)
 3. After the line `sections.push(substitutedContent.trim());`, remove the following block:
    ```javascript

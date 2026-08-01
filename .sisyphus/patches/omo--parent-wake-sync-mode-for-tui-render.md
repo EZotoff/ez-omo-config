@@ -2,10 +2,10 @@
 patch_id: "omo--parent-wake-sync-mode-for-tui-render"
 dependency: "oh-my-openagent"
 target_file: "dist/index.js (sendParentWakePrompt function, ~line 119744)"
-target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
 status: "rolled_back"
 applied_date: "2026-06-24"
-dep_version: "4.12.1"
+dep_version: "4.19.2"
 upstream_issue: "https://github.com/code-yeongyu/oh-my-openagent/issues/5189"
 verification_pattern: 'forceNoReply !== true && input.latestWake.shouldReply ? "sync"'
 post_update_status: "do_not_reapply"
@@ -45,15 +45,15 @@ mode: input.forceNoReply !== true && input.latestWake.shouldReply ? "sync" : "as
 ```bash
 # Verify the patch is present
 grep -c 'forceNoReply !== true && input.latestWake.shouldReply ? "sync"' \
-  /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js
+  /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js
 # Expected: 1
 
 # Verify syntax is valid
-node --check /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js
+node --check /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js
 # Expected: no errors
 
 # Verify other dispatch sites are untouched (should still have ~13 mode: "async")
-grep -c 'mode: "async"' /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js
+grep -c 'mode: "async"' /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js
 # Expected: 13
 ```
 
@@ -73,7 +73,7 @@ If the patch is lost after an OMO update:
 
 1. Find `sendParentWakePrompt` in the new `dist/index.js`:
    ```bash
-   grep -n 'sendParentWakePrompt' /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js
+   grep -n 'sendParentWakePrompt' /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js
    ```
 
 2. In the `sendParentWakePrompt` function body, find the `dispatchInternalPrompt` call with `mode: "async"` and `source: "background-agent-parent-wake"`.
@@ -89,7 +89,7 @@ If the patch is lost after an OMO update:
 
 4. Verify syntax:
    ```bash
-   node --check /home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js
+   node --check /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js
    ```
 
 5. Restart OpenCode.

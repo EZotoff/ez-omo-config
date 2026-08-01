@@ -2,12 +2,12 @@
 patch_id: "omo--runtime-fallback-checktoolstate-bypass"
 dependency: "oh-my-openagent"
 target_file: "dist/index.js, packages/omo-opencode/src/hooks/runtime-fallback/auto-retry-dispatch.ts"
-target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
 status: "active"
 applied_date: "2026-07-25"
-dep_version: "4.12.1"
+dep_version: "4.19.2"
 upstream_issue: "https://github.com/code-yeongyu/oh-my-openagent/pull/5357"
-verification_pattern: "checkToolState: false"
+verification_pattern: "source: retrySource,\s*settleMs: 0,[\s\S]{0,80}checkToolState: false"
 ---
 
 # OMO runtime-fallback checkToolState bypass (fork port, hardened)
@@ -31,7 +31,7 @@ toast shown, session permanently halted, and the prompt queue drain spams
   `deps.internallyAbortedSessions.has(sessionID)` (upstream PR #5357 shape).
   Verified live the same day.
 - **2026-07-23:** live config switched to the local fork
-  `file:///home/ezotoff/oh-my-openagent-v4.12.1` (commit `1b9c6cb`). The npm-cache
+  `file:///home/ezotoff/oh-my-openagent-v4.19.2` (commit `1b9c6cb`). The npm-cache
   edit was stranded; the fork never had the fix. This patch file existed only in
   `.omo/patches/`, outside the verifier's `.sisyphus/patches/` scope, so the loss
   was silent.
@@ -61,13 +61,16 @@ tool-state check unchanged.
 ## Verification
 
 ```bash
-# Source-level verification (must match in BOTH dist/index.js and source .ts)
-grep -c "checkToolState: false" \
-  /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js \
-  /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/hooks/runtime-fallback/auto-retry-dispatch.ts
-# Expected: >= 1 in each file (verifier requires ALL targets to match)
+grep -c "checkToolState: false" /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js
+# Expected: >= 1 at the runtime-fallback call site
 
-# Full verifier run
+python3 -c "
+import re
+text = open('/home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js').read()
+print(bool(re.search(r'source: retrySource,\s*settleMs: 0,[\s\S]{0,80}checkToolState: false', text)))
+"
+# Expected: True
+
 bash scripts/verify-live-patches.sh
 # Expected: APPLIED for omo--runtime-fallback-checktoolstate-bypass
 ```

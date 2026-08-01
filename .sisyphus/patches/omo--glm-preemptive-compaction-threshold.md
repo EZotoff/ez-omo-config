@@ -2,10 +2,10 @@
 patch_id: "omo--glm-preemptive-compaction-threshold"
 dependency: "oh-my-openagent"
 target_file: "packages/omo-opencode/src/hooks/preemptive-compaction-trigger.ts"
-target_install_path: "/home/ezotoff/oh-my-openagent-v4.12.1"
+target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
 status: "active"
 applied_date: "2026-04-10"
-dep_version: "4.12.1"
+dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "GLM_PREEMPTIVE_COMPACTION_THRESHOLD"
 ---
