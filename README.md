@@ -387,7 +387,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.12.1)
 - **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on local OpenCode 1.17.9 binary)
 - **OpenCode SSE directory filter removal**: `.sisyphus/patches/opencode--sse-directory-filter-removal.md` (active on local OpenCode 1.17.9 binary)
-- **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (active on local OpenCode 1.17.9 binary; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line)
+- **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (**RUNTIME-INEFFECTIVE on live v1.18.5 binary** — patch string present but `_linkifyMarkdownChunks` hook unreachable on v1.18 SolidJS render path; last effective on 1.17.9-local; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line). See the patch entry's `## Current Runtime Status` section and the `runtime_effective: false` flag.
 - **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.12.1)
 - **Auto-slash-command duplicate user args**: `.sisyphus/patches/omo--auto-slash-command-duplicate-user-args.md` (active on OMO v4.12.1)
 - **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (active on OMO v4.12.1)

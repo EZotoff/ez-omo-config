@@ -130,6 +130,11 @@ Read every `.sisyphus/patches/*.md` entry. For each active patch:
 5. **Read the patch's `## Durable Alternative` section** for any re-check warnings (e.g., "re-verify it does not hit the same race before deprecating"). Record these as Phase 12 regression requirements.
 6. Record a preliminary risk level: `none`, `low`, `medium`, or `high`.
 7. **Cross-package rendering check**: for each patch that modifies rendering/UI code (identified by `surfaces` field, or by `target_file` paths in `cli/cmd/run/`, `tui/src/routes/`, or similar rendering directories), search the new version for ALL files that render the same logical output across ALL packages. If the rendering path moved to a different package (e.g., `packages/opencode/` → `packages/tui/`), the patch must be extended to cover the new path before proceeding. Failure to do this is the most common cause of 'patch was applied but feature is missing' regressions.
+8. **Rendering-patch frontmatter enforcement (HARD GATE).** For each patch whose `target_file` is in `cli/cmd/run/`, `tui/src/routes/`, or any other rendering directory (or whose existing frontmatter carries a `surfaces` field), verify the entry has:
+   - A `surfaces:` field listing every surface the patch touches. If missing, **STOP** and require the entry to be updated before proceeding — do not guess the surface list from the target file path alone.
+   - A `runtime_effective:` boolean flag if the patch is a monkey-patch or ref-callback patch (overrides an internal method, attaches a `ref` callback, or patches a renderable). If missing, **STOP** and require the entry to be updated.
+   - A `## Runtime Verification` section with concrete surface-exercise steps. If missing and `verification_pattern` is a JS property key or string literal (minification-survivor), **STOP** and require the entry to be updated.
+9. **Verification-pattern reliability audit.** For each active patch, classify `verification_pattern` as `vanishes-if-dead` (e.g. a uniquely-named local that Bun would inline and discard if the code path is dead) or `minification-survivor` (property key, string literal, or any pattern Bun preserves). Record minification-survivor patches as Phase 12 MANDATORY runtime-verification candidates — pattern-grep alone cannot establish their effectiveness after a version bump.
 
 ### Phase 5: Benefit / Effort / Risk Recommendation
 
@@ -206,6 +211,7 @@ For each patch flagged in Phase 4, classify its post-update state:
 - `obsolete-replaced-by-config-or-plugin` — a durable alternative (config, plugin, or hook) now covers the same need.
 - `missing-target` — the patched file no longer exists in the updated dependency.
 - `needs-redesign` — the patch must be rewritten for the new version.
+- `runtime-ineffective` — the patch string/method is present in the updated binary but the feature does not work at runtime. This is the **most dangerous** classification: pattern-grep reports APPLIED, the source file contains the override, but the code path is unreachable (e.g. the monkey-patched method is no longer invoked on the active render path). Triggered when Phase 12 surface verification fails despite pattern-presence. The patch entry's `runtime_effective` flag MUST be set to `false` and a `## Current Runtime Status` section MUST document the regression. Do NOT bump `dep_version` to the new version in this state — `dep_version` records the LAST VERSION WHERE EFFECTIVENESS WAS VERIFIED.
 
 **Obsolete classifications must be deprecated with rationale, NOT deleted.** Update the patch entry's `status` field to `deprecated` or `upstreamed`, and record the reason in the entry body.
 
@@ -214,6 +220,11 @@ For each patch flagged in Phase 4, classify its post-update state:
 2. Consult the patch's `## Durable Alternative` section for any re-check warnings (e.g., "re-verify it does not hit the same flag-consumption race before deprecating"). These warnings are mandatory Phase 12 regression requirements.
 3. Confirm the upstream implementation is functionally equivalent, not just superficially similar. A conditional fix upstream does NOT obsolete an unconditional patch if the condition was the root cause.
 4. Record the evidence (commit hash, PR number, version) supporting the deprecation in the patch entry body.
+
+**Before classifying a patch as `reapplied-cleanly`, the agent MUST:**
+1. Run the patch's `## Runtime Verification` steps from its entry, not just its pattern-grep `## Verification` steps.
+2. For monkey-patch / ref-callback patches, confirm at runtime that the patched method/hook is still invoked on the active code path in the new version. Pattern-presence in the binary is NOT sufficient — Bun minification preserves JS property keys, so a `verification_pattern` that is a property key (e.g. `__linkLabelPatch`) or string literal reports a false-positive APPLIED even when the surrounding code is dead.
+3. If runtime verification fails, classify as `runtime-ineffective`, NOT `reapplied-cleanly`. The v1.18.5 link-click regression (see `opencode--link-click-wrapped-osc8.md`) was caused by exactly this misclassification — the patch was marked reapplied to v1.18.5 when it was in fact unreachable on the new SolidJS render path.
 
 ### Phase 11: Patch Tracker Updates
 
@@ -237,7 +248,14 @@ Record all test results in the evidence directory. Any failure in a critical tes
 
 **Patch-specific verification enforcement**: for each patch classified as `obsolete-upstreamed`, `needs-redesign`, or `conflicted` in Phase 10, run the patch's own verification commands from its `## Verification` section. A patch-specific verification failure after update is a critical regression that triggers the Rollback Policy — even if the general regression suite passes.
 
-**Surface coverage verification**: for each patch that modifies rendering/UI code (identified by `surfaces` field or rendering-directory `target_file` paths), verify the feature is visible on ALL user-facing surfaces by exercising the feature in the target binary. Send a test prompt in both `opencode run` mode AND the interactive TUI, and confirm the patched feature appears in both. Pattern-grepping the binary is insufficient — the rendering code may be present in the bundle but unreachable at runtime due to architectural changes (e.g., the TUI switched from the `run/` scrollback to SolidJS components between v1.17 and v1.18).
+**Surface coverage verification (HARD GATE for rendering patches)**: for each patch that modifies rendering/UI code (identified by `surfaces` field, `runtime_effective` flag, or rendering-directory `target_file` paths), the feature MUST be exercised on every surface listed in its `surfaces` field on the real updated binary. For each surface:
+
+1. Send a test prompt (or equivalent trigger) that causes the patched behaviour to render.
+2. Observe the expected behaviour directly — pattern-grepping the binary is NOT sufficient. The rendering code may be present in the bundle but unreachable at runtime (e.g., the TUI switched from the `run/` scrollback to SolidJS components between v1.17 and v1.18, leaving monkey-patches on the old `<markdown>` ref dead).
+3. Capture concrete evidence: a screenshot, a captured output transcript, or an explicit human confirmation line in the evidence directory.
+4. If the expected behaviour is NOT observed on any listed surface, classify the patch as `runtime-ineffective` (Phase 10), set `runtime_effective: false` in the entry, and trigger the Rollback Policy — UNLESS the user explicitly accepts the regression in writing.
+
+This gate is non-negotiable for patches whose `verification_pattern` is a minification-survivor (JS property key or string literal), because pattern-grep reports a false-positive APPLIED for those patches even when the code is dead. The v1.18.5 link-click regression passed Phase 12 because the gate was descriptive rather than enforced.
 
 ### Phase 13: Evidence Report and Claim Discipline
 
@@ -306,6 +324,7 @@ These are the exact classifications used in Phase 10:
 - `obsolete-replaced-by-config-or-plugin`
 - `missing-target`
 - `needs-redesign`
+- `runtime-ineffective`
 
 **Deprecate, do not delete.** Obsolete classifications (`obsolete-upstreamed`, `obsolete-replaced-by-config-or-plugin`) must update the patch entry's `status` to `deprecated` or `upstreamed` and preserve the file in `.sisyphus/patches/`. The history and rationale must remain available for future reference.
 

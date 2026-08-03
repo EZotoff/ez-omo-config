@@ -182,9 +182,17 @@ OpenCode has multiple independent rendering paths for the same logical output. A
 - **TUI interactive** — `packages/tui/src/routes/session/` (the interactive SolidJS TUI launched by bare `opencode`)
 - **Server API** — event handlers, HTTP routes, plugin triggers
 
-**Rule**: when creating or updating a patch that modifies rendering/UI code, identify ALL surfaces where the feature appears. Use the `surfaces` field in the patch YAML frontmatter. A patch that only covers `cli-run` may leave `tui-interactive` broken after a version bump that migrates rendering between packages (this happened with the turn-summary-timestamp patch in the v1.17→v1.18 migration).
+**Rules** (all mandatory for any patch that modifies rendering, UI, or chunk-pipeline code):
 
-**Verification**: after building, exercise the feature on EACH surface. Send a test prompt via both `opencode run` and the interactive TUI. Grep alone is insufficient — code may be present in the bundle but unreachable at runtime.
+1. **`surfaces` frontmatter field is REQUIRED.** List every surface the patch touches (`cli-run`, `tui-interactive`, `server-api`). A patch missing this field WILL be rejected at update-to-latest Phase 4. A patch that only covers `cli-run` may leave `tui-interactive` broken after a version bump that migrates rendering between packages (this happened with the turn-summary-timestamp patch in the v1.17→v1.18 migration).
+
+2. **`runtime_effective` boolean flag is REQUIRED for monkey-patches and ref-callback patches.** Set `runtime_effective: true` only after observing the patched behaviour on the real surface. Bumping `dep_version` or rebuilding the binary does NOT flip this flag — pattern-presence in the binary is not effectiveness. The v1.18.5 link-click regression (see `opencode--link-click-wrapped-osc8.md`) happened because the patch was reapplied verbatim, the patch string survived in the binary, and the monkey-patch hook (`_linkifyMarkdownChunks`) was no longer invoked on the active SolidJS render path.
+
+3. **Monkey-patch reachability trap.** When a patch overrides an internal method (e.g. `el._linkifyMarkdownChunks = ...` via a `ref`), a version bump may silently make that method unreachable even though the source file still contains the override and the binary still contains the string. The SolidJS renderer migration between v1.17 and v1.18 moved chunk-processing off `TextPart`'s `<markdown>` ref. After ANY reapply to a new version, you MUST verify at runtime that the hook is actually invoked — not just that the code compiles and the string is present.
+
+4. **Verification pattern reliability.** `verify-live-patches.sh` greps the binary for `verification_pattern`. Bun minification renames local variables but **preserves JavaScript property keys and string literals**. A `verification_pattern` that is a property key (e.g. `__linkLabelPatch`), a string literal, or any other minification-survivor will report APPLIED even when the surrounding code is unreachable. When choosing a `verification_pattern`, prefer a pattern that disappears if the code path is dead. When that is not possible (binary patches), the patch entry MUST additionally carry a `## Runtime Verification` section with concrete surface-exercise steps, and the `runtime_effective` flag is the only honest signal of effectiveness.
+
+5. **Surface coverage verification.** After building, exercise the feature on EACH listed surface. Send a test prompt via both `opencode run` AND the interactive TUI, and observe the expected behaviour directly. Grep alone is insufficient — code may be present in the bundle but unreachable at runtime. Capture the observation (screenshot, captured output, or explicit human confirmation) in the patch entry before claiming the patch works.
 
 ### Skill
 

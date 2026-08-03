@@ -44,7 +44,11 @@ When invoked with `/register-patch` or when a custom patch is applied:
 | `target_install_path` | yes | Absolute path to the dependency install root |
 | `status` | yes | `active` \| `upstreamed` \| `deprecated` |
 | `applied_date` | yes | ISO 8601 date when patch was applied (YYYY-MM-DD) |
-| `dep_version` | yes | Version or range when patch was applied (e.g., `"0.5.2"`, `">=0.5.0"`, `"current"`) |
+| `dep_version` | yes | Version or range where the patch was LAST VERIFIED EFFECTIVE at runtime. Do NOT bump this just because the patch string is present in a newer binary — that is a pattern-presence claim, not an effectiveness claim (see `runtime_effective`). |
+| `upstream_issue` | yes | URL to upstream issue/PR tracking the fix, or `"none"` |
+| `verification_pattern` | yes | Grep-compatible regex to verify the patch string is embedded. **Limitation**: Bun minification preserves JS property keys and string literals, so a property-key pattern (e.g. `__linkLabelPatch`) reports a false-positive APPLIED even when the surrounding code is unreachable. Prefer a pattern that disappears if the code path is dead; otherwise require a `## Runtime Verification` section. |
+| `surfaces` | rendering patches only | List of surfaces the patch touches (`cli-run`, `tui-interactive`, `server-api`). REQUIRED for any patch whose `target_file` is in a rendering directory (`cli/cmd/run/`, `tui/src/routes/`, etc.) or that overrides a renderable method. |
+| `runtime_effective` | monkey-patches only | Boolean. REQUIRED for any patch that overrides an internal method, attaches a `ref` callback, or patches a renderable. Set `true` only after observing the patched behaviour on the real surface. Set `false` when the patch string is present but the feature regressed (see `opencode--link-click-wrapped-osc8.md`). |
 | `upstream_issue` | yes | URL to upstream issue/PR tracking the fix, or `"none"` |
 | `verification_pattern` | yes | Grep-compatible regex to verify patch is applied |
 
@@ -53,8 +57,9 @@ When invoked with `/register-patch` or when a custom patch is applied:
 Per `.sisyphus/patches/TEMPLATE.md`, the entry body must include:
 - `## Problem` — What was broken and why a patch was needed
 - `## Patch Description` — What was changed, with before/after summary (no large diffs)
-- `## Verification` — How to check if this patch is still applied. Include the exact grep command.
-- `## Reapply Instructions` — Step-by-step instructions to reapply this patch if lost after an update
+- `## Verification` — How to check if this patch is still applied. Include the exact grep command. Label this as "pattern (necessary, not sufficient)" for binary patches.
+- `## Runtime Verification` — (REQUIRED for rendering patches and any patch with `runtime_effective` flag or a minification-survivor `verification_pattern`) Concrete surface-exercise steps: what prompt to send, what to observe, what constitutes the regression signal. This is the ONLY sufficient check for binary monkey-patches.
+- `## Reapply Instructions` — Step-by-step instructions to reapply this patch if lost after an update. MUST start with "identify the ACTIVE rendering hook point in the TARGET version first" for monkey-patches.
 - `## Durable Alternative` — What would make this patch unnecessary (plugin, hook, config, upstream fix). Include status: `{pursued \| not-yet-pursued \| blocked-by-upstream \| not-applicable}`
 
 **Step 3: Validate fields:**
@@ -164,27 +169,25 @@ When invoked with `/check-patches` after a dependency update, or on request:
 ls .sisyphus/patches/*.md 2>/dev/null | grep -v TEMPLATE.md
 ```
 
-**Step 2:** For each entry where `status == "active"`:
+**Step 2:** For each entry where `status == "active"`, determine the verification status using this precedence (highest first):
 
-a. Resolve the full target path: `{target_install_path}/{target_file}`
+1. **Resolve runtime target.** For opencode/opencode-dcp binary patches, the runtime target is `~/.opencode/bin/opencode` (the verifier script handles this automatically). For tree/plugin patches, the target is `{target_install_path}/{target_file}`.
+2. **Check target exists.** If not → report **`missing-target`**.
+3. **Read runtime version** of the target (`opencode --version`, package `version` field, etc.) and compare to `dep_version`. If they differ → report **`version-drift`**. This is a soft warning: the patch string may still be present, but effectiveness has not been verified on the new version.
+4. **If `runtime_effective: false` is set** in the entry frontmatter → report **`runtime-ineffective`** regardless of pattern presence. The patch string is in the binary but the feature is known to be broken on the current runtime version. This is the most dangerous state — pattern-grep reports a false-positive APPLIED.
+5. **Grep for `verification_pattern`.** If `runtime_effective` is true or unset and pattern matches → report **`applied`**.
+6. **No match** → report **`stale`** (patch string lost during update).
 
-b. If the target file doesn't exist → report **"missing-target"**
-
-c. If the target file exists → grep for the `verification_pattern`:
-```bash
-grep -E "${verification_pattern}" "${target_install_path}/${target_file}"
-```
-
-d. Match found → report **"applied"** ✓
-
-e. No match → report **"stale"** ⚠️ (patch was lost during update)
+**Pattern-presence caveat (read before trusting any `applied` result)**: `grep` on a minified Bun binary reports APPLIED for any JS property key or string literal even when the surrounding code is unreachable. For patches whose `verification_pattern` is a property key (e.g. `__linkLabelPatch`) or string literal, treat `applied` as "string present, runtime effectiveness UNVERIFIED" and require the entry's `## Runtime Verification` steps to be run on the real surface before claiming the patch works. The verifier script cannot exercise surfaces automatically — this is a human/agent responsibility.
 
 **Step 3:** Summarize results:
 ```
 Patch Verification Results:
-  ✓ N applied    — patches confirmed present
-  ⚠ N stale      — patches lost, need reapplication
-  ✗ N missing-target — target files not found
+  ✓ N applied              — pattern present (+ runtime verified if runtime_effective: true)
+  ⚠ N stale                — patch string lost, needs reapplication
+  ↻ N version-drift        — runtime version differs from dep_version; effectiveness unverified
+  ✗ N missing-target       — target file/binary not found
+  ⚠ N runtime-ineffective  — pattern present but feature known broken (runtime_effective: false)
   ○ N deprecated/upstreamed — skipped (inactive)
 ```
 
@@ -192,6 +195,17 @@ Patch Verification Results:
 - Surface the `## Reapply Instructions` body section from the entry
 - Update the entry's `status` to `deprecated` (or keep as `active` if you plan to reapply)
 - Prompt the operator to reapply or deprecate
+
+**Step 4b:** For each **version-drift** patch:
+- Run the entry's `## Runtime Verification` steps on the new version's real surface.
+- If effective → update `dep_version` to the new version and set `runtime_effective: true`.
+- If ineffective → reclassify as **runtime-ineffective**: set `runtime_effective: false`, add/update a `## Current Runtime Status` body section, and do NOT bump `dep_version`. Prompt the operator to redesign the patch.
+- If the entry has no `## Runtime Verification` section → WARN that pattern-presence alone cannot establish effectiveness for a binary patch, and require the section to be added before resolving the drift.
+
+**Step 4c:** For each **runtime-ineffective** patch:
+- Surface the `## Current Runtime Status` section and the `## Reapply Instructions` (which must start with identifying the active rendering hook point on the target version).
+- Do NOT bump `dep_version` — it records the last version where the patch was effective.
+- Prompt the operator to redesign the patch against the new render path.
 
 **Step 5:** For each **missing-target** patch:
 - Check if the dependency is still installed
@@ -205,7 +219,11 @@ Patch Verification Results:
 | Rule | Action |
 |------|--------|
 | Missing required frontmatter fields | Reject: list all missing fields |
-| Missing required body sections | Reject: all 5 sections must be present |
+| Missing required body sections | Reject: all required sections must be present (`## Runtime Verification` is required for rendering/monkey-patch entries) |
+| Rendering/monkey-patch patch missing `surfaces` field | Reject: target_file is in a rendering directory OR patch overrides a renderable method, but no `surfaces:` field is set |
+| Monkey-patch missing `runtime_effective` flag | Reject: patch overrides an internal method / attaches a ref callback, but no `runtime_effective:` boolean is set |
+| Monkey-patch missing `## Runtime Verification` section | Reject: patch has `runtime_effective` flag OR `verification_pattern` is a JS property key / string literal (minification-survivor), but no `## Runtime Verification` section exists |
+| `dep_version` bumped without `runtime_effective: true` | Reject: an UPDATE workflow bumped `dep_version` to a new version while `runtime_effective` is false or unset — version bump requires re-observed effectiveness |
 | `patch_id` doesn't match `{dep}--{slug}` | Reject: must follow naming convention `^[a-z0-9]+--[a-z0-9-]+$` |
 | `verification_pattern` is not grep-compatible | Reject: test with `grep -E` first |
 | `target_file` starts with `/` | Reject: must be relative path |
