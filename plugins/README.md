@@ -4,7 +4,7 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 
 ## Included plugins
 
-- `worktree.ts` — creates isolated git worktrees for AI sessions and coordinates session state plus terminal spawning.
+- `worktree.ts` — creates isolated git worktrees for AI sessions and coordinates session state plus terminal spawning. The `worktree_start` tool resolves plans from both `.omo/plans/` (canonical, read by OMO's `/start-work`) and `.sisyphus/plans/` (legacy `/prometheus-plan` default); when a plan is found only at the legacy location, it is auto-copied to `.omo/plans/` before `/start-work` is dispatched, so the pipeline works regardless of which location the planner wrote to.
 - `worktree/state.ts` — SQLite-backed persistence for worktree session state and pending operations used by `worktree.ts`.
 - `worktree/terminal.ts` — cross-platform terminal spawning and tmux helpers used by `worktree.ts`.
 - `git-safety.ts` — blocks destructive shell and git commands and reports working tree safety before risky operations.

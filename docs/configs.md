@@ -290,7 +290,7 @@ The `prometheus` agent is configured via `prompt_append` to produce a human-faci
 
 **Markdown Fallback / Source**: When HTML cannot be produced, the same-content fallback is used as a Markdown-formatted proposal.
 
-**Markdown Plan** (canonical): `.sisyphus/plans/*.md` remains the canonical execution source for Atlas/Sisyphus. The HTML packet is a checkpoint that happens before Prometheus writes the executable plan.
+**Markdown Plan** (canonical): `.omo/plans/*.md` is the canonical execution source for Atlas/Sisyphus (read by OMO's `/start-work`, atlas, sisyphus, and sisyphus-junior). The HTML packet is a checkpoint that happens before Prometheus writes the executable plan. Legacy plans at `.sisyphus/plans/*.md` are auto-bridged into `.omo/plans/` by the `worktree_start` tool, so existing files keep working without manual migration.
 
 **Checkpoint**: If proceeding by default because no blocking decision exists, Prometheus records the assumption in the plan. If a user decision materially changes scope or acceptance criteria, Prometheus asks before continuing.
 

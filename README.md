@@ -312,7 +312,7 @@ cd ez-omo-config
 For complex multi-step work, Prometheus produces an HTML Proposal+Design Packet before generating the executable Markdown plan. The flow is:
 
 ```
-User request → Prometheus HTML Proposal+Design Packet → pre-plan checkpoint → .sisyphus/plans/*.md → Atlas/Sisyphus execution
+User request → Prometheus HTML Proposal+Design Packet → pre-plan checkpoint → .omo/plans/*.md → Atlas/Sisyphus execution
 ```
 
 The HTML packet is for human review and discussion. The Markdown plan remains canonical for execution. Simple or single-step work stays lean and autonomous and does not require reusable HTML template or generator infrastructure.

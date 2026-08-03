@@ -612,17 +612,80 @@ function getMessageText(message: SessionMessage): string {
 		.trim()
 }
 
+/**
+ * Plan directories scanned in order. `.omo/plans/` is the canonical location used by
+ * OMO's `/start-work`, atlas, sisyphus, and sisyphus-junior agents. `.sisyphus/plans/` is
+ * the legacy location used by older `/prometheus-plan` skills; the bridge helper below
+ * copies any plan found only at the legacy location into `.omo/plans/` before `/start-work`
+ * runs, so the pipeline works regardless of which location the planner wrote to.
+ */
+const PLAN_DIRS = [".omo/plans", ".sisyphus/plans"] as const
+
 async function listPlanNames(repoRoot: string): Promise<string[]> {
-	const plansDir = path.join(repoRoot, ".sisyphus", "plans")
-	try {
-		const entries = await readdir(plansDir, { withFileTypes: true })
-		return entries
-			.filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-			.map((entry) => entry.name.slice(0, -3))
-			.sort((a, b) => a.localeCompare(b))
-	} catch {
-		return []
+	const names = new Set<string>()
+	for (const dir of PLAN_DIRS) {
+		const plansDir = path.join(repoRoot, dir)
+		try {
+			const entries = await readdir(plansDir, { withFileTypes: true })
+			for (const entry of entries) {
+				if (entry.isFile() && entry.name.endsWith(".md")) {
+					names.add(entry.name.slice(0, -3))
+				}
+			}
+		} catch {
+			// directory missing — other dir may still have plans
+		}
 	}
+	return [...names].sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * Return the absolute path of the plan file for `planName`, checking PLAN_DIRS in order.
+ * Returns null if no matching file exists in any scanned directory.
+ */
+async function findPlanFile(repoRoot: string, planName: string): Promise<string | null> {
+	for (const dir of PLAN_DIRS) {
+		const candidate = path.join(repoRoot, dir, `${planName}.md`)
+		if (await pathExists(candidate)) return candidate
+	}
+	return null
+}
+
+interface PlanBridgeResult {
+	/** Canonical path the plan now exists at (always under `.omo/plans/`). */
+	readonly path: string
+	/** True if the plan had to be copied from `.sisyphus/plans/` to `.omo/plans/`. */
+	readonly bridged: boolean
+	/** Original location if `bridged` is true, otherwise null. */
+	readonly sourcePath: string | null
+}
+
+/**
+ * Ensure the plan exists at `.omo/plans/<name>.md` (the canonical location OMO's
+ * `/start-work` reads). If the plan only exists at `.sisyphus/plans/<name>.md`, copy it
+ * across so `/start-work` — which only looks under `.omo/plans/` — can find it.
+ *
+ * Returns the bridge result, or null if no source plan was found in any scanned dir.
+ */
+async function ensurePlanInOmoDir(
+	repoRoot: string,
+	planName: string,
+	log: Logger,
+): Promise<PlanBridgeResult | null> {
+	const canonicalPath = path.join(repoRoot, ".omo", "plans", `${planName}.md`)
+	if (await pathExists(canonicalPath)) {
+		return { path: canonicalPath, bridged: false, sourcePath: null }
+	}
+
+	const sourcePath = await findPlanFile(repoRoot, planName)
+	if (!sourcePath) return null
+
+	await mkdir(path.dirname(canonicalPath), { recursive: true })
+	await copyFile(sourcePath, canonicalPath)
+	log.info(
+		`[worktree] Bridged plan ${planName}: copied ${sourcePath} → ${canonicalPath} so /start-work can find it`,
+	)
+	return { path: canonicalPath, bridged: true, sourcePath }
 }
 
 function matchPlanName(requested: string, planNames: string[]): string | null {
@@ -736,6 +799,17 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						return "Could not resolve a plan name. Pass a plan name explicitly or mention the plan in the previous message before retrying."
 					}
 
+					// Bridge: ensure the plan exists at .omo/plans/ (the canonical OMO location
+					// /start-work reads). If it was only at .sisyphus/plans/ (legacy /prometheus-plan
+					// default), copy it across. Failure here is non-fatal: log and proceed, since
+					// the plan may already be committed in the worktree's git tree.
+					const planBridge = await ensurePlanInOmoDir(directory, resolvedPlanName, log)
+					if (!planBridge) {
+						log.warn(
+							`[worktree] resolvePlanName returned "${resolvedPlanName}" but no plan file found in any scanned directory`,
+						)
+					}
+
 					const branchName = args.branch ?? deriveBranchName(resolvedPlanName)
 					const branchResult = branchNameSchema.safeParse(branchName)
 					if (!branchResult.success) {
@@ -825,7 +899,10 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						return `Worktree created at ${worktreePath}\nSession ${createdSession.id} created and TUI switched.\n\nFailed to send prompt: ${msg}`
 					}
 
-					return `Worktree created at ${worktreePath}\n\nA new OpenCode session has been requested and will start ${resolvedPlanName} automatically.`
+					const bridgeNote = planBridge?.bridged
+						? `\n\nNote: plan was at ${planBridge.sourcePath} (legacy location); copied to ${planBridge.path} so /start-work finds it. Future plans should land in .omo/plans/ directly.`
+						: ""
+					return `Worktree created at ${worktreePath}\n\nA new OpenCode session has been requested and will start ${resolvedPlanName} automatically.${bridgeNote}`
 				},
 			}),
 
