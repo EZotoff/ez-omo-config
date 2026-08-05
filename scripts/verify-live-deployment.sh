@@ -165,6 +165,38 @@ if [[ -z "$COMPONENT" || -z "$PROJECT_PATH" || -z "$EVIDENCE_DIR" ]]; then
     exit 1
 fi
 
+resolve_path() {
+    local path="$1"
+
+    if [[ -d "$path" ]]; then
+        (
+            cd "$path"
+            pwd -P
+        )
+        return 0
+    fi
+
+    local dir base
+    dir="$(dirname "$path")"
+    base="$(basename "$path")"
+    (
+        cd "$dir"
+        printf '%s/%s\n' "$(pwd -P)" "$base"
+    )
+}
+
+resolve_link_target() {
+    local link_path="$1"
+    local target
+
+    target="$(readlink "$link_path")"
+    if [[ "$target" = /* ]]; then
+        resolve_path "$target"
+    else
+        resolve_path "$(dirname "$link_path")/$target"
+    fi
+}
+
 mkdir -p "$EVIDENCE_DIR"
 : > "$EVIDENCE_DIR/commands.txt"
 : > "$EVIDENCE_DIR/live-paths.txt"
@@ -173,15 +205,26 @@ record_result "marker_timestamp" "passed" "Marker timestamp recorded: $MARKER_TI
 
 EXPECTED_CONFIG_TARGET="$REPO_ROOT/configs/opencode/opencode.json"
 ACTIVE_CONFIG="$HOME/.config/opencode/opencode.json"
-log_cmd "readlink -f \"$ACTIVE_CONFIG\""
-ACTUAL_CONFIG_TARGET="$(readlink -f "$ACTIVE_CONFIG" 2>/dev/null || true)"
-
-if [[ "$ACTUAL_CONFIG_TARGET" != "$EXPECTED_CONFIG_TARGET" ]]; then
-    record_result "config_symlink" "failed" \
-        "Symlink target mismatch: expected '$EXPECTED_CONFIG_TARGET', got '$ACTUAL_CONFIG_TARGET'"
-    fail_with "config_symlink_mismatch"
+if [[ ! -L "$ACTIVE_CONFIG" && -f "$ACTIVE_CONFIG" ]]; then
+    log_cmd "cmp -s \"$ACTIVE_CONFIG\" \"$EXPECTED_CONFIG_TARGET\""
+    if cmp -s "$ACTIVE_CONFIG" "$EXPECTED_CONFIG_TARGET"; then
+        record_result "config_copy" "passed" \
+            "Active config is byte-identical to $EXPECTED_CONFIG_TARGET (copy mode)"
+    else
+        record_result "config_copy" "failed" \
+            "Active config differs from $EXPECTED_CONFIG_TARGET (copy mode)"
+        fail_with "config_copy_mismatch"
+    fi
+else
+    log_cmd "resolve_link_target \"$ACTIVE_CONFIG\""
+    ACTUAL_CONFIG_TARGET="$(resolve_link_target "$ACTIVE_CONFIG" 2>/dev/null || true)"
+    if [[ "$ACTUAL_CONFIG_TARGET" != "$EXPECTED_CONFIG_TARGET" ]]; then
+        record_result "config_symlink" "failed" \
+            "Symlink target mismatch: expected '$EXPECTED_CONFIG_TARGET', got '$ACTUAL_CONFIG_TARGET'"
+        fail_with "config_symlink_mismatch"
+    fi
+    record_result "config_symlink" "passed" "Active config points to $EXPECTED_CONFIG_TARGET"
 fi
-record_result "config_symlink" "passed" "Active config points to $EXPECTED_CONFIG_TARGET"
 echo "$ACTIVE_CONFIG" >> "$EVIDENCE_DIR/live-paths.txt"
 HIGHEST_STATE="live_file_installed"
 
