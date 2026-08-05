@@ -240,6 +240,12 @@
       }
     }
   },
+  "outputShaper": {
+    "enabled": true,
+    "logLevel": "info",
+    "tersenessInstruction": "Be terse: no preambles, no restated code, minimal reasoning on routine ops. Deep thinking only for complex problems and errors.",
+    "resumeThinkingLevel": "low"
+  },
   "hashline_edit": true,
   "monitor": {
     "enabled": false,
