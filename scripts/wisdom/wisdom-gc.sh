@@ -10,7 +10,7 @@ source "$(dirname "$0")/wisdom-common.sh"
 wisdom_init_observability "$(basename "$0")"
 wisdom_require_jq
 
-_WISDOM_GC_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+_WISDOM_GC_START_MS=$(wisdom_portable_now_ms)
 _WISDOM_GC_SCOPE="all"
 _WISDOM_GC_PROJECT_ID=""
 _WISDOM_GC_ACTION="report"
@@ -28,7 +28,7 @@ collect_gc_metrics() {
     local min_score="${4:-0}"
 
     local stale_cutoff
-    stale_cutoff=$(date -d "-${stale_days} days" +%s 2>/dev/null || echo 0)
+    stale_cutoff=$(wisdom_portable_epoch_days_ago "${stale_days}")
 
     local -a store_files=()
     case "$scope_filter" in
@@ -110,7 +110,7 @@ _wisdom_gc_emit_observability() {
     local duration_ms_json="null"
     if [[ -n "${_WISDOM_GC_START_MS:-}" ]]; then
         local now_ms
-        now_ms=$(date +%s%3N 2>/dev/null || echo "")
+        now_ms=$(wisdom_portable_now_ms)
         if [[ -n "$now_ms" ]]; then
             duration_ms_json=$((now_ms - _WISDOM_GC_START_MS))
         fi
@@ -226,7 +226,7 @@ _is_stale() {
 
     if [[ "$accessed" == "0" || "$accessed" == "" ]] && [[ -n "$created" ]]; then
         local created_epoch
-        created_epoch=$(date -d "$created" +%s 2>/dev/null || echo 0)
+        created_epoch=$(wisdom_portable_epoch_from_iso "$created")
         if [[ "$created_epoch" -lt "$stale_cutoff" ]]; then
             local days_old=$(( ($stale_cutoff - $created_epoch) / 86400 ))
             echo "Never accessed, created $days_old days ago"
@@ -236,7 +236,7 @@ _is_stale() {
 
     if [[ -n "$last_accessed" && "$last_accessed" != "null" && "$last_accessed" != "" ]]; then
         local last_accessed_epoch
-        last_accessed_epoch=$(date -d "$last_accessed" +%s 2>/dev/null || echo 0)
+        last_accessed_epoch=$(wisdom_portable_epoch_from_iso "$last_accessed")
         if [[ "$last_accessed_epoch" -lt "$stale_cutoff" ]]; then
             local days_old=$(( ($stale_cutoff - $last_accessed_epoch) / 86400 ))
             echo "Last accessed $days_old days ago"
@@ -360,7 +360,7 @@ main() {
 
     # Compute cutoff timestamp for staleness
     local stale_cutoff
-    stale_cutoff=$(date -d "-${stale_days} days" +%s)
+    stale_cutoff=$(wisdom_portable_epoch_days_ago "${stale_days}")
 
     # Collect JSONL store files based on scope
     declare -a store_files=()
@@ -460,7 +460,7 @@ main() {
 
         for entry_data in "${stale_entries[@]}"; do
             IFS='|' read -r id entry_scope entry_pid type reason body_encoded <<< "$entry_data"
-            body=$(printf '%s' "$body_encoded" | base64 -d 2>/dev/null || echo "[decode error]")
+            body=$(printf '%s' "$body_encoded" | wisdom_portable_b64_decode 2>/dev/null || echo "[decode error]")
             _format_entry "$id" "$entry_scope" "$type" "$reason" "$body"
             echo ""
         done
@@ -481,7 +481,7 @@ main() {
 
         for entry_data in "${stale_entries[@]}"; do
             IFS='|' read -r id entry_scope entry_pid type reason body_encoded <<< "$entry_data"
-            body=$(printf '%s' "$body_encoded" | base64 -d 2>/dev/null || echo "[decode error]")
+            body=$(printf '%s' "$body_encoded" | wisdom_portable_b64_decode 2>/dev/null || echo "[decode error]")
             _format_entry "$id" "$entry_scope" "$type" "$reason" "$body"
 
             if [[ "$dry_run" == false ]]; then
@@ -529,7 +529,7 @@ main() {
 
             for entry_data in "${stale_entries[@]}"; do
                 IFS='|' read -r id entry_scope entry_pid type reason body_encoded <<< "$entry_data"
-                body=$(printf '%s' "$body_encoded" | base64 -d 2>/dev/null || echo "[decode error]")
+                body=$(printf '%s' "$body_encoded" | wisdom_portable_b64_decode 2>/dev/null || echo "[decode error]")
                 _format_entry "$id" "$entry_scope" "$type" "$reason" "$body"
                 echo ""
             done
@@ -548,7 +548,7 @@ main() {
 
         for entry_data in "${stale_entries[@]}"; do
             IFS='|' read -r id entry_scope entry_pid type reason body_encoded <<< "$entry_data"
-            body=$(printf '%s' "$body_encoded" | base64 -d 2>/dev/null || echo "[decode error]")
+            body=$(printf '%s' "$body_encoded" | wisdom_portable_b64_decode 2>/dev/null || echo "[decode error]")
             _format_entry "$id" "$entry_scope" "$type" "$reason" "$body"
 
             if [[ "$dry_run" == false ]]; then
