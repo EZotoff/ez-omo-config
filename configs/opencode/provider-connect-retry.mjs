@@ -367,6 +367,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
   const childSessionVerdictCache = new Map();
 
   globalThis.__providerConnectRetryInFlight = inFlightSessions;
+  log("info", `ProviderConnectRetryPlugin initialized (pid ${process.pid}, log ${LOG_PATH})`);
 
 
 
