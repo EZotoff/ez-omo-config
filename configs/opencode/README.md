@@ -5,11 +5,11 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | File | What it configures | Install target |
 |---|---|---|
 | `AGENTS.md` | Global user-level agent instructions loaded by OpenCode on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers and uses vanilla code discovery guidance. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` |
-| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, and runtime defaults. Local repo plugins use relative paths. The patched OMO fork is loaded through the explicit machine-local `file:///home/ezotoff/oh-my-openagent-v4.12.1` reference. | `$HOME/.config/opencode/opencode.json` |
+| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, and runtime defaults. Local repo plugins use relative paths. The patched OMO fork is loaded through the explicit machine-local `file:///home/ezotoff/oh-my-openagent-v4.19.2` reference. | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
 | `magic-context.jsonc` | Disabled Magic Context configuration retained for rollback/reference | `$HOME/.config/opencode/magic-context.jsonc` |
 | `dcp.jsonc.retired` | Retired DCP plugin configuration. Kept for historical reference. | Not installed |
-| `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response detection, and registry-driven error matching | `$HOME/.config/opencode/provider-connect-retry.mjs` |
+| `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response and near-empty detection (zero-token and child-only sub-threshold stalls), per-server-process startup heartbeat, and registry-driven error matching | `$HOME/.config/opencode/provider-connect-retry.mjs` |
 | `retry-errors.json` | Retry registry consumed by the retry plugin | `$HOME/.config/opencode/retry-errors.json` |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudge dispatch | `$HOME/.config/opencode/aspect-dynamics.mjs` |
 | `aspect-dynamics/*.mjs` | 7 support modules: config, context, heuristics, session-state, sets, nudge, logging | `$HOME/.config/opencode/aspect-dynamics/` |
@@ -44,7 +44,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `../../.opencode/plugin/vscode.ts` | `~/.opencode/plugin/vscode.ts` |
 | `../../.opencode/plugin/git-safety.ts` | `~/.opencode/plugin/git-safety.ts` |
 
-OMO is loaded as `"file:///home/ezotoff/oh-my-openagent-v4.12.1"` (fork via `file://`), replacing the previous `"oh-my-openagent@latest"` (npm package) reference after the 2026-07-13 silent-bump incident. The fork carries the tracked OMO patches; the file:// reference makes it the canonical runtime source. The `browser-lifecycle-plugin` (agent-browser session cleanup) is optional and not included in the default config — add it manually if needed.
+OMO is loaded as `"file:///home/ezotoff/oh-my-openagent-v4.19.2"` (fork via `file://`), replacing the previous `"oh-my-openagent@latest"` (npm package) reference after the 2026-07-13 silent-bump incident. The fork carries the tracked OMO patches; the file:// reference makes it the canonical runtime source. The `browser-lifecycle-plugin` (agent-browser session cleanup) is optional and not included in the default config — add it manually if needed.
 
 
 ## Worktree Lifecycle Automation

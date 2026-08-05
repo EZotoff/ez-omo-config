@@ -389,20 +389,22 @@ Historical context:
 ### Patch Documentation
 
 For install locations, failure string meanings, and reapply instructions:
-- **Context overflow max-token detection**: `.sisyphus/patches/oh-my-openagent--context-overflow-max-token-error.md` (active on OMO v4.12.1)
-- **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.12.1)
-- **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.12.1)
+- **Context overflow max-token detection**: `.sisyphus/patches/oh-my-openagent--context-overflow-max-token-error.md` (active on OMO v4.19.2)
+- **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.19.2)
+- **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.19.2)
 - **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on local OpenCode 1.17.9 binary)
 - **OpenCode SSE directory filter removal**: `.sisyphus/patches/opencode--sse-directory-filter-removal.md` (active on local OpenCode 1.17.9 binary)
 - **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (**RUNTIME-INEFFECTIVE on live v1.18.5 binary** — patch string present but `_linkifyMarkdownChunks` hook unreachable on v1.18 SolidJS render path; last effective on 1.17.9-local; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line). See the patch entry's `## Current Runtime Status` section and the `runtime_effective: false` flag.
-- **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.12.1)
-- **Auto-slash-command duplicate user args**: `.sisyphus/patches/omo--auto-slash-command-duplicate-user-args.md` (active on OMO v4.12.1)
+- **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.19.2)
+- **Auto-slash-command duplicate user args**: `.sisyphus/patches/omo--auto-slash-command-duplicate-user-args.md` (active on OMO v4.19.2)
 - **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (**DEPRECATED 2026-08-05** — GLM 5.1's mid-window context degradation does not occur on GLM 5.2 with 1M context; OMO preemptive compaction is disabled anyway due to premature triggering on large-context models)
 - **Parent-wake sync mode for TUI render**: `.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md` (ROLLED BACK — ineffective; root cause is upstream OpenCode TUI SSE bug, not OMO dispatch mode)
 - **Parent-wake live-route rollback**: `oh-my-openagent.json#experimental.disable_live_parent_wake_routing=true` keeps parent wakes on the in-process dispatch path because externally routed parent-wake turns can be persisted without live-rendering in the current OpenCode TUI.
 - **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (superseded by upstream v4.12.1 works-map architecture)
 - **Remove activity stagnation bypass**: `.sisyphus/patches/omo--remove-activity-stagnation-bypass.md` (upstreamed in OMO commit df7e1ae1)
 - **Sync delegate_task result bloat**: `.sisyphus/patches/omo--sync-delegate-task-result-bloat.md` (active — config-level mitigation via prompt_append on atlas/sisyphus agents; durable fix requires OMO code change in `fetchSyncResult`)
+- **Durable OMO log path**: `.sisyphus/patches/omo--durable-log-path.md` (active on OMO v4.19.2; `runtime_effective` pending post-restart observation in task 9 — dist-level patch on the Bun-minified bundle, not a source patch)
+- **Fallback toast names originating agent/session**: `.sisyphus/patches/omo--fallback-toast-origin.md` (active on OMO v4.19.2; `runtime_effective: false` until a real fallback toast is observed post-restart — dist-level patch, pattern match necessary but not sufficient)
 
 ---
 
@@ -420,7 +422,7 @@ Before using this configuration, install the following prerequisites:
 |------------|-----------|--------|
 | **OpenCode CLI** | Required | [opencode.ai](https://opencode.ai) — `curl -fsSL https://opencode.ai/install \| bash` |
 | **bun** | Required | [bun.sh](https://bun.sh) — `curl -fsSL https://bun.sh/install \| bash` |
-| **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.12.1`. The fork is the canonical runtime source while tracked OMO patches remain active. |
+| **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.19.2`. The fork is the canonical runtime source while tracked OMO patches remain active. |
 | **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
 | **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
 | **API keys** | Required | See `auth.json.example` for the 8 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |

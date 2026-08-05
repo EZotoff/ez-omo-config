@@ -175,7 +175,7 @@ ez-omo-config/
 | E2 | `check-prerequisites.sh` | `scripts/check-prerequisites.sh` | Verifies OpenCode CLI, bun, OMO npm cache, config files, local plugins, API keys, skills, Docker (optional), and patch docs | `./scripts/check-prerequisites.sh` |
 | E3 | OpenCode CLI | external | Core AI coding assistant runtime | [opencode.ai](https://opencode.ai) |
 | E4 | bun | external | JavaScript runtime for TypeScript plugin loading | [bun.sh](https://bun.sh) |
-| E5 | `oh-my-openagent-v4.12.1` | `/home/ezotoff/oh-my-openagent-v4.12.1` (external local fork) | Canonical OMO runtime source carrying tracked local patches; replaces mutable npm `@latest` resolution | Clone/build separately; loaded via `file://` in `opencode.json` |
+| E5 | `oh-my-openagent-v4.19.2` | `/home/ezotoff/oh-my-openagent-v4.19.2` (external local fork) | Canonical OMO runtime source carrying tracked local patches; replaces mutable npm `@latest` resolution | Clone/build separately; loaded via `file://` in `opencode.json` |
 | E6 | Docker | external (optional) | Container runtime for worktree isolation | [docker.com](https://docker.com) |
 | E7 | `browser-lifecycle-plugin` | external (optional) | Agent-browser session cleanup on idle. Not in default config — add manually to `opencode.json#plugin` if needed. | Clone from source and add `file://` path |
 
@@ -201,11 +201,12 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 14 | `opencode--command-hook-cancellation` | `opencode` | active | 2026-06-26 | `grep -ER "cancelled: boolean|commandOutput.cancelled|HttpServerResponse.empty\(\)" ~/src/opencode/packages/plugin/src/index.ts ~/src/opencode/packages/opencode/src/session/prompt.ts ~/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts` |
 | 15 | `opencode--sse-directory-filter-removal` | `opencode` | active | 2026-06-26 | `grep -q 'location?\.workspaceID === undefined' ~/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts` — removes directory filter that broke TUI rendering for worktree/plugin-initiated sessions |
 | 16 | `opencode--link-click-wrapped-osc8` | `opencode` | active | 2026-07-06 | `grep -n 'buffers\.attributes\[idx\] >>> 8' ~/src/opencode/packages/tui/src/routes/session/index.tsx` — TS-level onMouseUp workaround for Alacritty wrapped OSC 8 hyperlink click bug |
-| 17 | `omo--auto-slash-command-duplicate-user-args` | `oh-my-openagent@4.12.1` | active | 2026-07-06 | `test $(grep -c '## User Request' ~/oh-my-openagent-v4.12.1/dist/index.js) -eq 0` — removes duplicate user arguments footer from formatCommandTemplate |
+| 17 | `omo--auto-slash-command-duplicate-user-args` | `oh-my-openagent@4.19.2` | active | 2026-07-06 | `test $(grep -c '## User Request' ~/oh-my-openagent-v4.19.2/dist/index.js) -eq 0` — removes duplicate user arguments footer from formatCommandTemplate |
 | 18 | `omo--runtime-fallback-checktoolstate-bypass` | `oh-my-openagent` | active | 2026-07-25 | `grep -c 'checkToolState: false' ~/oh-my-openagent-v4.19.2/dist/index.js` — fork port of upstream PR #5357, hardens auto-retry dispatch against checkToolState deadlocks |
 | 19 | `omo--sync-delegate-task-result-bloat` | `oh-my-openagent` | active | 2026-07-16 | `grep -c 'Subagent Result Bloat Prevention' configs/oh-my-openagent/oh-my-openagent.json` — config-level prompt_append mitigation on atlas/sisyphus agents; durable fix requires OMO code change in fetchSyncResult |
 | 20 | `opencode--turn-summary-timestamp` | `opencode` | active | 2026-07-19 | `grep -c 'todayTimeOrDateTime' ~/src/opencode/packages/tui/src/routes/session/index.tsx` — local customization: shortDateTime 24h+date format for turn-summary timestamps |
 | 21 | `omo--durable-log-path` | `oh-my-openagent` | active | 2026-08-05 | `grep -c '\.local/share/opencode/logs' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch (Bun-minified bundle); durable OMO log path so logs survive opencode serve restarts |
+| 22 | `omo--fallback-toast-origin` | `oh-my-openagent` | active | 2026-08-05 | `grep -c 'formatFallbackOrigin' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch; appends the resolved agent + 6-char session suffix to runtime-fallback toasts so a single popup self-identifies its origin |
 
 ## Operator Tools (Repo-Only, Not Installed)
 

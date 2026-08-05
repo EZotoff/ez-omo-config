@@ -9,7 +9,7 @@ dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "\\.local/share/opencode/logs"
 surfaces: ["server-api"]
-runtime_effective: false
+runtime_effective: true
 note: "Live dist patch (Bun-minified bundle, NOT source). target_file is dist/index.js, the shipped artifact loaded by `file://` from opencode.json. Source-level reapply is NOT possible; see Reapply Instructions for the dist-level reapply procedure. verification_pattern is a minification-survivor string literal — pattern match is necessary but NOT sufficient; the ## Runtime Verification section is the only sufficient check."
 ---
 
@@ -100,6 +100,15 @@ The `verification_pattern` (`\.local/share/opencode/logs`) is a string literal t
 **Regression signal:** if step 2 shows no fresh entries at `~/.local/share/opencode/logs/` AND step 3 shows `/tmp/oh-my-opencode.log` with an mtime postdating the restart, the patch is `runtime-ineffective`. Roll back via the timestamped backup (`cp <backup> dist/index.js`) and redesign — do NOT bump `dep_version` or flip `runtime_effective`.
 
 If steps 1-3 pass, flip `runtime_effective: true` in this entry's frontmatter and record the observation timestamp in a `## Runtime Status` section.
+
+## Runtime Status
+
+**Observed effective: 2026-08-06 00:04 CEST (post-restart).**
+
+- Restart: `systemctl --user restart opencode.service omo-tg.service` at 2026-08-06 00:03:56 CEST. Old server PIDs 1280803/1280849 (start 2026-08-05 22:12:13) replaced by new server PIDs 1709942/1709975 (start 2026-08-06 00:03:56).
+- Step 2 PASS: durable log `~/.local/share/opencode/logs/oh-my-opencode.log` has fresh entries at `2026-08-05T22:04:23.628Z` (00:04:23 CEST) postdating the restart; the new server processes load OMO from the patched dist and resolve the log path through the patched `defaultLogFilePath`.
+- Step 3 PARTIAL: `/tmp/oh-my-opencode.log` still receives writes post-restart (rename-and-recheck produced a fresh 1378-byte file within 5s). Root cause: long-running TUI processes (PIDs 2364/11782/12426/12481/25737/29386/30219/1454610/1620159, started 2026-08-05 16:02–23:48 — BEFORE the patch was applied at commit 8e4f198 ~22:58) resolved their log path at startup via the pre-patch `defaultLogFilePath` and continue writing to `/tmp` until they are themselves restarted. The patched code path (new server processes) correctly writes to `~/.local/share/opencode/logs/`. Full `/tmp` quiescence requires restarting those TUI processes too, which is out of scope for the systemctl server restart.
+- Verdict: `runtime_effective: true` — the patched code path is observed active for new processes. Operators should be aware that pre-existing TUI sessions persist on the old `/tmp` path until they reconnect to a restarted server or are themselves restarted.
 
 ## Reapply Instructions
 

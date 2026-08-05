@@ -149,22 +149,22 @@ For detailed install locations, verification commands, failure string meanings, 
 
 ## provider-connect-retry.mjs
 
-**Purpose**: First-party JavaScript plugin loaded by `opencode.json` that handles provider connection retries and empty-response recovery.
+**Purpose**: First-party JavaScript plugin loaded by `opencode.json` that handles provider connection retries, empty-response recovery, near-empty child-session stall detection, and per-process startup heartbeat.
 
 **What it Configures**:
 
 - Error-triggered retry logic with bounded backoff
-- Empty-response detection and nudge-based recovery
-- Per-rule retry limits, backoff schedules, and fallback models
-- Session-scoped attempt tracking with duplicate suppression
+- Empty-response detection (zero-token completion) plus near-empty child-session detection (sub-threshold non-zero output on sessions with a parentID)
+- Per-rule retry limits and backoff schedules (fallback is resolved from the failing session's agent `fallback_models` chain — see **Fallback Behavior** below)
+- Session-scoped attempt tracking with duplicate suppression; one startup heartbeat line per `opencode serve` process to confirm plugin load
 
 **How it Works**:
 
 The plugin registers an `event` handler for terminal provider errors and idle-time empty responses:
 
-1. **`session.error`** and **`message.updated` (with error)** — When a provider returns an error, the plugin loads `retry-errors.json` at runtime, matches the error message against compiled regex patterns, and dispatches a retry if a rule matches. It aborts the failed turn, waits for the configured backoff, then re-prompts the session with the last user message (or an agent-specific nudge). Retries are capped by `max_retries` and deduplicated per failed assistant message ID. **Self-fallback guard**: if the failing provider is the same as the rule's `fallback_model` provider, the dispatch is skipped and a TUI toast is shown instead — this prevents the K3→K3 (or any same-provider) infinite loop that previously spammed the TUI when a provider hit usage limits and the configured fallback was the same provider.
+1. **`session.error`** and **`message.updated` (with error)** — When a provider returns an error, the plugin loads `retry-errors.json` at runtime, matches the error message against compiled regex patterns, and dispatches a retry if a rule matches. It aborts the failed turn, waits for the configured backoff, then re-prompts the session with the last user message (or an agent-specific nudge). Retries are capped by `max_retries` and deduplicated per failed assistant message ID. When retries exhaust, the fallback is resolved from the failing session's agent `fallback_models` chain in `oh-my-openagent.json` (see **Fallback Behavior** below) — same-provider entries are skipped, so self-fallback is structurally impossible.
 
-2. **`session.idle`** — When a session goes idle, the plugin checks whether the most recent assistant message is empty (no text parts, no tool calls). If the `retry-errors.json` registry contains a rule with `detect_empty_response: true`, the plugin treats the empty response like an error and triggers the same retry / nudge / fallback flow. This catches stalls where the provider returns HTTP 200 with zero content.
+2. **`session.idle`** — When a session goes idle, the plugin checks whether the most recent assistant message is empty (no text parts, no tool calls). If the `retry-errors.json` registry contains a rule with `detect_empty_response: true`, the plugin treats the empty response like an error and triggers the same retry / nudge / fallback flow. This catches stalls where the provider returns HTTP 200 with zero content. The same rule may also set `min_output_tokens` (default 5; `0` disables): on **child sessions only** (sessions with a `parentID`), a completion whose `tokens.output` is non-zero but strictly less than `min_output_tokens` is treated as a near-empty stall and dispatches one retry with the last user message parts — root sessions and completions at-or-above the threshold are never nudged. This catches subagents that silently return planning-only output well under the requested size.
 
 `session.status` retry events are **not** handled by this plugin. Those events are provider/OpenCode retry progress telemetry (not terminal failures) and must be left to OpenCode/provider internals.
 
@@ -172,10 +172,10 @@ The plugin registers an `event` handler for terminal provider errors and idle-ti
 
 - `max_retries` — Hard ceiling on attempts per rule per session
 - `backoff_ms` — Array of millisecond delays, indexed by attempt number
-- `fallback_model` — `providerID/modelID` string used after retries are exhausted
 - `retry_after_tool_execution` — If `false`, skips retry when tool calls were made since the last user message (avoids replaying side effects)
 - `nudge_prompts` — Agent-specific escalating prompts; keyed by agent name or `default`
 - `detect_empty_response` — Enables idle-time empty-response detection for this rule
+- `min_output_tokens` — Integer threshold (default 5; `0` disables) for near-empty detection on child sessions; only consulted when `detect_empty_response: true`
 
 **Nudge Prompts**:
 
@@ -183,7 +183,7 @@ When a rule defines `nudge_prompts`, the plugin sends a short agent-specific tex
 
 **Fallback Behavior**:
 
-After exhausting `max_retries`, if `fallback_model` is set, the plugin aborts the session and re-prompts using the fallback provider and model, preserving the original message parts, agent, system prompt, tools, and variant. If no fallback is configured, it logs a warning and stops. **Self-fallback guard**: if `model.providerID === fallback.providerID` (the failing provider is the same as the fallback target), the dispatch is skipped and a TUI toast is shown instead — falling back to the same provider would create an infinite loop because each new failed prompt produces a new message ID that bypasses the `handledErrorsBySession` dedup. This is the root cause that produced the 2026-07-20 K3 quota-error spam (14+ fallback dispatches in 8 minutes on a single child session).
+After exhausting `max_retries`, the plugin resolves the fallback model via `resolveAgentFallback(agent, failingModel)`: it reads the failing session's agent `fallback_models` chain from `oh-my-openagent.json`, matches the failing model against agent/category primary models to find the governing chain (category takes precedence when a category override is in effect, mirroring OMO's model-resolution precedence), and returns the first chain entry whose provider differs from the failing provider. The plugin then aborts the session and re-prompts using that fallback, preserving the original message parts, agent, system prompt, tools, and variant. If no chain exists or no eligible entry differs from the failing provider, it logs a warning and shows a "Retries exhausted" toast. This unification replaced the former per-rule `fallback_model` field, which drifted out of sync on every model rebalance — the root cause of the 2026-07-21 incident where Prometheus ran on Kimi K3 while the rule's fallback was also Kimi K3, producing the "Provider quota exhausted" self-fallback toast.
 
 **State Tracking**:
 
@@ -202,8 +202,7 @@ The plugin reads `~/.config/opencode/retry-errors.json` fresh on every event. Ch
 **Error Display**:
 
 User-facing output goes through `ctx.client.tui.showToast({body: {title?, message, variant, duration?}})`, which publishes a `tui.toast.show` event the TUI renders as a real toast popup. The plugin reserves toasts for terminal conditions only:
-- Self-fallback detected (failing provider === fallback provider) — `variant: error`, 15s
-- Retries exhausted with no `fallback_model` configured — `variant: warning`, 10s
+- No eligible fallback in the agent chain for the failing provider — `variant: warning`, 10s
 - Retry dispatch failure (catch block) — `variant: error`, 10s
 
 Routine operation (retry attempts, nudges, successful fallbacks) is silent at the TUI layer — diagnostic detail is written to `~/.config/opencode/retry-plugin.log` only. The plugin MUST NOT use `console.warn`/`console.info` for user-facing output; that text goes to server stderr/stdout and leaks into the TUI viewport as raw spam. See the global `AGENTS.md` \"Plugin Error Display\" section for the full mechanism and source-of-truth citations.
@@ -220,7 +219,6 @@ Routine operation (retry attempts, nudges, successful fallbacks) is silent at th
 
 - Regex patterns that identify retryable provider errors
 - Backoff schedules and retry limits per error class
-- Optional fallback model assignments
 - Empty-response detection flags and nudge prompt libraries
 
 **Schema**:
@@ -235,7 +233,7 @@ The top-level object contains an `errors` array. Each entry is an object with th
 | `max_retries` | integer | Yes | Maximum retry attempts |
 | `backoff_ms` | integer[] | Yes | Millisecond delays per attempt |
 | `retry_after_tool_execution` | boolean | Yes | Whether to retry after tools were invoked |
-| `fallback_model` | string | No | `providerID/modelID` to use after exhaustion |
+| `min_output_tokens` | integer | No | Near-empty threshold on child sessions (default 5; `0` disables); only consulted when `detect_empty_response: true` |
 | `detect_empty_response` | boolean | No | Enables idle-time empty-response detection |
 | `nudge_prompts` | object | No | Agent-specific prompt arrays (`agentName` or `default`) |
 | `description` | string | No | Human-readable explanation |
