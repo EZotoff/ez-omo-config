@@ -30,6 +30,34 @@ else
   fail "bun not found. OpenCode uses bun for TypeScript plugin loading. Install: https://bun.sh"
 fi
 
+# jq (worktree hooks, wisdom scripts)
+if command -v jq &>/dev/null; then ok "jq: $(jq --version)"
+else
+  fail "jq not found. Required by worktree hooks and wisdom scripts.
+    macOS:  brew install jq
+    Debian/Ubuntu/WSL:  sudo apt-get install -y jq
+    Fedora:  sudo dnf install -y jq
+  Install: https://stedolan.github.io/jq/download/"
+fi
+
+# python3 (auth.json parsing, helper fallbacks)
+if command -v python3 &>/dev/null; then ok "python3: $(python3 --version 2>&1)"
+else
+  fail "python3 not found. Required by check-prerequisites and wisdom portable helpers.
+    macOS:  brew install python
+    Debian/Ubuntu/WSL:  sudo apt-get install -y python3"
+fi
+
+# Bash version (wisdom scripts use local -n namerefs → 4.3+)
+if [[ "${BASH_VERSINFO[0]:-0}" -gt 4 || ( "${BASH_VERSINFO[0]:-0}" -eq 4 && "${BASH_VERSINFO[1]:-0}" -ge 3 ) ]]; then
+  ok "bash: ${BASH_VERSION}"
+else
+  fail "bash ${BASH_VERSION} is too old. Wisdom scripts require bash 4.3+ (namerefs).
+    macOS stock /bin/bash is 3.2 — install Homebrew bash:
+      brew install bash, then ensure /opt/homebrew/bin/bash (or /usr/local/bin/bash) is first in PATH
+    Linux:  sudo apt-get install -y bash (or distro equivalent)"
+fi
+
 echo
 
 # --- OMO (npm package) ---
