@@ -12,22 +12,8 @@ source "${SCRIPT_DIR}/knowledge-constants.sh" 2>/dev/null || { echo "ERROR: Fail
 source "${SCRIPT_DIR}/wisdom-common.sh" || { echo "ERROR: Failed to source wisdom-common.sh" >&2; exit 1; }
 wisdom_init_observability "$(basename "$0")"
 
-hash_text_sha256() {
-  local value="${1:-}"
-  if [[ -z "$value" ]]; then
-    printf ''
-    return 0
-  fi
-  if command -v sha256sum >/dev/null 2>&1; then
-    printf '%s' "$value" | sha256sum | awk '{print $1}'
-  elif command -v shasum >/dev/null 2>&1; then
-    printf '%s' "$value" | shasum -a 256 | awk '{print $1}'
-  else
-    printf ''
-  fi
-}
 
-_PUBLISH_EVENT_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+_PUBLISH_EVENT_START_MS=$(wisdom_portable_now_ms)
 _PUBLISH_EVENT_RECORD_ID=""
 _PUBLISH_EVENT_AUTHORITY_BEFORE=""
 _PUBLISH_EVENT_AUTHORITY_AFTER=""
@@ -46,7 +32,7 @@ _wisdom_publish_emit_observability() {
   local duration_ms_json="null"
   if [[ -n "${_PUBLISH_EVENT_START_MS:-}" ]]; then
     local now_ms
-    now_ms=$(date +%s%3N 2>/dev/null || echo "")
+    now_ms=$(wisdom_portable_now_ms)
     if [[ -n "$now_ms" ]]; then
       duration_ms_json=$((now_ms - _PUBLISH_EVENT_START_MS))
     fi
@@ -148,7 +134,7 @@ _PUBLISH_EVENT_RECORD_ID="$WISDOM_ID"
 _PUBLISH_EVENT_DRY_RUN="$DRY_RUN"
 
 reason_for_event="${REASON:-published}"
-_PUBLISH_EVENT_REASON_HASH=$(hash_text_sha256 "$reason_for_event")
+_PUBLISH_EVENT_REASON_HASH=$(wisdom_hash_text "$reason_for_event")
 _PUBLISH_EVENT_REASON_PREVIEW=$(wisdom_redact_preview "$reason_for_event")
 
 STORE_PATH=""
@@ -219,10 +205,15 @@ _PUBLISH_EVENT_AUTHORITY_AFTER="published"
 
 compute_source_digest() {
   local record="$1"
-  echo "$record" | jq -r '
+  local payload
+  payload=$(echo "$record" | jq -r '
     [.body // "", .title // "", (.tags // [] | sort | join(",")), .type // ""]
     | join("\n")
-  ' | sha256sum | awk '{print $1}'
+  ')
+  # jq emits a trailing newline which $(...) strips; re-append to keep
+  # digest bytes identical to the old jq-hash pipeline
+  payload+=$'\n'
+  wisdom_hash_text "$payload"
 }
 
 SOURCE_DIGEST=$(compute_source_digest "$ENTRY_JSON")
@@ -297,7 +288,7 @@ if [[ "$EMIT_MANIFEST" == true ]]; then
       MANIFEST_SLUG=$(echo "$ENTRY_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//;s/-$//')
       MANIFEST_FILE="${KNOWLEDGE_MANIFESTS_DIR}/${MANIFEST_SCOPE}/${MANIFEST_SLUG}.md"
       if [[ -f "$MANIFEST_FILE" ]]; then
-        sed -i "s/^provenance:.*/provenance: published-from-wisdom:${WISDOM_ID}/" "$MANIFEST_FILE"
+        wisdom_portable_sed_inplace "s/^provenance:.*/provenance: published-from-wisdom:${WISDOM_ID}/" "$MANIFEST_FILE"
       fi
       ARTIFACT_PATH="$MANIFEST_FILE"
     fi
