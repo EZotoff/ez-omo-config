@@ -121,9 +121,24 @@ fail() {
 }
 
 detect_os() {
-    case "$(uname -s)" in
-        Darwin|Linux) ;;
-        *) fail "Unsupported OS: $(uname -s). Only macOS and Linux are supported." ;;
+    local kernel
+    kernel="$(uname -s)"
+    case "$kernel" in
+        Darwin|Linux)
+            if [[ "$kernel" == "Linux" ]] && grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null; then
+                log "Detected Windows Subsystem for Linux (WSL) — full Linux environment."
+            fi
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            fail "Native Windows shells (Git Bash / MSYS / Cygwin) are not supported.
+This configuration targets Linux, macOS, and Windows-via-WSL only.
+To install on Windows, use WSL (Ubuntu recommended):
+  1. Install WSL:  https://learn.microsoft.com/en-us/windows/wsl/install
+  2. In WSL:       git clone https://github.com/EZotoff/ez-omo-config.git
+                     cd ez-omo-config && ./install.sh
+See README.md 'Platform Notes' for details." ;;
+        *)
+            fail "Unsupported OS: $kernel. Supported: Linux, macOS, Windows-via-WSL." ;;
     esac
 }
 
