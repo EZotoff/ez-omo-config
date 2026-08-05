@@ -364,6 +364,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
   const attemptsBySession = new Map();
   const inFlightSessions = new Set();
   const handledErrorsBySession = new Map();
+  const childSessionVerdictCache = new Map();
 
   globalThis.__providerConnectRetryInFlight = inFlightSessions;
 
@@ -400,7 +401,18 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                 return;
               }
 
-              if (!isEmptyAssistantMessage(lastAssistantMessage)) {
+              const neMsgTokens = lastAssistantMessage?.info?.tokens?.output;
+              const neTrackedNearEmpty = tracked?.extra?.nearEmpty === true;
+              const neMinTokens = tracked?.extra?.minOutputTokens;
+              const isNearEmptyMessage = neTrackedNearEmpty
+                && typeof neMsgTokens === "number"
+                && neMsgTokens > 0
+                && typeof neMinTokens === "number"
+                && neMsgTokens <= neMinTokens;
+              if (neTrackedNearEmpty && typeof neMsgTokens !== "number") {
+                log("debug", `Near-empty guard: tracked.extra.nearEmpty=true but stored message lacks info.tokens.output — skipping near-empty path for session ${sessionID}`);
+              }
+              if (!isEmptyAssistantMessage(lastAssistantMessage) && !isNearEmptyMessage) {
                 const parts = lastAssistantMessage?.info?.parts ?? lastAssistantMessage?.parts;
                 log("warn", `Empty-response guard: last assistant message has content (parts=${JSON.stringify(parts)?.substring(0, 200)}) — clearing state`);
                 clearSessionState(sessionID, attemptsBySession, handledErrorsBySession);
@@ -559,6 +571,53 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                   });
                   handledErrorsBySession.set(sessionID, msgID ?? "__empty__");
                 }
+              }
+            } else if ((finish === "other" || finish === "stop") && (tokens.output ?? 0) > 0) {
+              // NEAR-EMPTY CANDIDATE: finish="other"|"stop" with output > 0 tokens.
+              // Either a near-empty stall on a child session (flag for retry) or a
+              // legitimate normal stop with content (clear stale tracking).
+              const outputTokens = tokens.output;
+              const registry = loadRegistry();
+              const emptyRule = findEmptyResponseRule(registry);
+              const minTokens = typeof emptyRule?.min_output_tokens === "number" ? emptyRule.min_output_tokens : 5;
+              const isNearEmpty = minTokens > 0 && outputTokens <= minTokens;
+              if (emptyRule && isNearEmpty && !inFlightSessions.has(sessionID)) {
+                const alreadyHandled = msgID && handledErrorsBySession.get(sessionID) === msgID;
+                if (!alreadyHandled) {
+                  // Resolve child-session status, cached per sessionID to avoid one API call per completion.
+                  let isChildSession = childSessionVerdictCache.get(sessionID);
+                  if (isChildSession === undefined) {
+                    const sessionInfo = await ctx.client.session.get({ path: { id: sessionID } }).catch(() => undefined);
+                    const parentID = sessionInfo?.data?.parentID ?? sessionInfo?.parentID;
+                    isChildSession = typeof parentID === "string" && parentID.length > 0;
+                    childSessionVerdictCache.set(sessionID, isChildSession);
+                  }
+                  if (!isChildSession) {
+                    log("debug", `Near-empty completion on session ${sessionID} (output=${outputTokens}, threshold=${minTokens}) — no parentID, skipping`);
+                  } else {
+                    log("info", `near-empty completion flagged (output=${outputTokens} tokens, threshold=${minTokens}, child session)`);
+                    const tracked = attemptsBySession.get(sessionID);
+                    attemptsBySession.set(sessionID, {
+                      ...(tracked ?? {}),
+                      ruleID: emptyRule.id,
+                      emptyCompletionDetected: true,
+                      emptyMessageID: msgID,
+                      extra: {
+                        ...(tracked?.extra ?? {}),
+                        minOutputTokens: minTokens,
+                        nearEmpty: true,
+                      },
+                    });
+                    handledErrorsBySession.set(sessionID, msgID ?? "__empty__");
+                  }
+                }
+              } else {
+                // Legitimate normal stop with output > threshold — clear stale tracking.
+                const tracked = attemptsBySession.get(sessionID);
+                attemptsBySession.set(sessionID, {
+                  ...(tracked ?? {}),
+                  emptyCompletionDetected: false,
+                });
               }
             } else {
               // Normal completion (tool-calls, stop, etc.) — clear any stale tracking
