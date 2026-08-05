@@ -61,7 +61,7 @@ else
 fi
 
 CREATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-TIMEOUT_AT=$(date -u -d '+30 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+30M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
+TIMEOUT_AT=$(python3 -c 'from datetime import datetime, timedelta; print((datetime.utcnow() + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))' 2>/dev/null || date -u -v+30M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
 
 STATE_FILE="$WORKTREES_DIR/$BRANCH.json"
 cat > "$STATE_FILE" << EOF
