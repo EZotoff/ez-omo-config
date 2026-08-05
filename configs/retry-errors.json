@@ -81,6 +81,7 @@
       "retry_after_tool_execution": true,
       "fallback_model": "kimi-for-coding-oauth/k3",
       "detect_empty_response": true,
+      "min_output_tokens": 5,
       "nudge_prompts": {
         "sisyphus": [
           "Proceed with the execution of the plan NOW. Give me response.",
@@ -104,7 +105,7 @@
           "FINAL RETRY — you must produce a response now. Review everything and act."
         ]
       },
-      "description": "Empty response / zero tokens / finish reason 'other' — sends escalating nudge prompts to break the model out of stall before falling back",
+      "description": "Empty response / zero tokens / finish reason 'other' — sends escalating nudge prompts to break the model out of stall before falling back. Near-empty completions (1..min_output_tokens output tokens) on child sessions are also retried; set min_output_tokens to 0 to disable the near-empty branch.",
       "added_by": "sisyphus",
       "added_at": "2026-04-17"
     },
