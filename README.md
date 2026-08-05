@@ -425,7 +425,7 @@ Before using this configuration, install the following prerequisites:
 | **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
 | **API keys** | Required | See `auth.json.example` for the 8 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
 
-The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, `inotify-tools`, or the local OMO fork. This machine's `opencode.json` references `/home/ezotoff/oh-my-openagent-v4.12.1`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
+The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, `inotify-tools`, or the local OMO fork. This machine's `opencode.json` references `~/oh-my-openagent-v4.19.2`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
 
 **Binary patches** (optional): Several features (true no-LLM `/session-id`, `/session-info`, `/vscode` cancellation) require patches to the OpenCode binary or OMO npm cache. These are documented in `.sisyphus/patches/` but NOT auto-applied by `install.sh`. Use the `patch-opencode` skill or follow the patch docs manually.
 

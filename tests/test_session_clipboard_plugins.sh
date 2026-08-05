@@ -26,7 +26,7 @@ fail() { FAIL=$((FAIL + 1)); echo "FAIL: $1"; }
 # ---------------------------------------------------------------------------
 
 for plugin in session-info.ts session-id.ts vscode.ts; do
-	entry="file:///home/ezotoff/.opencode/plugin/${plugin}"
+	entry="../../.opencode/plugin/${plugin}"
 	if python3 -c "
 import json, sys
 d = json.load(open('${REPO_ROOT}/configs/opencode/opencode.json'))
@@ -99,7 +99,7 @@ fi
 # 5. OMO EXCLUDED_COMMANDS includes session-info, session-id, vscode
 # ---------------------------------------------------------------------------
 
-OMO_DIST="${OMO_DIST:-/home/ezotoff/oh-my-openagent-v4.12.1/dist/index.js}"
+OMO_DIST="${OMO_DIST:-/home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js}"
 if [ -f "${OMO_DIST}" ]; then
 	for cmd in session-info session-id vscode; do
 		if grep -q "\"${cmd}\"" "${OMO_DIST}" 2>/dev/null; then

@@ -202,6 +202,9 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 15 | `opencode--sse-directory-filter-removal` | `opencode` | active | 2026-06-26 | `grep -q 'location?\.workspaceID === undefined' ~/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts` — removes directory filter that broke TUI rendering for worktree/plugin-initiated sessions |
 | 16 | `opencode--link-click-wrapped-osc8` | `opencode` | active | 2026-07-06 | `grep -n 'buffers\.attributes\[idx\] >>> 8' ~/src/opencode/packages/tui/src/routes/session/index.tsx` — TS-level onMouseUp workaround for Alacritty wrapped OSC 8 hyperlink click bug |
 | 17 | `omo--auto-slash-command-duplicate-user-args` | `oh-my-openagent@4.12.1` | active | 2026-07-06 | `test $(grep -c '## User Request' ~/oh-my-openagent-v4.12.1/dist/index.js) -eq 0` — removes duplicate user arguments footer from formatCommandTemplate |
+| 18 | `omo--runtime-fallback-checktoolstate-bypass` | `oh-my-openagent` | active | 2026-07-25 | `grep -c 'checkToolState: false' ~/oh-my-openagent-v4.19.2/dist/index.js` — fork port of upstream PR #5357, hardens auto-retry dispatch against checkToolState deadlocks |
+| 19 | `omo--sync-delegate-task-result-bloat` | `oh-my-openagent` | active | 2026-07-16 | `grep -c 'Subagent Result Bloat Prevention' configs/oh-my-openagent/oh-my-openagent.json` — config-level prompt_append mitigation on atlas/sisyphus agents; durable fix requires OMO code change in fetchSyncResult |
+| 20 | `opencode--turn-summary-timestamp` | `opencode` | active | 2026-07-19 | `grep -c 'todayTimeOrDateTime' ~/src/opencode/packages/tui/src/routes/session/index.tsx` — local customization: shortDateTime 24h+date format for turn-summary timestamps |
 
 ## Operator Tools (Repo-Only, Not Installed)
 

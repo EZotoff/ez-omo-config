@@ -100,10 +100,10 @@ expected_agent_models = {
 }
 expected_category_models = {
     'ultrabrain': 'kimi-for-coding-oauth/k3',
-    'deep': 'zai-coding-plan/glm-5.2',
+    'deep': 'openai/gpt-5.6-sol',
     'quick': 'opencode-go/deepseek-v4-flash',
     'unspecified-low': 'opencode-go/deepseek-v4-flash',
-    'unspecified-high': 'openai/gpt-5.6-sol',
+    'unspecified-high': 'zai-coding-plan/glm-5.2',
     'mephistopheles': 'openai/gpt-5.6-sol',
 }
 
@@ -151,7 +151,7 @@ expected_category_fallbacks = {
     'quick': ['zai-coding-plan/glm-5.2'],
     'unspecified-low': ['zai-coding-plan/glm-5.2'],
     'unspecified-high': ['zai-coding-plan/glm-5.2'],
-    'mephistopheles': ['zai-coding-plan/glm-5.2'],
+    'mephistopheles': ['zai-coding-plan/glm-5.2', 'kimi-for-coding-oauth/k3'],
 }
 
 for name, expected in expected_category_models.items():
@@ -201,7 +201,7 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if meph.get('fallback_models') != ['zai-coding-plan/glm-5.2']:
+if meph.get('fallback_models') != ['zai-coding-plan/glm-5.2', 'kimi-for-coding-oauth/k3']:
     print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')
