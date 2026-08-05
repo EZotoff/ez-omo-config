@@ -6,7 +6,8 @@
     "kimi-for-coding-oauth",
     "zai-coding-plan",
     "deepseek",
-    "inception"
+    "inception",
+    "uni-lux"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -584,6 +585,62 @@
           "limit": {
             "context": 131072,
             "output": 50000
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
+    "uni-lux": {
+      "name": "Uni.lu LiteLLM",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://rsfllm.uni.lux/litellm/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
+      },
+      "models": {
+        "deepseek-v4-flash-vllm": {
+          "name": "DeepSeek V4 Flash (Uni vLLM)",
+          "limit": {
+            "context": 1048576,
+            "output": 393216
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "openrouter/moonshotai/kimi-k3": {
+          "name": "Kimi K3 (Uni)",
+          "limit": {
+            "context": 1048576,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "openrouter/z-ai/glm-5.2": {
+          "name": "GLM 5.2 (Uni)",
+          "limit": {
+            "context": 1000000,
+            "output": 131072
           },
           "modalities": {
             "input": [

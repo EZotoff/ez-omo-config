@@ -14,6 +14,8 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudge dispatch | `$HOME/.config/opencode/aspect-dynamics.mjs` |
 | `aspect-dynamics/*.mjs` | 7 support modules: config, context, heuristics, session-state, sets, nudge, logging | `$HOME/.config/opencode/aspect-dynamics/` |
 | `aspect-dynamics/sets/*.json` | Seed aspect sets | `$HOME/.config/opencode/aspect-dynamics/sets/` |
+| `output-shaper.mjs` | Config-layer plugin: terseness injection + reasoning-effort dialing for resume turns | `$HOME/.config/opencode/output-shaper.mjs` |
+| `output-shaper/*.mjs` | 4 support modules: config, logging, model-gating, resume-detector | `$HOME/.config/opencode/output-shaper/` |
 | `worktree.jsonc` | Worktree sync config and hook registration for automated worktree lifecycle management | `$HOME/.opencode/worktree.jsonc` |
 | `extras/ocx.jsonc` | OCX registry configuration pointer used by the OCX CLI | `$HOME/.opencode/ocx.jsonc` |
 
@@ -25,6 +27,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `session-info.ts` | Intercepts `/session-info`, copies project/session metadata to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch for true no-LLM behavior. | `$HOME/.opencode/plugin/session-info.ts` |
 | `session-id.ts` | Intercepts `/session-id`, copies the invoking session ID to clipboard, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/session-id.ts` |
 | `vscode.ts` | Intercepts `/vscode`, launches VS Code in the current directory, then sets `output.cancelled = true`. Requires the active `opencode--command-hook-cancellation` patch. | `$HOME/.opencode/plugin/vscode.ts` |
+| `git-safety.ts` | Blocks destructive shell and git commands (`git clean -fd`, `git reset --hard`, `git checkout --`, `git restore`, `git push --force`, `rm -rf` on unrecognized paths, bulk-delete patterns) and reports working-tree state before risky operations. Registered in `opencode.json#plugin` so its `tool.execute.before` hook intercepts bash/terminal/tmux tools. | `$HOME/.opencode/plugin/git-safety.ts` |
 
 ## Plugin Array Path Resolution
 
@@ -34,10 +37,12 @@ This directory contains the portable OpenCode config bundle copied from the loca
 |-------------|-------------|
 | `./provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` |
 | `./aspect-dynamics.mjs` | `~/.config/opencode/aspect-dynamics.mjs` |
+| `./output-shaper.mjs` | `~/.config/opencode/output-shaper.mjs` |
 | `../../.opencode/plugin/clickable-links.ts` | `~/.opencode/plugin/clickable-links.ts` |
 | `../../.opencode/plugin/session-info.ts` | `~/.opencode/plugin/session-info.ts` |
 | `../../.opencode/plugin/session-id.ts` | `~/.opencode/plugin/session-id.ts` |
 | `../../.opencode/plugin/vscode.ts` | `~/.opencode/plugin/vscode.ts` |
+| `../../.opencode/plugin/git-safety.ts` | `~/.opencode/plugin/git-safety.ts` |
 
 OMO is loaded as `"file:///home/ezotoff/oh-my-openagent-v4.12.1"` (fork via `file://`), replacing the previous `"oh-my-openagent@latest"` (npm package) reference after the 2026-07-13 silent-bump incident. The fork carries the tracked OMO patches; the file:// reference makes it the canonical runtime source. The `browser-lifecycle-plugin` (agent-browser session cleanup) is optional and not included in the default config — add it manually if needed.
 

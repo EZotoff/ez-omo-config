@@ -99,7 +99,7 @@ if [ ! -f "$AUTH_FILE" ]; then
 else
   ok "auth.json exists"
   # Check for each enabled provider
-  for prov in google openai opencode-go kimi-for-coding-oauth zai-coding-plan deepseek inception; do
+  for prov in google openai opencode-go kimi-for-coding-oauth zai-coding-plan deepseek inception uni-lux; do
     if python3 -c "import json,sys; a=json.load(open('$AUTH_FILE')); sys.exit(0 if '$prov' in a else 1)" 2>/dev/null; then
       ok "  $prov: key present"
     else

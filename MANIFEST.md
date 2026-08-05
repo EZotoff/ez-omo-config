@@ -28,6 +28,11 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 4k | aspect-dynamics/logging.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
 | 4l | aspect-dynamics/sets/emotions-v1.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
 | 4m | aspect-dynamics/sets/emotions-v2.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Aspect Dynamics | Optional |
+| 4n | output-shaper.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
+| 4o | output-shaper/config.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
+| 4p | output-shaper/logging.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
+| 4q | output-shaper/model-gating.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
+| 4r | output-shaper/resume-detector.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
 | 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
 | 6 | worktree.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Worktree Plugin | Required |
 | 7 | worktree/state.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
@@ -103,7 +108,7 @@ ez-omo-config/
 │   └── session-id.md       # Session ID clipboard (handled by plugin, no LLM)
 │   └── session-info.md     # Session info clipboard (handled by plugin, no LLM)
 ├── configs/
-│   ├── opencode/           # Main OpenCode configuration (4 files + aspect-dynamics)
+│   ├── opencode/           # Main OpenCode configuration (4 files + aspect-dynamics + output-shaper)
 │   ├── oh-my-openagent/     # Oh-My-OpenAgent configuration (1 file)
 │   └── retry-errors.json    # Retry registry for provider-connect-retry plugin
 ├── plugins/
@@ -154,7 +159,7 @@ ez-omo-config/
 
 - **Total Artifacts**: repo-managed OpenCode/OMO commands, configs, plugins, skills, scripts, tests, docs, extras, and Docker templates.
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
-- **Core Configs**: 17 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, and 7 aspect-dynamics support modules + 2 seed sets). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
+- **Core Configs**: 22 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, 7 aspect-dynamics support modules, 2 seed sets, output-shaper.mjs, and 4 output-shaper support modules). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, and Python operator helpers.
@@ -166,7 +171,7 @@ ez-omo-config/
 
 | # | Artifact | Path | Purpose | Install Command |
 |---|----------|------|---------|-----------------|
-| E1 | `auth.json.example` | `auth.json.example` | Template for `~/.local/share/opencode/auth.json` showing all 7 enabled providers and their key formats | `cp auth.json.example ~/.local/share/opencode/auth.json` |
+| E1 | `auth.json.example` | `auth.json.example` | Template for `~/.local/share/opencode/auth.json` showing all 8 enabled providers and their key formats | `cp auth.json.example ~/.local/share/opencode/auth.json` |
 | E2 | `check-prerequisites.sh` | `scripts/check-prerequisites.sh` | Verifies OpenCode CLI, bun, OMO npm cache, config files, local plugins, API keys, skills, Docker (optional), and patch docs | `./scripts/check-prerequisites.sh` |
 | E3 | OpenCode CLI | external | Core AI coding assistant runtime | [opencode.ai](https://opencode.ai) |
 | E4 | bun | external | JavaScript runtime for TypeScript plugin loading | [bun.sh](https://bun.sh) |
@@ -219,3 +224,4 @@ These Python helpers and config files support stack health, drift detection, and
 2. **Wisdom System Cluster**: wisdom/ skill → wisdom-common.sh (sourced by wisdom scripts)
 3. **Review System Cluster**: atlas-review-handler/ → wisdom/ skill, review-protocol/
 4. **Aspect Dynamics Cluster**: aspect-dynamics.mjs → aspect-dynamics/config.mjs, context.mjs, heuristics.mjs, session-state.mjs, sets.mjs, nudge.mjs, logging.mjs, and sets/emotions-v1.json + sets/emotions-v2.json
+5. **Output Shaper Cluster**: output-shaper.mjs → output-shaper/config.mjs, logging.mjs, model-gating.mjs, resume-detector.mjs

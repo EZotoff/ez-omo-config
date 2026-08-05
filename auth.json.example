@@ -36,5 +36,10 @@
   "inception": {
     "type": "api",
     "key": "YOUR_INCEPTION_LABS_API_KEY"
+  },
+
+  "uni-lux": {
+    "type": "api",
+    "key": "YOUR_UNI_LUX_API_KEY"
   }
 }

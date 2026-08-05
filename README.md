@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 7 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains reusable presets, plugins, skills, and scripts organized into a portable configuration you can fork and adapt.
 
@@ -64,6 +64,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions
 - **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
+- **Output Shaper** — reduces model output tokens via terseness injection and reasoning-effort dialing on resume turns
 - **OpenCode/OMO context management** — OpenCode compaction and OMO preemptive compaction/context-window hooks are enabled; Magic Context is retained only as a disabled config file.
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 - **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
@@ -78,7 +79,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 17 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, and two seed aspect sets |
+| 2-5 | **Configs** | 22 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, two seed aspect sets, and the Output Shaper plugin with its support modules |
 | 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, and review workflows. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
@@ -160,6 +161,11 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 44 | `aspect-dynamics/nudge.mjs` | `configs/opencode/` | Transcript-visible advisory nudge formatter |
 | 45 | `aspect-dynamics/logging.mjs` | `configs/opencode/` | Structured logging utilities |
 | 46 | `aspect-dynamics/sets/emotions-v1.json` | `configs/opencode/` | Seed aspect set for emotional tone detection |
+| 46a | `output-shaper.mjs` | `configs/opencode/` | Config-layer plugin entry: terseness injection + reasoning-effort dialing for resume turns |
+| 46b | `output-shaper/config.mjs` | `configs/opencode/` | Config loader with test override |
+| 46c | `output-shaper/logging.mjs` | `configs/opencode/` | File-based structured logging |
+| 46d | `output-shaper/model-gating.mjs` | `configs/opencode/` | Per-provider clamp field table and model gating |
+| 46e | `output-shaper/resume-detector.mjs` | `configs/opencode/` | Resume-after-tool-result detection |
 | 47 | `tests/aspect-dynamics/harness.mjs` | `tests/aspect-dynamics/` | Test harness for aspect-dynamics unit tests |
 | 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
 | 49 | `scripts/verify-live-deployment.sh` | `scripts/` | Live deployment verifier with evidence-state validation |
@@ -277,7 +283,7 @@ cd ez-omo-config
 
 ## Configuration Highlights
 
-### 7 Enabled Providers
+### 8 Enabled Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
@@ -288,6 +294,7 @@ cd ez-omo-config
 | **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1, GLM 5.2 |
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
+| **Uni.lu LiteLLM** | Local University of Luxembourg LiteLLM proxy on DGX Spark | DeepSeek V4 Flash (vLLM), Kimi K3, GLM 5.2 |
 
 ### 13 Agent Model Assignments
 
@@ -416,7 +423,7 @@ Before using this configuration, install the following prerequisites:
 | **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.12.1`. The fork is the canonical runtime source while tracked OMO patches remain active. |
 | **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
 | **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
-| **API keys** | Required | See `auth.json.example` for the 7 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
+| **API keys** | Required | See `auth.json.example` for the 8 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
 
 The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, `inotify-tools`, or the local OMO fork. This machine's `opencode.json` references `/home/ezotoff/oh-my-openagent-v4.12.1`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
 

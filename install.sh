@@ -34,6 +34,8 @@ ITEMS=(
     "configs|configs/opencode/provider-connect-retry.mjs|$HOME/.config/opencode/provider-connect-retry.mjs"
     "configs|configs/opencode/aspect-dynamics.mjs|$HOME/.config/opencode/aspect-dynamics.mjs"
     "configs|configs/opencode/aspect-dynamics|$HOME/.config/opencode/aspect-dynamics"
+    "configs|configs/opencode/output-shaper.mjs|$HOME/.config/opencode/output-shaper.mjs"
+    "configs|configs/opencode/output-shaper|$HOME/.config/opencode/output-shaper"
     "configs|configs/retry-errors.json|$HOME/.config/opencode/retry-errors.json"
     "configs|configs/oh-my-openagent/oh-my-openagent.json|$HOME/.config/opencode/oh-my-openagent.json"
     "configs|extras/ocx.jsonc|$HOME/.opencode/ocx.jsonc"
