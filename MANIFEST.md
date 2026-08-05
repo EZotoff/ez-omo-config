@@ -205,6 +205,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 18 | `omo--runtime-fallback-checktoolstate-bypass` | `oh-my-openagent` | active | 2026-07-25 | `grep -c 'checkToolState: false' ~/oh-my-openagent-v4.19.2/dist/index.js` — fork port of upstream PR #5357, hardens auto-retry dispatch against checkToolState deadlocks |
 | 19 | `omo--sync-delegate-task-result-bloat` | `oh-my-openagent` | active | 2026-07-16 | `grep -c 'Subagent Result Bloat Prevention' configs/oh-my-openagent/oh-my-openagent.json` — config-level prompt_append mitigation on atlas/sisyphus agents; durable fix requires OMO code change in fetchSyncResult |
 | 20 | `opencode--turn-summary-timestamp` | `opencode` | active | 2026-07-19 | `grep -c 'todayTimeOrDateTime' ~/src/opencode/packages/tui/src/routes/session/index.tsx` — local customization: shortDateTime 24h+date format for turn-summary timestamps |
+| 21 | `omo--durable-log-path` | `oh-my-openagent` | active | 2026-08-05 | `grep -c '\.local/share/opencode/logs' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch (Bun-minified bundle); durable OMO log path so logs survive opencode serve restarts |
 
 ## Operator Tools (Repo-Only, Not Installed)
 
