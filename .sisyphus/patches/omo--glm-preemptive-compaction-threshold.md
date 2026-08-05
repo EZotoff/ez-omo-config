@@ -3,7 +3,9 @@ patch_id: "omo--glm-preemptive-compaction-threshold"
 dependency: "oh-my-openagent"
 target_file: "packages/omo-opencode/src/hooks/preemptive-compaction-trigger.ts"
 target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
-status: "active"
+status: "deprecated"
+deprecated_date: "2026-08-05"
+deprecated_reason: "The GLM 5.1 mid-window context-degradation problem this patch addressed (quality drop past ~100K tokens on a 200K window, per OpenCode issues #17981 and #15778) does not occur on GLM 5.2 with its 1M context window. All agent roles now standardize on glm-5.2 (sisyphus, sisyphus-junior, atlas, metis, frontend-ui-ux-engineer). Additionally, OMO preemptive_compaction is disabled at the config level (experimental.preemptive_compaction=false) precisely because it triggers prematurely on 1M-context models; the patch's 0.45 threshold would compound that premature triggering if the subsystem were re-enabled."
 applied_date: "2026-04-10"
 dep_version: "4.19.2"
 upstream_issue: "none"
@@ -48,5 +50,10 @@ Expected: Two matches — constant declaration and usage.
    ```
 
 ## Durable Alternative
-Upstream to oh-my-openagent repository via PR. Could also be made configurable per-provider in the OMO config schema rather than hardcoded.
-Status: not-yet-pursued
+
+No longer needed. The GLM 5.1 degradation problem this patch worked around (significant quality drop at ~100K tokens, 50% of its 200K context) does not occur on GLM 5.2, which has a 1M context window and no analogous mid-window degradation. The stack now standardizes on glm-5.2 across all agent roles that previously used GLM models.
+
+Additionally, OMO preemptive compaction is disabled at the config level (`experimental.preemptive_compaction=false`) because it triggers prematurely on 1M-context models. Re-enabling the subsystem with this patch's lowered 0.45 threshold would compound the premature-trigger problem rather than solve it.
+
+If a future GLM model reintroduces mid-window degradation, the patch source remains in the OMO fork at `/home/ezotoff/oh-my-openagent-v4.19.2` and can be re-applied against the specific affected model.
+Status: not-applicable

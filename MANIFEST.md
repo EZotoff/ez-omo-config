@@ -189,7 +189,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 7 | `omo--clean-agent-display-names` | `oh-my-openagent@4.4.0` | active | 2026-04-30 | `grep -n 'sisyphus: "Sisyphus"' ~/snap/alacritty/common/.cache/opencode/packages/oh-my-openagent@latest/node_modules/oh-my-openagent/dist/index.js` |
 | 8 | `omo--commit-policy-alignment` | `oh-my-openagent` | active | 2026-05-02 | `grep -n "Git commits: follow the active git workflow" ~/oh-my-openagent/src/agents/sisyphus.ts` |
 | 9 | `omo--exclude-selected-auto-slash-commands` | `oh-my-openagent` | active | 2026-05-14 | `grep -n 'gad-experiment' ~/omo-hub/projects/oh-my-openagent/src/hooks/auto-slash-command/constants.ts` |
-| 10 | `omo--glm-preemptive-compaction-threshold` | `oh-my-openagent` | active | 2026-04-10 | `grep -n "GLM_PREEMPTIVE_COMPACTION_THRESHOLD" ~/omo-hub/projects/oh-my-openagent/src/hooks/preemptive-compaction.ts` |
+| 10 | `omo--glm-preemptive-compaction-threshold` | `oh-my-openagent` | deprecated 2026-08-05 | 2026-04-10 | DEPRECATED — GLM 5.1 degradation problem does not occur on GLM 5.2 (1M context); OMO preemptive compaction disabled anyway |
 | 11 | `omo--remove-activity-stagnation-bypass` | `oh-my-openagent` | active | 2026-04-10 | `grep -n '"none" \| "todo"' ~/omo-hub/projects/oh-my-openagent/src/hooks/todo-continuation-enforcer/session-state.ts` |
 | 12 | `opencode--commit-policy-unblock` | `opencode` | active | 2026-05-02 | `grep -n "Git commits: follow the active git workflow" ~/src/opencode/packages/opencode/src/tool/bash.txt` |
 | 13 | `omo--parent-wake-sync-mode-for-tui-render` | `oh-my-openagent` | rolled_back | 2026-06-24 | Do not reapply; ineffective workaround for upstream OpenCode TUI SSE rendering issue |
