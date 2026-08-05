@@ -48,3 +48,7 @@ This machine uses the **Claude Pro/Max subscription** (OAuth credentials in `~/.
 If a tool, plugin, skill, or proposal requires `--bare` or `ANTHROPIC_API_KEY`, it is wrong for this machine; redesign it to use the OAuth path.
 
 Reference: wisdom entry `20260729-<id>` (search wisdom with `~/.sisyphus/scripts/wisdom-search.sh "claude subscription bare"`).
+
+## Platform support
+
+This config installs on **Linux (native)**, **macOS (native, Homebrew Bash 4.3+ required — stock `/bin/bash` is 3.2 and cannot run the wisdom scripts)**, and **Windows (via WSL only)**. OpenCode resolves config paths against `os.homedir()` on every OS, so install targets (`~/.config/opencode/`, `~/.opencode/`, `~/.local/share/opencode/`, `~/.sisyphus/`) never need platform-specific remapping. On macOS run `brew install bash bun jq python` first. On Windows run the installer **inside WSL** — Git Bash, Cygwin, and native PowerShell are not supported and `install.sh` will exit with a WSL setup link.

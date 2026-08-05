@@ -810,7 +810,7 @@ which jq || echo "Install jq first: apt-get install jq / brew install jq"
 
 **Prerequisites**:
 - `jq` - JSON processor (required)
-- `bash` 4.0+ (for associative arrays and modern features)
+- bash 4.3+ (for `local -n` namerefs; macOS users install via `brew install bash`)
 - `opencode` CLI (optional, for LLM quality scoring in sync)
 
 ## Security Considerations

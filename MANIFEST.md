@@ -2,6 +2,8 @@
 
 Complete inventory of repo-managed artifacts for ez-omo-config repository scaffold.
 
+> **Platform support**: artifacts install on Linux (native), macOS (native, Homebrew Bash 4.3+ required), and Windows via WSL. Install targets are identical across all three (`$HOME`-relative). See `install.sh` `detect_os()` and `README.md` "Platform Support". Cross-platform CI: `.github/workflows/cross-platform.yml`.
+
 > **Atomic install pathway**: an item may declare multiple groups via `+`-joined tags (e.g. `skills+configs`). It installs whenever ANY declared group is selected. Used by the global `AGENTS.md`, which must travel with the `/deployment` skill AND read like a config file. See `category_selected` in `install.sh`.
 
 ## Artifacts Table
