@@ -8,7 +8,7 @@ set -euo pipefail
 source "$(dirname "$0")/wisdom-common.sh"
 wisdom_init_observability "$(basename "$0")"
 
-_WISDOM_ARCHIVE_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+_WISDOM_ARCHIVE_START_MS=$(wisdom_portable_now_ms)
 _WISDOM_ARCHIVE_ID=""
 _WISDOM_ARCHIVE_SCOPE=""
 _WISDOM_ARCHIVE_PROJECT_ID=""
@@ -28,7 +28,7 @@ _wisdom_archive_emit_observability() {
     local duration_ms_json="null"
     if [[ -n "${_WISDOM_ARCHIVE_START_MS:-}" ]]; then
         local now_ms
-        now_ms=$(date +%s%3N 2>/dev/null || echo "")
+        now_ms=$(wisdom_portable_now_ms)
         if [[ -n "$now_ms" ]]; then
             duration_ms_json=$((now_ms - _WISDOM_ARCHIVE_START_MS))
         fi

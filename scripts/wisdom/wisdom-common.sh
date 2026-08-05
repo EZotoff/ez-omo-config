@@ -1089,7 +1089,7 @@ wisdom_init_observability() {
 
     WISDOM_INVOCATION_ID=$(wisdom_generate_observe_id "inv-${script_name}")
     WISDOM_OBSERVE_SCRIPT="$script_name"
-    _WISDOM_OBSERVE_START_MS=$(date +%s%3N 2>/dev/null || echo "")
+    _WISDOM_OBSERVE_START_MS=$(wisdom_portable_now_ms)
 
     export WISDOM_TRACE_ID WISDOM_INVOCATION_ID WISDOM_PARENT_INVOCATION_ID WISDOM_OBSERVE_SCRIPT _WISDOM_OBSERVE_START_MS
 }
@@ -1130,7 +1130,7 @@ wisdom_emit_event() {
 
     if [[ -n "${_WISDOM_OBSERVE_START_MS:-}" ]]; then
         local now_ms
-        now_ms=$(date +%s%3N 2>/dev/null || echo "")
+        now_ms=$(wisdom_portable_now_ms)
         if [[ -n "$now_ms" ]]; then
             duration_ms=$((now_ms - _WISDOM_OBSERVE_START_MS))
         fi
