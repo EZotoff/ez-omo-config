@@ -6,6 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/knowledge-constants.sh"
+source "${SCRIPT_DIR}/wisdom-common.sh"
 
 # === Valid Enums ===
 VALID_TYPES=(deployment topology env-caveat runbook provider-gotcha conventions cross-repo preferences anti-pattern ownership observability rollout-state)
@@ -150,7 +151,10 @@ fi
 # === Generate ID and Dates ===
 MANIFEST_ID=$(uuidgen)
 NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-REVIEW_DUE=$(date -u -d "+${FRESHNESS_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
+if ! REVIEW_DUE="$(wisdom_portable_iso_utc_plus_days "${FRESHNESS_DAYS}")"; then
+    echo "ERROR: could not compute review_due date" >&2
+    exit 1
+fi
 
 # === Compute Slug from Title ===
 # Lowercase, replace spaces/non-alphanumeric with dashes, collapse multiple dashes, trim trailing
