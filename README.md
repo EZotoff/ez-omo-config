@@ -19,6 +19,8 @@ Get up and running in six steps:
 #    OpenCode CLI:  https://opencode.ai
 #    bun:           https://bun.sh
 #    Docker (optional, for worktree isolation): https://docker.com
+#    macOS:         brew install bash bun jq python
+#    Windows:       run inside WSL (Ubuntu) — see Platform Support below
 
 # 2. Clone the repository
 git clone https://github.com/EZotoff/ez-omo-config.git
@@ -269,15 +271,13 @@ Combine flags as needed:
 ./install.sh --dry-run --configs --plugins   # Preview configs and plugins only
 ```
 
-### Platform Notes
+### Platform Support
 
-**Windows Users**: This configuration is designed for Linux/macOS. For Windows, use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install):
-```bash
-# In WSL terminal
-git clone https://github.com/EZotoff/ez-omo-config.git
-cd ez-omo-config
-./install.sh
-```
+| Platform | Support | Prerequisites | Install |
+|----------|---------|---------------|---------|
+| **Linux** | Native | — | `./install.sh` |
+| **macOS** | Native | `brew install bash bun jq python` (bash 4.3+ required; stock `/bin/bash` is 3.2) | `./install.sh` |
+| **Windows** | Via WSL | Run inside WSL (Ubuntu). See [WSL install guide](https://learn.microsoft.com/en-us/windows/wsl/install). Git Bash, Cygwin, and native PowerShell are NOT supported. | inside WSL: `./install.sh` |
 
 ---
 
@@ -422,6 +422,9 @@ Before using this configuration, install the following prerequisites:
 |------------|-----------|--------|
 | **OpenCode CLI** | Required | [opencode.ai](https://opencode.ai) — `curl -fsSL https://opencode.ai/install \| bash` |
 | **bun** | Required | [bun.sh](https://bun.sh) — `curl -fsSL https://bun.sh/install \| bash` |
+| **jq** | Required by worktree hooks, wisdom scripts | `brew install jq` (macOS) · `sudo apt-get install -y jq` (Linux) |
+| **python3** | Auth.json parsing, portable helper fallbacks | `brew install python` (macOS) · `sudo apt-get install -y python3` (Linux) |
+| **bash >= 4.3** | Wisdom scripts use `local -n` namerefs | macOS: `brew install bash` (stock is 3.2) · Linux: preinstalled |
 | **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.19.2`. The fork is the canonical runtime source while tracked OMO patches remain active. |
 | **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
 | **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
