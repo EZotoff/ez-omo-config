@@ -21,10 +21,8 @@ export default async function outputShaperPlugin(ctx) {
   logInfo("Plugin loaded (scaffold)");
 
   return {
-    chat: {
-      // T2: merge clamp options into output.options for target models
-      params: async () => {},
-    },
+    // T2: merge clamp options into output.options for target models
+    "chat.params": async () => {},
     // T3: push static terseness instruction into output.system
     "experimental.chat.system.transform": async () => {},
   };
@@ -32,9 +30,7 @@ export default async function outputShaperPlugin(ctx) {
 
 function noopHooks() {
   return {
-    chat: {
-      params: async () => {},
-    },
+    "chat.params": async () => {},
     "experimental.chat.system.transform": async () => {},
   };
 }
