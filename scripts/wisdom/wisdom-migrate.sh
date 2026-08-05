@@ -203,7 +203,8 @@ choose_higher_authority() {
 
 canonical_fingerprint() {
     local record_json="$1"
-    printf '%s' "$record_json" | jq -r '
+    local fingerprint_input
+    fingerprint_input=$(printf '%s' "$record_json" | jq -r '
         [
             (.scope // ""),
             (.type // ""),
@@ -217,7 +218,11 @@ canonical_fingerprint() {
             | gsub("^\\s+|\\s+$"; "")
         )
         | join("\u001f")
-    ' | sha256sum | cut -d' ' -f1
+    ')
+    # jq emits a trailing newline which cmd-sub strips; re-append to keep
+    # fingerprint bytes (and stored digests) identical to the old pipeline
+    fingerprint_input+=$'\n'
+    wisdom_hash_text "$fingerprint_input"
 }
 
 map_manifest_type() {
