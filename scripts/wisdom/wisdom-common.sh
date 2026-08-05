@@ -40,6 +40,99 @@ _WISDOM_ERROR=0
 # contradicts: Array of conflicting Wisdom IDs (default: [])
 # metadata: Fixed object with canonical keys defined in WISDOM_METADATA_KEYS
 
+# ==========================================================================
+# Portable helpers — try GNU coreutils first, fall back to BSD/macOS.
+# Linux output is unchanged.
+#
+# Provided helpers (GNU form first, BSD/macOS fallback):
+#   wisdom_portable_now_ms              epoch milliseconds, regex-guarded
+#   wisdom_portable_epoch_from_iso      strict YYYY-MM-DDTHH:MM:SSZ to epoch
+#   wisdom_portable_epoch_days_ago      epoch seconds N days ago
+#   wisdom_portable_iso_utc_plus_days   ISO timestamp N days from now
+#   wisdom_portable_b64_decode          stdin-buffered base64 decode
+#   wisdom_portable_sed_inplace         mode-preserving in-place sed
+# ==========================================================================
+wisdom_portable_now_ms() {
+    local _v
+    _v="$(date +%s%3N 2>/dev/null)"
+    if [[ "$_v" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$_v"
+    else
+        _v="$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null)"
+        if [[ "$_v" =~ ^[0-9]+$ ]]; then
+            printf '%s\n' "$_v"
+        else
+            printf '%s000\n' "$(date +%s)"
+        fi
+    fi
+}
+
+wisdom_portable_epoch_from_iso() {
+    local _iso="$1" _epoch
+    _epoch="$(date -d "$_iso" +%s 2>/dev/null)"
+    if [[ "$_epoch" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$_epoch"
+        return 0
+    fi
+    _epoch="$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$_iso" +%s 2>/dev/null)"
+    if [[ "$_epoch" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$_epoch"
+        return 0
+    fi
+    # Strict format only — producers write YYYY-MM-DDTHH:MM:SSZ.
+    # Malformed input yields 0; validate upstream if needed.
+    printf '0\n'
+}
+
+wisdom_portable_epoch_days_ago() {
+    local _days="$1" _epoch
+    _epoch="$(date -d "-${_days} days" +%s 2>/dev/null)"
+    if [[ "$_epoch" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$_epoch"
+        return 0
+    fi
+    _epoch="$(date -v-${_days}d +%s 2>/dev/null)"
+    if [[ "$_epoch" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$_epoch"
+        return 0
+    fi
+    printf '0\n'
+}
+
+wisdom_portable_iso_utc_plus_days() {
+    local _days="$1" _result
+    _result="$(date -u -d "+${_days} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)"
+    if [[ -n "$_result" ]]; then
+        printf '%s\n' "$_result"
+        return 0
+    fi
+    _result="$(date -u -v+${_days}d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)"
+    if [[ -n "$_result" ]]; then
+        printf '%s\n' "$_result"
+        return 0
+    fi
+    # Total failure — return nonzero with no output. Do NOT fall back to "now"
+    # (would create immediately-overdue review_due entries).
+    return 1
+}
+
+wisdom_portable_b64_decode() {
+    local _input
+    _input="$(cat)"
+    printf '%s' "$_input" | base64 -d 2>/dev/null || printf '%s' "$_input" | base64 -D 2>/dev/null
+}
+
+wisdom_portable_sed_inplace() {
+    local _expr="$1" _file="$2" _tmp
+    _tmp="$(mktemp "$(dirname "$_file")/.sed.XXXXXX")"
+    if cp -p "$_file" "$_tmp" && sed "$_expr" "$_file" > "$_tmp" && mv "$_tmp" "$_file"; then
+        return 0
+    else
+        rm -f "$_tmp"
+        return 1
+    fi
+}
+
 # --------------------------------------------------------------------------
 # 1. wisdom_generate_id — Generate a unique entry ID
 #    Format: YYYYMMDD-HHMMSS-XXXX (4 random lowercase alphanumeric)
