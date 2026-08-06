@@ -47,20 +47,25 @@ function makeFakeCtx(opts = {}) {
   };
 }
 
-// Resume turn: last message is assistant with a completed tool part.
+// Resume turn: second-to-last message is assistant with a completed tool part,
+// and the last message is the empty assistant message OpenCode creates for
+// the current LLM call before chat.params fires.
 function resumeMessages() {
   return [
     { id: "msg-1", info: { role: "user" }, parts: [{ type: "text", text: "analyze this" }] },
     { id: "msg-2", info: { role: "assistant" }, parts: [{ type: "tool", state: { status: "completed" } }] },
+    { id: "msg-3", info: { role: "assistant" }, parts: [] },
   ];
 }
 
-// New question: last message is user.
+// New question: last message is the empty assistant message for the current
+// call; second-to-last is the user's follow-up question.
 function newQuestionMessages() {
   return [
     { id: "msg-1", info: { role: "user" }, parts: [{ type: "text", text: "first question" }] },
     { id: "msg-2", info: { role: "assistant" }, parts: [{ type: "text", text: "answer" }] },
     { id: "msg-3", info: { role: "user" }, parts: [{ type: "text", text: "follow-up question" }] },
+    { id: "msg-4", info: { role: "assistant" }, parts: [] },
   ];
 }
 
