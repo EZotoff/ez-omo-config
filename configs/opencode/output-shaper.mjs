@@ -1,5 +1,5 @@
 // configs/opencode/output-shaper.mjs
-// Output Shaper config-layer plugin surface (scaffold — hooks are no-ops)
+// Output Shaper config-layer plugin surface — terseness injection + reasoning-effort dialing
 
 import { loadConfig } from "./output-shaper/config.mjs";
 import { logInfo, logWarn, setLogLevel } from "./output-shaper/logging.mjs";
@@ -20,7 +20,7 @@ export default async function outputShaperPlugin(ctx) {
     return noopHooks();
   }
 
-  logInfo("Plugin loaded (scaffold)");
+  logInfo("Plugin loaded");
 
   return {
     "chat.params": async (input, output) => {
@@ -40,10 +40,11 @@ export default async function outputShaperPlugin(ctx) {
       output.options[clamp.field] = clamp.value;
       logInfo(`Clamped ${providerID}/${modelID} resume turn: ${clamp.field}=${clamp.value}`);
     },
-    // T3: push static terseness instruction into output.system
+    // Push static terseness instruction into output.system (all providers)
     "experimental.chat.system.transform": async (input, output) => {
       if (Array.isArray(output.system)) {
         output.system.push(config.tersenessInstruction);
+        logInfo(`Terseness injected: ${input.model?.providerID ?? "?"}/${input.model?.id ?? "?"}`);
       }
     },
   };
