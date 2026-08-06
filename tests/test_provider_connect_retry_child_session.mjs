@@ -1,32 +1,59 @@
 #!/usr/bin/env node
-// Test: provider-connect-retry child-session guard.
+// Test: provider-connect-retry child-session gate + unified agent-chain fallback.
 //
 // Background: A synchronous task() subagent runs in a child session (parentID
-// set). When the provider 500'd, the plugin used to skip ALL child sessions
-// unconditionally, so the fallback_model never dispatched and the subagent
-// died. The fix: child sessions enter the retry path when the matched rule
-// has a fallback_model; child sessions are still skipped when the rule has
-// no fallback (preserves the original recursion-storm protection).
+// set). Originally the plugin skipped ALL child sessions unconditionally, so
+// fallback never dispatched and the subagent died. The first fix gated on a
+// per-rule fallback_model field. The 2026-08-05 unification removed per-rule
+// fallback_model entirely — fallback is now resolved from the failing
+// session's agent fallback_models chain in oh-my-openagent.json (one source of
+// truth, self-fallback-proof). This test validates the new gate.
 //
 // Cases:
-//   1. Child session + rule WITH fallback_model    → fallback dispatched
-//   2. Child session + rule WITHOUT fallback_model → skipped (preserved)
-//   3. Root session + any rule                     → retry dispatched (regression guard)
+//   1. Child session + agent WITH a usable fallback chain   → fallback dispatched from the agent chain
+//   2. Child session + NO usable fallback chain (unknown agent/model) → skipped (recursion-storm protection)
+//   3. Root session + any rule                               → retry dispatched (regression guard)
 //
-// The test reads the live registry at ~/.config/opencode/retry-errors.json.
-// It relies on two stock rules:
-//   - model-token-limit-exceeded (fallback_model: "openai/gpt-5.6-sol", max_retries: 0)
-//   - sse-read-timeout (no fallback_model, max_retries: 3, backoff [1000,6000,36000])
+// The test reads the live configs at ~/.config/opencode/{retry-errors.json,
+// oh-my-openagent.json} and derives expected values from them, so it resists
+// chain drift on rebalances. It asserts structural properties (fallback
+// provider ≠ failing provider; fallback ∈ agent's chain) rather than hardcoded
+// model ids.
 
 import assert from "node:assert";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { ProviderConnectRetryPlugin } from "../configs/opencode/provider-connect-retry.mjs";
+
+// --- Derive expected values from the live OMO config (resists chain drift) ---
+const omoConfigPath = path.join(os.homedir(), ".config", "opencode", "oh-my-openagent.json");
+const omoConfig = JSON.parse(fs.readFileSync(omoConfigPath, "utf8"));
+
+// Prometheus: primary on kimi-for-coding-oauth/k3, chain [glm-5.2, gpt-5.6-sol].
+// When kimi fails, the unified resolver must pick the first chain entry whose
+// provider differs from kimi-for-coding-oauth.
+const prometheus = omoConfig.agents.prometheus;
+assert.ok(prometheus, "precondition: agents.prometheus must exist in oh-my-openagent.json");
+assert.ok(Array.isArray(prometheus.fallback_models) && prometheus.fallback_models.length > 0,
+  "precondition: agents.prometheus.fallback_models must be a non-empty array");
+
+const prometheusModelStr = prometheus.model;
+const [prometheusPrimaryProvider, prometheusPrimaryModelID] = prometheusModelStr.split("/");
+const expectedFallbackStr = prometheus.fallback_models.find((entry) => {
+  const provider = entry.split("/")[0];
+  return provider !== prometheusPrimaryProvider;
+});
+assert.ok(expectedFallbackStr,
+  `precondition: prometheus must have a chain entry whose provider ≠ "${prometheusPrimaryProvider}"`);
+const [expectedFallbackProvider, expectedFallbackModelID] = expectedFallbackStr.split("/");
 
 const childSessionID = "ses_child_task_test";
 const rootSessionID = "ses_root_test";
 const userMessageID = "msg_user_child_1";
 const assistantMessageID = "msg_assist_child_1";
 
-function makeMockClient(parentID) {
+function makeMockClient(parentID, { agent, providerID, modelID } = {}) {
   const promptAsyncCalls = [];
   const abortCalls = [];
   const client = {
@@ -38,6 +65,7 @@ function makeMockClient(parentID) {
             info: {
               role: "user",
               id: userMessageID,
+              agent,
               parts: [{ type: "text", text: "do the thing" }],
             },
           },
@@ -45,6 +73,8 @@ function makeMockClient(parentID) {
             info: {
               role: "assistant",
               id: assistantMessageID,
+              providerID,
+              modelID,
               error: "provider failed",
             },
           },
@@ -74,61 +104,73 @@ function makeErrorEvent(sessionID, message) {
 }
 
 async function run() {
-  // --- Case 1: child session + rule WITH fallback_model → fallback dispatched
+  // --- Case 1: child session + agent WITH usable fallback chain → fallback dispatched from chain
   {
-    const mock = makeMockClient("ses_parent_root"); // child has parentID
+    const mock = makeMockClient("ses_parent_root", {
+      agent: "prometheus",
+      providerID: prometheusPrimaryProvider,
+      modelID: prometheusPrimaryModelID,
+    });
     const plugin = await ProviderConnectRetryPlugin({ client: mock.client, directory: "/tmp" });
     // "request exceeded model token limit" matches model-token-limit-exceeded
-    // (fallback_model: "openai/gpt-5.6-sol", max_retries: 0 → immediate fallback)
+    // (max_retries: 0 → immediate fallback, no retry loop)
     await plugin.event(makeErrorEvent(childSessionID, "request exceeded model token limit"));
 
     assert.strictEqual(
       mock.promptAsyncCalls.length,
       1,
-      `Case 1 (child + fallback rule): expected 1 promptAsync call, got ${mock.promptAsyncCalls.length}`,
+      `Case 1 (child + agent chain): expected 1 promptAsync call, got ${mock.promptAsyncCalls.length}`,
     );
     assert.ok(
       mock.promptAsyncCalls[0].body.model,
       "Case 1: expected fallback dispatch to carry a model field",
     );
-    assert.strictEqual(
-      mock.promptAsyncCalls[0].body.model.providerID,
-      "openai",
-      `Case 1: expected fallback provider "openai", got "${mock.promptAsyncCalls[0].body.model.providerID}"`,
+    const dispatched = mock.promptAsyncCalls[0].body.model;
+    assert.notStrictEqual(
+      dispatched.providerID,
+      prometheusPrimaryProvider,
+      `Case 1: fallback provider must differ from failing provider "${prometheusPrimaryProvider}" (no self-fallback), got "${dispatched.providerID}"`,
+    );
+    assert.ok(
+      prometheus.fallback_models.includes(`${dispatched.providerID}/${dispatched.modelID}`),
+      `Case 1: dispatched "${dispatched.providerID}/${dispatched.modelID}" must be in prometheus.fallback_models ${JSON.stringify(prometheus.fallback_models)}`,
     );
     assert.strictEqual(
-      mock.promptAsyncCalls[0].body.model.modelID,
-      "gpt-5.6-sol",
-      `Case 1: expected fallback model "gpt-5.6-sol", got "${mock.promptAsyncCalls[0].body.model.modelID}"`,
+      dispatched.providerID,
+      expectedFallbackProvider,
+      `Case 1: expected first eligible chain entry provider "${expectedFallbackProvider}", got "${dispatched.providerID}"`,
     );
-    console.log("PASS case 1: child session + fallback rule → fallback dispatched");
+    console.log(`PASS case 1: child + prometheus chain → fallback ${expectedFallbackProvider}/${expectedFallbackModelID} dispatched (failing=${prometheusPrimaryProvider})`);
   }
 
-  // --- Case 2: child session + rule WITHOUT fallback_model → skipped
+  // --- Case 2: child session + NO usable fallback chain → skipped (recursion-storm protection)
   {
-    const mock = makeMockClient("ses_parent_root"); // child has parentID
+    const mock = makeMockClient("ses_parent_root", {
+      agent: "nonexistent-agent-xyz",
+      providerID: "fake-provider",
+      modelID: "fake-model",
+    });
     const plugin = await ProviderConnectRetryPlugin({ client: mock.client, directory: "/tmp" });
-    // "SSE read timed out" matches sse-read-timeout (no fallback_model)
-    await plugin.event(makeErrorEvent(childSessionID, "SSE read timed out"));
+    await plugin.event(makeErrorEvent(childSessionID, "request exceeded model token limit"));
 
     assert.strictEqual(
       mock.promptAsyncCalls.length,
       0,
-      `Case 2 (child + no-fallback rule): expected 0 promptAsync calls, got ${mock.promptAsyncCalls.length}`,
+      `Case 2 (child + no chain): expected 0 promptAsync calls, got ${mock.promptAsyncCalls.length}`,
     );
     assert.strictEqual(
       mock.abortCalls.length,
       0,
       `Case 2: expected 0 abort calls, got ${mock.abortCalls.length}`,
     );
-    console.log("PASS case 2: child session + no-fallback rule → skipped (preserved)");
+    console.log("PASS case 2: child session + no agent chain → skipped (preserved)");
   }
 
-  // --- Case 3: root session + rule without fallback → retry dispatched (regression guard)
+  // --- Case 3: root session + any rule → retry dispatched (regression guard)
   {
     const mock = makeMockClient(undefined); // root session, no parentID
     const plugin = await ProviderConnectRetryPlugin({ client: mock.client, directory: "/tmp" });
-    // sse-read-timeout: backoff_ms[0] = 1000ms → ~1s wait
+    // sse-read-timeout: backoff_ms[0] = 1000ms → ~1s wait before retry
     await plugin.event(makeErrorEvent(rootSessionID, "SSE read timed out"));
 
     assert.strictEqual(
@@ -139,7 +181,7 @@ async function run() {
     console.log("PASS case 3: root session retry path unchanged");
   }
 
-  console.log("ALL PASS: provider-connect-retry child-session guard (3/3)");
+  console.log("ALL PASS: provider-connect-retry child-session gate + unified agent-chain fallback (3/3)");
 }
 
 run().catch((err) => {

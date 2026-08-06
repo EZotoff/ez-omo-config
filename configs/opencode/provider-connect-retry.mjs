@@ -4,6 +4,7 @@ import path from "node:path";
 
 const REGISTRY_PATH = path.join(os.homedir(), ".config", "opencode", "retry-errors.json");
 const LOG_PATH = path.join(os.homedir(), ".config", "opencode", "retry-plugin.log");
+const OMO_CONFIG_PATH = path.join(os.homedir(), ".config", "opencode", "oh-my-openagent.json");
 const LOG_MAX_BYTES = 10 * 1024 * 1024; // 10 MB before rotation
 
 function rotateLogIfNeeded() {
@@ -330,6 +331,81 @@ function parseFallbackModel(fallbackModel) {
   };
 }
 
+function loadOmoConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(OMO_CONFIG_PATH, "utf8"));
+  } catch (error) {
+    log("warn", `Failed to load OMO config for agent fallback resolution: ${error?.message ?? error}`);
+    return undefined;
+  }
+}
+
+// Resolve the fallback model for a session by deferring to the agent's (or
+// governing category's) canonical fallback_models chain in oh-my-openagent.json.
+// One source of truth for which model to fall back to — replaces the former
+// per-rule fallback_model field that drifted out of sync on every rebalance
+// (root cause of the 2026-07-21 K3 self-fallback incident).
+//
+// Resolution order mirrors OMO's model-resolution precedence (category model
+// takes precedence over agent model when a category override is in effect):
+//   1. If the failing model matches the named agent's primary model, use that
+//      agent's fallback_models chain.
+//   2. Otherwise (likely a category-spawned session), find the category whose
+//      primary model matches the failing model and use its chain.
+//   3. Last resort: the named agent's chain even on mismatch (still a valid chain).
+//
+// The first chain entry whose provider differs from the failing provider is
+// returned (parsed via parseFallbackModel); same-provider entries are skipped,
+// so self-fallback is structurally impossible. Returns undefined if no usable entry.
+function resolveAgentFallback(agentName, failingModel) {
+  if (!failingModel?.providerID) return undefined;
+  const config = loadOmoConfig();
+  if (!config) return undefined;
+
+  const failingModelStr = failingModel.modelID
+    ? `${failingModel.providerID}/${failingModel.modelID}`
+    : undefined;
+
+  const pickFromChain = (chain) => {
+    if (!Array.isArray(chain)) return undefined;
+    for (const entry of chain) {
+      if (typeof entry !== "string") continue;
+      const parsed = parseFallbackModel(entry);
+      if (parsed && parsed.providerID !== failingModel.providerID) return parsed;
+    }
+    return undefined;
+  };
+
+  const agents = config.agents && typeof config.agents === "object" ? config.agents : {};
+  const categories = config.categories && typeof config.categories === "object" ? config.categories : {};
+  const agentBlock = typeof agentName === "string" ? agents[agentName] : undefined;
+
+  // 1. Agent chain when its primary model matches the failing model.
+  if (agentBlock && failingModelStr && agentBlock.model === failingModelStr) {
+    const picked = pickFromChain(agentBlock.fallback_models);
+    if (picked) return picked;
+  }
+
+  // 2. Category override: find the category whose model matches.
+  if (failingModelStr) {
+    for (const catName of Object.keys(categories)) {
+      const cat = categories[catName];
+      if (cat && cat.model === failingModelStr) {
+        const picked = pickFromChain(cat.fallback_models);
+        if (picked) return picked;
+      }
+    }
+  }
+
+  // 3. Last resort: the agent's chain even on model mismatch.
+  if (agentBlock) {
+    const picked = pickFromChain(agentBlock.fallback_models);
+    if (picked) return picked;
+  }
+
+  return undefined;
+}
+
 function isEmptyAssistantMessage(message) {
   const info = message?.info ?? message;
   if ((info?.role ?? message?.role) !== "assistant") return false;
@@ -438,23 +514,11 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                 const variant = typeof lastUserMessage?.info?.variant === "string" ? lastUserMessage.info.variant : undefined;
 
                 if (nextAttempt > emptyRule.max_retries || attemptIndex >= emptyRule.backoff_ms.length) {
-                  const fallback = parseFallbackModel(emptyRule.fallback_model);
+                  const fallback = resolveAgentFallback(agent, model);
                   if (fallback) {
-                    // Self-fallback guard: failing provider === fallback provider would loop forever
-                    const failingProviderID = model?.providerID;
-                    if (failingProviderID && fallback.providerID === failingProviderID) {
-                      log("warn", `Skipping self-fallback for "${emptyRule.id}" — failing provider "${failingProviderID}" is the fallback target`);
-                      await surfaceToast(ctx, {
-                        title: "Provider unavailable",
-                        message: `${failingProviderID} failed and the configured fallback is also ${failingProviderID}. Update retry-errors.json rule "${emptyRule.id}" to use a different fallback_model.`,
-                        variant: "error",
-                        duration: 15000,
-                      });
-                      return;
-                    }
                     const fallbackParts = tracked.originalParts ?? retryParts;
                     const fallbackMessageID = tracked.originalMessageID ?? retryMessageID;
-                    log("info", `Exhausted empty-response retries for "${emptyRule.id}" — falling back to ${emptyRule.fallback_model}`);
+                    log("info", `Exhausted empty-response retries for "${emptyRule.id}" — falling back to ${fallback.providerID}/${fallback.modelID} via agent "${agent ?? "unknown"}" chain`);
                     await sleep(1000);
                     await ctx.client.session.promptAsync({
                       path: { id: sessionID },
@@ -469,10 +533,11 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                       },
                     });
                   } else {
-                    log("warn", `Exhausted empty-response retries for "${emptyRule.id}" (no fallback_model configured)`);
+                    const failingProviderID = model?.providerID ?? "unknown";
+                    log("warn", `Exhausted empty-response retries for "${emptyRule.id}" — no fallback in agent "${agent ?? "unknown"}" chain for provider "${failingProviderID}"`);
                     await surfaceToast(ctx, {
                       title: "Retries exhausted",
-                      message: `Rule "${emptyRule.id}" exhausted ${emptyRule.max_retries} empty-response retries with no fallback_model configured.`,
+                      message: `Rule "${emptyRule.id}" exhausted ${emptyRule.max_retries} empty-response retries; agent "${agent ?? "unknown"}" has no fallback chain for provider "${failingProviderID}".`,
                       variant: "warning",
                       duration: 10000,
                     });
@@ -681,21 +746,6 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
 
         const parentID = getEventParentID(event) ?? sessionResponse?.data?.parentID;
         const isChildSession = typeof parentID === "string" && parentID.length > 0;
-        const ruleHasFallback = typeof matchedRule.fallback_model === "string"
-          && matchedRule.fallback_model.length > 0;
-        if (isChildSession && !ruleHasFallback) {
-          log(
-            "info",
-            `Skipping retry for child session ${sessionID} (rule "${matchedRule.id}" has no fallback_model)`,
-          );
-          return;
-        }
-        if (isChildSession) {
-          log(
-            "info",
-            `Child session ${sessionID} entering retry path (rule "${matchedRule.id}" has fallback_model="${matchedRule.fallback_model}")`,
-          );
-        }
 
         const messagesResponse = await ctx.client.session.messages({
           path: { id: sessionID },
@@ -703,6 +753,28 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         }).catch(() => null);
 
         const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
+        const agent = getEventAgent(event, messages);
+        const model = getEventModel(event, messages);
+
+        // Child-session gate: skip sessions whose agent has no recoverable
+        // fallback chain. Under unified fallback, recovery viability depends on
+        // the agent's chain in oh-my-openagent.json — not a per-rule field. The
+        // resolved agentFallback is reused at the exhaustion dispatch below.
+        const agentFallback = resolveAgentFallback(agent, model);
+        if (isChildSession && !agentFallback) {
+          log(
+            "info",
+            `Skipping retry for child session ${sessionID} (agent "${agent ?? "unknown"}" has no fallback chain for failing provider "${model?.providerID ?? "unknown"}")`,
+          );
+          return;
+        }
+        if (isChildSession) {
+          log(
+            "info",
+            `Child session ${sessionID} entering retry path (agent "${agent ?? "unknown"}" fallback → ${agentFallback.providerID}/${agentFallback.modelID})`,
+          );
+        }
+
         const failedAssistantMessageID = getFailedAssistantMessageID(event, messages);
         if (!failedAssistantMessageID) {
           log("warn", `Skipping retry for "${matchedRule.id}" — no failed assistant message ID available`);
@@ -732,8 +804,6 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           : 1;
         const attemptIndex = nextAttempt - 1;
 
-        const agent = getEventAgent(event, messages) ?? lastUserMessage?.info?.agent;
-        const model = getEventModel(event, messages) ?? lastUserMessage?.info?.model;
         const system = typeof lastUserMessage?.info?.system === "string" ? lastUserMessage.info.system : undefined;
         const tools = lastUserMessage?.info?.tools && typeof lastUserMessage.info.tools === "object" ? lastUserMessage.info.tools : undefined;
         const variant = typeof lastUserMessage?.info?.variant === "string" ? lastUserMessage.info.variant : undefined;
@@ -747,23 +817,11 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           });
           handledErrorsBySession.set(sessionID, failedAssistantMessageID);
 
-          const fallback = parseFallbackModel(matchedRule.fallback_model);
+          const fallback = agentFallback;
           if (fallback) {
-            // Self-fallback guard: failing provider === fallback provider would loop forever
-            const failingProviderID = model?.providerID;
-            if (failingProviderID && fallback.providerID === failingProviderID) {
-              log("warn", `Skipping self-fallback for "${matchedRule.id}" — failing provider "${failingProviderID}" is the fallback target`);
-              await surfaceToast(ctx, {
-                title: "Provider quota exhausted",
-                message: `${failingProviderID} is failing and the configured fallback is also ${failingProviderID}. Update retry-errors.json rule "${matchedRule.id}" to use a different fallback_model.`,
-                variant: "error",
-                duration: 15000,
-              });
-              return;
-            }
             const fallbackParts = current?.originalParts ?? retryParts;
             const fallbackMessageID = current?.originalMessageID ?? retryMessageID;
-            log("info", `Exhausted retries for "${matchedRule.id}" — falling back to ${matchedRule.fallback_model}`);
+            log("info", `Exhausted retries for "${matchedRule.id}" — falling back to ${fallback.providerID}/${fallback.modelID} via agent "${agent ?? "unknown"}" chain`);
             await ctx.client.session.abort({
               path: { id: sessionID },
               ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
@@ -783,10 +841,11 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
               },
             });
           } else {
-            log("warn", `Exhausted retries for "${matchedRule.id}" (${matchedRule.max_retries}/${matchedRule.max_retries}) — no fallback_model configured`);
+            const failingProviderID = model?.providerID ?? "unknown";
+            log("warn", `Exhausted retries for "${matchedRule.id}" (${matchedRule.max_retries}/${matchedRule.max_retries}) — no fallback in agent "${agent ?? "unknown"}" chain for provider "${failingProviderID}"`);
             await surfaceToast(ctx, {
               title: "Retries exhausted",
-              message: `Rule "${matchedRule.id}" exhausted ${matchedRule.max_retries} retries with no fallback_model configured.`,
+              message: `Rule "${matchedRule.id}" exhausted ${matchedRule.max_retries} retries; agent "${agent ?? "unknown"}" has no fallback chain for provider "${failingProviderID}".`,
               variant: "warning",
               duration: 10000,
             });
