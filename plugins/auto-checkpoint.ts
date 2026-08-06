@@ -28,11 +28,11 @@ import { Mutex } from "./kdco-primitives/mutex.ts"
 
 const CONFIG = {
 	/** Minimum idle time before considering a checkpoint (ms) */
-	idleMs: 10_000,
+	idleMs: 30_000,
 	/** Minimum quiet time since last tool activity (ms) */
 	quietMs: 5_000,
 	/** Minimum time between checkpoints (ms) */
-	cooldownMs: 30_000,
+	cooldownMs: 300_000,
 	/** Include untracked files in checkpoints */
 	includeUntracked: true,
 	/** Skip checkpoint if these git operations are in progress */

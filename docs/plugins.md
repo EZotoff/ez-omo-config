@@ -152,7 +152,9 @@ At each evidence state, agents may only use approved claim language:
 
 **Purpose**: Creates semantic session-scoped git checkpoint commits when sessions become idle or complete work, using an LLM helper session to select files and compose messages from a bounded candidate set.
 
-**Runtime default**: Installed but disabled unless `OPENCODE_AUTO_CHECKPOINT_ENABLE=1` is set. This keeps OpenCode TUI startup safe; enable only when checkpoint automation is explicitly wanted. File logging is also opt-in via `OPENCODE_AUTO_CHECKPOINT_FILE_LOG=1`.
+**Runtime default**: Enabled on this machine via `OPENCODE_AUTO_CHECKPOINT_ENABLE=1` in `~/.config/openchamber/openchamber.env` (the canonical systemd EnvironmentFile for the OpenChamber+OpenCode stack). File logging is also enabled via `OPENCODE_AUTO_CHECKPOINT_FILE_LOG=1`. On a fresh install without these env vars, the plugin loads but returns empty hooks (no checkpoints). To enable on another machine, set both env vars in whatever EnvironmentFile the OpenCode systemd unit consumes, then restart `opencode.service`.
+
+**Timing**: `idleMs=30000` (30s session idle before a checkpoint is considered), `quietMs=5000` (5s no-tool-activity signal), `cooldownMs=300000` (at most one checkpoint per 5 minutes per root session tree).
 
 **Features**:
 
