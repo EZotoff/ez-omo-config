@@ -6,7 +6,7 @@
 // (e.g. zai "thinking_budget", openai "reasoningEffort", google "thinkingLevel").
 const CLAMP_TABLE = {
   "zai-coding-plan":       { field: "thinking_budget",   values: { low: 4096, medium: 8192, high: 16384, max: 32768 } },
-  "kimi-for-coding-oauth": { field: "reasoning_effort", values: { low: "low", high: "high", max: "max" } },
+  "kimi-for-coding-oauth": { field: "reasoning_effort", values: { low: "low", medium: "medium", high: "high" } },
   "openai":                { field: "reasoningEffort",   values: { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" } },
   "google":                { field: "thinkingLevel",     values: { minimal: "minimal", low: "low", medium: "medium", high: "high" } },
   "deepseek":              { field: "reasoning_effort",  values: { low: "low", medium: "medium", high: "high", max: "max" } },

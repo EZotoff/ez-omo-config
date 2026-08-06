@@ -20,7 +20,7 @@
       "model": "openai/gpt-5.6-sol",
       "variant": "high",
       "fallback_models": [
-        "kimi-for-coding-oauth/k3",
+        "kimi-for-coding-oauth/kimi-for-coding",
         "zai-coding-plan/glm-5.2",
         "google/gemini-3.1-pro-preview"
       ],
@@ -47,7 +47,7 @@
       "model": "openai/gpt-5.6-terra"
     },
     "prometheus": {
-      "model": "kimi-for-coding-oauth/k3",
+      "model": "kimi-for-coding-oauth/kimi-for-coding",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.2",
@@ -82,7 +82,7 @@
       "model": "zai-coding-plan/glm-5.2",
       "fallback_models": [
         "openai/gpt-5.6-sol",
-        "kimi-for-coding-oauth/k3"
+        "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "skills": [
         "wisdom"
@@ -124,8 +124,8 @@
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
     "ultrabrain": {
-      "model": "kimi-for-coding-oauth/k3",
-      "variant": "xhigh",
+      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.2",
         "openai/gpt-5.6-sol"
@@ -169,14 +169,14 @@
       "variant": "high",
       "fallback_models": [
         "openai/gpt-5.6-sol",
-        "kimi-for-coding-oauth/k3"
+        "kimi-for-coding-oauth/kimi-for-coding"
       ]
     },
     "mephistopheles": {
       "model": "openai/gpt-5.6-sol",
       "fallback_models": [
         "zai-coding-plan/glm-5.2",
-        "kimi-for-coding-oauth/k3"
+        "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless \u2014 you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly.",
       "variant": "high"

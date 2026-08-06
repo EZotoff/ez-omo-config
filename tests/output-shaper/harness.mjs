@@ -270,7 +270,7 @@ async function runCasingSnakeVsCamel() {
     const plugin = mod.default;
     const cases = [
       { providerID: "zai-coding-plan", modelID: "glm-5.2", field: "thinking_budget", value: 4096 },
-      { providerID: "kimi-for-coding-oauth", modelID: "k3", field: "reasoning_effort", value: "low" },
+      { providerID: "kimi-for-coding-oauth", modelID: "kimi-for-coding", field: "reasoning_effort", value: "low" },
       { providerID: "deepseek", modelID: "deepseek-v4-flash", field: "reasoning_effort", value: "low" },
       { providerID: "openai", modelID: "gpt-5.6-sol", field: "reasoningEffort", value: "low" },
       { providerID: "google", modelID: "gemini-3.1-pro-preview", field: "thinkingLevel", value: "low" },
@@ -407,7 +407,7 @@ async function main() {
       await runClampCase("glm-resume-clamped", "zai-coding-plan", "glm-5.2", "thinking_budget", 4096);
       break;
     case "kimi-resume-clamped":
-      await runClampCase("kimi-resume-clamped", "kimi-for-coding-oauth", "k3", "reasoning_effort", "low");
+      await runClampCase("kimi-resume-clamped", "kimi-for-coding-oauth", "kimi-for-coding", "reasoning_effort", "low");
       break;
     case "gpt-resume-clamped":
       await runClampCase("gpt-resume-clamped", "openai", "gpt-5.6-sol", "reasoningEffort", "low");
