@@ -363,6 +363,52 @@ function resolveWorkdir(args: { workdir?: unknown; command?: string }, fallback:
 }
 
 // =============================================================================
+// COMMIT-MESSAGE PAYLOAD STRIPPING (false-positive mitigation)
+// =============================================================================
+//
+// Destructive-pattern matching operates on the entire bash command string.
+// This produces false positives when an agent's commit message, tag annotation,
+// or other quoted payload happens to mention a destructive command — e.g. a
+// commit log message that cites `git reset --hard <sha>` as forensic evidence
+// (this exact case blocked the A+B implementation commit twice, auto-stashing
+// the in-progress work each time).
+//
+// Mitigation: strip the quoted payload from `git commit -m "..."`, `git tag -m "..."`,
+// and the `--message=` forms BEFORE pattern matching. Real destructive commands
+// are virtually never inside quoted message payloads (they're being executed,
+// not stored as data), so stripping eliminates false positives without
+// introducing false negatives.
+//
+/**
+ * Strips commit/tag message payloads from a command before destructive-pattern
+ * matching. Returns a copy of the command with each `git commit -m "..."` or
+ * `git tag -m "..."` payload replaced by the literal `<msg>`.
+ *
+ * Iterates until no further matches — handles commands with multiple `-m` flags
+ * (`git commit -m "subject" -m "body"`), which a single global regex pass misses
+ * because each match requires its own `git commit`/`git tag` prefix.
+ */
+function stripCommitMessagePayloads(command: string): string {
+	let result = command
+	let prev: string
+	do {
+		prev = result
+		result = result
+			// `-m "..."` / `-m '...'` / `-m $'...'` (bash ANSI-C quoting)
+			.replace(
+				/(\bgit\s+(?:commit|tag)\b[^&|;\n]*?\s-m\s*)(?:"[^"]*"|'[^']*'|\$'[^']*')/g,
+				"$1<msg>"
+			)
+			// `--message="..."` form
+			.replace(
+				/(\bgit\s+(?:commit|tag)\b[^&|;\n]*?\s--message=)(?:"[^"]*"|'[^']*')/g,
+				"$1<msg>"
+			)
+	} while (result !== prev)
+	return result
+}
+
+// =============================================================================
 // PLUGIN ENTRY
 // =============================================================================
 
@@ -472,8 +518,14 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 			// bypasses the dirty-tree guard entirely.
 			const workdir = resolveWorkdir({ workdir: bashWorkdir, command }, directory)
 
+			// Strip commit/tag message payloads before pattern matching. Without this,
+			// any commit message that mentions a destructive command (e.g. citing
+			// `git reset --hard <sha>` as forensic evidence) false-positives and
+			// blocks the commit itself. See stripCommitMessagePayloads docs.
+			const sanitizedCommand = stripCommitMessagePayloads(command)
+
 			// LAYER 1: Non-git always-block patterns (no context check needed)
-			const alwaysBlockMatch = detectAlwaysBlockCommand(command)
+			const alwaysBlockMatch = detectAlwaysBlockCommand(sanitizedCommand)
 			if (alwaysBlockMatch) {
 				log.warn(`BLOCKING destructive command (always-block): ${alwaysBlockMatch}`)
 				throw new Error(
@@ -489,7 +541,7 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 			// These commands rewrite committed history (post-commit destructive ops).
 			// Layer 2's dirty-tree gate misses this entire class — the tree is clean
 			// because the work has already been committed.
-			const rewriteMatch = detectHistoryRewriteCommand(command)
+			const rewriteMatch = detectHistoryRewriteCommand(sanitizedCommand)
 			if (rewriteMatch) {
 				log.warn(`BLOCKING history-rewrite command: ${rewriteMatch.description}`)
 				throw new Error(
@@ -509,7 +561,7 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 			// LAYER 1.5b: `git reset <ref>` where ref is a strict ancestor of HEAD.
 			// The dominant post-commit destructive pattern: agent commits, then resets
 			// backward to discard commits. Async because we resolve the ref.
-			const resetRewrite = await detectResetRewrite(command, workdir)
+			const resetRewrite = await detectResetRewrite(sanitizedCommand, workdir)
 			if (resetRewrite) {
 				log.warn(`BLOCKING history-rewrite command: ${resetRewrite.description}`)
 				throw new Error(
@@ -527,7 +579,7 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 			}
 
 			// LAYER 2: Git-specific destructive commands (require dirty-tree check)
-			const match = detectDestructiveCommand(command)
+			const match = detectDestructiveCommand(sanitizedCommand)
 			if (!match) return
 
 			// It's destructive — now check if we're in a git repo with a dirty tree
@@ -606,4 +658,5 @@ export const __test__ = {
 	detectHistoryRewriteCommand,
 	detectResetRewrite,
 	HISTORY_REWRITE_PATTERNS,
+	stripCommitMessagePayloads,
 }

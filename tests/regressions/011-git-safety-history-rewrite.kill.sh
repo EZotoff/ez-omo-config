@@ -60,7 +60,8 @@ for pattern in \
     'LAYER 1.5' \
     'resolveWorkdir' \
     'parseLeadingCd' \
-    'isInGitRepo(workdir)' \
+    'export const __test__' \
+    'stripCommitMessagePayloads' \
     'gitStatus(workdir)' \
     'gitStashPush(workdir' \
     'is-ancestor' \

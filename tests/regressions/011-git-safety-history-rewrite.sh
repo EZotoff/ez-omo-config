@@ -61,6 +61,10 @@ assert_grep 'stash clear' "$PLUGIN_FILE"
 assert_grep 'reflog expire' "$PLUGIN_FILE"
 assert_grep 'prune' "$PLUGIN_FILE"
 
+# 7. Commit-message payload stripping (Fix C) must exist — without it, any
+#    commit message that mentions a destructive command false-positives and
+#    blocks the commit itself. (Empirically observed twice during A+B dev.)
+assert_grep 'stripCommitMessagePayloads' "$PLUGIN_FILE"
 # 6. The __test__ export must exist for the runtime unit harness
 #    (tests/git-safety/harness.ts). If it's removed, the unit harness
 #    silently stops testing the actual plugin code.

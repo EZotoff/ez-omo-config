@@ -10,7 +10,7 @@
 import { test, describe, it, expect } from "bun:test"
 import { __test__ } from "../../plugins/git-safety.ts"
 
-const { parseLeadingCd, resolveWorkdir, detectHistoryRewriteCommand } = __test__
+const { parseLeadingCd, resolveWorkdir, detectHistoryRewriteCommand, stripCommitMessagePayloads } = __test__
 
 const HOME = process.env.HOME ?? "/home/test"
 
@@ -123,5 +123,82 @@ describe("detectHistoryRewriteCommand", () => {
         expect(detectHistoryRewriteCommand(cmd)).toBeUndefined()
       })
     }
+  })
+})
+
+describe("stripCommitMessagePayloads", () => {
+  // The exact false-positive case that blocked the A+B commit twice:
+  // a commit message citing `git reset --hard <sha>` as forensic evidence.
+  it("strips double-quoted commit -m payload", () => {
+    const cmd = 'git commit -m "agent ran git reset --hard 8e69813e to discard reverts"'
+    expect(stripCommitMessagePayloads(cmd)).toBe('git commit -m <msg>')
+  })
+
+  it("strips single-quoted commit -m payload", () => {
+    const cmd = "git commit -m 'agent ran git reset --hard 8e69813e'"
+    expect(stripCommitMessagePayloads(cmd)).toBe('git commit -m <msg>')
+  })
+
+  it("strips bash ANSI-C $'...' payload", () => {
+    const cmd = "git commit -m $'agent ran git reset --hard 8e69813e'"
+    expect(stripCommitMessagePayloads(cmd)).toBe('git commit -m <msg>')
+  })
+
+  it("strips tag -m payload", () => {
+    const cmd = 'git tag -a v1.0 -m "release includes git push --force recovery"'
+    expect(stripCommitMessagePayloads(cmd)).toBe('git tag -a v1.0 -m <msg>')
+  })
+
+  it("strips --message= form", () => {
+    const cmd = 'git commit --message="agent ran git branch -D feat/x"'
+    expect(stripCommitMessagePayloads(cmd)).toBe('git commit --message=<msg>')
+  })
+
+  it("preserves real --amend outside the message", () => {
+    // False-positive-class test: --amend is real destructive op, message is innocent
+    const cmd = 'git commit --amend -m "typo fix"'
+    expect(stripCommitMessagePayloads(cmd)).toBe('git commit --amend -m <msg>')
+    // And the stripped version still trips Layer 1.5:
+    expect(detectHistoryRewriteCommand(stripCommitMessagePayloads(cmd))?.description).toContain("amend")
+  })
+
+  it("preserves real reset outside the message in chained command", () => {
+    // The dangerous op is OUTSIDE the message — must still be detected after strip
+    const cmd = 'git commit -m "safe message" && git reset --hard HEAD~1'
+    const stripped = stripCommitMessagePayloads(cmd)
+    expect(stripped).toBe('git commit -m <msg> && git reset --hard HEAD~1')
+    expect(detectHistoryRewriteCommand(stripped)).toBeUndefined() // reset handled async
+  })
+
+  it("handles -m with no space before quote (-m\"...\")", () => {
+    const cmd = 'git commit -m"git rebase main"'
+    expect(stripCommitMessagePayloads(cmd)).toBe('git commit -m<msg>')
+  })
+
+  it("handles multiple -m flags (git concatenates them)", () => {
+    const cmd = 'git commit -m "subject" -m "body mentions git stash clear"'
+    expect(stripCommitMessagePayloads(cmd)).toBe('git commit -m <msg> -m <msg>')
+  })
+
+  it("leaves non-git commands alone", () => {
+    const cmd = 'echo "git reset --hard"'
+    expect(stripCommitMessagePayloads(cmd)).toBe(cmd)
+  })
+
+  it("leaves git commands without -m alone", () => {
+    const cmd = 'git reset --hard HEAD~1'
+    expect(stripCommitMessagePayloads(cmd)).toBe(cmd)
+  })
+
+  // End-to-end: stripped command, when fed to detectHistoryRewriteCommand,
+  // does NOT false-positive on the message content.
+  it("end-to-end: commit msg mentioning rebase no longer false-positives", () => {
+    const cmd = 'git commit -m "document the git rebase -i workflow"'
+    expect(detectHistoryRewriteCommand(stripCommitMessagePayloads(cmd))).toBeUndefined()
+  })
+
+  it("end-to-end: commit msg mentioning reset --hard no longer false-positives", () => {
+    const cmd = 'git commit -m "fix: agent ran git reset --hard 8e69813e"'
+    expect(detectHistoryRewriteCommand(stripCommitMessagePayloads(cmd))).toBeUndefined()
   })
 })
