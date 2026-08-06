@@ -756,24 +756,32 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         const agent = getEventAgent(event, messages);
         const model = getEventModel(event, messages);
 
-        // Child-session gate: skip sessions whose agent has no recoverable
-        // fallback chain. Under unified fallback, recovery viability depends on
-        // the agent's chain in oh-my-openagent.json — not a per-rule field. The
-        // resolved agentFallback is reused at the exhaustion dispatch below.
-        const agentFallback = resolveAgentFallback(agent, model);
-        if (isChildSession && !agentFallback) {
-          log(
-            "info",
-            `Skipping retry for child session ${sessionID} (agent "${agent ?? "unknown"}" has no fallback chain for failing provider "${model?.providerID ?? "unknown"}")`,
-          );
-          return;
-        }
+        // Child-session gate: skip ALL child sessions. OMO's runtime-fallback
+        // hook (hooks/runtime-fallback/) is the canonical fallback owner for
+        // child sessions on session.error — it subscribes to the same events and
+        // dispatches from the same fallback_models chain. Letting the plugin
+        // also dispatch caused a double-spawn: two concurrent promptAsync calls
+        // on the same child session (one from OMO, one from here).
+        //
+        // The plugin retains: (1) top-level session.error retry + fallback
+        // (below, agentFallback resolved after this gate), and (2) near-empty
+        // completion detection for ALL sessions including child (separate path
+        // above — OMO has no equivalent; its first-prompt-watchdog is
+        // timeout-based, not completion-based).
+        //
+        // Regression was introduced by 0941c58 which widened this gate from
+        // "rule has per-rule fallback_model" (5/10 rules) to "agent has fallback
+        // chain" (near-universal), causing overlap with OMO on every child
+        // session.error.
         if (isChildSession) {
           log(
             "info",
-            `Child session ${sessionID} entering retry path (agent "${agent ?? "unknown"}" fallback → ${agentFallback.providerID}/${agentFallback.modelID})`,
+            `Skipping retry for child session ${sessionID} — OMO runtime-fallback hook owns child-session error fallback (agent "${agent ?? "unknown"}")`,
           );
+          return;
         }
+
+        const agentFallback = resolveAgentFallback(agent, model);
 
         const failedAssistantMessageID = getFailedAssistantMessageID(event, messages);
         if (!failedAssistantMessageID) {

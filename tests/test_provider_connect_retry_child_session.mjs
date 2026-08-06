@@ -2,23 +2,27 @@
 // Test: provider-connect-retry child-session gate + unified agent-chain fallback.
 //
 // Background: A synchronous task() subagent runs in a child session (parentID
-// set). Originally the plugin skipped ALL child sessions unconditionally, so
-// fallback never dispatched and the subagent died. The first fix gated on a
-// per-rule fallback_model field. The 2026-08-05 unification removed per-rule
-// fallback_model entirely — fallback is now resolved from the failing
-// session's agent fallback_models chain in oh-my-openagent.json (one source of
-// truth, self-fallback-proof). This test validates the new gate.
+// set). The plugin MUST NOT dispatch error fallback for child sessions —
+// OMO's runtime-fallback hook (hooks/runtime-fallback/) is the canonical owner
+// for child-session error fallback. It subscribes to the same session.error
+// events and dispatches from the same fallback_models chain. Letting both
+// dispatch caused a double-spawn (two concurrent promptAsync calls on the
+// same child session — regression introduced by 0941c58, fixed by closing the
+// child-session gate in the plugin's regular error path).
+//
+// The plugin retains ownership of: (1) top-level session.error retry +
+// fallback, and (2) near-empty completion detection for ALL sessions
+// including child (OMO has no equivalent). Near-empty detection is covered by
+// the separate min-output test suite.
 //
 // Cases:
-//   1. Child session + agent WITH a usable fallback chain   → fallback dispatched from the agent chain
-//   2. Child session + NO usable fallback chain (unknown agent/model) → skipped (recursion-storm protection)
+//   1. Child session + agent WITH a usable fallback chain   → SKIPPED (OMO owns child error fallback)
+//   2. Child session + NO usable fallback chain (unknown agent/model) → skipped (no chain either way)
 //   3. Root session + any rule                               → retry dispatched (regression guard)
 //
 // The test reads the live configs at ~/.config/opencode/{retry-errors.json,
 // oh-my-openagent.json} and derives expected values from them, so it resists
-// chain drift on rebalances. It asserts structural properties (fallback
-// provider ≠ failing provider; fallback ∈ agent's chain) rather than hardcoded
-// model ids.
+// chain drift on rebalances.
 
 import assert from "node:assert";
 import fs from "node:fs";
@@ -104,7 +108,7 @@ function makeErrorEvent(sessionID, message) {
 }
 
 async function run() {
-  // --- Case 1: child session + agent WITH usable fallback chain → fallback dispatched from chain
+  // --- Case 1: child session + agent WITH usable fallback chain → SKIPPED (OMO owns)
   {
     const mock = makeMockClient("ses_parent_root", {
       agent: "prometheus",
@@ -113,34 +117,20 @@ async function run() {
     });
     const plugin = await ProviderConnectRetryPlugin({ client: mock.client, directory: "/tmp" });
     // "request exceeded model token limit" matches model-token-limit-exceeded
-    // (max_retries: 0 → immediate fallback, no retry loop)
+    // (max_retries: 0 → would have been immediate fallback pre-fix)
     await plugin.event(makeErrorEvent(childSessionID, "request exceeded model token limit"));
 
     assert.strictEqual(
       mock.promptAsyncCalls.length,
-      1,
-      `Case 1 (child + agent chain): expected 1 promptAsync call, got ${mock.promptAsyncCalls.length}`,
-    );
-    assert.ok(
-      mock.promptAsyncCalls[0].body.model,
-      "Case 1: expected fallback dispatch to carry a model field",
-    );
-    const dispatched = mock.promptAsyncCalls[0].body.model;
-    assert.notStrictEqual(
-      dispatched.providerID,
-      prometheusPrimaryProvider,
-      `Case 1: fallback provider must differ from failing provider "${prometheusPrimaryProvider}" (no self-fallback), got "${dispatched.providerID}"`,
-    );
-    assert.ok(
-      prometheus.fallback_models.includes(`${dispatched.providerID}/${dispatched.modelID}`),
-      `Case 1: dispatched "${dispatched.providerID}/${dispatched.modelID}" must be in prometheus.fallback_models ${JSON.stringify(prometheus.fallback_models)}`,
+      0,
+      `Case 1 (child + agent chain): expected 0 promptAsync calls (OMO owns child error fallback), got ${mock.promptAsyncCalls.length}`,
     );
     assert.strictEqual(
-      dispatched.providerID,
-      expectedFallbackProvider,
-      `Case 1: expected first eligible chain entry provider "${expectedFallbackProvider}", got "${dispatched.providerID}"`,
+      mock.abortCalls.length,
+      0,
+      `Case 1: expected 0 abort calls, got ${mock.abortCalls.length}`,
     );
-    console.log(`PASS case 1: child + prometheus chain → fallback ${expectedFallbackProvider}/${expectedFallbackModelID} dispatched (failing=${prometheusPrimaryProvider})`);
+    console.log(`PASS case 1: child + prometheus chain → skipped (OMO runtime-fallback owns child-session error fallback; failing=${prometheusPrimaryProvider})`);
   }
 
   // --- Case 2: child session + NO usable fallback chain → skipped (recursion-storm protection)
