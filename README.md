@@ -185,6 +185,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 58 | `run_regressions.sh` | `tests/` | Regression corpus harness |
 | 59 | `regressions/` | `tests/` | 9 paired regression tests, 18 files total |
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
+| 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
 
 ---
 
@@ -393,8 +394,8 @@ For install locations, failure string meanings, and reapply instructions:
 - **Context overflow max-token detection**: `.sisyphus/patches/oh-my-openagent--context-overflow-max-token-error.md` (active on OMO v4.19.2)
 - **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.19.2)
 - **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.19.2)
-- **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on local OpenCode 1.17.9 binary)
-- **OpenCode SSE directory filter removal**: `.sisyphus/patches/opencode--sse-directory-filter-removal.md` (active on local OpenCode 1.17.9 binary)
+- **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on v1.18.5 binary, `runtime_effective: true` — enables no-LLM cancellation for `/session-id`, `/vscode`, `/session-info` via `output.cancelled = true` in the command hook)
+- **OpenCode SSE directory filter removal**: `.sisyphus/patches/opencode--sse-directory-filter-removal.md` (`runtime_effective: false` on v1.18.5 — the v1.18.x Effect/Stream migration rewrote `event.ts` completely; the patch is structurally gone. The new upstream ternary `workspaceID !== undefined ? match : directory fallback` partially addresses the original worktree-events issue. Patch may be candidates for deprecation pending investigation)
 - **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (active on v1.18.5 binary, `runtime_effective: true` as of 2026-08-03 — redesigned hook via child `CodeRenderable.onChunks` setter recovered the dead `_linkifyMarkdownChunks` path; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line)
 - **OpenCode TUI pinned-session reset**: `.sisyphus/patches/opencode--tui-pinned-session-race.md` (UNFIXED upstream bug — `runtime_effective: false`; startup read-overwrite race + multi-process file contention on `~/.local/state/opencode/session.json`; pinned sessions revert to older state when multiple TUI processes run simultaneously)
 - **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.19.2)

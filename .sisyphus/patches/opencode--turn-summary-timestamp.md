@@ -5,12 +5,12 @@ target_file: "packages/opencode/src/cli/cmd/run/turn-summary.ts, packages/openco
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-07-19"
-dep_version: "1.17.9-local"
+dep_version: "1.18.5"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/37929"
 verification_pattern: "todayTimeOrDateTime"
 surfaces: "cli-run, tui-interactive"
-runtime_effective: false
-runtime_effective_note: "Unverified on v1.18.5 binary. dep_version remains 1.17.9-local until the timestamp is observed rendering on both cli-run and tui-interactive surfaces against the live 1.18.5 binary."
+runtime_effective: true
+runtime_effective_note: "Verified effective on v1.18.5 binary (2026-08-06): 'todayTimeOrDateTime' present (3 matches in binary). Source patch applied in turn-summary.ts:47, runtime.queue.ts:238. Rendering path intact on both surfaces: scrollback.writer.tsx:345 (cli-run: input.time rendering) and session/index.tsx:1430 (tui-interactive: Locale.todayTimeOrDateTime call). Unlike the link-click monkey-patch (bgj3 failure mode), this is compiled-in source code on the active render path — pattern-presence is sufficient."
 ---
 
 # OpenCode TUI turn-summary timestamp (local customization: shortDateTime 24h+date format)

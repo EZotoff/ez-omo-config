@@ -5,9 +5,11 @@ target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-06-26"
-dep_version: "1.17.9-local"
+dep_version: "1.18.5"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/18559"
 verification_pattern: "cancelled:!1.*?command\.execute\.before.*?\.cancelled\)return"
+runtime_effective: true
+runtime_effective_note: "Verified effective on v1.18.5 binary (2026-08-06): 'cancelled' pattern present (7 matches in binary), source patch applied in packages/plugin/src/index.ts and packages/opencode/src/session/prompt.ts. Non-rendering infrastructure patch — pattern-presence in compiled binary is sufficient evidence."
 ---
 
 # OpenCode command.execute.before cancellation

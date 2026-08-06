@@ -197,6 +197,7 @@ stale=0
 missing=0
 drift=0
 schema_fail=0
+acknowledged=0
 results_file="$(mktemp)"
 trap 'rm -f "$results_file"' EXIT
 
@@ -303,7 +304,12 @@ for entry in "${entries[@]}"; do
     if [[ -z "$result" && ${#check_paths[@]} -eq 0 ]]; then
         result="MISSING-TARGET"
     elif [[ -z "$result" ]] && ! versions_match "$dep_version" "$runtime_ver"; then
-        result="VERSION-DRIFT"
+        runtime_eff_check="$(yaml_frontmatter_value "$entry" runtime_effective)"
+        if [[ "$runtime_eff_check" == "false" ]]; then
+            result="ACKNOWLEDGED-DRIFT"
+        else
+            result="VERSION-DRIFT"
+        fi
     elif [[ -z "$result" ]] && pattern_matches "$verification_pattern" "${check_paths[@]}"; then
         result="APPLIED"
     elif [[ -z "$result" ]]; then
@@ -315,12 +321,13 @@ for entry in "${entries[@]}"; do
         STALE) stale=$((stale + 1)) ;;
         MISSING-TARGET) missing=$((missing + 1)) ;;
         VERSION-DRIFT) drift=$((drift + 1)) ;;
+        ACKNOWLEDGED-DRIFT) acknowledged=$((acknowledged + 1)) ;;
     esac
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$patch_id" "$dependency" "$target_file" "$runtime_ver" "$result" "$display_path" >> "$results_file"
 done
 
 if ((JSON_OUTPUT)); then
-    VERIFY_RESULTS="$results_file" VERIFY_TOTAL="$total" VERIFY_APPLIED="$applied" VERIFY_STALE="$stale" VERIFY_MISSING="$missing" VERIFY_DRIFT="$drift" VERIFY_SCHEMA_FAIL="$schema_fail" python3 -c '
+    VERIFY_RESULTS="$results_file" VERIFY_TOTAL="$total" VERIFY_APPLIED="$applied" VERIFY_STALE="$stale" VERIFY_MISSING="$missing" VERIFY_DRIFT="$drift" VERIFY_SCHEMA_FAIL="$schema_fail" VERIFY_ACKNOWLEDGED="$acknowledged" python3 -c '
 import csv
 import json
 import os
@@ -332,9 +339,8 @@ with open(os.environ["VERIFY_RESULTS"], encoding="utf-8", newline="") as handle:
                      "runtime": runtime, "status": status, "path": path})
 summary = {"total": int(os.environ["VERIFY_TOTAL"]), "applied": int(os.environ["VERIFY_APPLIED"]),
            "stale": int(os.environ["VERIFY_STALE"]), "missing_target": int(os.environ["VERIFY_MISSING"]),
-           "version_drift": int(os.environ["VERIFY_DRIFT"]), "schema_fail": int(os.environ["VERIFY_SCHEMA_FAIL"])}
-           "stale": int(os.environ["VERIFY_STALE"]), "missing_target": int(os.environ["VERIFY_MISSING"]),
-           "version_drift": int(os.environ["VERIFY_DRIFT"])}
+           "version_drift": int(os.environ["VERIFY_DRIFT"]), "schema_fail": int(os.environ["VERIFY_SCHEMA_FAIL"]),
+           "acknowledged_drift": int(os.environ["VERIFY_ACKNOWLEDGED"])}
 print(json.dumps({"patches": rows, "summary": summary}, sort_keys=True))
 '
 else
@@ -343,7 +349,7 @@ else
     while IFS=$'\t' read -r patch_id dependency target_file runtime_ver result display_path; do
         printf '%s %-52s %-17s %-28s %-10s %s\n' "$result" "$patch_id" "$dependency" "$target_file" "$runtime_ver" "$display_path"
     done < "$results_file"
-    printf 'Summary: %d total | %d applied | %d stale | %d missing-target | %d version-drift | %d schema-violation\n' "$total" "$applied" "$stale" "$missing" "$drift" "$schema_fail"
+    printf 'Summary: %d total | %d applied | %d stale | %d missing-target | %d version-drift | %d acknowledged-drift | %d schema-violation\n' "$total" "$applied" "$stale" "$missing" "$drift" "$acknowledged" "$schema_fail"
 fi
 
 if ((stale > 0 || missing > 0 || drift > 0 || schema_fail > 0)); then

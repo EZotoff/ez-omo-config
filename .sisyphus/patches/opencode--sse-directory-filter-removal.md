@@ -8,6 +8,9 @@ applied_date: "2026-06-26"
 dep_version: "1.17.9-local"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/35913"
 verification_pattern: "location\?\.workspaceID===void 0\|\|"
+runtime_effective: false
+runtime_effective_note: "INEFFECTIVE on v1.18.5 (2026-08-06): verification_pattern 'workspaceID===void 0' absent from binary (0 matches). The v1.18.x Effect/Stream migration completely rewrote event.ts — the SSE filter is now a ternary (workspaceID !== undefined ? match : directory fallback) instead of the patched conjunction. The patch is structurally gone. The new upstream code partially addresses the original worktree-events issue (events WITH workspaceID bypass the directory check), so this patch may be candidates for deprecation. Investigate whether the new upstream behavior resolves the original problem before reapplying."
+
 ---
 
 # OpenCode SSE event stream directory filter removal
