@@ -152,7 +152,9 @@ At each evidence state, agents may only use approved claim language:
 
 **Purpose**: Creates semantic session-scoped git checkpoint commits when sessions become idle or complete work, using an LLM helper session to select files and compose messages from a bounded candidate set.
 
-**Runtime default**: Enabled on this machine via `OPENCODE_AUTO_CHECKPOINT_ENABLE=1` in `~/.config/openchamber/openchamber.env` (the canonical systemd EnvironmentFile for the OpenChamber+OpenCode stack). File logging is also enabled via `OPENCODE_AUTO_CHECKPOINT_FILE_LOG=1`. On a fresh install without these env vars, the plugin loads but returns empty hooks (no checkpoints). To enable on another machine, set both env vars in whatever EnvironmentFile the OpenCode systemd unit consumes, then restart `opencode.service`.
+**Runtime default**: Enabled on this machine via `OPENCODE_AUTO_CHECKPOINT_ENABLE=1` set in **both** EnvironmentFiles that feed OpenCode servers: `~/.config/openchamber/openchamber.env` (for `opencode.service` on port 3021, used by the OpenChamber web UI) AND `~/AI_projects/omo-tg/.env` (for `omo-tg.service`, which spawns its own `opencode serve --port 4096` child for Telegram-driven sessions). File logging is also enabled via `OPENCODE_AUTO_CHECKPOINT_FILE_LOG=1` in both files. On a fresh install without these env vars, the plugin loads but returns empty hooks (no checkpoints). To enable on another machine, set both env vars in whatever EnvironmentFile(s) the OpenCode systemd units consume, then restart the corresponding services.
+
+**Two-server gotcha**: This machine runs two `opencode serve` processes — one per systemd unit. Each unit has its own EnvironmentFile, and child processes inherit only the parent unit's env. Setting the vars in only one file enables the plugin on only one server. Always set in both, and verify via `tr '\0' '\n' < /proc/$(pgrep -f 'opencode serve' | head -1)/environ | grep CHECKPOINT`.
 
 **Timing**: `idleMs=30000` (30s session idle before a checkpoint is considered), `quietMs=5000` (5s no-tool-activity signal), `cooldownMs=300000` (at most one checkpoint per 5 minutes per root session tree).
 
