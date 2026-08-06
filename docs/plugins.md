@@ -175,6 +175,36 @@ At each evidence state, agents may only use approved claim language:
 
 ---
 
+---
+
+## agent-git-workflow.ts
+
+**Purpose**: Force-loads a parallel-agent git coordination procedure into every session's system prompt via `experimental.chat.system.transform`. Supplies the procedural layer that the commit-policy patches (permission) and auto-checkpoint plugin (idle-timeout safety-net commits) cannot provide on their own: when to branch, when to sync, how to format commits so other agents can parse history, how to handle merge conflicts.
+
+**Hook**: `experimental.chat.system.transform` — appends one ~350-token instruction block to `output.system` per LLM round-trip. Fail-open (throws caught by host). Same pattern as `clickable-links.ts`.
+
+**What it tells agents**:
+
+- **Commit reflex**: commit after every logical unit (bug fixed, refactor step done, feature slice complete, tests written). Do not wait for auto-checkpoint; do not ask.
+- **Commit format**: Conventional Commits subject + per-commit author override (`git -c user.name="<AgentName>" -c user.email="<agent>@agent.local"`) + `Session: <ses_id>` trailer.
+- **Branching reflex**: at the start of non-trivial work, check `git log --since='2 hours ago' --all` and `git branch -a`. Branch as `agent/<agent-name>/<task-scope>` if another agent's work overlaps your target files. Otherwise master/trunk is fine.
+- **Sync protocol**: on a branch older than 30 min, `git fetch && git rebase origin/master` before non-trivial edits. Resolve conflicts directly.
+- **Branch lifecycle**: merge back with `--no-ff`, delete the branch. Push only when explicitly authorized.
+- **Out of scope**: idle checkpoints (auto-checkpoint), multi-agent worktree orchestration (parallel-dev skill), complex merges with state tracking (merge-agent skill).
+
+**Why this is a plugin, not a skill**: the user reported that permissive commit text in the base system prompt was insufficient — agents still didn't commit proactively because they had permission but no trigger or procedure. A skill would require explicit invocation; this plugin force-loads the procedure into every session so the reflex is always present. The procedure is short enough (~350 tokens) that the per-session cost is negligible.
+
+**Complementary artifacts**:
+- `opencode--commit-policy-unblock` patch — replaces blanket "never commit" with permissive policy in OpenCode system prompts.
+- `omo--commit-policy-alignment` patch — same replacement in OMO agent instructions.
+- `auto-checkpoint.ts` plugin — idle-timeout safety-net commits.
+- `clickable-links.ts` plugin — same hook pattern, different purpose (TUI link formatting).
+
+**Dependencies**: None (self-contained, type-only import from `@opencode-ai/plugin`).
+
+**Install Target**: `$HOME/.opencode/plugin/agent-git-workflow.ts`
+
+---
 
 ## kdco-primitives/
 
