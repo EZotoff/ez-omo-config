@@ -21,7 +21,8 @@
     "../../.opencode/plugin/clickable-links.ts",
     "../../.opencode/plugin/session-info.ts",
     "../../.opencode/plugin/session-id.ts",
-    "../../.opencode/plugin/vscode.ts"
+    "../../.opencode/plugin/vscode.ts",
+    "../../.opencode/plugin/worktree.ts"
   ],
   "agent": {
     "compaction": {
