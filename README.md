@@ -58,7 +58,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **`/models-preset`** — view all 13 agent model assignments, category presets, compaction model, and small model at a glance
 - **`/session-id`** — copy the invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
 - **`/session-info`** — copy project path, session title, and invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
-- **Git safety guardrails** — automatic prevention of destructive git operations
+- **Git safety guardrails** — three-layer protection: always-block non-git destructive ops (`rm -rf`, `chmod -R 777`, `dd of=/dev/`), **history-rewrite block** (`git commit --amend`, `git rebase`, `git push --force*`, `git branch -D`, `git stash clear`, `git reflog expire`, `git gc --prune`, and `git reset <ref>` where ref is a strict ancestor of HEAD — catches the post-commit destructive case), and dirty-tree-conditional git ops (`git reset --hard`, `git clean -f`, etc.). Worktree-aware: status checks use the bash command's actual cwd.
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
 - **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit

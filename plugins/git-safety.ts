@@ -222,6 +222,147 @@ function detectAlwaysBlockCommand(command: string): string | undefined {
 }
 
 // =============================================================================
+// HISTORY REWRITE DETECTION (Layer 1.5 — always blocked, post-commit destructive)
+// =============================================================================
+//
+// These commands rewrite committed history: discard commits, rewrite tip,
+// force-update remotes. They are destructive EVEN ON A CLEAN TREE, which is
+// the dominant case after an agent has just committed. The dirty-tree check
+// in Layer 2 misses this entire class — Layer 1.5 catches them.
+//
+// Forensic origin: veran feat/compounding-capture-additions, ses_02c3a15e.
+// Agent committed clean work, ran `git revert` twice (additive), changed its
+// mind, then `git reset --hard 8e69813e` to discard the reverts. Tree was
+// clean → Layer 2 allowed it → 2 commits orphaned. This layer would have
+// blocked the reset.
+
+const HISTORY_REWRITE_PATTERNS: ReadonlyArray<{ pattern: RegExp; description: string }> = [
+	// git commit --amend — rewrites tip commit
+	{ pattern: /\bgit\s+commit\b[^&|;\n]*--amend\b/, description: "git commit --amend (rewrites tip commit)" },
+	// git rebase (any subcommand other than the safe --abort/--continue/--skip/--edit-todo/--show-current-patch)
+	{
+		pattern: /\bgit\s+rebase\s+(?!(?:--abort|--continue|--skip|--edit-todo|--show-current-patch)\b)/,
+		description: "git rebase (rewrites commit chain)",
+	},
+	// git push --force / --force-with-lease / -f — rewrite remote history
+	{ pattern: /\bgit\s+push\b[^&|;\n]*--force-with-lease\b/, description: "git push --force-with-lease (rewrites remote history)" },
+	{ pattern: /\bgit\s+push\b[^&|;\n]*--force(?!-with-lease)\b/, description: "git push --force (rewrites remote history)" },
+	{ pattern: /\bgit\s+push\b[^&|;\n]*\s-f\b/, description: "git push -f (rewrites remote history)" },
+	// git branch -D — force-delete branch (may have unmerged commits)
+	{ pattern: /\bgit\s+branch\s+-D\s+/, description: "git branch -D (force delete branch — may lose unmerged commits)" },
+	// git stash clear — discards entire stash list
+	{ pattern: /\bgit\s+stash\s+clear\b/, description: "git stash clear (drops all stashes)" },
+	// git reflog expire — can prune entries that anchor orphaned commits
+	{ pattern: /\bgit\s+reflog\s+expire\b/, description: "git reflog expire (may prune entries anchoring orphaned commits)" },
+	// git gc --prune=now — immediately drops unreachable objects
+	{ pattern: /\bgit\s+gc\b[^&|;\n]*--prune(?:=now)?\b/, description: "git gc --prune=now (immediately drops unreachable objects)" },
+]
+
+function detectHistoryRewriteCommand(command: string): { description: string } | undefined {
+	const match = HISTORY_REWRITE_PATTERNS.find(({ pattern }) => pattern.test(command))
+	return match ? { description: match.description } : undefined
+}
+
+/**
+ * Detects `git reset <ref>` where <ref> is a STRICT ANCESTOR of HEAD.
+ * The dominant post-commit destructive pattern: agent commits, then resets
+ * backward to discard commits. Returns undefined if:
+ *   - command has no `git reset [--soft|--mixed|--hard]? <ref>` form
+ *   - <ref> doesn't resolve to a commit (probably a file path arg)
+ *   - <ref> equals HEAD (no commit movement — `git reset --hard HEAD`)
+ *   - <ref> is not an ancestor (fast-forward case — non-destructive)
+ *
+ * `git reset --hard` (no ref) is NOT handled here — it's in DESTRUCTIVE_PATTERNS
+ * gated by the dirty-tree check, since without a ref it only discards
+ * uncommitted work, not committed history.
+ */
+async function detectResetRewrite(command: string, cwd: string): Promise<{ description: string } | undefined> {
+	const resetMatch = command.match(/\bgit\s+reset\s+(?:--(?:soft|mixed|hard)\s+)?([^\s;&|]+)/)
+	if (!resetMatch) return undefined
+	const target = resetMatch[1]
+	if (target.startsWith("-")) return undefined  // flag, not a ref
+
+	// Resolve target to a concrete commit SHA (also filters out file paths)
+	const targetResult = await git(["rev-parse", "--verify", `${target}^{commit}`], cwd)
+	if (!targetResult.ok) return undefined
+	const targetSha = targetResult.value
+
+	// Resolve HEAD to compare
+	const headResult = await git(["rev-parse", "HEAD"], cwd)
+	if (!headResult.ok) return undefined
+	const headSha = headResult.value
+
+	// No commit movement → not a rewrite
+	if (targetSha === headSha) return undefined
+
+	// If target is a strict ancestor of HEAD, reset will discard commits
+	const ancestorResult = await git(["merge-base", "--is-ancestor", targetSha, "HEAD"], cwd)
+	if (ancestorResult.ok) {
+		return {
+			description: `git reset ${target} (discards commits: HEAD moves backward from ${headSha.slice(0, 7)} to ${targetSha.slice(0, 7)})`,
+		}
+	}
+	return undefined
+}
+
+// =============================================================================
+// WORKDIR RESOLUTION (Fix A — worktree-aware status checks)
+// =============================================================================
+//
+// `ctx.directory` is the OpenCode project root (e.g. ~/AI_projects/veran).
+// Agents working in a git worktree run bash commands with `workdir=<worktree>`
+// or leading `cd <worktree> && ...`. The plugin must check git state at the
+// bash command's actual cwd, not at the OpenCode project root, or the
+// dirty-tree check is bypassed entirely for worktree work.
+//
+// Forensic origin: same veran session. Agent ran every git command in
+// ~/.local/share/opencode/worktree/.../plan/compounding-capture-additions,
+// but the plugin checked ~/AI_projects/veran (clean, on a different branch)
+// for every destructive-op gate. The guard was inert for the whole session.
+
+/**
+ * Parses a leading `cd <path> && ...` / `cd <path>; ...` / `cd <path>\n...` from
+ * a bash command string. Returns the path (with tilde expanded) or undefined.
+ * Only absolute paths and tilde-prefixed paths are returned; relative paths
+ * fall through (we'd rather check the wrong dir conservatively than misresolve).
+ */
+function parseLeadingCd(command: string): string | undefined {
+	const match = command.match(/^\s*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))\s*(?:&&|;|\n|$)/)
+	if (!match) return undefined
+	const raw = match[1] ?? match[2] ?? match[3]
+	if (!raw) return undefined
+	// Only accept absolute paths or tilde-prefixed
+	if (!raw.startsWith("/") && !raw.startsWith("~")) return undefined
+	// Tilde expansion
+	if (raw.startsWith("~")) {
+		const home = process.env.HOME ?? ""
+		if (!home) return undefined
+		return raw.replace(/^~/, home)
+	}
+	return raw
+}
+
+/**
+ * Resolves the working directory for a bash/tmux command.
+ * Priority: explicit workdir arg → leading cd in command → ctx.directory fallback.
+ */
+function resolveWorkdir(args: { workdir?: unknown; command?: string }, fallback: string): string {
+	if (typeof args.workdir === "string" && args.workdir.length > 0) {
+		const w = args.workdir
+		if (w.startsWith("~")) {
+			const home = process.env.HOME ?? ""
+			if (home) return w.replace(/^~/, home)
+		}
+		return w
+	}
+	if (args.command) {
+		const cdPath = parseLeadingCd(args.command)
+		if (cdPath) return cdPath
+	}
+	return fallback
+}
+
+// =============================================================================
 // PLUGIN ENTRY
 // =============================================================================
 
@@ -314,14 +455,22 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 			// Only intercept bash/terminal tools
 			const toolName = input.tool
 			let command: string | undefined
+			let bashWorkdir: string | undefined
 
 			if (toolName === "bash" || toolName === "terminal") {
 				command = output.args.command as string | undefined
+				bashWorkdir = output.args.workdir as string | undefined
 			} else if (toolName === "interactive_bash" || toolName === "tmux") {
 				command = output.args.tmux_command as string | undefined
 			}
 
 			if (!command || typeof command !== "string") return
+
+			// Resolve the actual cwd of this bash command. Agents operating in a git
+			// worktree pass workdir=<worktree> or leading `cd <worktree> && ...`. Layer
+			// 2 must check git state HERE, not at ctx.directory, or worktree work
+			// bypasses the dirty-tree guard entirely.
+			const workdir = resolveWorkdir({ workdir: bashWorkdir, command }, directory)
 
 			// LAYER 1: Non-git always-block patterns (no context check needed)
 			const alwaysBlockMatch = detectAlwaysBlockCommand(command)
@@ -336,15 +485,56 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 				)
 			}
 
+			// LAYER 1.5: History rewrite — always blocked, regardless of dirty state.
+			// These commands rewrite committed history (post-commit destructive ops).
+			// Layer 2's dirty-tree gate misses this entire class — the tree is clean
+			// because the work has already been committed.
+			const rewriteMatch = detectHistoryRewriteCommand(command)
+			if (rewriteMatch) {
+				log.warn(`BLOCKING history-rewrite command: ${rewriteMatch.description}`)
+				throw new Error(
+					`[HISTORY REWRITE SAFETY] BLOCKED: "${rewriteMatch.description}"\n\n` +
+					`Command: ${command}\n` +
+					`Working directory: ${workdir}\n\n` +
+					`This command would rewrite committed history. Such operations discard work ` +
+					`that may not be recoverable without reflog forensics (~90-day window, easy ` +
+					`to lose). The git-safety plugin blocks history rewrites regardless of ` +
+					`working-tree state, because the destructive effect is on committed history, ` +
+					`not on uncommitted files.\n\n` +
+					`If you genuinely need this operation, ASK THE USER for explicit approval. ` +
+					`Do NOT attempt to work around this safety block.`
+				)
+			}
+
+			// LAYER 1.5b: `git reset <ref>` where ref is a strict ancestor of HEAD.
+			// The dominant post-commit destructive pattern: agent commits, then resets
+			// backward to discard commits. Async because we resolve the ref.
+			const resetRewrite = await detectResetRewrite(command, workdir)
+			if (resetRewrite) {
+				log.warn(`BLOCKING history-rewrite command: ${resetRewrite.description}`)
+				throw new Error(
+					`[HISTORY REWRITE SAFETY] BLOCKED: "${resetRewrite.description}"\n\n` +
+					`Command: ${command}\n` +
+					`Working directory: ${workdir}\n\n` +
+					`This command would discard commits by moving HEAD backward. The dirty-tree ` +
+					`check below does NOT catch this case — the tree is clean because the work ` +
+					`has already been committed. Agents must not rewrite their own branch ` +
+					`history without explicit user approval.\n\n` +
+					`If you genuinely need this operation (e.g. the commits were wrong and you ` +
+					`are reverting), ASK THE USER for explicit approval. Recovery is possible ` +
+					`via \`git reflog\` for ~90 days but is easy to lose.`
+				)
+			}
+
 			// LAYER 2: Git-specific destructive commands (require dirty-tree check)
 			const match = detectDestructiveCommand(command)
 			if (!match) return
 
 			// It's destructive — now check if we're in a git repo with a dirty tree
-			const inRepo = await isInGitRepo(directory)
+			const inRepo = await isInGitRepo(workdir)
 			if (!inRepo) return
 
-			const statusResult = await gitStatus(directory)
+			const statusResult = await gitStatus(workdir)
 			if (!statusResult.ok) {
 				log.error(`Failed to check git status during safety block: ${statusResult.error}`)
 				// Fail CLOSED: if we can't verify the tree is clean, block the command
@@ -368,7 +558,7 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 
 			// Attempt protective auto-stash before blocking
 			const stashMessage = `git-safety/auto-stash/${new Date().toISOString()}`
-			const stashResult = await gitStashPush(directory, stashMessage)
+			const stashResult = await gitStashPush(workdir, stashMessage)
 
 			const fileList = [
 				...status.modified.map((f) => `  [modified] ${f}`),
@@ -406,3 +596,14 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 }
 
 export default GitSafetyPlugin
+
+// Exported for unit testing (tests/git-safety/harness.mjs).
+// Named export separate from the default Plugin export — OpenCode's plugin
+// loader reads only `default`, so this is invisible at runtime.
+export const __test__ = {
+	parseLeadingCd,
+	resolveWorkdir,
+	detectHistoryRewriteCommand,
+	detectResetRewrite,
+	HISTORY_REWRITE_PATTERNS,
+}

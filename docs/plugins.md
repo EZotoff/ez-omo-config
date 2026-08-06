@@ -84,16 +84,17 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 ## git-safety.ts
 
-**Purpose**: Blocks destructive shell and git commands and reports working tree safety before risky operations.
+**Purpose**: Blocks destructive shell and git commands and reports working tree safety before risky operations. Three defence layers, each catching a distinct class of destructive action.
 
 **Features**:
 
-- Detects destructive git operations (force push, hard reset, etc.)
-- Blocks dangerous shell commands
-- Provides pre-operation safety checks
-- Reports working tree status (modified, staged, untracked files)
-- Recommends protective actions before risky operations
-
+- **Layer 1 — Always-block (non-git)**: `rm -rf` outside the safe-cleanup list (node_modules, dist, .cache, etc.), `find -delete`, `curl|bash`, `docker compose down -v`, `chmod -R 777`, `chmod 000`, `dd of=/dev/`, `mkfs`, `shred`, `wipefs`. Blocked regardless of git state.
+- **Layer 1.5 — History rewrite (always-block, post-commit)**: `git commit --amend`, `git rebase` (except `--abort`/`--continue`/`--skip`), `git push --force` / `-f` / `--force-with-lease`, `git branch -D`, `git stash clear`, `git reflog expire`, `git gc --prune[=now]`, and `git reset [--soft|--mixed|--hard] <ref>` where `<ref>` resolves to a strict ancestor of HEAD. **Always blocked regardless of dirty-tree state** — the dominant post-commit destructive pattern (agent commits, then resets/amends/rebases to discard commits) has a clean tree by definition, so Layer 2's dirty-tree gate misses it. Forensic origin: veran `feat/compounding-capture-additions`, session `ses_02c3a15e` — agent ran `git revert` twice then `git reset --hard <revert-pre-tip>` to discard the reverts; tree was clean → guard allowed it → 2 commits orphaned.
+- **Layer 1.5b — Reset-ancestor async check**: For `git reset <ref>`, the plugin resolves `<ref>` to a SHA, compares to HEAD, and runs `git merge-base --is-ancestor <sha> HEAD`. Blocks only if `<ref>` is a strict ancestor (HEAD will move backward). Allows fast-forward resets, no-op resets (`reset --hard HEAD`), and file-path resets (`reset HEAD <file>` — `<file>` doesn't resolve to a commit).
+- **Layer 2 — Dirty-tree conditional (git)**: `git reset --hard` (no ref), `git checkout --`, `git checkout .`, `git restore` (without `--staged`), `git clean -f`, `git stash drop`, `git checkout -f`. Blocked when the working tree is dirty; clean tree → allowed. On block, the plugin attempts a protective auto-stash before throwing, so the user's uncommitted work survives.
+- **Worktree-aware (Fix A)**: All git-state checks (`isInGitRepo`, `gitStatus`, `gitStashPush`, `detectResetRewrite`) run at the bash command's actual cwd, resolved as `output.args.workdir` → leading `cd <path> &&` in the command string → `ctx.directory`. Without this, an agent operating in a git worktree (e.g. `/start-work` worktree mode) would bypass every git-state check, because `ctx.directory` is the OpenCode project root, not the worktree.
+- **Pre-operation safety check tool**: `git_safety_check` returns the dirty-tree status of the project root with file lists and recommended protective action.
+- **`__test__` export**: Pure helpers (`parseLeadingCd`, `resolveWorkdir`, `detectHistoryRewriteCommand`, `detectResetRewrite`, `HISTORY_REWRITE_PATTERNS`) are exported as a named `__test__` symbol for unit testing — see `tests/git-safety/harness.ts`.
 **Dependencies**: None (self-contained)
 
 **Install Target**: `$HOME/.opencode/plugin/git-safety.ts`
