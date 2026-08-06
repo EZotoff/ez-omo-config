@@ -1,13 +1,16 @@
 ---
 patch_id: "opencode--turn-summary-timestamp"
 dependency: "opencode"
-target_file: "opencode"
+target_file: "packages/opencode/src/cli/cmd/run/turn-summary.ts, packages/opencode/src/cli/cmd/run/types.ts, packages/opencode/src/cli/cmd/run/scrollback.surface.ts, packages/opencode/src/cli/cmd/run/scrollback.writer.tsx, packages/opencode/src/cli/cmd/run/runtime.queue.ts, packages/opencode/src/cli/cmd/run/footer.ts, packages/tui/src/routes/session/index.tsx"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-07-19"
 dep_version: "1.17.9-local"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/37929"
 verification_pattern: "todayTimeOrDateTime"
+surfaces: "cli-run, tui-interactive"
+runtime_effective: false
+runtime_effective_note: "Unverified on v1.18.5 binary. dep_version remains 1.17.9-local until the timestamp is observed rendering on both cli-run and tui-interactive surfaces against the live 1.18.5 binary."
 ---
 
 # OpenCode TUI turn-summary timestamp (local customization: shortDateTime 24h+date format)

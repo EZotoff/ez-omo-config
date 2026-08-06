@@ -214,9 +214,10 @@ Use the `patch-opencode` skill for the full procedure with version detection, so
 Three-layer defense against patch drift (Track B v2):
 
 1. **Regression Corpus** (`tests/regressions/`) — paired `.sh` + `.kill.sh` tests for every bug ever fixed. Run via `bash tests/run_regressions.sh`.
-2. **Rewritten Verifier** (`scripts/verify-live-patches.sh`) — verifies every tracked patch against runtime-resolved paths. Exit 0 = all APPLIED, exit 1 = issues found.
+2. **Rewritten Verifier** (`scripts/verify-live-patches.sh`) — verifies every tracked patch against runtime-resolved paths. Exit 0 = all APPLIED, exit 1 = issues found. Supports `--schema-only` mode for frontmatter validation without needing the binary (see layer 5).
 3. **inotify Watcher** (`opencode-patch-watcher.service`) — kernel-level detection of writes to `~/.opencode/bin/`. Reactive, not preventive.
 4. **Periodic Integrity Check** (`opencode-patch-integrity-check.timer`) — runs `verify-live-patches.sh` every 30 minutes as a backstop for inotify bypass cases.
+5. **Schema Enforcement** (`tests/test_patch_entries.sh`) — validates frontmatter completeness for all `status: active` patch entries via `verify-live-patches.sh --schema-only`. Enforces three rules: (a) `target_file` must be present; (b) rendering-path `target_file` (`cli/cmd/run/`, `tui/src/routes/`, `server/routes/`) requires `surfaces`; (c) patches with `surfaces` require `runtime_effective`. This catches metadata destruction at commit time — a cutover commit that deletes the `surfaces` field or collapses a specific `target_file` to a generic value will fail the test suite and block the merge via the review-enforcer plugin. This makes the TEMPLATE.md schema load-bearing, not advisory.
 
 **Prerequisite**: `sudo apt install -y inotify-tools` for the watcher service.
 
@@ -227,3 +228,4 @@ Three-layer defense against patch drift (Track B v2):
 3. When fixing a bug, add a paired `.sh` + `.kill.sh` to `tests/regressions/`. This is the only durable defense against agent memory resets.
 4. Never `kill` the `opencode-patch-watcher.service` process. It is the reactive detection layer.
 5. Structural fixes are mandatory for new bash/python tooling: `set -euo pipefail` for bash, `subprocess.run([...])` list-form for Python, no string interpolation into Python source.
+6. Cutover commits must not delete `surfaces`, `runtime_effective`, or collapse `target_file` from specific source files to a generic value. The schema validator (layer 5) enforces this structurally — `bash tests/test_patch_entries.sh` must pass before merge. This was added after commit `7b7bb19` destructively edited `opencode--turn-summary-timestamp.md` (deleted `surfaces`, collapsed 7-file `target_file` to `"opencode"`) and the damage went undetected until a manual audit.

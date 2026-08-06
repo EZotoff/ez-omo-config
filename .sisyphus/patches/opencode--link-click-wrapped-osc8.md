@@ -19,8 +19,7 @@ runtime_effective: true
 runtime_effective_note: "Redesign verified EFFECTIVE on the real v1.18.5 interactive TUI surface 2026-08-03 (T3): conceal-ON renders link labels with no parenthesised (file:///...) URL, conceal-OFF shows the URL, no-link prompt unaffected, regression corpus 11/11. Live binary sha256 03edb5158179d6ad593d21321249316f191060b98e907c0c62a59064190cb4c2. Hook is the child CodeRenderable.onChunks setter (instance createMarkdownCodeRenderable wrap + walkChildren), NOT the parent _linkifyMarkdownChunks (dead in OpenTUI >= 0.4.x). Evidence: .sisyphus/evidence/task-3-tui-link-conceal-on.txt."
 upstream_issue: "none"
 verification_pattern: "__linkLabelPatch"
-surfaces:
-  - tui-interactive
+surfaces: "tui-interactive"
 ---
 
 # OpenCode TUI link rendering + click workaround for markdown links

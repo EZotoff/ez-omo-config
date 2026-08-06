@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-    printf 'Usage: %s [--json] [--tree PATH | BINARY_PATH]\n' "${0##*/}" >&2
+    printf 'Usage: %s [--json] [--schema-only] [--tree PATH | BINARY_PATH]\n' "${0##*/}" >&2
     exit 2
 }
 
@@ -152,6 +152,10 @@ while (($#)); do
             JSON_OUTPUT=1
             shift
             ;;
+        --schema-only)
+            MODE="schema"
+            shift
+            ;;
         --tree)
             [[ $# -ge 2 && "$MODE" == "live" && -z "$TARGET" ]] || usage
             MODE="tree"
@@ -192,6 +196,7 @@ applied=0
 stale=0
 missing=0
 drift=0
+schema_fail=0
 results_file="$(mktemp)"
 trap 'rm -f "$results_file"' EXIT
 
@@ -208,6 +213,43 @@ for entry in "${entries[@]}"; do
     dep_version="$(yaml_frontmatter_value "$entry" dep_version)"
     verification_pattern="$(yaml_frontmatter_value "$entry" verification_pattern)"
     patch_id="${patch_id:-${entry##*/}}"
+
+    # Schema-only mode: validate entry frontmatter completeness without
+    # needing the binary. Catches metadata destruction (e.g., a cutover
+    # commit that deletes the surfaces field or collapses target_file
+    # to a generic value). Runs for ALL active patches regardless of dependency.
+    if [[ "$MODE" == "schema" ]]; then
+        total=$((total + 1))
+        detail=""
+        surfaces_val="$(yaml_frontmatter_value "$entry" surfaces)"
+        runtime_eff="$(yaml_frontmatter_value "$entry" runtime_effective)"
+
+        # Rule 1: target_file must be present
+        if [[ -z "$target_file" ]]; then
+            detail="missing target_file"
+        fi
+
+        # Rule 2: rendering-path target_file requires surfaces field
+        if [[ -z "$detail" && ( "$target_file" == *"cli/cmd/run/"* || "$target_file" == *"tui/src/routes/"* || "$target_file" == *"server/routes/"* ) ]]; then
+            if [[ -z "$surfaces_val" ]]; then
+                detail="rendering-path target_file missing required 'surfaces' field"
+            fi
+        fi
+
+        # Rule 3: patches with surfaces require runtime_effective flag
+        if [[ -z "$detail" && -n "$surfaces_val" && -z "$runtime_eff" ]]; then
+            detail="patch with 'surfaces' field missing required 'runtime_effective' field"
+        fi
+
+        if [[ -n "$detail" ]]; then
+            result="SCHEMA-VIOLATION"
+            schema_fail=$((schema_fail + 1))
+        else
+            result="SCHEMA-OK"
+        fi
+        printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$patch_id" "$dependency" "$target_file" "schema" "$result" "$detail" >> "$results_file"
+        continue
+    fi
 
     if [[ "$MODE" == "binary" && "$dependency" != "opencode" && "$dependency" != "opencode-dcp" ]]; then
         continue
@@ -278,7 +320,7 @@ for entry in "${entries[@]}"; do
 done
 
 if ((JSON_OUTPUT)); then
-    VERIFY_RESULTS="$results_file" VERIFY_TOTAL="$total" VERIFY_APPLIED="$applied" VERIFY_STALE="$stale" VERIFY_MISSING="$missing" VERIFY_DRIFT="$drift" python3 -c '
+    VERIFY_RESULTS="$results_file" VERIFY_TOTAL="$total" VERIFY_APPLIED="$applied" VERIFY_STALE="$stale" VERIFY_MISSING="$missing" VERIFY_DRIFT="$drift" VERIFY_SCHEMA_FAIL="$schema_fail" python3 -c '
 import csv
 import json
 import os
@@ -290,6 +332,8 @@ with open(os.environ["VERIFY_RESULTS"], encoding="utf-8", newline="") as handle:
                      "runtime": runtime, "status": status, "path": path})
 summary = {"total": int(os.environ["VERIFY_TOTAL"]), "applied": int(os.environ["VERIFY_APPLIED"]),
            "stale": int(os.environ["VERIFY_STALE"]), "missing_target": int(os.environ["VERIFY_MISSING"]),
+           "version_drift": int(os.environ["VERIFY_DRIFT"]), "schema_fail": int(os.environ["VERIFY_SCHEMA_FAIL"])}
+           "stale": int(os.environ["VERIFY_STALE"]), "missing_target": int(os.environ["VERIFY_MISSING"]),
            "version_drift": int(os.environ["VERIFY_DRIFT"])}
 print(json.dumps({"patches": rows, "summary": summary}, sort_keys=True))
 '
@@ -299,10 +343,10 @@ else
     while IFS=$'\t' read -r patch_id dependency target_file runtime_ver result display_path; do
         printf '%s %-52s %-17s %-28s %-10s %s\n' "$result" "$patch_id" "$dependency" "$target_file" "$runtime_ver" "$display_path"
     done < "$results_file"
-    printf 'Summary: %d total | %d applied | %d stale | %d missing-target | %d version-drift\n' "$total" "$applied" "$stale" "$missing" "$drift"
+    printf 'Summary: %d total | %d applied | %d stale | %d missing-target | %d version-drift | %d schema-violation\n' "$total" "$applied" "$stale" "$missing" "$drift" "$schema_fail"
 fi
 
-if ((stale > 0 || missing > 0 || drift > 0)); then
+if ((stale > 0 || missing > 0 || drift > 0 || schema_fail > 0)); then
     exit 1
 fi
 exit 0

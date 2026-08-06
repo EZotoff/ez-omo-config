@@ -184,6 +184,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 57 | `opencode-patch-integrity-check.timer` | `systemd/user/` | 30-minute periodic timer |
 | 58 | `run_regressions.sh` | `tests/` | Regression corpus harness |
 | 59 | `regressions/` | `tests/` | 9 paired regression tests, 18 files total |
+| 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 
 ---
 
@@ -394,7 +395,8 @@ For install locations, failure string meanings, and reapply instructions:
 - **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.19.2)
 - **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on local OpenCode 1.17.9 binary)
 - **OpenCode SSE directory filter removal**: `.sisyphus/patches/opencode--sse-directory-filter-removal.md` (active on local OpenCode 1.17.9 binary)
-- **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (**RUNTIME-INEFFECTIVE on live v1.18.5 binary** — patch string present but `_linkifyMarkdownChunks` hook unreachable on v1.18 SolidJS render path; last effective on 1.17.9-local; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line). See the patch entry's `## Current Runtime Status` section and the `runtime_effective: false` flag.
+- **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (active on v1.18.5 binary, `runtime_effective: true` as of 2026-08-03 — redesigned hook via child `CodeRenderable.onChunks` setter recovered the dead `_linkifyMarkdownChunks` path; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line)
+- **OpenCode TUI pinned-session reset**: `.sisyphus/patches/opencode--tui-pinned-session-race.md` (UNFIXED upstream bug — `runtime_effective: false`; startup read-overwrite race + multi-process file contention on `~/.local/state/opencode/session.json`; pinned sessions revert to older state when multiple TUI processes run simultaneously)
 - **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.19.2)
 - **Auto-slash-command duplicate user args**: `.sisyphus/patches/omo--auto-slash-command-duplicate-user-args.md` (active on OMO v4.19.2)
 - **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (**DEPRECATED 2026-08-05** — GLM 5.1's mid-window context degradation does not occur on GLM 5.2 with 1M context; OMO preemptive compaction is disabled anyway due to premature triggering on large-context models)
