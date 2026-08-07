@@ -10,6 +10,7 @@ const CLAMP_TABLE = {
   "openai":                { field: "reasoningEffort",   values: { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" } },
   "google":                { field: "thinkingLevel",     values: { minimal: "minimal", low: "low", medium: "medium", high: "high" } },
   "deepseek":              { field: "reasoning_effort",  values: { low: "low", medium: "medium", high: "high", max: "max" } },
+  "opencode-go":           { field: "reasoning_effort",  values: { low: "low", medium: "medium", high: "high", max: "max" } },
 };
 
 const EXCLUDED_PROVIDERS = new Set(["anthropic", "github-copilot"]);
