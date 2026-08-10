@@ -8,8 +8,11 @@
  * omo--commit-policy-alignment) removed the "never commit without asking"
  * block, and the auto-checkpoint plugin provides idle-timeout safety-net
  * commits. Neither tells the agent HOW to coordinate with other agents
- * working in the same repo: when to branch, when to sync, how to format
- * commits so other agents can parse history, how to handle merge conflicts.
+ * working in the same repo: when to branch, when to sync, how to handle
+ * merge conflicts.
+ *
+ * Attribution (author identity, co-author trailers, footers) is intentionally
+ * NOT handled here — owned by the active Git config and OMO git_master setting.
  *
  * This plugin supplies that procedure. It is intentionally short (hot path
  * — fires once per LLM round-trip per session) and concrete (reflexes with
@@ -28,17 +31,10 @@ You operate in a multi-agent environment where other agents (Sisyphus, atlas, si
 ### Commit reflex
 After every logical unit of work (bug fixed, refactor step done, feature slice complete, tests written for a change, file moved/renamed): stage explicit paths and commit immediately. Do NOT ask — your base prompt grants explicit permission. Do NOT bundle unrelated changes into one commit. Do NOT wait for auto-checkpoint; it is a safety net, not the primary history.
 
-### Commit format (machine-parseable)
+### Commit format
 - Subject: \`type(scope): subject\` — Conventional Commits, lowercase type and scope, imperative mood, ≤72 chars. Examples: \`feat(retry): detect near-empty completions\`, \`fix(worktree): portable timeout\`, \`refactor(wisdom): route date through portable helper\`.
-- Per-commit author override so agents are identifiable in \`git log\`:
-  \`git -c user.name="<YourAgentName>" -c user.email="<your-agent>@agent.local" commit -m "..."\`
-  (e.g. \`-c user.name="Sisyphus" -c user.email="sisyphus@agent.local"\`)
-- Trailer for traceability (REQUIRED on agent-initiated commits):
-  \`Session: <your-session-id>\`
-  Use a separate \`-m\` argument so git treats it as a trailer, not part of the subject.
-- Full example:
-  \`git -c user.name="Sisyphus" -c user.email="sisyphus@agent.local" commit -m "fix(retry): handle null tokens" -m "Session: ses_abc123"\`
-- If you do not know your session id, use \`ses_unknown\`.
+- Do NOT override commit identity (\`-c user.name\`, \`-c user.email\`) or add attribution metadata (co-author trailers, \`Session:\` trailers, footers, agent tags). Commit author and attribution are governed by the active Git configuration and git-master policy — leave them alone.
+- Example: \`git commit -m "fix(retry): handle null tokens"\`
 
 ### Branching reflex (parallel isolation)
 At the start of any non-trivial work (3+ tool calls expected) in a tracked repo, detect concurrent agent activity:

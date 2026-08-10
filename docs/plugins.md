@@ -186,7 +186,7 @@ At each evidence state, agents may only use approved claim language:
 **What it tells agents**:
 
 - **Commit reflex**: commit after every logical unit (bug fixed, refactor step done, feature slice complete, tests written). Do not wait for auto-checkpoint; do not ask.
-- **Commit format**: Conventional Commits subject + per-commit author override (`git -c user.name="<AgentName>" -c user.email="<agent>@agent.local"`) + `Session: <ses_id>` trailer.
+- **Commit format**: Conventional Commits subject only. No author override, no trailers, no footers — attribution is owned by the active Git config and `git_master` setting.
 - **Branching reflex**: at the start of non-trivial work, check `git log --since='2 hours ago' --all` and `git branch -a`. Branch as `agent/<agent-name>/<task-scope>` if another agent's work overlaps your target files. Otherwise master/trunk is fine.
 - **Sync protocol**: on a branch older than 30 min, `git fetch && git rebase origin/master` before non-trivial edits. Resolve conflicts directly.
 - **Branch lifecycle**: merge back with `--no-ff`, delete the branch. Push only when explicitly authorized.
