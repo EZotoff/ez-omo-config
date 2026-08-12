@@ -34,6 +34,17 @@ When searching for code or understanding codebase structure, use this vanilla di
 
 Prefer codegraph/LSP facts over memory. If a tool is unavailable or returns no useful result, fall back to the next appropriate vanilla tool without bootstrapping any repo-local search service.
 
+## Before Modifying Unknown Systems
+
+Before changing code or config in a system you didn't build in this session,
+verify the one assumption most likely to be wrong. Read the registration path,
+trace the call graph, or run a probe — whichever is fastest and could prove
+your model incorrect. Skip this only when being wrong costs less than checking.
+
+When a fix doesn't work, your model of the system is the suspect — not just
+the fix. Before trying a second approach, re-read the source that governs
+the behavior you're trying to change.
+
 ## Claude CLI auth model — subscription OAuth only, NO API key
 
 This machine uses the **Claude Pro/Max subscription** (OAuth credentials in `~/.claude/.credentials.json`). There is no `ANTHROPIC_API_KEY` and one must **not** be provisioned.
