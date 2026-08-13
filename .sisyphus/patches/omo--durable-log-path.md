@@ -7,7 +7,7 @@ status: "active"
 applied_date: "2026-08-05"
 dep_version: "4.19.2"
 upstream_issue: "none"
-verification_pattern: "\\.local/share/opencode/logs"
+verification_pattern: "OMO_LOG_DIR"
 surfaces: ["server-api"]
 runtime_effective: true
 note: "Live dist patch (Bun-minified bundle, NOT source). target_file is dist/index.js, the shipped artifact loaded by `file://` from opencode.json. Source-level reapply is NOT possible; see Reapply Instructions for the dist-level reapply procedure. verification_pattern is a minification-survivor string literal — pattern match is necessary but NOT sufficient; the ## Runtime Verification section is the only sufficient check."
