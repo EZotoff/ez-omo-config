@@ -7,7 +7,7 @@ status: "active"
 applied_date: "2026-08-13"
 dep_version: "4.19.2"
 upstream_issue: "none"
-verification_pattern: "External-system premises"
+verification_pattern: "External-system premise"
 ---
 
 # External-System Premise Discipline (Planning + Review Agents)
@@ -27,8 +27,8 @@ Scoped to "external system's behavior" to avoid contradicting the global "Before
 ## Verification
 ```bash
 # Pattern (necessary, sufficient for this config change — it's a plain JSON edit, not a binary patch):
-grep -c "External-system premises" /home/ezotoff/ez-omo-config/configs/oh-my-openagent/oh-my-openagent.json
-# Expected: 3  (prometheus + oracle append "## External-system premises"; momus adds "## External-system premise review" — note the grep matches the shared prefix)
+grep -c "External-system premise" /home/ezotoff/ez-omo-config/configs/oh-my-openagent/oh-my-openagent.json
+# Expected: 3  (the singular-prefix pattern matches all three: prometheus + oracle "## External-system premises" AND momus "## External-system premise review")
 
 # Confirm momus gained a prompt_append:
 jq '.agents.momus | has("prompt_append")' /home/ezotoff/ez-omo-config/configs/oh-my-openagent/oh-my-openagent.json
