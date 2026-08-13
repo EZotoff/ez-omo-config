@@ -27,7 +27,7 @@
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## External-system premises\nWhen a design depends on an external system's behavior (provider API, library guarantee), require it to be backed by documentation or research \u2014 not a runtime probe or a theoretical guarantee. A probe samples; it does not characterize reliability. Flag load-bearing external-system premises presented as settled fact."
     },
     "librarian": {
       "model": "opencode-go/minimax-m3",
@@ -56,7 +56,7 @@
       "skills": [
         "wisdom"
       ],
-      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence."
+      "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## External-system premises\nWhen a plan's core design depends on an external system's behavior \u2014 a provider API's reliability, a library's guarantee, a service's contract \u2014 RESEARCH it (official docs + known issues + community reports) before treating it as settled. A runtime probe samples; it cannot characterize failure modes or rates, so a clean pass (e.g. 3/3) does not justify a \"guarantees X\" claim. If the behavior can't be documented, mark the premise as an UNVERIFIED RISK with a fallback \u2014 don't build on it as fact."
     },
     "metis": {
       "model": "zai-coding-plan/glm-5.2",
@@ -76,7 +76,8 @@
       ],
       "skills": [
         "wisdom"
-      ]
+      ],
+      "prompt_append": "## External-system premise review\nWhen reviewing a plan, identify any premise that depends on an external system's behavior (provider API, library guarantee, service contract). Require such premises to be backed by documentation or research \u2014 not a runtime probe and not a theoretical guarantee (\"constrained decoding guarantees validity\"). A probe samples; it does not characterize. Flag any load-bearing external-system premise presented as settled fact as a REVIEW BLOCKER until it is researched or marked as an unverified risk with a fallback."
     },
     "atlas": {
       "model": "zai-coding-plan/glm-5.2",
