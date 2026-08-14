@@ -12,6 +12,7 @@
   "plugin": [
     "./provider-connect-retry.mjs",
     "./aspect-dynamics.mjs",
+    "./output-shaper.mjs",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
@@ -22,11 +23,15 @@
     "../../.opencode/plugin/session-info.ts",
     "../../.opencode/plugin/session-id.ts",
     "../../.opencode/plugin/vscode.ts",
+    "../../.opencode/plugin/git-safety.ts",
     "../../.opencode/plugin/worktree.ts"
   ],
   "agent": {
     "compaction": {
-      "model": "deepseek/deepseek-v4-flash"
+      "model": "opencode-go/deepseek-v4-flash"
+    },
+    "title": {
+      "model": "opencode-go/deepseek-v4-flash"
     }
   },
   "compaction": {
@@ -535,6 +540,35 @@
               "thinking_budget": 32768
             }
           }
+        },
+        "glm-5.3": {
+          "name": "GLM 5.3",
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "thinking_budget": 4096
+            },
+            "medium": {
+              "thinking_budget": 8192
+            },
+            "high": {
+              "thinking_budget": 16384
+            },
+            "max": {
+              "thinking_budget": 32768
+            }
+          }
         }
       }
     },
@@ -672,5 +706,5 @@
   },
   "autoupdate": false,
   "$schema": "https://opencode.ai/config.json",
-  "small_model": "openai/gpt-5.6-luna"
+  "small_model": "opencode-go/deepseek-v4-flash"
 }

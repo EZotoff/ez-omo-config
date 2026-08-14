@@ -295,7 +295,7 @@ Combine flags as needed:
 | **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
 | **Kimi For Coding (OAuth)** | Kimi K3 via device-flow OAuth (Allegretto+ tier) | Kimi K3 (`kimi-for-coding` model id; opencode-kimi-full plugin gates all body-shaping hooks on this exact id; supports off/auto/low/medium/high reasoning_effort; context length discovered at runtime via `/coding/v1/models`) |
-| **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1, GLM 5.2 |
+| **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5, GLM 5.1, GLM 5.2, GLM 5.3 |
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
 | **Uni.lu LiteLLM** | Local University of Luxembourg LiteLLM proxy on DGX Spark | DeepSeek V4 Flash (vLLM), Kimi K3, GLM 5.2 |
