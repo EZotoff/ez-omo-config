@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-openagent.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "zai-coding-plan/glm-5.2",
+      "model": "zai-coding-plan/glm-5.3",
       "fallback_models": [
         "openai/gpt-5.6-sol"
       ],
@@ -21,7 +21,7 @@
       "variant": "high",
       "fallback_models": [
         "kimi-for-coding-oauth/kimi-for-coding",
-        "zai-coding-plan/glm-5.2",
+        "zai-coding-plan/glm-5.3",
         "google/gemini-3.1-pro-preview"
       ],
       "skills": [
@@ -33,14 +33,14 @@
       "model": "opencode-go/minimax-m3",
       "fallback_models": [
         "openai/gpt-5.6-terra",
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ]
     },
     "explore": {
       "model": "opencode-go/minimax-m3",
       "fallback_models": [
         "openai/gpt-5.6-luna",
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ]
     },
     "multimodal-looker": {
@@ -50,7 +50,7 @@
       "model": "kimi-for-coding-oauth/kimi-for-coding",
       "variant": "high",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2",
+        "zai-coding-plan/glm-5.3",
         "openai/gpt-5.6-sol"
       ],
       "skills": [
@@ -59,7 +59,7 @@
       "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## External-system premises\nWhen a plan's core design depends on an external system's behavior \u2014 a provider API's reliability, a library's guarantee, a service's contract \u2014 RESEARCH it (official docs + known issues + community reports) before treating it as settled. A runtime probe samples; it cannot characterize failure modes or rates, so a clean pass (e.g. 3/3) does not justify a \"guarantees X\" claim. If the behavior can't be documented, mark the premise as an UNVERIFIED RISK with a fallback \u2014 don't build on it as fact."
     },
     "metis": {
-      "model": "zai-coding-plan/glm-5.2",
+      "model": "zai-coding-plan/glm-5.3",
       "variant": "high",
       "fallback_models": [
         "google/gemini-3.1-pro-preview"
@@ -80,7 +80,7 @@
       "prompt_append": "## External-system premise review\nWhen reviewing a plan, identify any premise that depends on an external system's behavior (provider API, library guarantee, service contract). Require such premises to be backed by documentation or research \u2014 not a runtime probe and not a theoretical guarantee (\"constrained decoding guarantees validity\"). A probe samples; it does not characterize. Flag any load-bearing external-system premise presented as settled fact as a REVIEW BLOCKER until it is researched or marked as an unverified risk with a fallback."
     },
     "atlas": {
-      "model": "zai-coding-plan/glm-5.2",
+      "model": "zai-coding-plan/glm-5.3",
       "fallback_models": [
         "openai/gpt-5.6-sol",
         "kimi-for-coding-oauth/kimi-for-coding"
@@ -91,7 +91,7 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure, design constraints):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first.\nCapture implementation discoveries that could inform future design decisions.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## Subagent Result Bloat Prevention\n\nSync `delegate_task` results inject the subagent's full final response directly into your context. For substantial tasks (categories `deep`, `ultrabrain`, or any task touching 3+ files), this can exceed 100KB per result and saturate your context window \u2014 observed root cause of empty-response session halts on 2026-07-16 (ses_09b88d5eaffezIacu5K4KFGvi6: two 529KB+535KB sync results caused glm-5.2 to produce an empty response and exit the loop).\n\n**RULE**: For substantial tasks, set `run_in_background: true` on the `delegate_task` call. Wait for the `<system-reminder>` completion notification, then collect with `background_output(task_id=\"...\", full_session=false)`. The default returns only the last assistant message \u2014 sufficient for verdict + checkbox marking. Use `full_session=true` with `message_limit=5` and `include_tool_results=false` only for failed-task diagnostics. For trivial single-file tasks (`quick` category), sync mode is acceptable.\n\nIn task prompts, instruct subagents to keep final summaries under 2000 characters. File-change counts and pass/fail status suffice \u2014 do NOT include full diffs or raw test output in the summary.\n\n## Background Result Collection Protocol\n\nWhen collecting completed background tasks, follow these rules to avoid pruning-induced result loss (root cause of the 2026-07-16 session halts):\n\n1. **Collect one at a time**: Process each `background_output` result immediately (mark checkbox, note outcome) before collecting the next. Batch-collecting 6+ results injects hundreds of KB in a single turn and triggers immediate compaction pruning of those exact results.\n2. **Bypass cursor on re-collection**: If a prior collection was pruned from context, re-collect with `background_output(task_id=\"...\", full_session=true, from_end=true)`. The default mode uses an incremental cursor that returns \"No new output\" after first consumption (OMO #2915).\n3. **Enforce compact summaries**: In every `delegate_task` prompt to subagents, include: \"Keep your final summary under 2000 characters. Report file-change counts and pass/fail status only \u2014 do NOT include full diffs, code listings, or raw test output.\"\n\n## Stalled Subagent Handling\n\nIf a background subagent's final output announces work but contains no deliverable (planning-only output), do NOT continue it via a synchronous task(task_id=...) call \u2014 the sync inactivity window can block you for 30 minutes. Instead: (1) spawn at most ONE continuation with run_in_background: true and a tightened prompt (name the missing deliverable explicitly); (2) if that also returns planning-only output, proceed without the subagent \u2014 do the work yourself or note the gap. Never burn two sync waits on a stalling subagent."
     },
     "sisyphus-junior": {
-      "model": "zai-coding-plan/glm-5.2",
+      "model": "zai-coding-plan/glm-5.3",
       "fallback_models": [
         "openai/gpt-5.6-sol"
       ],
@@ -101,17 +101,17 @@
       "prompt_append": "For operational knowledge queries (deployment, config, infrastructure):\nUse the `wisdom` skill. Wisdom is the only runtime memory store.\nDo NOT infer operational facts from code \u2014 consult documented knowledge first."
     },
     "frontend-ui-ux-engineer": {
-      "model": "zai-coding-plan/glm-5.2",
+      "model": "zai-coding-plan/glm-5.3",
       "variant": "high",
       "fallback_models": [
         "openai/gpt-5.6-sol"
       ],
-      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses GLM 5.2 (high thinking) for strong reasoning and instruction-following on complex frontend work."
+      "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses GLM 5.3 (high thinking) for strong reasoning and instruction-following on complex frontend work."
     },
     "document-writer": {
       "model": "openai/gpt-5.6-sol",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ]
     }
   },
@@ -120,7 +120,7 @@
       "model": "google/gemini-3.6-flash",
       "variant": "high",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ],
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
@@ -128,7 +128,7 @@
       "model": "kimi-for-coding-oauth/kimi-for-coding",
       "variant": "high",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2",
+        "zai-coding-plan/glm-5.3",
         "openai/gpt-5.6-sol"
       ]
     },
@@ -136,33 +136,33 @@
       "model": "google/gemini-3.1-pro-preview",
       "variant": "high",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2",
+        "zai-coding-plan/glm-5.3",
         "openai/gpt-5.6-sol"
       ]
     },
     "quick": {
       "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ]
     },
     "unspecified-low": {
       "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ]
     },
     "unspecified-high": {
-      "model": "zai-coding-plan/glm-5.2",
+      "model": "zai-coding-plan/glm-5.3",
       "variant": "low",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ]
     },
     "writing": {
       "model": "openai/gpt-5.6-sol",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2"
+        "zai-coding-plan/glm-5.3"
       ]
     },
     "deep": {
@@ -176,7 +176,7 @@
     "mephistopheles": {
       "model": "openai/gpt-5.6-sol",
       "fallback_models": [
-        "zai-coding-plan/glm-5.2",
+        "zai-coding-plan/glm-5.3",
         "kimi-for-coding-oauth/kimi-for-coding"
       ],
       "prompt_append": "You are Mephistopheles, an adversarial reasoning agent. Your approach: FIRST genuinely acknowledge the strongest aspects of any position presented to you. THEN systematically dismantle weaknesses with rigorous logic. You are generous but relentless \u2014 you give credit where due, then show exactly where and why the argument fails. Never be dismissive or condescending. Your goal is to strengthen ideas through adversarial pressure, not to 'win'. When you find an argument genuinely strong, say so explicitly.",

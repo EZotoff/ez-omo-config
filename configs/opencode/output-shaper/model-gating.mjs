@@ -4,14 +4,16 @@
 // Per-provider clamp field names and their allowed thinking-level values.
 // The active thinking level is mapped to a provider-specific request option
 // (e.g. zai "thinking_budget", openai "reasoningEffort", google "thinkingLevel").
+// GLM-5.3 dropped thinking_budget for reasoning_effort (low/high/max only).
 const CLAMP_TABLE = {
-  "zai-coding-plan":       { field: "thinking_budget",   values: { low: 4096, medium: 8192, high: 16384, max: 32768 } },
+  "zai-coding-plan":       { field: "reasoning_effort", values: { low: "low", high: "high", max: "max" } },
   "kimi-for-coding-oauth": { field: "reasoning_effort", values: { low: "low", medium: "medium", high: "high" } },
   "openai":                { field: "reasoningEffort",   values: { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" } },
   "google":                { field: "thinkingLevel",     values: { minimal: "minimal", low: "low", medium: "medium", high: "high" } },
   "deepseek":              { field: "reasoning_effort",  values: { low: "low", medium: "medium", high: "high", max: "max" } },
   "opencode-go":           { field: "reasoning_effort",  values: { low: "low", medium: "medium", high: "high", max: "max" } },
 };
+
 
 const EXCLUDED_PROVIDERS = new Set(["anthropic", "github-copilot"]);
 

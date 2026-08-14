@@ -58,7 +58,7 @@ async function run() {
       properties: {
         sessionID,
         providerID: "zai-coding-plan",
-        modelID: "glm-5.2",
+        modelID: "glm-5.3",
         status: {
           type: "retry",
           message: "Rate limit reached for requests",

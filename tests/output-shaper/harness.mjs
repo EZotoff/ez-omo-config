@@ -248,7 +248,7 @@ async function runNewQuestionNotClamped() {
     const ctx = makeFakeCtx({ messages: newQuestionMessages() });
     const hooks = await plugin(ctx);
     const output = makeParamsOutput();
-    await hooks["chat.params"](makeParamsInput("zai-coding-plan", "glm-5.2"), output);
+    await hooks["chat.params"](makeParamsInput("zai-coding-plan", "glm-5.3"), output);
     if (Object.keys(output.options).length !== 0) {
       fail(`new-question-not-clamped: expected options untouched, got ${JSON.stringify(output.options)}`);
     }
@@ -269,7 +269,7 @@ async function runCasingSnakeVsCamel() {
     const mod = await import(PLUGIN_PATH);
     const plugin = mod.default;
     const cases = [
-      { providerID: "zai-coding-plan", modelID: "glm-5.2", field: "thinking_budget", value: 4096 },
+      { providerID: "zai-coding-plan", modelID: "glm-5.3", field: "reasoning_effort", value: "low" },
       { providerID: "kimi-for-coding-oauth", modelID: "kimi-for-coding", field: "reasoning_effort", value: "low" },
       { providerID: "deepseek", modelID: "deepseek-v4-flash", field: "reasoning_effort", value: "low" },
       { providerID: "openai", modelID: "gpt-5.6-sol", field: "reasoningEffort", value: "low" },
@@ -331,7 +331,7 @@ async function runFailClosedNoConfig() {
   }
 
   const output = makeParamsOutput();
-  await hooks["chat.params"](makeParamsInput("zai-coding-plan", "glm-5.2"), output);
+  await hooks["chat.params"](makeParamsInput("zai-coding-plan", "glm-5.3"), output);
   if (Object.keys(output.options).length !== 0) {
     fail(`fail-closed-no-config: chat.params must be a no-op, got ${JSON.stringify(output.options)}`);
   }
@@ -361,7 +361,7 @@ async function runDisabledConfig() {
     }
 
     const output = makeParamsOutput();
-    await hooks["chat.params"](makeParamsInput("zai-coding-plan", "glm-5.2"), output);
+    await hooks["chat.params"](makeParamsInput("zai-coding-plan", "glm-5.3"), output);
     if (Object.keys(output.options).length !== 0) {
       fail(`disabled-config: chat.params must be a no-op, got ${JSON.stringify(output.options)}`);
     }
@@ -404,7 +404,7 @@ async function main() {
       await runTersenessStatic();
       break;
     case "glm-resume-clamped":
-      await runClampCase("glm-resume-clamped", "zai-coding-plan", "glm-5.2", "thinking_budget", 4096);
+      await runClampCase("glm-resume-clamped", "zai-coding-plan", "glm-5.3", "reasoning_effort", "low");
       break;
     case "kimi-resume-clamped":
       await runClampCase("kimi-resume-clamped", "kimi-for-coding-oauth", "kimi-for-coding", "reasoning_effort", "low");

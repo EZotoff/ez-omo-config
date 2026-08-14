@@ -34,7 +34,7 @@ import { ProviderConnectRetryPlugin } from "../configs/opencode/provider-connect
 const omoConfigPath = path.join(os.homedir(), ".config", "opencode", "oh-my-openagent.json");
 const omoConfig = JSON.parse(fs.readFileSync(omoConfigPath, "utf8"));
 
-// Prometheus: primary on kimi-for-coding-oauth/kimi-for-coding, chain [glm-5.2, gpt-5.6-sol].
+// Prometheus: primary on kimi-for-coding-oauth/kimi-for-coding, chain [glm-5.3, gpt-5.6-sol].
 // When kimi fails, the unified resolver must pick the first chain entry whose
 // provider differs from kimi-for-coding-oauth.
 const prometheus = omoConfig.agents.prometheus;
