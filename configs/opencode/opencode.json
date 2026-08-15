@@ -7,7 +7,8 @@
     "zai-coding-plan",
     "deepseek",
     "inception",
-    "uni-lux"
+    "uni-lux",
+    "flare-local"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -31,7 +32,7 @@
       "model": "opencode-go/deepseek-v4-flash"
     },
     "title": {
-      "model": "opencode-go/deepseek-v4-flash"
+      "model": "flare-local/flare-4b"
     }
   },
   "compaction": {
@@ -554,6 +555,33 @@
         }
       }
     },
+    "flare-local": {
+      "name": "FLARE Local",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:18200/v1",
+        "apiKey": "flare-local-no-auth",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
+      },
+      "models": {
+        "flare-4b": {
+          "name": "FLARE-4B (local SGLang)",
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
     "uni-lux": {
       "name": "Uni.lu LiteLLM",
       "npm": "@ai-sdk/openai-compatible",
@@ -616,5 +644,5 @@
   },
   "autoupdate": false,
   "$schema": "https://opencode.ai/config.json",
-  "small_model": "opencode-go/deepseek-v4-flash"
+  "small_model": "flare-local/flare-4b"
 }

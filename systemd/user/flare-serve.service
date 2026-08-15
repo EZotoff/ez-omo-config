@@ -1,0 +1,25 @@
+[Unit]
+Description=FLARE-4B local SGLang server (self-spec AR-Trust) — small_model / title generation for OpenCode
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/src/flare/eval
+Environment=HYBRID_DIFFUSION_CACHE_ROOT=%h/flare-cache
+Environment=EVAL_VENV=%h/src/flare/cache/venvs/hybrid-diffusion-eval
+Environment=HOST=127.0.0.1
+Environment=PORT=18200
+Environment=MEM_FRACTION_STATIC=0.88
+Environment=MAX_RUNNING_REQUESTS=4
+Environment="CUDA_GRAPH_BS=1 2 4"
+ExecStart=%h/src/flare/eval/scripts/serve.sh self-spec yzhu738/FLARE-4B -- --served-model-name flare-4b --chat-template %h/flare-cache/chat-template-nothink.jinja
+Restart=on-failure
+RestartSec=10
+# First launch JIT-compiles Triton/FlashInfer kernels and can take several minutes
+# chat-template-nothink.jinja = tokenizer_config.json chat_template with the
+# enable_thinking condition forced to the closed '<think>\n\n</think>' branch;
+# regenerate from the FLARE-4B tokenizer snapshot if the model is upgraded.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
