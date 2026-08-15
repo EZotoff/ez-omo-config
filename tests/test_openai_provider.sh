@@ -150,7 +150,7 @@ expected_category_fallbacks = {
     'deep': ['openai/gpt-5.6-sol', 'kimi-for-coding-oauth/kimi-for-coding'],
     'quick': ['zai-coding-plan/glm-5.3'],
     'unspecified-low': ['zai-coding-plan/glm-5.3'],
-    'unspecified-high': ['zai-coding-plan/glm-5.3'],
+    'unspecified-high': ['openai/gpt-5.6-sol'],
     'mephistopheles': ['zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
 }
 
@@ -193,7 +193,7 @@ for (scope, name), expected in expected_opencode_go_routes.items():
 print('PASS: OpenCode Go routes use current Minimax and Kimi models')
 
 unspecified_high = categories.get('unspecified-high', {})
-if unspecified_high.get('fallback_models') != ['zai-coding-plan/glm-5.3']:
+if unspecified_high.get('fallback_models') != ['openai/gpt-5.6-sol']:
     print(f'FAIL: categories.unspecified-high.fallback_models has unexpected order: {unspecified_high.get("fallback_models")!r}')
     sys.exit(1)
 
