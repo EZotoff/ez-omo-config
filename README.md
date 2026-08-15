@@ -312,19 +312,19 @@ Combine flags as needed:
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `kimi-for-coding-oauth/kimi-for-coding` | Orchestrator with wisdom injection |
-| **prometheus** | `kimi-for-coding-oauth/kimi-for-coding` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol` | Planner, deep reasoning, HTML proposal packets before executable plans |
-| **sisyphus** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol` | Executor, focused tasks |
-| **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol` | Category task executor |
+| **atlas** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/kimi-for-coding` | Orchestrator with wisdom injection |
+| **prometheus** | `kimi-for-coding-oauth/kimi-for-coding` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **sisyphus** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Executor, focused tasks |
+| **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.3` | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.3` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol` | Complex frontend work |
-| **document-writer** | `openai/gpt-5.6-sol` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
+| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Complex frontend work |
+| **document-writer** | `openai/gpt-5.6-terra` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.6-sol` | high | `kimi-for-coding-oauth/kimi-for-coding`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **oracle** | `openai/gpt-5.6-sol` | high | `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/kimi-for-coding`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `zai-coding-plan/glm-5.3` | max | `google/gemini-3.1-pro-preview` | Deep analysis |
-| **momus** | `openai/gpt-5.6-sol` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
-| **hephaestus** | `openai/gpt-5.6-sol` | xhigh | (none) | Infrastructure, deployment |
+| **momus** | `openai/gpt-5.6-sol` | xhigh | `opencode-go/deepseek-v4-pro`, `google/gemini-3.1-pro-preview` | Code review, critique |
+| **hephaestus** | `openai/gpt-5.6-sol` | xhigh | `opencode-go/deepseek-v4-pro` | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
 

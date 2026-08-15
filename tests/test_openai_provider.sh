@@ -104,7 +104,7 @@ expected_category_models = {
     'quick': 'opencode-go/deepseek-v4-flash',
     'unspecified-low': 'opencode-go/deepseek-v4-flash',
     'unspecified-high': 'zai-coding-plan/glm-5.3',
-    'mephistopheles': 'openai/gpt-5.6-sol',
+    'mephistopheles': 'openai/gpt-5.6-terra',
 }
 
 expected_gemini_routes = {
@@ -127,11 +127,11 @@ if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
 print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
-    'sisyphus': ['openai/gpt-5.6-sol'],
-    'oracle': ['kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.3', 'google/gemini-3.1-pro-preview'],
-    'prometheus': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol'],
+    'sisyphus': ['openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
+    'oracle': ['opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.3', 'google/gemini-3.1-pro-preview'],
+    'prometheus': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
     'metis': ['google/gemini-3.1-pro-preview'],
-    'momus': ['google/gemini-3.1-pro-preview'],
+    'momus': ['opencode-go/deepseek-v4-pro', 'google/gemini-3.1-pro-preview'],
 }
 
 for name, expected in expected_agent_models.items():
@@ -146,11 +146,11 @@ for name, expected in expected_agent_models.items():
             sys.exit(1)
 
 expected_category_fallbacks = {
-    'ultrabrain': ['kimi-for-coding-oauth/kimi-for-coding', 'openai/gpt-5.6-sol'],
-    'deep': ['openai/gpt-5.6-sol', 'kimi-for-coding-oauth/kimi-for-coding'],
+    'ultrabrain': ['kimi-for-coding-oauth/kimi-for-coding', 'openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
+    'deep': ['opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.3'],
     'quick': ['zai-coding-plan/glm-5.3'],
     'unspecified-low': ['zai-coding-plan/glm-5.3'],
-    'unspecified-high': ['openai/gpt-5.6-sol'],
+    'unspecified-high': ['openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
     'mephistopheles': ['zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
 }
 
@@ -193,7 +193,7 @@ for (scope, name), expected in expected_opencode_go_routes.items():
 print('PASS: OpenCode Go routes use current Minimax and Kimi models')
 
 unspecified_high = categories.get('unspecified-high', {})
-if unspecified_high.get('fallback_models') != ['openai/gpt-5.6-sol']:
+if unspecified_high.get('fallback_models') != ['openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro']:
     print(f'FAIL: categories.unspecified-high.fallback_models has unexpected order: {unspecified_high.get("fallback_models")!r}')
     sys.exit(1)
 
