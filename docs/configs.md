@@ -380,6 +380,43 @@ These fields are inert by default. They are logged only when `logLevel` is set t
 
 ---
 
+## skill-nudger.mjs
+
+Config-layer plugin that watches completed tool calls (`tool.execute.after`) for deterministic behavioral signals and queues ephemeral skill-suggestion nudges, delivered on the session's next LLM round-trip via `experimental.chat.messages.transform`.
+
+**Signals (rules-only MVP)**:
+
+| Signal | Trigger | Suggestion |
+|--------|---------|------------|
+| `repeatedFailure` | Same tool call fails N times consecutively (default 2) | `debugging` skill |
+| `retryableError` | Tool output matches a pattern in `retry-errors.json` | `register-retry-error` skill |
+| `portBinding` | Port-binding / server-start command executed (mirrors the global `/deployment` mandate list) | `deployment` skill |
+| `loop` | Same call repeated ≥8 times within the sliding window | Step-back advisory (no skill) |
+
+**Delivery semantics** (probe-verified 2026-08-15 on v1.18.5):
+
+- The synthetic nudge message is appended to `output.messages` and is **not persisted** to the stored transcript — cost-free delivery, no transcript pollution.
+- The hook fires for **both root and subagent sessions**; sessionID and agent name are recovered from `output.messages[].info`.
+- Pending nudges are consumed once and expire after `freshnessMs` (default 90 s), which also bounds accidental delivery into a compaction-context transform call.
+
+**Guardrails**: per-rule dedup (once per session), per-session nudge cap (default 2), inter-nudge cooldown in tool calls (default 10), per-agent allowlists on rules, circuit breaker after 3 consecutive plugin errors, session cleanup on `session.deleted`, state map capped at 200 sessions.
+
+**Key Fields** (in `oh-my-openagent.json#skillNudger`):
+
+- `enabled`, `logLevel` — master toggle / logging threshold
+- `windowSize` — sliding window of observed tool calls per session (default 15)
+- `repeatFailureThreshold`, `loopThreshold` — signal sensitivities
+- `maxNudgesPerSession`, `cooldownToolCalls`, `freshnessMs` — guardrail tuning
+- `disabledSignals` — array of signal types to suppress (e.g. `["portBinding"]`)
+
+**Proof events**: JSONL at `~/.local/share/opencode/skill-nudger/events.jsonl` (`plugin_loaded`, `nudge_queued`, `nudge_delivered`, `skip` with reason, `failure`, `session_cleanup`).
+
+**Install Target**: `$HOME/.config/opencode/skill-nudger.mjs` (+ `skill-nudger/` support modules)
+
+**Status**: Optional
+
+---
+
 ## Symlinked Configs vs Installed Plugin Targets
 
 Not all files in this repository share the same deployment model. The symlinked config behavior applies **only** to the listed config files. Installed plugin targets are separate deployable artifacts.
@@ -411,7 +448,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
 | `AGENTS.md` (global) | User-level agent instructions loaded on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` | Required |
-| `opencode.json` | Main config: 9 providers, 10 plugins, models, limits, OpenCode compaction, defaults | `$HOME/.config/opencode/opencode.json` | Required |
+| `opencode.json` | Main config: 9 providers, 11 plugins, models, limits, OpenCode compaction, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `magic-context.jsonc` | Disabled Magic Context reference config (`enabled=false`; plugin not registered) | `$HOME/.config/opencode/magic-context.jsonc` | Optional |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |
@@ -419,6 +456,8 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudges | `$HOME/.config/opencode/aspect-dynamics.mjs` | Optional |
 | `aspect-dynamics/*.mjs` | 7 support modules (config, context, heuristics, session-state, sets, nudge, logging) | `$HOME/.config/opencode/aspect-dynamics/` | Optional |
 | `aspect-dynamics/sets/*.json` | Seed aspect sets (e.g., `emotions-v1`, `emotions-v2`) | `$HOME/.config/opencode/aspect-dynamics/sets/` | Optional |
+| `skill-nudger.mjs` | Config-layer plugin: tool-signal detection with ephemeral skill-suggestion nudges | `$HOME/.config/opencode/skill-nudger.mjs` | Optional |
+| `skill-nudger/*.mjs` | 6 support modules (config, logging, catalog, signals, state, nudge) | `$HOME/.config/opencode/skill-nudger/` | Optional |
 | `oh-my-openagent.json` | OMO agent/category model overrides, skill loading, and Prometheus HTML proposal planning contract | `$HOME/.config/opencode/oh-my-openagent.json` | Required |
 | `extras/ocx.jsonc` | OCX registry configuration pointer | `$HOME/.opencode/ocx.jsonc` | Optional |
 

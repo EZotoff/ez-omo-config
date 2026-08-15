@@ -16,6 +16,8 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `aspect-dynamics/sets/*.json` | Seed aspect sets | `$HOME/.config/opencode/aspect-dynamics/sets/` |
 | `output-shaper.mjs` | Config-layer plugin: terseness injection + reasoning-effort dialing for resume turns | `$HOME/.config/opencode/output-shaper.mjs` |
 | `output-shaper/*.mjs` | 4 support modules: config, logging, model-gating, resume-detector | `$HOME/.config/opencode/output-shaper/` |
+| `skill-nudger.mjs` | Config-layer plugin: deterministic tool-signal detection (repeated failures, retryable errors, port binding, tool loops) queuing ephemeral skill-suggestion nudges delivered via `experimental.chat.messages.transform` (not persisted to transcript; fires for root and subagent sessions) | `$HOME/.config/opencode/skill-nudger.mjs` |
+| `skill-nudger/*.mjs` | 6 support modules: config, logging, catalog, signals, state, nudge | `$HOME/.config/opencode/skill-nudger/` |
 | `worktree.jsonc` | Worktree sync config and hook registration for automated worktree lifecycle management | `$HOME/.opencode/worktree.jsonc` |
 | `extras/ocx.jsonc` | OCX registry configuration pointer used by the OCX CLI | `$HOME/.opencode/ocx.jsonc` |
 
@@ -38,6 +40,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `./provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` |
 | `./aspect-dynamics.mjs` | `~/.config/opencode/aspect-dynamics.mjs` |
 | `./output-shaper.mjs` | `~/.config/opencode/output-shaper.mjs` |
+| `./skill-nudger.mjs` | `~/.config/opencode/skill-nudger.mjs` |
 | `../../.opencode/plugin/clickable-links.ts` | `~/.opencode/plugin/clickable-links.ts` |
 | `../../.opencode/plugin/session-info.ts` | `~/.opencode/plugin/session-info.ts` |
 | `../../.opencode/plugin/session-id.ts` | `~/.opencode/plugin/session-id.ts` |
