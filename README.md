@@ -82,7 +82,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 22 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, two seed aspect sets, and the Output Shaper plugin with its support modules |
+| 2-5 | **Configs** | 29 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, two seed aspect sets, the Output Shaper plugin with its support modules, and the Skill Nudger plugin with its support modules |
 | 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, and review workflows. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
@@ -170,6 +170,10 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 46c | `output-shaper/logging.mjs` | `configs/opencode/` | File-based structured logging |
 | 46d | `output-shaper/model-gating.mjs` | `configs/opencode/` | Per-provider clamp field table and model gating |
 | 46e | `output-shaper/resume-detector.mjs` | `configs/opencode/` | Resume-after-tool-result detection |
+| 46f | `skill-nudger.mjs` | `configs/opencode/` | Config-layer plugin entry: tool-signal detection and ephemeral skill-suggestion nudge dispatch via `experimental.chat.messages.transform` |
+| 46g | `skill-nudger/*.mjs` | `configs/opencode/` | 6 support modules: config, logging, catalog, signals, state, nudge |
+| 47a | `tests/skill-nudger/harness.mjs` | `tests/skill-nudger/` | Test harness for skill-nudger unit tests (12 cases incl. guardrails and no-false-positives) |
+| 48a | `tests/test_skill_nudger_runtime.sh` | `tests/` | Regression wrapper for skill-nudger runtime verification (auto-discovered by `run_all.sh`) |
 | 47 | `tests/aspect-dynamics/harness.mjs` | `tests/aspect-dynamics/` | Test harness for aspect-dynamics unit tests |
 | 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
 | 49 | `scripts/verify-live-deployment.sh` | `scripts/` | Live deployment verifier with evidence-state validation |
@@ -188,7 +192,8 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 59 | `regressions/` | `tests/` | 9 paired regression tests, 18 files total |
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
-| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for `small_model` / session-title generation (port 18200; requires `~/src/flare` repo + `~/flare-cache`; GPU required) |
+| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for `small_model` / session-title generation (port 18200; requires `~/src/flare` repo + `~/flare-cache`; GPU required; mem-fraction 0.84 to coexist with desktop + ComfyUI) |
+| 63 | `derive-flare-chat-template.py` | `scripts/` | Derives the SGLang chat template for FLARE-4B: forces no-think decoding and merges consecutive leading system messages (OpenCode always sends two system messages; stock template rejects with 400) |
 
 ---
 

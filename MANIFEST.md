@@ -35,6 +35,13 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 4p | output-shaper/logging.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
 | 4q | output-shaper/model-gating.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
 | 4r | output-shaper/resume-detector.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Output Shaper | Optional |
+| 4s | skill-nudger.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
+| 4t | skill-nudger/config.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
+| 4u | skill-nudger/logging.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
+| 4v | skill-nudger/catalog.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
+| 4w | skill-nudger/signals.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
+| 4x | skill-nudger/state.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
+| 4y | skill-nudger/nudge.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
 | 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
 | 6 | worktree.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Worktree Plugin | Required |
 | 7 | worktree/state.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
@@ -213,7 +220,8 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 23 | `opencode--tui-pinned-session-race` | `opencode` | active | 2026-08-06 | `grep -c 'pinned' ~/.local/state/opencode/session.json` — upstream TUI race condition: startup read-overwrite + multi-process file contention causes pinned sessions to revert to older state; tracks the bug for resolution via patch-opencode |
 | 24 | `omo--retries-before-fallback` | `oh-my-openagent` | active | 2026-08-15 | `grep -c 'retries_before_fallback' ~/oh-my-openagent-v4.19.2/dist/index.js` — source patch (fork commit 49f6728): adds `runtime_fallback.retries_before_fallback` knob; retry signals with attempt <= N are left to OpenCode's native same-model retry before OMO aborts and fails over. Live config sets N=2 |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Closed loop between cutover and patch reconciliation |
-| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for small_model / title generation (port 18200; requires `~/src/flare` + `~/flare-cache`) |
+| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for small_model / title generation (port 18200; requires `~/src/flare` + `~/flare-cache`; chat template derived by `derive-flare-chat-template.py`) |
+| 63 | `derive-flare-chat-template.py` | (repo only) | `scripts/` | No-think + multi-system-merge chat template generator for FLARE-4B serving |
 
 ## Operator Tools (Repo-Only, Not Installed)
 
