@@ -99,7 +99,7 @@ expected_agent_models = {
     'frontend-ui-ux-engineer': 'zai-coding-plan/glm-5.3',
 }
 expected_category_models = {
-    'ultrabrain': 'kimi-for-coding-oauth/kimi-for-coding',
+    'ultrabrain': 'zai-coding-plan/glm-5.3',
     'deep': 'openai/gpt-5.6-sol',
     'quick': 'opencode-go/deepseek-v4-flash',
     'unspecified-low': 'opencode-go/deepseek-v4-flash',
@@ -146,7 +146,7 @@ for name, expected in expected_agent_models.items():
             sys.exit(1)
 
 expected_category_fallbacks = {
-    'ultrabrain': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol'],
+    'ultrabrain': ['kimi-for-coding-oauth/kimi-for-coding', 'openai/gpt-5.6-sol'],
     'deep': ['openai/gpt-5.6-sol', 'kimi-for-coding-oauth/kimi-for-coding'],
     'quick': ['zai-coding-plan/glm-5.3'],
     'unspecified-low': ['zai-coding-plan/glm-5.3'],

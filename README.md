@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 remote AI providers + 1 locally-hosted FLARE model, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains reusable presets, plugins, skills, and scripts organized into a portable configuration you can fork and adapt.
 
@@ -72,6 +72,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 - **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
 - **Patch-preservation safety infrastructure** — regression corpus, rewritten verifier, inotify watcher, and periodic integrity check protect against patch drift during updates
+- **ez-omo-bench benchmark authoring** — the `bench-author` skill governs multi-stage research → design → plan → development of benchmarks for OMO sub-agents and task categories. Both experiments and evaluation run through the locally installed opencode; results are machine-readable (`bench/schemas/results.schema.json`) and registered in `bench/registry.json`, with a shared-capability feasibility gate at 10 benchmarks
 
 ---
 
@@ -150,6 +151,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
 | 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
 | 30c | `patch-opencode/` | `skills/` | Minimal-fix procedure for patching the live OpenCode binary from the exact release tag |
+| 30d | `bench-author/` | `skills/` | Multi-stage benchmark authoring for OMO sub-agents/categories (ez-omo-bench): real-subject execution and judging through local opencode, authorized session mining, machine-readable results |
 | 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
 | 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
@@ -188,6 +190,9 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 59 | `regressions/` | `tests/` | 9 paired regression tests, 18 files total |
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
+| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for `small_model` / session-title generation (port 18200; requires `~/src/flare` repo + `~/flare-cache`; GPU required) |
+| 63 | `bench/` | `bench/` | ez-omo-bench suite home: `registry.json`, `schemas/results.schema.json`, conventions README, and per-capability benchmark directories (repo-only, not installed) |
+| 64 | `test_bench_registry.sh` | `tests/` | ez-omo-bench registry contract test: entry shape, unique kebab ids, unregistered-dir detection, Ten-Benchmark Shared-Capability Gate enforcement |
 
 ---
 
@@ -287,7 +292,7 @@ Combine flags as needed:
 
 ## Configuration Highlights
 
-### 8 Enabled Providers
+### 8 Remote Providers + 1 Local (FLARE)
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
@@ -299,6 +304,7 @@ Combine flags as needed:
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
 | **Uni.lu LiteLLM** | Local University of Luxembourg LiteLLM proxy on DGX Spark | DeepSeek V4 Flash (vLLM), Kimi K3, GLM 5.2 |
+| **FLARE Local** | Self-hosted FLARE-4B diffusion LLM on the local GPU (RTX 4090 Laptop, SGLang `self-spec` AR-Trust mode, systemd unit `flare-serve.service`, port 18200); serves `small_model` and session-title generation; no API key needed (dummy key inline); non-commercial license, personal use | FLARE-4B |
 
 ### 13 Agent Model Assignments
 
@@ -310,11 +316,11 @@ Combine flags as needed:
 | **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.3` | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.3` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol` | Complex frontend work |
+| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol` | Complex frontend work |
 | **document-writer** | `openai/gpt-5.6-sol` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
 | **oracle** | `openai/gpt-5.6-sol` | high | `kimi-for-coding-oauth/kimi-for-coding`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
-| **metis** | `zai-coding-plan/glm-5.3` | high | `google/gemini-3.1-pro-preview` | Deep analysis |
+| **metis** | `zai-coding-plan/glm-5.3` | max | `google/gemini-3.1-pro-preview` | Deep analysis |
 | **momus** | `openai/gpt-5.6-sol` | xhigh | `google/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `openai/gpt-5.6-sol` | xhigh | (none) | Infrastructure, deployment |
 
@@ -433,7 +439,7 @@ Before using this configuration, install the following prerequisites:
 | **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.19.2`. The fork is the canonical runtime source while tracked OMO patches remain active. |
 | **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
 | **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
-| **API keys** | Required | See `auth.json.example` for the 8 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
+| **API keys** | Required | See `auth.json.example` for the 8 enabled remote providers (the 9th, `flare-local`, needs no key). Run `./scripts/check-prerequisites.sh` to verify. |
 
 The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, `inotify-tools`, or the local OMO fork. This machine's `opencode.json` references `~/oh-my-openagent-v4.19.2`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
 
@@ -494,6 +500,7 @@ For in-depth guides on specific components:
 | Observability Contract | [docs/configs.md](docs/configs.md) |
 | Live Deployment Verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
 | DCP Byte-Budget Gate (RETIRED) | [docs/dcp-byte-budget.md](docs/dcp-byte-budget.md) |
+| ez-omo-bench | [bench/README.md](bench/README.md) |
 
 ---
 

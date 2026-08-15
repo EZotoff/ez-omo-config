@@ -60,7 +60,7 @@
     },
     "metis": {
       "model": "zai-coding-plan/glm-5.3",
-      "variant": "high",
+      "variant": "max",
       "fallback_models": [
         "google/gemini-3.1-pro-preview"
       ],
@@ -102,7 +102,7 @@
     },
     "frontend-ui-ux-engineer": {
       "model": "zai-coding-plan/glm-5.3",
-      "variant": "high",
+      "variant": "max",
       "fallback_models": [
         "openai/gpt-5.6-sol"
       ],
@@ -125,10 +125,10 @@
       "prompt_append": "Use shadcn/ui components and Tailwind CSS."
     },
     "ultrabrain": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
-      "variant": "high",
+      "model": "zai-coding-plan/glm-5.3",
+      "variant": "max",
       "fallback_models": [
-        "zai-coding-plan/glm-5.3",
+        "kimi-for-coding-oauth/kimi-for-coding",
         "openai/gpt-5.6-sol"
       ]
     },
