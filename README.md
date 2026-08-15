@@ -297,7 +297,7 @@ Combine flags as needed:
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
-| **Google** | Gemini and Antigravity-hosted models | Gemini 3.6 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
+| **Google** | Gemini and Antigravity-hosted models | Gemini 3.7 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
 | **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
 | **Kimi For Coding (OAuth)** | Kimi K3 via device-flow OAuth (Allegretto+ tier) | Kimi K3 (`kimi-for-coding` model id; opencode-kimi-full plugin gates all body-shaping hooks on this exact id; supports off/auto/low/medium/high reasoning_effort; context length discovered at runtime via `/coding/v1/models`) |
@@ -356,7 +356,7 @@ The configuration includes layered defenses against runaway subagent sessions (f
 
 | Layer | Setting | Effect |
 |-------|---------|--------|
-| **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.6-flash` | Per-token cost ~10× lower than Pro Preview; 1M context preserved |
+| **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.7-flash` | Intro pricing $0.75/$3.75 per 1M in/out tokens vs far pricier Pro Preview; 1M context preserved |
 | **Aggressive error purge** | Enabled via OMO dynamic context pruning | Drops failed build/test outputs after 2 turns using OMO's context-pruning strategy. |
 | **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Catches 14 Jun-class stuck-repeat loops only; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) reset the consecutive counter each call and are NOT cancelled by this setting. |
 

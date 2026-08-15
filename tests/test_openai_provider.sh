@@ -72,10 +72,10 @@ if openai_whitelist != expected_models:
 print('PASS: OpenAI picker whitelist contains only Sol, Terra, and Luna')
 
 google_models = provider.get('google', {}).get('models', {})
-if 'gemini-3.6-flash' not in google_models:
-    print('FAIL: provider.google.models.gemini-3.6-flash missing')
+if 'gemini-3.7-flash' not in google_models:
+    print('FAIL: provider.google.models.gemini-3.7-flash missing')
     sys.exit(1)
-print('PASS: provider.google.models.gemini-3.6-flash exists')
+print('PASS: provider.google.models.gemini-3.7-flash exists')
 
 if 'gemini-3.1-pro-preview' not in google_models:
     print('FAIL: provider.google.models.gemini-3.1-pro-preview missing')
@@ -108,8 +108,8 @@ expected_category_models = {
 }
 
 expected_gemini_routes = {
-    ('categories', 'visual-engineering'): 'google/gemini-3.6-flash',
-    ('categories', 'artistry'): 'google/gemini-3.1-pro-preview',
+    ('categories', 'visual-engineering'): 'google/gemini-3.7-flash',
+    ('categories', 'artistry'): 'google/gemini-3.7-flash',
 }
 
 expected_opencode_go_routes = {

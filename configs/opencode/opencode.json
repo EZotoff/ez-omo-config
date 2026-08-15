@@ -52,8 +52,8 @@
         "headerTimeout": 300000
       },
       "models": {
-        "gemini-3.6-flash": {
-          "name": "Gemini 3.6 Flash",
+        "gemini-3.7-flash": {
+          "name": "Gemini 3.7 Flash",
           "limit": {
             "context": 1048576,
             "output": 65536

@@ -117,7 +117,7 @@
   },
   "categories": {
     "visual-engineering": {
-      "model": "google/gemini-3.6-flash",
+      "model": "google/gemini-3.7-flash",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.3"
@@ -133,7 +133,7 @@
       ]
     },
     "artistry": {
-      "model": "google/gemini-3.1-pro-preview",
+      "model": "google/gemini-3.7-flash",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.3",
