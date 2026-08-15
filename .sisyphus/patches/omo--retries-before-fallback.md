@@ -8,8 +8,8 @@ applied_date: "2026-08-15"
 dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "retries_before_fallback"
-runtime_effective: false
-note: "Source patch, committed in the fork as 49f6728 (branch fix/custom-patches-v4.19.2) and embedded in dist/index.js via the 2026-08-15 rebuild. runtime_effective is false until the budget-guard log line is observed on a real provider retry signal post-restart (see Runtime Verification)."
+runtime_effective: true
+note: "Source patch, committed in the fork as 49f6728 (branch fix/custom-patches-v4.19.2) and embedded in dist/index.js via the 2026-08-15 rebuild. runtime_effective: true since 2026-08-15 09:53 CEST — budget guard observed on real provider retry signals in the durable log (see Runtime Status)."
 ---
 
 # Runtime Fallback Retries Before Fallback
@@ -78,3 +78,13 @@ The threshold guard is the block starting `const retriesBeforeFallback = deps.co
 An upstream `runtime_fallback.retries_before_fallback` (or `min_retry_attempts`) config option in oh-my-openagent would eliminate this patch entirely — the knob is additive, defaults to legacy behavior (0), and upstream `session-status-handler.ts` has no attempt-threshold today (verified on v4.19.2 source).
 
 Status: not-yet-pursued — candidate for an upstream PR against `code-yeongyu/oh-my-openagent`.
+
+## Runtime Status
+
+**Observed effective: 2026-08-15 09:53 CEST (post-restart, durable log).**
+
+- Restart at 09:11:16 CEST loaded the rebuilt dist; budget guard first observed 42 minutes later.
+- `~/.local/share/opencode/logs/oh-my-opencode.log` lines 17552/17558: ses_ffbec2fadffeQjbcRZb1lCu5fW (ComfyUI) hit real provider retry signals at attempt 1 (07:53:02Z) and attempt 2 (07:53:06Z) — both logged `retry signal within same-model retry budget - letting provider retry` with `retriesBeforeFallback: 2`; NO `Preparing fallback` followed. GLM 5.3 recovered on the native retry and the session stayed on zai-coding-plan/glm-5.3.
+- Same for ses_ffd75c5a0ffeuRPX9ba6GJv7mm (Nestor, attempt 1 at 07:53:42Z) and ses_ffd6f68cfffeu7y9opbKFt2I2H (attempt 1 at 07:53:20Z): budgeted, recovered, no fallback.
+- Cross-check via message DB: zero `openai/gpt-5.6-sol` assistant messages in any session after 07:11:16Z; all Sol messages (ComfyUI ×5, Nestor ×8, Veran ×2) predate the restart and were produced by the old fail-on-first-signal behavior.
+- Not yet observed live: the exhausted-budget path (attempt 3 → abort → fallback). It is covered by unit tests (`session-status-handler.test.ts`, 5/5 pass); a live observation will land here when a provider fails three consecutive attempts.
