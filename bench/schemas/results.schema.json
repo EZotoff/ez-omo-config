@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "ez-omo-bench-results-v1",
+  "title": "ez-omo-bench run results",
+  "description": "Machine-readable output contract for one ez-omo-bench run. Every run of every benchmark writes a results.json conforming to this schema. Both the experiment (subject execution) and the evaluation (judging) must be executed through the locally installed opencode; this file records the evidence for both.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "benchmark_id",
+    "run",
+    "config",
+    "tasks",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "benchmark_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Registry id, e.g. 'agent-explore' or 'category-quick'."
+    },
+    "run": {
+      "type": "object",
+      "required": ["id", "started_at", "finished_at", "operator"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Run identifier, e.g. '20260815T143022-<short-random>'."
+        },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "operator": {
+          "enum": ["agent", "human"],
+          "description": "Who drove the run: an agent (bench-lead) or a human."
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": [
+        "opencode_version",
+        "omo_version",
+        "config_fingerprint",
+        "targets",
+        "models"
+      ],
+      "properties": {
+        "opencode_version": {
+          "type": "string",
+          "description": "Output of `opencode --version` on the machine that ran the benchmark."
+        },
+        "omo_version": {
+          "type": "string",
+          "description": "OMO runtime identity, e.g. 'oh-my-openagent-v4.19.2 (local fork)'."
+        },
+        "config_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{16,64}$",
+          "description": "sha256 over the config snapshot at run time (see bench/README.md). Must match the registry fingerprint for a non-stale run."
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/target" }
+        },
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/model_ref" },
+          "description": "The provider/model/variant entities under test this run. Defaults to the capability's assigned model; --model/--variant overrides enable model comparisons."
+        },
+        "excluded": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/target" },
+          "description": "Sub-agents/categories explicitly excluded from this run (suite-level input)."
+        },
+        "repeats": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "judge_model": { "$ref": "#/definitions/model_ref" }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task_id", "target", "model", "repeat", "status"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Matches a task_id in bench/<benchmark>/tasks/manifest.jsonl."
+          },
+          "target": { "$ref": "#/definitions/target" },
+          "model": { "$ref": "#/definitions/model_ref" },
+          "repeat": { "type": "integer", "minimum": 1 },
+          "status": {
+            "enum": ["completed", "failed", "timeout", "cancelled", "judge_failed"],
+            "description": "Subject-run lifecycle status. 'judge_failed' = subject completed but the opencode judge run failed to produce a parseable verdict."
+          },
+          "session_id": {
+            "type": "string",
+            "description": "opencode session id of the subject run (created with --title 'ez-omo-bench/<benchmark>/<task>')."
+          },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "enum": ["pass", "partial", "fail", "error"],
+                "description": "Verdict of record. null/absent when status != completed."
+              },
+              "score": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "verdict_source": {
+                "enum": ["opencode_judge", "deterministic"],
+                "description": "Which channel produced the verdict of record. Default and norm: opencode_judge. Deterministic is allowed only for objectively verifiable dimensions, justified in DESIGN.md."
+              },
+              "rubric_hits": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Ids of rubric checks that passed (subset of the task's rubric_checks)."
+              },
+              "tokens_in": { "type": "integer", "minimum": 0 },
+              "tokens_out": { "type": "integer", "minimum": 0 },
+              "cost_usd": { "type": "number", "minimum": 0 },
+              "duration_s": { "type": "number", "minimum": 0 }
+            }
+          },
+          "judge": {
+            "type": "object",
+            "description": "The opencode-mediated evaluation pass.",
+            "properties": {
+              "session_id": { "type": "string" },
+              "model": { "$ref": "#/definitions/model_ref" },
+              "rationale": { "type": "string" },
+              "raw_ref": {
+                "type": "string",
+                "description": "Path to the raw judge transcript under results/<run>/raw/."
+              }
+            }
+          },
+          "artifacts": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Paths (relative to the run dir) of raw subject transcripts and workspace diffs."
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["aggregate"],
+      "properties": {
+        "aggregate": {
+          "type": "object",
+          "properties": {
+            "n": { "type": "integer", "minimum": 0 },
+            "pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "mean_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "n_by_status": {
+              "type": "object",
+              "description": "Counts keyed by task status, e.g. {\"completed\": 9, \"timeout\": 1}."
+            }
+          }
+        },
+        "by_target": {
+          "type": "object",
+          "description": "Same aggregate shape, keyed by 'kind:name'."
+        },
+        "by_model": {
+          "type": "object",
+          "description": "Same aggregate shape, keyed by 'provider/model[:variant]'."
+        },
+        "by_task": {
+          "type": "object",
+          "description": "Same aggregate shape, keyed by task_id."
+        }
+      }
+    }
+  },
+  "definitions": {
+    "target": {
+      "type": "object",
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": {
+          "enum": ["agent", "category", "capability"],
+          "description": "agent = OMO sub-agent; category = OMO task category; capability = shared cross-cutting capability (post-gate evolution)."
+        },
+        "name": { "type": "string" },
+        "composed_from": {
+          "type": "object",
+          "description": "Required for category targets: the effective stack reproduction — base agent, model, variant, prompt_append source (config path), with OMO source citation for the composition rule.",
+          "properties": {
+            "base_agent": { "type": "string" },
+            "model": { "type": "string" },
+            "variant": { "type": ["string", "null"] },
+            "prompt_append_source": { "type": "string" },
+            "composition_evidence": { "type": "string" }
+          }
+        }
+      }
+    },
+    "model_ref": {
+      "type": "object",
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "variant": {
+          "type": ["string", "null"],
+          "description": "Reasoning-effort variant passed via --variant, if any."
+        }
+      }
+    }
+  }
+}

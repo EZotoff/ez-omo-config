@@ -1,0 +1,17 @@
+{
+  "suite": "ez-omo-bench",
+  "version": 1,
+  "created": "2026-08-15",
+  "capability_model": {
+    "current": "One capability = one OMO sub-agent (oh-my-openagent.json#agents) or one OMO task category (oh-my-openagent.json#categories), as installed on this machine.",
+    "planned_evolution": "Assess capabilities that models possess SHARED ACROSS agent roles (e.g. instruction-following, tool-use discipline, context recall, planning depth, output-format discipline) and evaluate them separately as cross-cutting capability benchmarks.",
+    "gate_note": "The feasibility assessment for this evolution is due when 10 benchmarks are registered. See 'The Ten-Benchmark Shared-Capability Gate' in skills/bench-author/SKILL.md."
+  },
+  "shared_capability_review": {
+    "due_at_benchmark_count": 10,
+    "assessed": false,
+    "assessment_ref": null,
+    "gate": "Before authoring benchmark #11, run the feasibility assessment, write bench/shared-capability-assessment.md, set assessed=true and assessment_ref, and present the outcome to the operator. tests/test_bench_registry.sh enforces this gate."
+  },
+  "benchmarks": []
+}
