@@ -72,7 +72,6 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 - **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
 - **Patch-preservation safety infrastructure** — regression corpus, rewritten verifier, inotify watcher, and periodic integrity check protect against patch drift during updates
-- **ez-omo-bench benchmark authoring** — the `bench-author` skill governs multi-stage research → design → plan → development of benchmarks for OMO sub-agents and task categories. Both experiments and evaluation run through the locally installed opencode; results are machine-readable (`bench/schemas/results.schema.json`) and registered in `bench/registry.json`, with a shared-capability feasibility gate at 10 benchmarks
 
 ---
 
@@ -151,7 +150,6 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
 | 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
 | 30c | `patch-opencode/` | `skills/` | Minimal-fix procedure for patching the live OpenCode binary from the exact release tag |
-| 30d | `bench-author/` | `skills/` | Multi-stage benchmark authoring for OMO sub-agents/categories (ez-omo-bench): real-subject execution and judging through local opencode, authorized session mining, machine-readable results |
 | 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
 | 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
@@ -191,8 +189,6 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for `small_model` / session-title generation (port 18200; requires `~/src/flare` repo + `~/flare-cache`; GPU required) |
-| 63 | `bench/` | `bench/` | ez-omo-bench suite home: `registry.json`, `schemas/results.schema.json`, conventions README, and per-capability benchmark directories (repo-only, not installed) |
-| 64 | `test_bench_registry.sh` | `tests/` | ez-omo-bench registry contract test: entry shape, unique kebab ids, unregistered-dir detection, Ten-Benchmark Shared-Capability Gate enforcement |
 
 ---
 
@@ -500,7 +496,6 @@ For in-depth guides on specific components:
 | Observability Contract | [docs/configs.md](docs/configs.md) |
 | Live Deployment Verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
 | DCP Byte-Budget Gate (RETIRED) | [docs/dcp-byte-budget.md](docs/dcp-byte-budget.md) |
-| ez-omo-bench | [bench/README.md](bench/README.md) |
 
 ---
 
