@@ -69,9 +69,6 @@
             ]
           },
           "variants": {
-            "minimal": {
-              "thinkingLevel": "minimal"
-            },
             "low": {
               "thinkingLevel": "low"
             },
@@ -619,7 +616,7 @@
       "name": "Ollama (local)",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "http://localhost:11434/v1",
+        "baseURL": "http://127.0.0.1:18210/v1",
         "apiKey": "ollama-local",
         "chunkTimeout": 600000,
         "headerTimeout": 600000
@@ -628,7 +625,7 @@
         "qwen3.8-27b": {
           "name": "Qwen3.8 27B IQ3_XXS (local)",
           "limit": {
-            "context": 40960,
+            "context": 57344,
             "output": 16384
           },
           "attachment": false
