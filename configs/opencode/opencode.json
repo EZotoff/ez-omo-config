@@ -7,7 +7,8 @@
     "zai-coding-plan",
     "deepseek",
     "inception",
-    "uni-lux"
+    "uni-lux",
+    "ollama-local"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -613,6 +614,26 @@
     },
     "anthropic": {
       "name": "Anthropic (Claude Pro)"
+    },
+    "ollama-local": {
+      "name": "Ollama (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:11434/v1",
+        "apiKey": "ollama-local",
+        "chunkTimeout": 600000,
+        "headerTimeout": 600000
+      },
+      "models": {
+        "qwen3.8-27b": {
+          "name": "Qwen3.8 27B IQ3_XXS (local)",
+          "limit": {
+            "context": 40960,
+            "output": 16384
+          },
+          "attachment": false
+        }
+      }
     }
   },
   "autoupdate": false,
