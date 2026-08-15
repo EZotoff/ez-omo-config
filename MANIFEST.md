@@ -106,7 +106,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
 | 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 9 paired regression tests (18 files total) | Required |
-| 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (small_model / title generation; port 18200) | Optional |
+| 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled, provider removed from opencode.json; port 18200) | Optional |
 
 ## Directory Structure
 
@@ -220,7 +220,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 23 | `opencode--tui-pinned-session-race` | `opencode` | active | 2026-08-06 | `grep -c 'pinned' ~/.local/state/opencode/session.json` — upstream TUI race condition: startup read-overwrite + multi-process file contention causes pinned sessions to revert to older state; tracks the bug for resolution via patch-opencode |
 | 24 | `omo--retries-before-fallback` | `oh-my-openagent` | active | 2026-08-15 | `grep -c 'retries_before_fallback' ~/oh-my-openagent-v4.19.2/dist/index.js` — source patch (fork commit 49f6728): adds `runtime_fallback.retries_before_fallback` knob; retry signals with attempt <= N are left to OpenCode's native same-model retry before OMO aborts and fails over. Live config sets N=2 |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Closed loop between cutover and patch reconciliation |
-| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for small_model / title generation (port 18200; requires `~/src/flare` + `~/flare-cache`; chat template derived by `derive-flare-chat-template.py`) |
+| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled; port 18200; requires `~/src/flare` + `~/flare-cache`; chat template derived by `derive-flare-chat-template.py`) |
 | 63 | `derive-flare-chat-template.py` | (repo only) | `scripts/` | No-think + multi-system-merge chat template generator for FLARE-4B serving |
 
 ## Operator Tools (Repo-Only, Not Installed)

@@ -24,8 +24,8 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 - `enabled_providers` — Enabled provider IDs
 - `plugin` — Loaded plugins and local config-layer modules
-- `agent` — Agent-specific runtime settings: `agent.title.model` = `flare-local/flare-4b` (session titles on the local FLARE server), `agent.compaction.model` = `opencode-go/deepseek-v4-flash` (kept remote: FLARE long-context summarization quality is unpublished beyond 4K training sequences)
-- `small_model` — Lightweight model used by built-in OpenCode helper agents (`flare-local/flare-4b` — self-hosted FLARE-4B via SGLang at `http://127.0.0.1:18200/v1`, systemd unit `flare-serve.service`)
+- `agent` — Agent-specific runtime settings such as the compaction and title models (currently `opencode-go/deepseek-v4-flash`)
+- `small_model` — Lightweight model used by built-in OpenCode helper agents, including automatic session title generation (currently `opencode-go/deepseek-v4-flash`; a local FLARE-4B trial was parked 2026-08-15 — VRAM contention with ComfyUI)
 - `provider` — Provider definitions, model catalogs, endpoints, and options
 - `compaction` / `experimental` — Compaction behavior and feature flags
 

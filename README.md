@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 remote AI providers + 1 locally-hosted FLARE model, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains reusable presets, plugins, skills, and scripts organized into a portable configuration you can fork and adapt.
 
@@ -192,7 +192,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 59 | `regressions/` | `tests/` | 9 paired regression tests, 18 files total |
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
-| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server for `small_model` / session-title generation (port 18200; requires `~/src/flare` repo + `~/flare-cache`; GPU required; mem-fraction 0.84 to coexist with desktop + ComfyUI) |
+| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15: unit disabled; port 18200; requires `~/src/flare` repo + `~/flare-cache`; mem-fraction 0.84) |
 | 63 | `derive-flare-chat-template.py` | `scripts/` | Derives the SGLang chat template for FLARE-4B: forces no-think decoding and merges consecutive leading system messages (OpenCode always sends two system messages; stock template rejects with 400) |
 
 ---
@@ -293,7 +293,7 @@ Combine flags as needed:
 
 ## Configuration Highlights
 
-### 8 Remote Providers + 1 Local (FLARE)
+### 8 Enabled Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
@@ -305,7 +305,8 @@ Combine flags as needed:
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
 | **Uni.lu LiteLLM** | Local University of Luxembourg LiteLLM proxy on DGX Spark | DeepSeek V4 Flash (vLLM), Kimi K3, GLM 5.2 |
-| **FLARE Local** | Self-hosted FLARE-4B diffusion LLM on the local GPU (RTX 4090 Laptop, SGLang `self-spec` AR-Trust mode, systemd unit `flare-serve.service`, port 18200); serves `small_model` and session-title generation; no API key needed (dummy key inline); non-commercial license, personal use | FLARE-4B |
+
+> **Parked**: a self-hosted FLARE-4B provider (`flare-serve.service`, port 18200) was trialled 2026-08-15 and disabled the same day — 14.6GB VRAM did not coexist with ComfyUI on the 16GB GPU. `small_model`/title generation reverted to `opencode-go/deepseek-v4-flash`. The unit, chat-template script (`scripts/derive-flare-chat-template.py`), and model cache (`~/flare-cache`) are kept for a possible retry.
 
 ### 13 Agent Model Assignments
 
@@ -441,7 +442,7 @@ Before using this configuration, install the following prerequisites:
 | **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.19.2`. The fork is the canonical runtime source while tracked OMO patches remain active. |
 | **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
 | **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
-| **API keys** | Required | See `auth.json.example` for the 8 enabled remote providers (the 9th, `flare-local`, needs no key). Run `./scripts/check-prerequisites.sh` to verify. |
+| **API keys** | Required | See `auth.json.example` for the 8 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
 
 The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, `inotify-tools`, or the local OMO fork. This machine's `opencode.json` references `~/oh-my-openagent-v4.19.2`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
 
