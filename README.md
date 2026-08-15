@@ -320,7 +320,7 @@ Combine flags as needed:
 | **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.3` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Complex frontend work |
 | **document-writer** | `openai/gpt-5.6-terra` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
-| **multimodal-looker** | `openai/gpt-5.6-terra` | default | (none) | Image/PDF analysis |
+| **multimodal-looker** | `openai/gpt-5.6-terra` | default | `google/gemini-3.7-flash`, `kimi-for-coding-oauth/kimi-for-coding` | Image/PDF analysis |
 | **oracle** | `openai/gpt-5.6-sol` | high | `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/kimi-for-coding`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `zai-coding-plan/glm-5.3` | max | `google/gemini-3.1-pro-preview` | Deep analysis |
 | **momus** | `openai/gpt-5.6-sol` | xhigh | `opencode-go/deepseek-v4-pro`, `google/gemini-3.1-pro-preview` | Code review, critique |
