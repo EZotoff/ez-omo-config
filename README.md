@@ -338,7 +338,7 @@ The HTML packet is for human review and discussion. The Markdown plan remains ca
 | **OpenCode Compaction** | Enabled | `opencode.json#compaction.auto=true` and `compaction.prune=true`; OpenCode owns built-in context compaction/pruning. |
 | **OMO Context Hooks** | Enabled | `preemptive-compaction`, `context-window-monitor`, and `anthropic-context-window-limit-recovery` are no longer listed in `disabled_hooks`; `experimental.preemptive_compaction=true`. |
 | **Aggressive Truncation** | Enabled | Truncates verbose tool outputs aggressively |
-| **Runtime Fallback** | Enabled | OMO `runtime_fallback.enabled=true` — session.status path dispatches fallback models on API errors (404, 429, 500, 502, 503, 504). Works for both synchronous and background sub-agents. |
+| **Runtime Fallback** | Enabled | OMO `runtime_fallback.enabled=true` — session.status path dispatches fallback models on API errors (404, 429, 500, 502, 503, 504). Works for both synchronous and background sub-agents. `retries_before_fallback=2` (fork patch `omo--retries-before-fallback`): provider auto-retry signals for attempts 1–2 are left to OpenCode's native same-model retry; the first signal with attempt 3 aborts the retry loop and fails over to the agent's fallback chain. |
 | **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
 | **Purge Errors (2-turn)** | Enabled | OMO `dynamic_context_pruning.strategies.purge_errors` is enabled with a 2-turn retention window. |
 | **Background Task Circuit Breaker** | Enabled (maxToolCalls=500, consecutiveThreshold=15) | Configured to cancel runaway subagent tasks when a task reaches 500 total tool calls or 15 consecutive identical tool+input signatures. OMO default is 4000/20; lowered thresholds trip earlier |
@@ -412,6 +412,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Sync delegate_task result bloat**: `.sisyphus/patches/omo--sync-delegate-task-result-bloat.md` (active — config-level mitigation via prompt_append on atlas/sisyphus agents; durable fix requires OMO code change in `fetchSyncResult`)
 - **Durable OMO log path**: `.sisyphus/patches/omo--durable-log-path.md` (active on OMO v4.19.2; `runtime_effective` pending post-restart observation in task 9 — dist-level patch on the Bun-minified bundle, not a source patch)
 - **Fallback toast names originating agent/session**: `.sisyphus/patches/omo--fallback-toast-origin.md` (active on OMO v4.19.2; `runtime_effective: false` until a real fallback toast is observed post-restart — dist-level patch, pattern match necessary but not sufficient)
+- **Runtime fallback retries before fallback**: `.sisyphus/patches/omo--retries-before-fallback.md` (active on OMO v4.19.2 — source patch, fork commit 49f6728, embedded in dist via the 2026-08-15 rebuild; adds `runtime_fallback.retries_before_fallback` config knob, default 0 = legacy fail-on-first-signal; `runtime_effective: false` until a budgeted retry signal is observed live)
 
 ---
 
