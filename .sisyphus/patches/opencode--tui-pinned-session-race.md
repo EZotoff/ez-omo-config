@@ -5,16 +5,23 @@ target_file: "packages/tui/src/context/local.tsx"
 target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
-applied_date: "2026-08-06"
+applied_date: "2026-08-15"
 dep_version: "1.18.5"
 runtime_effective: false
-runtime_effective_note: "Unfixed upstream bug. The race condition exists in the live v1.18.5 binary. No patch applied yet — this entry tracks the bug for resolution."
+runtime_effective_note: "Fix compiled into live v1.18.5 binary 2026-08-15 12:25 (source commit e7f5981ea on fix/link-click-v1.18.5-solidjs). Binary swap done; awaiting live verification: pin in a TUI started after the swap, then observe via .sisyphus/pin-watch.log that a session.deleted prune in another TUI preserves the pin. Flip to true after that observation."
 upstream_issue: "none"
 verification_pattern: "pinned"
+verification_note: "Bun minification strips comments and renames locals; this patch contains no unique string literal or property key, so pattern-presence is a weak pre-filter only. Authority rests on the regression test (tests/regressions/012-pinned-session-race-fix.sh), source commit e7f5981ea, and the runtime_effective flag."
 surfaces: "tui-interactive"
 ---
 
-# OpenCode TUI pinned-session reset (upstream race condition)
+# OpenCode TUI pinned-session reset — FIXED locally 2026-08-15
+
+## Problem (confirmed by surveillance)
+
+Pinned sessions in the TUI session list lose their pin marks after reboots. Surveillance (inotify watcher on `~/.local/state/opencode/session.json`, 2026-08-15) captured the exact corruption event: a TUI process that started BEFORE a pin was added received a `session.deleted` event 71 minutes later and executed `prune()`, which called `save()` unconditionally — rewriting the whole file from its startup-era in-memory snapshot and wiping the newer pin. The reboot was never the cause; it only restarts all TUIs (zellij resurrects 4+ panes), which makes pre-existing corruption visible and multiplies concurrent stale writers.
+
+## Root Cause
 
 ## Problem
 
@@ -56,41 +63,32 @@ Each TUI process loads `session.json` into its own in-memory `pinned` array at s
 
 Pinned sessions in the TUI session switcher revert to an older set after some time (especially after session cleanup/archive events trigger `prune()` in a long-running TUI instance).
 
-## Proposed Fix
+## Fix Applied (2026-08-15, source commit e7f5981ea)
 
-Two changes in `local.tsx`:
+Two changes in `createSession()` (`packages/tui/src/context/local.tsx`):
 
-1. **Guard the startup read against in-memory mutations**: in the `.then()` callback, check `state.pending` before overwriting. If `pending` is true (a mutation occurred before the read resolved), merge the file content with the in-memory state instead of replacing it.
+1. **Startup read merge guard** (Race 1): in the `readJson().then()` callback, if `state.pending` is true (a pin mutation occurred before the read resolved), merge the file's `pinned` array into memory instead of replacing it. The deferred `save()` then persists the union rather than the stale file content.
+2. **prune() as file-level read-modify-write** (Race 2): `prune` no longer writes the in-memory snapshot. It reads the file's CURRENT content, removes only the deleted session id, and writes that back. A long-running TUI processing a deletion can no longer overwrite pins added by other processes since it started. The in-memory store is still updated (if it contained the id) so the local UI stays consistent.
 
-2. **Add advisory file locking** around `readJson` + `writeJsonAtomic` using `flock(2)` or `proper-lockfile`, so concurrent TUI processes cannot race on read-modify-write.
+**Residual risk** (documented, accepted): `togglePin` still writes the process-local in-memory array. Two TUIs toggling pins within each other's staleness window can still lose one another's toggles. The upstream-proper fix is advisory file locking (flock/proper-lockfile) around the read-modify-write cycle; this patch deliberately stays minimal and fixes the two proven corruption paths.
+
+## Regression Test
+
+`tests/regressions/012-pinned-session-race-fix.sh` (+ `.kill.sh`) asserts the two structural fix markers remain in the TUI source and that `prune()` never regains a `save()` call.
 
 ## Runtime Verification
 
-1. Start `opencode` (interactive TUI).
-2. Pin a session via the session-list keybind (`Ctrl+F` → navigate → `session.pin.toggle`).
-3. Check `~/.local/state/opencode/session.json` — the pinned session ID should appear in the `pinned` array.
-4. Wait 30 seconds (or trigger a session.deleted event by deleting another session).
-5. Re-open the session list — the pinned session should still be at the top.
-6. **Regression signal**: pinned session disappears from the list, or `session.json` reverts to an older `pinned` array.
+Prerequisite: TUI process started AFTER 2026-08-15 12:25 binary swap (old processes keep the pre-fix inode).
 
-For multi-process verification:
-1. Start two `opencode` TUI instances.
-2. Pin session A in instance 1.
-3. Pin session B in instance 2.
-4. Trigger a `session.deleted` event (delete a third session).
-5. **Regression signal**: either pin A or pin B disappears (the process that handles the delete event overwrites the other's pin).
-
-## Workaround
-
-Close all but one `opencode` TUI process. Pin via the keybind only after the TUI has been running for >1 second (so the initial `readJson` has resolved). The file content will not be reset until another TUI process fires `prune()`.
+1. Pin a session in a TUI (e.g. the ez-omo-config one). Confirm it appears in `~/.local/state/opencode/session.json`.
+2. From any other TUI in the same project, trigger a `session.deleted` event (delete a throwaway session), or wait for routine cleanup.
+3. Watch `.sisyphus/pin-watch.log`: the prune write must contain the NEWER pin still present (content diff removes only the deleted id).
+4. Reboot test: reboot, reopen TUI, pin marks must survive (pre-fix behavior: stale TUI prune wiped them).
+5. **Regression signal**: any `MOVED_TO session.json` write whose content drops ids that were present in the previous write and are NOT the deleted session id.
 
 ## Reapply Instructions
 
-This is an upstream bug, not a local patch. The fix should be submitted upstream to `sst/opencode` or applied locally via the `patch-opencode` skill once the fix is written.
+Source commit e7f5981ea on branch `fix/link-click-v1.18.5-solidjs` in `~/src/opencode` (branch carries all other live v1.18.5 patches — never reapply from a bare v1.18.5 tag or the other patches drop out). After an opencode version upgrade: cherry-pick e7f5981ea onto the new patch branch, rebuild with `OPENCODE_VERSION=<new-version> bun run script/build.ts --single --skip-install --skip-embed-web-ui`, and re-run the Runtime Verification steps above.
 
-When patching:
-1. Identify the ACTIVE rendering hook point in the TARGET version — the `createSession()` function in `packages/tui/src/context/local.tsx`.
-2. Add the `state.pending` guard in the `readJson().then()` callback.
-3. Add `flock` or equivalent around the read-modify-write cycle.
-4. Build from `v1.18.5` tag with `OPENCODE_VERSION=$(~/.opencode/bin/opencode --version) bun run script/build.ts --single --skip-install --skip-embed-web-ui`.
+Fix should also be submitted upstream to `sst/opencode` once verified live (PR per patch-opencode skill; compliance bot requires all six template headers).
 5. Verify the fix using the Runtime Verification steps above on both single-process and multi-process scenarios.
