@@ -9,7 +9,7 @@ const RETRY_ERRORS_PATH = join(homedir(), ".config", "opencode", "retry-errors.j
 
 // A tool result is considered failed when its text matches this heuristic.
 const FAILURE_RE =
-  /(exit(?:ed)?(?: with)?(?: code)?\s*[1-9]\d*)|\berror\b|\bfailed\b|\btimeout\b|\bexception\b|\bcommand not found\b|\btraceback\b/i;
+  /(exit(?:ed)?(?: with)?(?: code)?\s*[1-9]\d*)|\berror\b|\bfailed\b|\btimeout\b|\bexception\b|\bcommand not found\b|\bno such file or directory\b|\bpermission denied\b|\btraceback\b/i;
 
 // Commands that bind a network port / start a server (mirrors the global
 // AGENTS.md deployment-skill mandate list).
