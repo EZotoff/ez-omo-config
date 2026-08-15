@@ -210,6 +210,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 21 | `omo--durable-log-path` | `oh-my-openagent` | active | 2026-08-05 | `grep -c '\.local/share/opencode/logs' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch (Bun-minified bundle); durable OMO log path so logs survive opencode serve restarts |
 | 22 | `omo--fallback-toast-origin` | `oh-my-openagent` | active | 2026-08-05 | `grep -c 'formatFallbackOrigin' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch; appends the resolved agent + 6-char session suffix to runtime-fallback toasts so a single popup self-identifies its origin |
 | 23 | `opencode--tui-pinned-session-race` | `opencode` | active | 2026-08-06 | `grep -c 'pinned' ~/.local/state/opencode/session.json` — upstream TUI race condition: startup read-overwrite + multi-process file contention causes pinned sessions to revert to older state; tracks the bug for resolution via patch-opencode |
+| 24 | `omo--retries-before-fallback` | `oh-my-openagent` | active | 2026-08-15 | `grep -c 'retries_before_fallback' ~/oh-my-openagent-v4.19.2/dist/index.js` — source patch (fork commit 49f6728): adds `runtime_fallback.retries_before_fallback` knob; retry signals with attempt <= N are left to OpenCode's native same-model retry before OMO aborts and fails over. Live config sets N=2 |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Closed loop between cutover and patch reconciliation |
 
 ## Operator Tools (Repo-Only, Not Installed)
