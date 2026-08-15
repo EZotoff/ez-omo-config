@@ -260,32 +260,6 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
-### bench-author/
-
-**Purpose**: Multi-stage research, design, planning, and development of a single ez-omo-bench benchmark for one capability — an OMO sub-agent (`oh-my-openagent.json#agents`) or task category (`oh-my-openagent.json#categories`).
-
-**Features**:
-
-- Six stages: Intake → Research (3 parallel lanes) → Design → Plan → Develop → Validate → Register
-- Real-subject execution: the capability under test runs through the locally installed `opencode` (`opencode run --agent ... --model ... --variant ... --format json`); scripts orchestrate, never simulate
-- Evaluation through opencode: judge prompt + rubric executed as an opencode run with a designated strong model; deterministic checks are supplementary by default
-- Authorized session mining: research/design agents may read any opencode session on this system and reuse messages verbatim (no censorship, operator authorization 2026-08-15)
-- External benchmark survey via `librarian` with a strict adaptability rule (replayable through local opencode with local judging)
-- Category-target composition: reproduces the effective stack (base agent + model + variant + prompt_append) with fork-source citations, recorded as `composed_from`
-- Machine-readable results per `bench/schemas/results.schema.json`; registry-tracked with config fingerprints for staleness detection
-- Ten-Benchmark Shared-Capability Gate: at 10 registered benchmarks, a feasibility assessment of separately evaluating shared model capabilities is mandatory before authoring more
-
-**Dependencies**: `bench/` suite home (registry + results schema); local `opencode` CLI; OMO local fork for composition verification
-
-**Use Case**: Authoring a benchmark for a specific sub-agent or category, or resuming an in-progress benchmark
-
-**Status**: Optional
-
-**Install Target**: `$HOME/.config/opencode/skills/bench-author/`
-
-**Install Method**: `install.sh --skills`
-
----
 ## Dependency Clusters
 
 ```
@@ -313,7 +287,6 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | update-to-latest/ | Optional | `$HOME/.config/opencode/skills/update-to-latest/` | `install.sh` |
 | patch-opencode/ | Optional | `$HOME/.config/opencode/skills/patch-opencode/` | `install.sh` |
 | debate/ | Optional | `$HOME/.config/opencode/skills/debate/` | `install.sh` |
-| bench-author/ | Optional | `$HOME/.config/opencode/skills/bench-author/` | `install.sh` |
 
 **Note**: `playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are intentionally NOT vendored here. OMO registers them automatically when `bunx oh-my-openagent install` is run.
 
