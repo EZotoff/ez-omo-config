@@ -63,3 +63,9 @@ Reader-first writing for any deliverable a human reads to understand a result â€
 - **Dependencies**: None
 - **Use Case**: Producing or editing any reader-facing report/summary/brief; loaded by `/debate` at result-synthesis points
 - **Install**: `install.sh --skills`
+
+### bench-author/
+Multi-stage research, design, planning, and development of a single ez-omo-bench benchmark for one capability â€” an OMO sub-agent or task category. Exercises the real subject through the locally installed opencode for both experiments and evaluation; results are machine-readable per `bench/schemas/results.schema.json`. Includes authorized session mining (verbatim reuse, no censorship) and the Ten-Benchmark Shared-Capability Gate.
+- **Dependencies**: `bench/` suite home (registry + schema), local `opencode` CLI
+- **Use Case**: Authoring a benchmark for a specific sub-agent or category, or resuming an in-progress benchmark
+- **Install**: `install.sh --skills`
