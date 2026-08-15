@@ -249,6 +249,17 @@
     "tersenessInstruction": "Be terse: no preambles, no restated code, minimal reasoning on routine ops. Deep thinking only for complex problems and errors.",
     "resumeThinkingLevel": "low"
   },
+  "skillNudger": {
+    "enabled": true,
+    "logLevel": "info",
+    "windowSize": 15,
+    "repeatFailureThreshold": 2,
+    "loopThreshold": 8,
+    "maxNudgesPerSession": 2,
+    "cooldownToolCalls": 10,
+    "freshnessMs": 90000,
+    "disabledSignals": []
+  },
   "hashline_edit": true,
   "monitor": {
     "enabled": false,

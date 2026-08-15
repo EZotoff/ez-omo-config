@@ -14,6 +14,7 @@
     "./provider-connect-retry.mjs",
     "./aspect-dynamics.mjs",
     "./output-shaper.mjs",
+    "./skill-nudger.mjs",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
