@@ -7,7 +7,7 @@ source_repo: ""
 status: "active"
 applied_date: "2026-08-16"
 dep_version: "4.19.2"
-runtime_effective: false
+runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "LOOK_AT_FALLBACK_PATIENCE_MS"
 surfaces: ["server-api"]
@@ -78,6 +78,15 @@ Dist-level patch on the OMO bundle. The v4.19.2 bundle is NOT minified (identifi
 3. Add `var LOOK_AT_FALLBACK_PATIENCE_MS = 60000;` next to `var IDLE_STABILITY_POLLS_REQUIRED = 3;`.
 4. Replace the final one-shot extract (`const responseText = <observed text> ?? extractLatestAssistantText(messages);` … `return responseText;`) with: `let` binding + empty-guarded `while (!responseText && Date.now() < deadline)` loop that sleeps 1s, re-fetches `ctx.client.session.messages({ path: { id: sessionID } })`, re-extracts, and breaks on fetch error; keep the `Error: No response from multimodal-looker agent` return and the final `return responseText;` after the loop.
 5. `node --check dist/index.js`, then run the Runtime Verification steps above, then `systemctl --user restart opencode.service omo-tg.service`.
+
+## Runtime Status
+
+**Observed effective: 2026-08-16 21:34 CEST (throwaway-server verification, pre-production-restart).**
+
+- Throwaway `opencode serve` on allocated port 3130 (PID 654074) loaded the patched dist and served a session that called `look_at` on `/tmp/opencode/cr2-page-1.png`.
+- OMO log shows the exact rescue path: `19:34:04.220Z` one-shot fetch found 2 messages (empty primary row — the pre-patch failure point), patience loop re-polled at `19:34:04.220Z` and `19:34:05.231Z`, then `19:34:06.256Z Got response, length: 50` — the runtime-fallback answer retrieved instead of the error. Child session `ses_ff3eefef5ffeLQeEdj7U9WANZB`: assistant attempt 1 `openai/gpt-5.6-terra` (cost 0, empty), attempt 2 `google/gemini-3.7-flash` (answered, $0.0073).
+- Tool output "The reader-report skill was rewritten. It is live." delivered to the calling agent, which returned it verbatim. Pre-patch, the identical call at `18:56:18.703Z` returned `Error: No response from multimodal-looker agent` while the answer landed ~2s later.
+- Port 3130 registered in `~/.sisyphus/ports.json` for the test and deregistered after teardown; throwaway server killed.
 
 ## Durable Alternative
 
