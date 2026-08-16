@@ -105,7 +105,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 9 paired regression tests (18 files total) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 16 paired regression tests (32 files total) | Required |
 | 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled, provider removed from opencode.json; port 18200) | Optional |
 
 ## Directory Structure
@@ -221,6 +221,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 24 | `omo--retries-before-fallback` | `oh-my-openagent` | active | 2026-08-15 | `grep -c 'retries_before_fallback' ~/oh-my-openagent-v4.19.2/dist/index.js` — source patch (fork commit 49f6728): adds `runtime_fallback.retries_before_fallback` knob; retry signals with attempt <= N are left to OpenCode's native same-model retry before OMO aborts and fails over. Live config sets N=2 |
 | 25 | `oh-my-openagent--external-system-premise-discipline` | `oh-my-openagent` | active | 2026-08-13 | config-layer patch in `configs/oh-my-openagent/oh-my-openagent.json` — planning/review agents must state assumptions about external systems instead of fabricating state |
 | 26 | `omo--model-less-spawn-fallback` | `oh-my-openagent` | active | 2026-08-14 | source patch in `packages/omo-opencode/src/features/background-agent/manager.ts` — background subagent spawns without an explicit model fall back to a configured default instead of failing |
+| 27 | `omo--lookat-fallback-patience` | `oh-my-openagent` | active | 2026-08-16 | `grep -c 'LOOK_AT_FALLBACK_PATIENCE_MS' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch; look_at re-polls an empty child-session result for up to 60s so runtime-fallback answers that land after the primary model's failed attempt are retrieved instead of racing to `Error: No response from multimodal-looker agent`; regression pair `tests/regressions/013-lookat-fallback-patience.sh` |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Closed loop between cutover and patch reconciliation |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled; port 18200; requires `~/src/flare` + `~/flare-cache`; chat template derived by `derive-flare-chat-template.py`) |
 | 63 | `derive-flare-chat-template.py` | (repo only) | `scripts/` | No-think + multi-system-merge chat template generator for FLARE-4B serving |

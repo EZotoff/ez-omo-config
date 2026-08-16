@@ -189,7 +189,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 56 | `opencode-patch-integrity-check.service` | `systemd/user/` | Periodic integrity check service |
 | 57 | `opencode-patch-integrity-check.timer` | `systemd/user/` | 30-minute periodic timer |
 | 58 | `run_regressions.sh` | `tests/` | Regression corpus harness |
-| 59 | `regressions/` | `tests/` | 9 paired regression tests, 18 files total |
+| 59 | `regressions/` | `tests/` | 16 paired regression tests, 32 files total |
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15: unit disabled; port 18200; requires `~/src/flare` repo + `~/flare-cache`; mem-fraction 0.84) |
@@ -419,6 +419,7 @@ For install locations, failure string meanings, and reapply instructions:
 - **Durable OMO log path**: `.sisyphus/patches/omo--durable-log-path.md` (active on OMO v4.19.2; `runtime_effective` pending post-restart observation in task 9 — dist-level patch on the Bun-minified bundle, not a source patch)
 - **Fallback toast names originating agent/session**: `.sisyphus/patches/omo--fallback-toast-origin.md` (active on OMO v4.19.2; `runtime_effective: false` until a real fallback toast is observed post-restart — dist-level patch, pattern match necessary but not sufficient)
 - **Runtime fallback retries before fallback**: `.sisyphus/patches/omo--retries-before-fallback.md` (active on OMO v4.19.2, `runtime_effective: true` since 2026-08-15 — source patch, fork commit 49f6728; budget guard observed live on real provider retry signals, provider recovered within budget and sessions stayed on GLM; adds `runtime_fallback.retries_before_fallback` config knob, default 0 = legacy fail-on-first-signal)
+- **look_at fallback patience**: `.sisyphus/patches/omo--lookat-fallback-patience.md` (active on OMO v4.19.2 — dist-level patch; when the multimodal-looker child session's extracted response is empty, re-poll it for up to 60s so a runtime-fallback answer that lands after the primary model's failed attempt is retrieved instead of racing to `Error: No response from multimodal-looker agent`; regression pair `tests/regressions/013-lookat-fallback-patience.sh`)
 
 ---
 
