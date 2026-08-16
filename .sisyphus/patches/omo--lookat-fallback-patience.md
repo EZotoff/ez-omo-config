@@ -87,6 +87,8 @@ Dist-level patch on the OMO bundle. The v4.19.2 bundle is NOT minified (identifi
 - OMO log shows the exact rescue path: `19:34:04.220Z` one-shot fetch found 2 messages (empty primary row — the pre-patch failure point), patience loop re-polled at `19:34:04.220Z` and `19:34:05.231Z`, then `19:34:06.256Z Got response, length: 50` — the runtime-fallback answer retrieved instead of the error. Child session `ses_ff3eefef5ffeLQeEdj7U9WANZB`: assistant attempt 1 `openai/gpt-5.6-terra` (cost 0, empty), attempt 2 `google/gemini-3.7-flash` (answered, $0.0073).
 - Tool output "The reader-report skill was rewritten. It is live." delivered to the calling agent, which returned it verbatim. Pre-patch, the identical call at `18:56:18.703Z` returned `Error: No response from multimodal-looker agent` while the answer landed ~2s later.
 - Port 3130 registered in `~/.sisyphus/ports.json` for the test and deregistered after teardown; throwaway server killed.
+- Second observation 19:39:26–29Z via `opencode run` (live route): patience re-polls at 26.458/27.462/28.467, answer retrieved at 29.474 (length 50).
+- **TUI-process caveat (same class as omo--durable-log-path):** bare-`opencode` TUI processes load OMO themselves. TUIs started before the dist edit (seven running, 01:37–15:26) keep the pre-patch module in memory and still exhibit the bug until the TUI process itself is restarted; reopening a TUI or starting a new one picks up the patch. systemd servers (opencode.service, omo-tg.service + inner serve) restarted 21:36:26 CEST, post-edit — patched by construction.
 
 ## Durable Alternative
 
