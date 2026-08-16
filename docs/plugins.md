@@ -110,7 +110,9 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 **Features**:
 
 - Automatic review triggers on task completion
+- Automatic review triggers on task completion
 - Enforces review quality gates
+- **Gated injection**: consultative subagent dispatches (oracle/metis/momus/explore/librarian/multimodal-looker/document-writer) are skipped — analysis work has no implementation to review. Plan-complete injection requires the current session to be in the active boulder's `session_ids` lineage (mirrors OMO's `resolveActiveBoulderSession` predicate; legacy bare ids normalized with the `opencode:` prefix) and a status other than paused/abandoned. Guards against stale machine-global `boulder.json` hijacking unrelated sessions (2026-08-16 debate-session misfire; regression pairs 014/015).
 - Integrates with review-protocol skill
 - Runs `tests/run_regressions.sh` and includes the regression corpus output in review and plan-completion instructions
 - Ensures consistent review coverage across tasks

@@ -63,7 +63,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
 - **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit
 - **Wisdom system** — learning management that captures and reuses development knowledge
-- **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions
+- **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions; injection is gated to implementation dispatches (consultative subagents skipped) and to sessions inside the active boulder's session lineage
 - **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
 - **Agent git workflow** — every agent follows the same parallel-agent coordination procedure: commit at logical-unit boundaries with Conventional Commits (no author override — attribution deferred to git_master config); branch as `agent/<name>/<scope>` when concurrent agent work is detected; sync/rebase on stale branches; merge-back-and-delete when the unit is done. Complements the commit-policy patches (permission) and auto-checkpoint plugin (idle safety-net commits)
 - **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
@@ -87,7 +87,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, and review workflows. (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
 | 31a | **Systemd** | 3 user units | Reactive inotify watcher plus a periodic patch-integrity service and timer |
-| 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, and the 9-pair patch-preservation corpus |
+| 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, and the 18-pair regression corpus (patch preservation + gating regressions) |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
 | 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and retired DCP byte-budget reference |
@@ -189,7 +189,8 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 56 | `opencode-patch-integrity-check.service` | `systemd/user/` | Periodic integrity check service |
 | 57 | `opencode-patch-integrity-check.timer` | `systemd/user/` | 30-minute periodic timer |
 | 58 | `run_regressions.sh` | `tests/` | Regression corpus harness |
-| 59 | `regressions/` | `tests/` | 16 paired regression tests, 32 files total |
+| 59 | `regressions/` | `tests/` | 18 paired regression tests, 36 files total |
+| 59a | `harness.ts` | `tests/review-enforcer/` | Behavioral harness for review-enforcer gating (lineage + consultative; drives regression pairs 014/015) |
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15: unit disabled; port 18200; requires `~/src/flare` repo + `~/flare-cache`; mem-fraction 0.84) |

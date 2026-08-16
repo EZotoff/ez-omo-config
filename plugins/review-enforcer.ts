@@ -7,7 +7,10 @@ import type { Plugin } from "@opencode-ai/plugin"
  * Review Enforcer Plugin — intercepts task() completions via tool.execute.after
  * and injects review instructions into the output that Atlas sees.
  *
- * Skips: failure markers in output, [REVIEW-TASK]/[REVIEW-FIX] markers (recursion).
+ * Skips: failure markers in output, [REVIEW-TASK]/[REVIEW-FIX] markers (recursion),
+ * consultative subagent dispatches (analysis work — nothing to review), and
+ * plan-complete injection for sessions outside the active boulder's lineage
+ * (mirrors OMO's resolveActiveBoulderSession predicate) or with paused/abandoned status.
  * Uses node:fs appendFileSync (not Bun.write — spike showed reliability issues).
  */
 
@@ -28,6 +31,20 @@ const RECURSION_MARKERS = [
 	"[REVIEW-TASK]",
 	"[REVIEW-FIX]",
 ] as const
+
+/** Consultative subagents produce analysis, not implementation — code-review mandates don't apply. */
+const CONSULTATIVE_SUBAGENT_TYPES = new Set([
+	"oracle",
+	"metis",
+	"momus",
+	"explore",
+	"librarian",
+	"multimodal-looker",
+	"document-writer",
+])
+
+/** Boulder statuses that must never trigger the plan-complete injection. "completed" is allowed — the injection fires at the completion moment, before completeBoulder runs. */
+const INACTIVE_BOULDER_STATUSES = new Set(["paused", "abandoned"])
 
 const REVIEW_INSTRUCTION = `
 
@@ -157,8 +174,46 @@ function safeStringifyArgs(args: unknown): string {
 		return ""
 	}
 }
+/** Mirrors OMO's normalizeSessionId: bare opencode session ids get the "opencode:" prefix. */
+export function normalizeSessionId(sessionId: string): string {
+	return sessionId.startsWith("opencode:") ? sessionId : `opencode:${sessionId}`
+}
 
-function getPlanProgress(): { total: number; checked: number; complete: boolean } | null {
+/** True when the dispatch targets a consultative (analysis-only) subagent. Accepts args as object or JSON string. */
+export function isConsultativeDispatch(args: unknown): boolean {
+	let parsed: Record<string, unknown>
+	if (typeof args === "string") {
+		try {
+			parsed = JSON.parse(args) as Record<string, unknown>
+		} catch {
+			return false
+		}
+	} else if (args !== null && typeof args === "object") {
+		parsed = args as Record<string, unknown>
+	} else {
+		return false
+	}
+	for (const key of ["subagent_type", "agent"]) {
+		const value = parsed[key]
+		if (typeof value === "string" && CONSULTATIVE_SUBAGENT_TYPES.has(value)) return true
+	}
+	return false
+}
+
+/** True when currentSessionId belongs to the boulder's session lineage (root mirror session_ids). */
+export function sessionOwnsBoulder(currentSessionId: string, sessionIds: readonly string[]): boolean {
+	if (sessionIds.length === 0) return false
+	const normalized = normalizeSessionId(currentSessionId)
+	return sessionIds.some((id) => normalizeSessionId(id) === normalized)
+}
+
+/** Legacy mirror files carry no status — only paused/abandoned block injection. */
+export function boulderStatusAllowsInjection(status: unknown): boolean {
+	if (typeof status !== "string") return true
+	return !INACTIVE_BOULDER_STATUSES.has(status)
+}
+
+function getPlanProgress(currentSessionId: string): { total: number; checked: number; complete: boolean } | null {
 	const boulderPath = `${process.env.HOME}/.sisyphus/boulder.json`
 	let boulderRaw: string
 	try {
@@ -202,6 +257,22 @@ function getPlanProgress(): { total: number; checked: number; complete: boolean 
 
 	if (total === 0) {
 		log("info", "getPlanProgress: no checkboxes found in plan")
+		return null
+	}
+
+	// Lineage gate (mirrors OMO resolve-active-boulder-session.ts): the plan-complete
+	// injection may only fire for sessions inside the active boulder's session_ids.
+	// Prevents a stale machine-global boulder.json from hijacking unrelated sessions.
+	const sessionIdsRaw = boulder.session_ids
+	const sessionIds = Array.isArray(sessionIdsRaw)
+		? sessionIdsRaw.filter((id): id is string => typeof id === "string")
+		: []
+	if (!sessionOwnsBoulder(currentSessionId, sessionIds)) {
+		log("info", `getPlanProgress: session ${currentSessionId || "<unknown>"} not in boulder lineage (${sessionIds.length} tracked ids) — plan-complete path disabled`)
+		return null
+	}
+	if (!boulderStatusAllowsInjection(boulder.status)) {
+		log("info", `getPlanProgress: boulder status "${String(boulder.status)}" blocks plan-complete injection`)
 		return null
 	}
 
@@ -254,6 +325,13 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 				const argsStr = safeStringifyArgs(input.args)
 
 				log("info", `Intercepted task completion — session=${input.sessionID}, callID=${input.callID}, outputLength=${taskOutput.length}`)
+				// Consultative gate: analysis/review subagents produce no implementation work.
+				if (isConsultativeDispatch(input.args)) {
+					const reason = "task targets a consultative subagent (oracle/metis/momus/explore/librarian/multimodal-looker/document-writer) — no implementation work to review"
+					log("info", `SKIP (consultative) — ${reason}`)
+					appLog("debug", `review-enforcer: skipped — ${reason}`)
+					return
+				}
 
 				// Positive success indicator — if present, task succeeded regardless of content
 				if (!taskOutput.includes(SUCCESS_INDICATOR)) {
@@ -276,7 +354,7 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 
 				// Timeout guard: measure elapsed time for getPlanProgress (sync I/O)
 				const progressStart = Date.now()
-				const progress = getPlanProgress()
+			const progress = getPlanProgress(input.sessionID ?? "")
 				const progressElapsed = Date.now() - progressStart
 				if (progressElapsed > 5000) {
 					log("warn", `getPlanProgress took ${progressElapsed}ms (>5s threshold) — result discarded`)
