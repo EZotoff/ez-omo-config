@@ -98,6 +98,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28f | test_openai_provider.sh | (repo only) | `tests/` | (repo only) | Codex Provider Verification | Required |
 | 28g | test_update_to_latest_skill.sh | (repo only) | `tests/` | (repo only) | Update Pipeline Verification | Required |
 | 28h | test_dcp_payload_budget.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Byte-Budget Verification | Archived (`.retired`) |
+| 28i | test_computer_use_skill.sh | (repo only) | `tests/` | (repo only) | Computer-Use Skill + Live MCP Safety Contract | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/` | (repo only) | Byte-Budget Configuration Reference | Required |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |

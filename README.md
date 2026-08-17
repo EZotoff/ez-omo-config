@@ -87,7 +87,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, review workflows, and OS computer use (cua-driver MCP, machine-local daemon). (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
 | 31a | **Systemd** | 3 user units | Reactive inotify watcher plus a periodic patch-integrity service and timer |
-| 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, and the 18-pair regression corpus (patch preservation + gating regressions) |
+| 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, computer-use skill/MCP safety, and the 18-pair regression corpus (patch preservation + gating regressions) |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
 | 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and retired DCP byte-budget reference |
