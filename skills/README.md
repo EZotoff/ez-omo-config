@@ -31,7 +31,7 @@ Error registry operator. Registers new retryable error patterns in the centraliz
 - **Use Case**: Adding new retryable error patterns at runtime
 
 ### computer-use/
-OS-level computer use on the local X11 desktop via a skill-embedded MCP backed by the pinned cua-driver 0.20.0 systemd daemon. Lazy-exposes the 60-tool surface only when the skill is invoked (OMO `skill_mcp`). AT-SPI element rung first, pixel fallback, background co-work-safe input (overlay disabled — froze GNOME Shell on this dual-head), authenticated-browser driving for logged-in accounts.
+OS-level computer use on the local X11 desktop via a skill-embedded MCP backed by the pinned cua-driver 0.20.0 systemd daemon. Lazy-exposes the 60-tool surface only when the skill is invoked (OMO `skill_mcp`). AT-SPI element rung first, pixel fallback, background co-work-safe input (overlay disabled — froze GNOME Shell on this dual-head). Existing-profile Chrome attach is currently read/navigate-only on Linux X11; page input is tracked upstream in trycua/cua#3239.
 - **Dependencies**: machine-local cua-driver daemon (`~/.local/share/cua-driver/v0.20.0`, systemd user unit `cua-driver.service` with `--no-overlay`) — NOT installed by this repo
 - **Use Case**: GUI apps without APIs, OS dialogs, logged-in web accounts (email/calendar), desktop GUI QA
 

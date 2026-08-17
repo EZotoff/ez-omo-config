@@ -99,3 +99,17 @@ sessions beyond a label, deprecated aliases.
 - `kill_app` refuses processes outside a live cua session
   (`foreign_process_termination_denied`) — close via `wmctrl -ic <window-id>`
   (graceful WM close) instead.
+- Existing-profile Chrome attach on Linux X11 has a split capability boundary
+  in 0.20.0. If Chrome exposes no omnibox AT-SPI tree, the canonical setup route
+  refuses; a profile with an already-published `DevToolsActivePort` attaches with
+  zero setup side effects. After attach, state reads, semantic snapshots,
+  navigation, and session revocation work. `browser_click` refuses
+  `route_unavailable` for BOTH `trusted` and `dom_event` routes — treat attached
+  Chrome as read/navigate-only until upstream #3239 is resolved.
+
+## Upstream tracking
+
+- trycua/cua#3236 — X11 overlay freezes GNOME Shell (workaround: `--no-overlay`)
+- trycua/cua#3237 — screenshot/click coordinate frame mismatch (~47px header)
+- trycua/cua#3238 — `launch_app` steals focus on GNOME X11
+- trycua/cua#3239 — Linux Chrome attach: empty AT-SPI tree + input routes unavailable
