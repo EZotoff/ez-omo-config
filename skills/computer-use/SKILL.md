@@ -83,3 +83,19 @@ sessions beyond a label, deprecated aliases.
 - Snap-confined *clients* (anything launched from a snap terminal) lose AT-SPI —
   if you inherit a degraded tree, the daemon is fine; the client label is the issue.
 - Wayland tools are inert here (X11 only). `linux_libei` paths never apply.
+- GTK4 apps may under-expose AT-SPI: gnome-calculator's tree contained only its
+  109 header/unit menus, no keypad buttons. Expect the pixel rung for such apps.
+- Pixel-run coordinate frames disagree by the window header (~47px on stock GNOME):
+  the `get_window_state` screenshot INCLUDES the header bar, click coordinates DO
+  NOT. Ground on the screenshot, then subtract ~47 from y before clicking
+  (x is unaffected; calibrated live 2026-08-18 on 0.20.0).
+- `launch_app` STEALS FOCUS on this GNOME/X11 box (no startup-notification
+  timestamp from the daemon; its `active:false` reply does NOT mean focus was
+  preserved). Never launch apps while the user is typing; after launching, offer
+  to reactivate their previous window.
+- Background pixel clicks report `effect: "unverifiable"` while still landing
+  (verified: digits registered with focus and cursor untouched). ALWAYS verify by
+  screenshot/readout, never by the effect field.
+- `kill_app` refuses processes outside a live cua session
+  (`foreign_process_termination_denied`) — close via `wmctrl -ic <window-id>`
+  (graceful WM close) instead.
