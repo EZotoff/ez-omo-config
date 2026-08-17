@@ -60,6 +60,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 12d | session-id/ | `~/.config/opencode/skills/session-id/` | `skills/session-id/` | `$HOME/.config/opencode/skills/` | Session ID Clipboard (skill form) | Optional |
 | 12e | debate/ | `~/.config/opencode/skills/debate/` | `skills/debate/` | `$HOME/.config/opencode/skills/` | Structured Adversarial Analysis | Optional |
 | 12f | reader-report/ | `~/.config/opencode/skills/reader-report/` | `skills/reader-report/` | `$HOME/.config/opencode/skills/` | Reader-First Report Writing | Optional |
+| 12g | computer-use/ | `~/.config/opencode/skills/computer-use/` | `skills/computer-use/` | `$HOME/.config/opencode/skills/` | OS Computer Use (cua-driver MCP) | Optional |
 | 13 | atlas-review-handler/ | `~/.config/opencode/skills/atlas-review-handler/` | `skills/atlas-review-handler/` | `$HOME/.config/opencode/skills/` | Review Orchestration | Required |
 | 14 | review-protocol/ | `~/.config/opencode/skills/review-protocol/` | `skills/review-protocol/` | `$HOME/.config/opencode/skills/` | Review Protocol | Required |
 | 16 | deployment/ | `~/.config/opencode/skills/deployment/` | `skills/deployment/` | `$HOME/.config/opencode/skills/` | Deployment | Optional |

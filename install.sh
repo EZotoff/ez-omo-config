@@ -57,6 +57,7 @@ ITEMS=(
     "skills|skills/debate|$HOME/.config/opencode/skills/debate"
     "skills|skills/reader-report|$HOME/.config/opencode/skills/reader-report"
     "skills|skills/deployment|$HOME/.config/opencode/skills/deployment"
+    "skills|skills/computer-use|$HOME/.config/opencode/skills/computer-use"
     "skills+configs|configs/opencode/AGENTS.md|$HOME/.config/opencode/AGENTS.md"
     "skills|skills/patch-tracker|$HOME/.config/opencode/skills/patch-tracker"
     "skills|skills/register-retry-error|$HOME/.config/opencode/skills/register-retry-error"

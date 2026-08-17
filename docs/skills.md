@@ -258,6 +258,27 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 **Install Method**: `install.sh --skills`
 
+### computer-use/
+
+**Purpose**: OS-level computer use on the local X11 desktop via the pinned [cua-driver](https://github.com/trycua/cua) 0.20.0 daemon — a skill-embedded MCP (`mcp.cua` in SKILL.md frontmatter) so the 60-tool surface enters agent context ONLY when the skill is invoked (lazy exposure via OMO's `skill_mcp`).
+
+**Features**:
+
+- AT-SPI element rung first (element_token addressing, zero coordinate math), pixel fallback, background/foreground delivery ladder
+- Background input is co-work safe: never moves the user's cursor; overlay permanently disabled (caused GNOME Shell freezes on this dual-head, A/B verified 2026-08-17)
+- Drives the user's real authenticated browser for logged-in accounts (email/calendar/portals) — the login-persistence use case
+- Decision ladder against alternatives: bash > agent-browser (anonymous web) > this skill
+
+**Dependencies**: machine-local daemon (NOT in this repo): `~/.local/share/cua-driver/v0.20.0/` binary, systemd user unit `cua-driver.service` (`serve --no-overlay`, unconfined — this is what restores AT-SPI vs snap-confined clients), default socket `~/.cache/cua-driver/cua-driver.sock`, telemetry disabled via `~/.cua-driver/config.json`
+
+**Use Case**: Native GUI apps without APIs, OS dialogs, logged-in web accounts, GUI QA of desktop software
+
+**Status**: Optional
+
+**Install Target**: `$HOME/.config/opencode/skills/computer-use/`
+
+**Install Method**: `install.sh --skills`
+
 ---
 
 ## Dependency Clusters
@@ -287,6 +308,7 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | update-to-latest/ | Optional | `$HOME/.config/opencode/skills/update-to-latest/` | `install.sh` |
 | patch-opencode/ | Optional | `$HOME/.config/opencode/skills/patch-opencode/` | `install.sh` |
 | debate/ | Optional | `$HOME/.config/opencode/skills/debate/` | `install.sh` |
+| computer-use/ | Optional | `$HOME/.config/opencode/skills/computer-use/` | `install.sh` (needs machine-local cua-driver daemon) |
 
 **Note**: `playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are intentionally NOT vendored here. OMO registers them automatically when `bunx oh-my-openagent install` is run.
 
