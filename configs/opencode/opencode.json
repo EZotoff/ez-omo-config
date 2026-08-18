@@ -29,9 +29,6 @@
     "../../.opencode/plugin/worktree.ts"
   ],
   "agent": {
-    "compaction": {
-      "model": "opencode-go/deepseek-v4-flash"
-    },
     "title": {
       "model": "opencode-go/deepseek-v4-flash"
     }

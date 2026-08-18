@@ -43,15 +43,17 @@ Use columns:
 
 ## Compaction
 
-Read the model from `agent.compaction.model` in `~/.config/opencode/opencode.json`.
+Compaction has no pinned model — `agent.compaction.model` is intentionally unset in `~/.config/opencode/opencode.json`, so compaction runs on the triggering session's model (which the chat-level fallback machinery keeps healthy). On compaction-mode provider failures, `provider-connect-retry.mjs` retries compaction through the `compaction_fallback_models` chain in `~/.config/opencode/retry-errors.json`.
 
 Use columns:
 
-| Setting | Model |
+| Setting | Value |
 | ------- | ----- |
-| Compaction | ... |
+| Compaction model | follows session model |
+| Compaction fallback chain | ... |
 
-- Output exactly one row for compaction.
+- Read the chain from `compaction_fallback_models` in `~/.config/opencode/retry-errors.json`; format as comma-separated entries.
+- Output exactly these two rows for compaction.
 
 ## Small Model
 

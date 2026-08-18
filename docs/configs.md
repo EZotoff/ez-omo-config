@@ -24,7 +24,7 @@ Configuration files control OpenCode behavior, provider settings, plugin loading
 
 - `enabled_providers` — Enabled provider IDs
 - `plugin` — Loaded plugins and local config-layer modules
-- `agent` — Agent-specific runtime settings such as the compaction and title models (currently `opencode-go/deepseek-v4-flash`)
+- `agent` — Agent-specific runtime settings such as the title model (currently `opencode-go/deepseek-v4-flash`). The compaction model pin was removed 2026-08-18: compaction now follows the triggering session model, and compaction-mode provider failures retry through the dedicated `compaction_fallback_models` chain in `retry-errors.json`
 - `small_model` — Lightweight model used by built-in OpenCode helper agents, including automatic session title generation (currently `opencode-go/deepseek-v4-flash`; a local FLARE-4B trial was parked 2026-08-15 — VRAM contention with ComfyUI)
 - `provider` — Provider definitions, model catalogs, endpoints, and options
 - `compaction` / `experimental` — Compaction behavior and feature flags

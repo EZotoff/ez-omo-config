@@ -55,13 +55,13 @@ same file.
 
 After running `./install.sh`, your OpenCode CLI gains:
 
-- **`/models-preset`** — view all 13 agent model assignments, category presets, compaction model, and small model at a glance
+- **`/models-preset`** — view all 13 agent model assignments, category presets, the compaction fallback chain, and small model at a glance
 - **`/session-id`** — copy the invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
 - **`/session-info`** — copy project path, session title, and invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
 - **Git safety guardrails** — three-layer protection: always-block non-git destructive ops (`rm -rf`, `chmod -R 777`, `dd of=/dev/`), **history-rewrite block** (`git commit --amend`, `git rebase`, `git push --force*`, `git branch -D`, `git stash clear`, `git reflog expire`, `git gc --prune`, and `git reset <ref>` where ref is a strict ancestor of HEAD — catches the post-commit destructive case), and dirty-tree-conditional git ops (`git reset --hard`, `git clean -f`, etc.). Worktree-aware: status checks use the bash command's actual cwd.
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
-- **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit
+- **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit; compaction-mode failures retry through the dedicated `compaction_fallback_models` chain (compaction itself follows the session model — no pinned compaction model)
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions; injection is gated to implementation dispatches (consultative subagents skipped) and to sessions inside the active boulder's session lineage
 - **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
@@ -103,8 +103,8 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
 | 3b | `dcp.jsonc.retired` | `configs/opencode/` | Retired DCP plugin config. Magic Context was tried as the replacement on 2026-06-23 and is currently disabled. Not installed. |
-| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection (finish `other` AND `stop` with zero tokens), escalating nudge prompts, per-message model fallback, and registry-driven error matching |
-| 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, 5-stage escalating nudge prompts (sisyphus/atlas/default), per-message fallback models, and empty-response detection rules for GLM |
+| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection (finish `other` AND `stop` with zero tokens), escalating nudge prompts, per-message model fallback, registry-driven error matching, and compaction-mode failure fallback (retries compaction through `compaction_fallback_models` via `session.summarize`) |
+| 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, 5-stage escalating nudge prompts (sisyphus/atlas/default), per-message fallback models, empty-response detection rules for GLM, and the dedicated `compaction_fallback_models` chain |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
 | 6 | `worktree.ts` | `plugins/` | Git worktree management plugin |
 | 7 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |

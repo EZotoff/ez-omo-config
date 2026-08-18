@@ -9,8 +9,8 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
 | `magic-context.jsonc` | Disabled Magic Context configuration retained for rollback/reference | `$HOME/.config/opencode/magic-context.jsonc` |
 | `dcp.jsonc.retired` | Retired DCP plugin configuration. Kept for historical reference. | Not installed |
-| `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response and near-empty detection (zero-token and child-only sub-threshold stalls), per-server-process startup heartbeat, and registry-driven error matching | `$HOME/.config/opencode/provider-connect-retry.mjs` |
-| `retry-errors.json` | Retry registry consumed by the retry plugin | `$HOME/.config/opencode/retry-errors.json` |
+| `provider-connect-retry.mjs` | Plugin that retries failed provider connections with bounded backoff, empty-response and near-empty detection (zero-token and child-only sub-threshold stalls), per-server-process startup heartbeat, registry-driven error matching, and compaction-mode failure fallback: retries compaction through the registry's `compaction_fallback_models` chain via `session.summarize` | `$HOME/.config/opencode/provider-connect-retry.mjs` |
+| `retry-errors.json` | Retry registry consumed by the retry plugin, including the dedicated `compaction_fallback_models` chain for compaction-mode failures | `$HOME/.config/opencode/retry-errors.json` |
 | `aspect-dynamics.mjs` | Config-layer plugin: deterministic heuristic scoring and transcript-visible advisory nudge dispatch | `$HOME/.config/opencode/aspect-dynamics.mjs` |
 | `aspect-dynamics/*.mjs` | 7 support modules: config, context, heuristics, session-state, sets, nudge, logging | `$HOME/.config/opencode/aspect-dynamics/` |
 | `aspect-dynamics/sets/*.json` | Seed aspect sets | `$HOME/.config/opencode/aspect-dynamics/sets/` |
