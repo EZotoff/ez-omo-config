@@ -2,18 +2,27 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const REGISTRY_PATH = path.join(os.homedir(), ".config", "opencode", "retry-errors.json");
-const LOG_PATH = path.join(os.homedir(), ".config", "opencode", "retry-plugin.log");
-const OMO_CONFIG_PATH = path.join(os.homedir(), ".config", "opencode", "oh-my-openagent.json");
+const PATHS = {
+  registry: path.join(os.homedir(), ".config", "opencode", "retry-errors.json"),
+  log: path.join(os.homedir(), ".config", "opencode", "retry-plugin.log"),
+  omoConfig: path.join(os.homedir(), ".config", "opencode", "oh-my-openagent.json"),
+};
+// Test-isolation hook (same convention as skill-nudger's __testConfigOverride):
+// the harness points these at temp fixtures. Runtime behavior is unchanged
+// while the object is empty — the defaults above win.
+export const __testPathOverride = {};
+const registryPath = () => __testPathOverride.registry ?? PATHS.registry;
+const logPath = () => __testPathOverride.log ?? PATHS.log;
+const omoConfigPath = () => __testPathOverride.omoConfig ?? PATHS.omoConfig;
 const LOG_MAX_BYTES = 10 * 1024 * 1024; // 10 MB before rotation
 
 function rotateLogIfNeeded() {
   try {
-    const stat = fs.statSync(LOG_PATH);
+      const stat = fs.statSync(logPath());
     if (stat.size > LOG_MAX_BYTES) {
-      const backup = `${LOG_PATH}.1`;
+      const backup = `${logPath()}.1`;
       try { fs.unlinkSync(backup); } catch {}
-      try { fs.renameSync(LOG_PATH, backup); } catch { try { fs.unlinkSync(LOG_PATH); } catch {} }
+      try { fs.renameSync(logPath(), backup); } catch { try { fs.unlinkSync(logPath()); } catch {} }
     }
   } catch {
     // file doesn't exist yet — nothing to rotate
@@ -25,7 +34,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function log(level, msg) {
   const ts = new Date().toISOString();
   const line = `[${ts}] [${level}] ${msg}\n`;
-  try { rotateLogIfNeeded(); fs.appendFileSync(LOG_PATH, line); } catch {}
+  try { rotateLogIfNeeded(); fs.appendFileSync(logPath(), line); } catch {}
   // User-facing output MUST go through ctx.client.tui.showToast (see surfaceToast helper).
   // console.warn/info would leak into the TUI viewport / journald as raw spam.
 }
@@ -46,7 +55,7 @@ async function surfaceToast(ctx, { title, message, variant = "info", duration = 
 
 function loadRegistry() {
   try {
-    const content = fs.readFileSync(REGISTRY_PATH, "utf8");
+    const content = fs.readFileSync(registryPath(), "utf8");
     const registry = JSON.parse(content);
     if (!Array.isArray(registry?.errors)) return [];
 
@@ -333,7 +342,7 @@ function parseFallbackModel(fallbackModel) {
 
 function loadOmoConfig() {
   try {
-    return JSON.parse(fs.readFileSync(OMO_CONFIG_PATH, "utf8"));
+    return JSON.parse(fs.readFileSync(omoConfigPath(), "utf8"));
   } catch (error) {
     log("warn", `Failed to load OMO config for agent fallback resolution: ${error?.message ?? error}`);
     return undefined;
@@ -406,6 +415,99 @@ function resolveAgentFallback(agentName, failingModel) {
   return undefined;
 }
 
+// Dedicated fallback chain for compaction-mode failures. Compaction messages
+// summarize the ENTIRE session, so every entry must be a large-context model;
+// this chain is intentionally independent of agent fallback_models chains.
+const COMPACTION_FALLBACK_TTL_MS = 10 * 60_000;
+
+function loadCompactionFallbackChain() {
+  try {
+    const content = fs.readFileSync(registryPath(), "utf8");
+    const registry = JSON.parse(content);
+    if (!Array.isArray(registry?.compaction_fallback_models)) return [];
+    return registry.compaction_fallback_models
+      .map((entry) => parseFallbackModel(entry))
+      .filter(Boolean);
+  } catch (error) {
+    log("warn", `Failed to load compaction fallback chain: ${error?.message ?? error}`);
+    return [];
+  }
+}
+
+function getCompactionAutoFlag(messages) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    const info = message?.info ?? message;
+    if (info?.role !== "user") continue;
+    const parts = message?.parts ?? info?.parts;
+    const part = Array.isArray(parts) ? parts.find((p) => p?.type === "compaction") : undefined;
+    return typeof part?.auto === "boolean" ? part.auto : true;
+  }
+  return true;
+}
+
+async function dispatchCompactionFallback(ctx, input) {
+  const { sessionID, failingModel, autoFlag, compactionFallbackBySession } = input;
+  const chain = loadCompactionFallbackChain();
+  const failingProviderID = failingModel?.providerID;
+  const now = Date.now();
+  const raw = compactionFallbackBySession.get(sessionID);
+  const state = raw && now - raw.at <= COMPACTION_FALLBACK_TTL_MS ? raw : { tried: [], at: now };
+
+  if (chain.length === 0) {
+    log("warn", `Compaction failure in session ${sessionID} — no compaction_fallback_models chain configured in registry`);
+    await surfaceToast(ctx, {
+      title: "Compaction failed",
+      message: `Compaction model failed (provider "${failingProviderID ?? "unknown"}") and no compaction_fallback_models chain is configured in retry-errors.json.`,
+      variant: "warning",
+      duration: 10000,
+    });
+    return;
+  }
+
+  const eligible = chain.filter((entry) => {
+    if (failingProviderID && entry.providerID === failingProviderID) return false;
+    return !state.tried.includes(`${entry.providerID}/${entry.modelID}`);
+  });
+
+  if (eligible.length === 0) {
+    log("warn", `Compaction fallback chain exhausted for session ${sessionID} (failing provider "${failingProviderID ?? "unknown"}")`);
+    await surfaceToast(ctx, {
+      title: "Compaction fallback exhausted",
+      message: `All compaction_fallback_models entries have been tried for session ${sessionID}; not retrying compaction further this episode.`,
+      variant: "error",
+      duration: 10000,
+    });
+    return;
+  }
+
+  const pick = eligible[0];
+  state.tried.push(`${pick.providerID}/${pick.modelID}`);
+  state.at = now;
+  compactionFallbackBySession.set(sessionID, state);
+
+  log("info", `Compaction failure in session ${sessionID} (provider "${failingProviderID ?? "unknown"}") — retrying compaction on ${pick.providerID}/${pick.modelID} via session.summarize`);
+  await ctx.client.session.abort({
+    path: { id: sessionID },
+    ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
+  }).catch(() => {});
+  await sleep(1000);
+  // POST /session/{id}/summarize creates a fresh compaction message on the
+  // chosen model and runs the prompt loop — the official compaction surface.
+  // The original compaction part's overflow flag (media-strip replay path)
+  // is not representable in the summarize payload; the retry compacts in
+  // normal mode (media is still stripped during processing).
+  await ctx.client.session.summarize({
+    path: { id: sessionID },
+    ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
+    body: {
+      providerID: pick.providerID,
+      modelID: pick.modelID,
+      auto: autoFlag !== false,
+    },
+  });
+}
+
 function isEmptyAssistantMessage(message) {
   const info = message?.info ?? message;
   if ((info?.role ?? message?.role) !== "assistant") return false;
@@ -441,9 +543,10 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
   const inFlightSessions = new Set();
   const handledErrorsBySession = new Map();
   const childSessionVerdictCache = new Map();
+  const compactionFallbackBySession = new Map();
 
   globalThis.__providerConnectRetryInFlight = inFlightSessions;
-  log("info", `ProviderConnectRetryPlugin initialized (pid ${process.pid}, log ${LOG_PATH})`);
+  log("info", `ProviderConnectRetryPlugin initialized (pid ${process.pid}, log ${logPath()})`);
 
 
 
@@ -614,7 +717,14 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           const tokens = info.tokens ?? {};
           const msgID = typeof info.id === "string" && info.id.length > 0 ? info.id : undefined;
 
-          if (finish) {
+        if (finish) {
+          // Compaction summaries are not chat turns: keep them out of the
+          // empty/near-empty detectors and reset the per-episode compaction
+          // fallback chain on completion.
+          if (info.mode === "compaction" || info.agent === "compaction") {
+            compactionFallbackBySession.delete(sessionID);
+            return;
+          }
             // This is a COMPLETION event (model finished generating).
             // Catch both "other" (stall) and "stop" (silent stop) with zero output tokens.
             // GLM-5.2 on context saturation returns finish="stop" with 0 tokens.
@@ -718,6 +828,7 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
             }
             if (!existing || existing.fingerprint !== nextFingerprint || existing.userMessageID !== nextMessageID) {
               attemptsBySession.set(sessionID, { fingerprint: nextFingerprint, attempts: 0, userMessageID: nextMessageID });
+              compactionFallbackBySession.delete(sessionID);
               handledErrorsBySession.delete(sessionID);
             }
           }
@@ -793,7 +904,27 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         const lastUserMessageIndex = getLastUserMessageIndex(messages);
         const lastUserMessage = lastUserMessageIndex >= 0 ? messages[lastUserMessageIndex] : undefined;
         const retryParts = sanitizePromptParts(lastUserMessage?.parts ?? lastUserMessage?.info?.parts);
-        if (retryParts.length === 0) return;
+        if (retryParts.length === 0) {
+          // Compaction-mode failures: the compaction user message carries only a
+          // {type:"compaction"} part, so sanitizePromptParts yields nothing and the
+          // chat retry/fallback path cannot re-dispatch it (the pre-fix behavior
+          // was a silent return — sessions wedged when the compaction model's
+          // quota died). Route to the dedicated compaction_fallback_models chain
+          // via session.summarize instead.
+          const failedAssistant = messages.find((m) => getMessageID(m) === failedAssistantMessageID);
+          const failedInfo = failedAssistant?.info ?? failedAssistant;
+          if (failedInfo?.mode === "compaction" || failedInfo?.agent === "compaction") {
+            handledErrorsBySession.set(sessionID, failedAssistantMessageID);
+            await dispatchCompactionFallback(ctx, {
+              sessionID,
+              failingModel: model,
+              autoFlag: getCompactionAutoFlag(messages),
+              compactionFallbackBySession,
+            });
+            return;
+          }
+          return;
+        }
         const retryMessageID = getMessageID(lastUserMessage);
 
         if (!matchedRule.retry_after_tool_execution && hasToolExecutionSinceLastUser(messages, lastUserMessageIndex)) {
