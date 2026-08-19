@@ -266,10 +266,10 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 - AT-SPI element rung first (element_token addressing, zero coordinate math), pixel fallback, background/foreground delivery ladder
 - Background input is co-work safe: never moves the user's cursor; overlay permanently disabled (caused GNOME Shell freezes on this dual-head, A/B verified 2026-08-17)
-- Drives the user's real authenticated browser for logged-in accounts (email/calendar/portals) — the login-persistence use case
+- Browser work is OUT OF SCOPE by policy (2026-08-20): agent-browser owns all web tasks, logged-in or not (persistent named sessions for logins). The daemon runs without the existing-profile grant, so cua browser attach is refused by design
 - Decision ladder against alternatives: bash > agent-browser (anonymous web) > this skill
 
-**Current browser boundary (cua-driver 0.20.0, Linux X11)**: existing-profile attachment is proven with a pre-published Chrome `DevToolsActivePort`; state reads, semantic snapshots, navigation, and revocation work. Page input does not — both trusted and DOM-event click routes return `route_unavailable` ([trycua/cua#3239](https://github.com/trycua/cua/issues/3239)). Treat attached Chrome as read/navigate-only until upstream resolves it.
+**Browser policy**: all web tasks (including logged-in accounts) route to agent-browser; cua browser tools are unused and the existing-profile grant is removed from the daemon unit. Historical attach findings live in wisdom entry `20260818-010629-03d1` and [trycua/cua#3239](https://github.com/trycua/cua/issues/3239) (0.21.0 enables `dom_event` page input — noted upstream, unused here).
 
 **Transport split**: non-image operations use lazy OMO `skill_mcp`; screenshot operations MUST use cua-driver's CLI `screenshot_out_file` and then `look_at`. OMO currently JSON-stringifies skill-MCP results, so inline MCP image blocks would become base64 text and flood the agent's context.
 
@@ -277,7 +277,7 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 **Dependencies**: machine-local daemon (NOT in this repo): `~/.local/share/cua-driver/v0.20.0/` binary, systemd user unit `cua-driver.service` (`serve --no-overlay`, unconfined — this is what restores AT-SPI vs snap-confined clients), default socket `~/.cache/cua-driver/cua-driver.sock`, telemetry disabled via `~/.cua-driver/config.json`
 
-**Use Case**: Native GUI apps without APIs, OS dialogs, logged-in web accounts, GUI QA of desktop software
+**Use Case**: Native GUI apps without APIs, OS dialogs, GUI QA of desktop software — native desktop only, never the browser
 
 **Status**: Optional
 

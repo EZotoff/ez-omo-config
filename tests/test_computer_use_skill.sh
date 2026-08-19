@@ -31,6 +31,7 @@ check "MCP proxy disables overlay defensively" grep -Fq -- '--no-overlay' "$SKIL
 check "skill contains no machine-specific home path" bash -c '! grep -q "/home/ezotoff" "$1"' _ "$SKILL"
 check "skill forbids inline MCP screenshots" grep -Fq 'Never return screenshots through `skill_mcp`' "$SKILL"
 check "skill requires file-based screenshot transport" grep -Fq 'screenshot_out_file' "$SKILL"
+check "skill scopes browser work out" grep -Fq 'Browser work is OUT OF SCOPE' "$SKILL"
 
 UNIT="$HOME/.config/systemd/user/cua-driver.service"
 if [[ -f "$UNIT" ]]; then

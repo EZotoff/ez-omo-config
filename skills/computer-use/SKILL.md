@@ -1,6 +1,6 @@
 ---
 name: computer-use
-description: "OS-level computer use on the local X11 desktop via the cua-driver daemon: screenshots, AT-SPI element trees, background (co-work) mouse/keyboard input, window management, and driving the user's real authenticated browser. Use for native GUI apps without APIs, OS dialogs, and logged-in web accounts; NOT for anonymous web automation (use agent-browser) or anything with a CLI/API (use bash)."
+description: "OS-level computer use on the local X11 desktop via the cua-driver daemon: screenshots, AT-SPI element trees, background (co-work) mouse/keyboard input, and window management for NATIVE applications only. Use for native GUI apps without APIs, OS dialogs, and desktop automation; NOT for any browser/web task (use agent-browser) or anything with a CLI/API (use bash)."
 mcp:
   cua:
     command: bash
@@ -27,11 +27,9 @@ Infrastructure facts (already deployed, do not change):
 | Task shape | Tool |
 |---|---|
 | Target app has a CLI, config file, or API | bash — never this skill |
-| Web site, no login needed | agent-browser (cheaper, DOM-precise) |
-| Web account the user is logged into (email, calendar, portals) | this skill, browser tools |
+| Web — ANY web, logged in or not | agent-browser (persistent named session for logins; one-time manual login) — never this skill |
 | Native GUI app (GNOME/Qt/Electron) | this skill, AT-SPI element rung first |
 | OS chrome (dialogs, polkit, keyring, settings) | this skill, pixel rung |
-| Screenshot interpretation only | `look_at` after `get_desktop_state` |
 
 ## Action method (strict order)
 
@@ -55,18 +53,16 @@ Infrastructure facts (already deployed, do not change):
    hint, foreground mode briefly focuses the target — acceptable only for brief
    input, and never while the user is typing in that window.
 
-## Browser loop (read/navigate-only on this host)
+## Browser work is OUT OF SCOPE
 
-```
-list_windows → get_browser_state(pid, window_id, session)        # BIND
-  ↳ must report binding_quality "exact" + mutation_allowed true
-get_browser_state(target_id, tab_id, snapshot_format="semantic_v2")  # SNAPSHOT
-browser_navigate → re-snapshot to VERIFY → end_session to REVOKE
-```
-
-Page refs (`p<snapshot>:<index>`) are short-lived — re-snapshot after any
-   navigation. Page input (`browser_click`/`browser_type`) is refused upstream
-   (#3239) — do not retry it; verify by reading state instead.
+All browser tasks go to agent-browser (use a persistent named session when the
+site needs the user's login — they type credentials once, the session survives
+on disk). The cua browser tools (`browser_prepare`, `get_browser_state`,
+`browser_navigate`, `browser_click`, `browser_type`) are deliberately unused:
+the daemon runs WITHOUT the existing-profile grant, so profile attachment is
+refused by design. A browser WINDOW may still be driven as a native window
+(pixel rung) for OS-level chrome inside it — file dialogs, permission popups —
+but never its page content.
 
 ## Core tool catalog (~20 of 60; full list via `skill_mcp` `list_tools`)
 
@@ -77,11 +73,10 @@ Input: `click` `double_click` `right_click` `drag` `scroll` `type_text`
 `press_key` `hotkey`
 Apps: `launch_app` `kill_app` (destructive — confirm with user first)
 Clipboard: `clipboard_read` `clipboard_write`
-Browser (user's real profile; see below): `browser_prepare` `get_browser_state`
-`browser_navigate` `browser_click` `browser_type`
 
-Omitted deliberately: recording/replay, agent-cursor cosmetics, multi-cursor,
-sessions beyond a label, deprecated aliases.
+Omitted deliberately: all browser tools (agent-browser owns the web),
+recording/replay, agent-cursor cosmetics, multi-cursor, sessions beyond a
+label, deprecated aliases.
 
 ## Working rules
 
@@ -100,8 +95,6 @@ sessions beyond a label, deprecated aliases.
   first, every time, regardless of rung.
 - The user works on this desktop concurrently. Background delivery never moves
   their cursor; foreground mode does steal focus briefly — announce it first.
-- Browser attach (`browser_prepare`) uses the user's authenticated Chrome —
-  treat every page as acting-as-the-user. Announce intent before navigating.
 
 ## Failure modes seen on this machine
 
@@ -124,13 +117,10 @@ sessions beyond a label, deprecated aliases.
 - `kill_app` refuses processes outside a live cua session
   (`foreign_process_termination_denied`) — close via `wmctrl -ic <window-id>`
   (graceful WM close) instead.
-- Existing-profile Chrome attach on Linux X11 has a split capability boundary
-  in 0.20.0. If Chrome exposes no omnibox AT-SPI tree, the canonical setup route
-  refuses; a profile with an already-published `DevToolsActivePort` attaches with
-  zero setup side effects. After attach, state reads, semantic snapshots,
-  navigation, and session revocation work. `browser_click` refuses
-  `route_unavailable` for BOTH `trusted` and `dom_event` routes — treat attached
-  Chrome as read/navigate-only until upstream #3239 is resolved.
+- Browser tools are dead on this host by policy (no `--grant existing-profile`
+  on the daemon; `browser_prepare` existing-profile refuses
+  `browser_consent_required`). Technical findings preserved in wisdom entry
+  `20260818-010629-03d1` and upstream #3239.
 
 ## Upstream tracking
 
