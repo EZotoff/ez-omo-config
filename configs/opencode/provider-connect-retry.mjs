@@ -7,13 +7,15 @@ const PATHS = {
   log: path.join(os.homedir(), ".config", "opencode", "retry-plugin.log"),
   omoConfig: path.join(os.homedir(), ".config", "opencode", "oh-my-openagent.json"),
 };
-// Test-isolation hook (same convention as skill-nudger's __testConfigOverride):
-// the harness points these at temp fixtures. Runtime behavior is unchanged
-// while the object is empty — the defaults above win.
-export const __testPathOverride = {};
-const registryPath = () => __testPathOverride.registry ?? PATHS.registry;
-const logPath = () => __testPathOverride.log ?? PATHS.log;
-const omoConfigPath = () => __testPathOverride.omoConfig ?? PATHS.omoConfig;
+// Test-isolation hook via globalThis (same pattern as the existing
+// globalThis.__providerConnectRetryInFlight). MUST NOT be a module export:
+// OpenCode's plugin loader (getLegacyPlugins) rejects any module with a
+// non-function export ("Plugin export is not a function") — a named object
+// export silently disabled this entire plugin from 2026-08-18 to 2026-08-20.
+const testPaths = () => globalThis.__providerConnectRetryTestPaths ?? {};
+const registryPath = () => testPaths().registry ?? PATHS.registry;
+const logPath = () => testPaths().log ?? PATHS.log;
+const omoConfigPath = () => testPaths().omoConfig ?? PATHS.omoConfig;
 const LOG_MAX_BYTES = 10 * 1024 * 1024; // 10 MB before rotation
 
 function rotateLogIfNeeded() {

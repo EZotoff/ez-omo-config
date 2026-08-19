@@ -93,13 +93,11 @@ async function setup({ parentID } = {}) {
     },
   };
 
+  // Test isolation via globalThis — module exports must stay function-only
+  // (a non-function export makes OpenCode's plugin loader reject the module:
+  // "Plugin export is not a function", the 2026-08-18..20 outage).
+  globalThis.__providerConnectRetryTestPaths = { registry: registryPath, log: logPath, omoConfig: omoConfigPath };
   const mod = await import(PLUGIN_PATH);
-  if (!mod.__testPathOverride) {
-    throw new Error("Plugin does not export __testPathOverride — test isolation unavailable");
-  }
-  mod.__testPathOverride.registry = registryPath;
-  mod.__testPathOverride.log = logPath;
-  mod.__testPathOverride.omoConfig = omoConfigPath;
 
   const plugin = await mod.default(ctx);
   return {
@@ -335,6 +333,23 @@ async function caseUserMessageResetsChain() {
   }
 }
 
+async function caseExportSurface() {
+  // OpenCode's plugin loader (getLegacyPlugins, packages/opencode/src/plugin/index.ts)
+  // rejects ANY module export that is not a function ("Plugin export is not a
+  // function"). A named object export added for testability silently disabled
+  // the whole plugin from 2026-08-18 to 2026-08-20 — this case is the tripwire.
+  globalThis.__providerConnectRetryTestPaths = {};
+  const mod = await import(PLUGIN_PATH);
+  const entries = Object.entries(mod);
+  assert(entries.length > 0, "module must have exports");
+  for (const [name, value] of entries) {
+    assert(
+      typeof value === "function",
+      `export "${name}" is not a function — the plugin loader will reject the whole module`,
+    );
+  }
+}
+
 // --- Runner ---
 
 const CASES = {
@@ -345,6 +360,7 @@ const CASES = {
   "child-session-gate": caseChildSessionGate,
   "success-resets-chain": caseSuccessResetsChain,
   "user-message-resets-chain": caseUserMessageResetsChain,
+  "export-surface": caseExportSurface,
 };
 
 const caseArg = process.argv[process.argv.indexOf("--case") + 1];

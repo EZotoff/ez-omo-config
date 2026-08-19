@@ -35,6 +35,7 @@ run_case "chat-failure-unchanged"
 run_case "child-session-gate"
 run_case "success-resets-chain"
 run_case "user-message-resets-chain"
+run_case "export-surface"
 
 echo ""
 echo "provider-connect-retry harness: Pass: $TOTAL_PASSED | Fail: $TOTAL_FAILED"
