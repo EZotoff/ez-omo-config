@@ -65,10 +65,12 @@ assert_grep 'prune' "$PLUGIN_FILE"
 #    commit message that mentions a destructive command false-positives and
 #    blocks the commit itself. (Empirically observed twice during A+B dev.)
 assert_grep 'stripCommitMessagePayloads' "$PLUGIN_FILE"
-# 6. The __test__ export must exist for the runtime unit harness
-#    (tests/git-safety/harness.ts). If it's removed, the unit harness
-#    silently stops testing the actual plugin code.
-assert_grep 'export const __test__' "$PLUGIN_FILE"
+# 6. The globalThis test hooks must exist for the runtime unit harness
+#    (tests/git-safety/harness.ts). If they're removed, the unit harness
+#    silently stops testing the actual plugin code. Hooks live on
+#    globalThis, NOT as a module export — non-function exports break
+#    OpenCode's plugin loader (2026-08-06..2026-08-20 outage).
+assert_grep '__gitSafetyTestHooks' "$PLUGIN_FILE"
 
 [[ "$TESTS_FAILED" -gt 0 ]] && { echo "FAIL: git-safety history-rewrite check(s) failed"; exit 1; }
 echo "PASS: git-safety.ts has history-rewrite layer + worktree-aware workdir resolution"

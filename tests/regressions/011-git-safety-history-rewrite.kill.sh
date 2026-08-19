@@ -60,7 +60,7 @@ for pattern in \
     'LAYER 1.5' \
     'resolveWorkdir' \
     'parseLeadingCd' \
-    'export const __test__' \
+    '__gitSafetyTestHooks' \
     'stripCommitMessagePayloads' \
     'gitStatus(workdir)' \
     'gitStashPush(workdir' \
@@ -69,7 +69,7 @@ for pattern in \
     'force-with-lease' \
     'stash clear' \
     'reflog expire' \
-    'export const __test__'
+    '__gitSafetyTestHooks'
 do
     if grep -qF "$pattern" "$TMP_ROOT/plugins/git-safety.ts" 2>/dev/null; then
         echo "KILL-BROKEN: pattern '$pattern' found in OLD-structure file"

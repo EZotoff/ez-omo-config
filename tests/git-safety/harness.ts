@@ -1,5 +1,5 @@
 // tests/git-safety/harness.ts
-// Unit tests for the pure helpers exported by plugins/git-safety.ts __test__.
+// Unit tests for the pure helpers exposed by plugins/git-safety.ts via
 //
 // These run via `bun test` (see tests/test_git_safety_runtime.sh).
 // Putting the destructive-command strings inside this file (not inside a
@@ -8,9 +8,19 @@
 // run from a file, not from `bun -e '...git reset --hard...'`.
 
 import { test, describe, it, expect } from "bun:test"
-import { __test__ } from "../../plugins/git-safety.ts"
+import "../../plugins/git-safety.ts" // side-effect import: populates globalThis.__gitSafetyTestHooks
 
-const { parseLeadingCd, resolveWorkdir, detectHistoryRewriteCommand, stripCommitMessagePayloads } = __test__
+type GitSafetyTestHooks = {
+	parseLeadingCd: (command: string) => string | undefined
+	resolveWorkdir: (args: { workdir?: unknown; command?: string }, fallback: string) => string
+	detectHistoryRewriteCommand: (command: string) => { description: string } | undefined
+	detectResetRewrite: (command: string, cwd: string) => Promise<{ description: string } | undefined>
+	stripCommitMessagePayloads: (command: string) => string
+}
+
+const hooks = (globalThis as { __gitSafetyTestHooks?: GitSafetyTestHooks }).__gitSafetyTestHooks
+if (!hooks) throw new Error("plugins/git-safety.ts did not populate globalThis.__gitSafetyTestHooks")
+const { parseLeadingCd, resolveWorkdir, detectHistoryRewriteCommand, stripCommitMessagePayloads } = hooks
 
 const HOME = process.env.HOME ?? "/home/test"
 

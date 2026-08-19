@@ -649,10 +649,14 @@ export const GitSafetyPlugin: Plugin = async (ctx) => {
 
 export default GitSafetyPlugin
 
-// Exported for unit testing (tests/git-safety/harness.mjs).
-// Named export separate from the default Plugin export — OpenCode's plugin
-// loader reads only `default`, so this is invisible at runtime.
-export const __test__ = {
+// Test hooks exposed via globalThis for unit testing (tests/git-safety/harness.ts).
+// MUST NOT be a module export: OpenCode's plugin loader (getLegacyPlugins)
+// rejects any module with a non-function export ("Plugin export is not a
+// function") — the former `export const __test__` object silently disabled
+// this entire plugin from 2026-08-06 to 2026-08-20 (1100 load errors in
+// opencode.log; git-safety guardrails were offline the whole time).
+const globalWithHooks = globalThis as unknown as Record<string, unknown>
+globalWithHooks.__gitSafetyTestHooks = {
 	parseLeadingCd,
 	resolveWorkdir,
 	detectHistoryRewriteCommand,
