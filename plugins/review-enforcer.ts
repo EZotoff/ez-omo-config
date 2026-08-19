@@ -343,7 +343,8 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 					return
 				}
 
-				const taskOutput = output.output ?? ""
+				const rawOutput = output?.output
+				const taskOutput = typeof rawOutput === "string" ? rawOutput : ""
 				const argsStr = safeStringifyArgs(input.args)
 
 				log("info", `Intercepted task completion — session=${input.sessionID}, callID=${input.callID}, outputLength=${taskOutput.length}`)
