@@ -58,7 +58,7 @@ Minimal-fix procedure for patching the live OpenCode binary. Builds from the exa
 - **Install**: `install.sh --skills`
 
 ### debate/
-Structured adversarial analysis protocol. Quick single-agent modes (challenge, panel, pre-mortem, red team) plus a decision-review protocol where one agent proposes, one critiques, the proposer revises, and a binding/advisory judge panel decides ADOPT/REVISE/REJECT/ESCALATE.
+Structured adversarial analysis protocol. Quick single-agent modes (challenge, panel, pre-mortem, red team) plus a decision-review protocol where one agent proposes, one critiques, the proposer revises, and a binding/advisory judge panel decides ADOPT/REVISE/REJECT/ESCALATE. All `task()` dispatch prompts carry a `[DEBATE]` marker so the review-enforcer plugin skips them (debate output is analysis, not implementation work).
 - **Dependencies**: None
 - **Use Case**: Surfacing hidden assumptions, testing argument robustness, making complex architectural decisions
 - **Install**: `install.sh --skills`

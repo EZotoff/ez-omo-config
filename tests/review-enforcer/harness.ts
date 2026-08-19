@@ -107,5 +107,41 @@ if (mode === "all" || mode === "consultative") {
 	)
 }
 
+if (mode === "all" || mode === "abort") {
+	requireExport("isAbortStub")
+	requireExport("isDegenerateOutput")
+	requireExport("detectRecursion")
+	requireExport("isConsultativeDispatch")
+	const isAbortStub = mod.isAbortStub!
+	const isDegenerateOutput = mod.isDegenerateOutput!
+	const detectRecursion = mod.detectRecursion!
+	const isConsultativeDispatch = mod.isConsultativeDispatch!
+
+	// --- isAbortStub: OMO sync-task abort stubs are failures, not completions
+	const stub = 'Aborted\n\nto continue: task(task_id="ses_fe702ddb7ffeBrOa63ARedL2QR", load_skills=[], run_in_background=false, prompt="...")'
+	check("REPRO: exact 2026-08-19 abort stub detected", isAbortStub(stub), true)
+	check("bare Aborted prefix detected", isAbortStub("Aborted\n\nsomething else"), true)
+	check("continuation-stub signature detected mid-output", isAbortStub("Prefix text. to continue: task(task_id=\"ses_x\")"), true)
+	check("normal completion is not an abort stub", isAbortStub("## SUBAGENT WORK COMPLETED\nFixed the parser bug and added tests."), false)
+	check("mid-text 'Aborted' mention is not a stub", isAbortStub("The npm install printed 'Aborted!' to stderr but we retried and it succeeded."), false)
+
+	// --- isDegenerateOutput: near-empty outputs without the success indicator carry no reviewable work
+	check("REPRO: 123-char stub is degenerate", isDegenerateOutput(stub.slice(0, 123)), true)
+	check("short output WITH success indicator is not degenerate", isDegenerateOutput("## SUBAGENT WORK COMPLETED"), false)
+	check("substantial output is not degenerate", isDegenerateOutput("x".repeat(500)), false)
+	check("empty output is degenerate", isDegenerateOutput(""), true)
+
+	// --- [DEBATE] marker joins the recursion/skip markers
+	check("[DEBATE] marker in args skips", detectRecursion("", JSON.stringify({ category: "artistry", prompt: "[DEBATE] Judge this design..." })) !== null, true)
+	check("[REVIEW-TASK] marker still skips", detectRecursion("", JSON.stringify({ prompt: "[REVIEW-TASK] review" })) !== null, true)
+	check("unmarked args do not skip", detectRecursion("", JSON.stringify({ category: "artistry", prompt: "Judge this design" })) === null, true)
+
+	// --- category gate: mephistopheles is consultative; judge categories rely on [DEBATE] marker
+	check("REPRO: category=mephistopheles is consultative", isConsultativeDispatch({ category: "mephistopheles", prompt: "CRITIQUE STAGE..." }), true)
+	check("category=artistry alone is NOT skipped (needs [DEBATE] marker)", isConsultativeDispatch({ category: "artistry", prompt: "Review this design" }), false)
+	check("category=writing alone is NOT skipped", isConsultativeDispatch({ category: "writing", prompt: "Review this design" }), false)
+	check("category=ultrabrain alone is NOT skipped", isConsultativeDispatch({ category: "ultrabrain", prompt: "Review this design" }), false)
+}
+
 console.log(`harness[${mode}]: ${passed} passed, ${failed} failed`)
 process.exit(failed > 0 ? 1 : 0)

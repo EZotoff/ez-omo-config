@@ -88,7 +88,7 @@ Simple adversarial challenge with no judges, no rounds, no formal structure.
 **Invocation**:
 ```
 task(category="mephistopheles", load_skills=[],
-  prompt="Challenge this position: {position}. Context: {context}.
+  prompt="[DEBATE] Challenge this position: {position}. Context: {context}.
   TONE: Collaborative-challenge (intensity: 40%)
   Focus on: logical weaknesses, unstated assumptions, alternative explanations,
   and real-world failure modes. Be thorough but generous.",
@@ -107,9 +107,9 @@ Multiple agents give independent assessments in parallel. No debate structure, n
 
 **Invocation**:
 ```
-task(category="artistry", prompt="Review this design from an elegance/creativity perspective: {topic}. Provide: (1) strongest aspect, (2) biggest concern, (3) one improvement suggestion.", run_in_background=true)
-task(category="writing", prompt="Review this design from a clarity/communication perspective: {topic}. Provide: (1) strongest aspect, (2) biggest concern, (3) one improvement suggestion.", run_in_background=true)
-task(category="ultrabrain", prompt="Review this design from a logical rigor perspective: {topic}. Provide: (1) strongest aspect, (2) biggest concern, (3) one improvement suggestion.", run_in_background=true)
+task(category="artistry", prompt="[DEBATE] Review this design from an elegance/creativity perspective: {topic}. Provide: (1) strongest aspect, (2) biggest concern, (3) one improvement suggestion.", run_in_background=true)
+task(category="writing", prompt="[DEBATE] Review this design from a clarity/communication perspective: {topic}. Provide: (1) strongest aspect, (2) biggest concern, (3) one improvement suggestion.", run_in_background=true)
+task(category="ultrabrain", prompt="[DEBATE] Review this design from a logical rigor perspective: {topic}. Provide: (1) strongest aspect, (2) biggest concern, (3) one improvement suggestion.", run_in_background=true)
 ```
 
 ### Pre-mortem
@@ -123,7 +123,7 @@ Mephistopheles-only future-failure analysis.
 **Invocation**:
 ```
 task(category="mephistopheles", load_skills=[],
-  prompt="PRE-MORTEM ANALYSIS
+  prompt="[DEBATE] PRE-MORTEM ANALYSIS
 TONE: Catastrophist (intensity: 80%)
 
 Context: We are about to start this project/plan. Fast-forward 6 months. It has FAILED catastrophically.
@@ -153,7 +153,7 @@ Mephistopheles-only security analysis.
 **Invocation**:
 ```
 task(category="mephistopheles", load_skills=[],
-  prompt="RED TEAM ANALYSIS
+  prompt="[DEBATE] RED TEAM ANALYSIS
 TONE: Maximum-adversary (intensity: 90%)
 
 Your directive: BREAK THIS SYSTEM. Find every vulnerability, abuse vector, edge case, and failure mode.
@@ -183,7 +183,7 @@ Two-agent lightweight challenge: Oracle proposes, Mephistopheles attacks, Oracle
 ```
 # Step 1: Oracle proposes
 task(subagent_type="oracle", load_skills=[],
-  prompt="ARCHITECTURE PROPOSAL
+  prompt="[DEBATE] ARCHITECTURE PROPOSAL
 
 Design a solution for: {architecture_question}
 
@@ -199,7 +199,7 @@ Provide your recommendation with:
 
 # Step 2: Mephistopheles attacks
 task(category="mephistopheles", load_skills=[],
-  prompt="ARCHITECTURE CHALLENGE
+  prompt="[DEBATE] ARCHITECTURE CHALLENGE
 TONE: Generous-adversary (intensity: 60%)
 
 Review this proposed architecture and identify:
@@ -217,7 +217,7 @@ Proposed architecture:
 
 # Step 3 (optional): Oracle revises
 task(subagent_type="oracle", load_skills=[],
-  prompt="ARCHITECTURE REVISION
+  prompt="[DEBATE] ARCHITECTURE REVISION
 
 Address the critique provided. Either defend your original position with counter-arguments or revise the proposal based on valid concerns.
 
@@ -709,34 +709,34 @@ Same content. Reader-first.
 
 **1:1 Direct Challenge**: Load skill, dispatch Mephistopheles directly
 ```
-task(category="mephistopheles", prompt="Challenge this position: {position}. TONE: Collaborative-challenge (intensity: 40%). Focus on: logical weaknesses, unstated assumptions, alternative explanations, real-world failure modes.")
+task(category="mephistopheles", prompt="[DEBATE] Challenge this position: {position}. TONE: Collaborative-challenge (intensity: 40%). Focus on: logical weaknesses, unstated assumptions, alternative explanations, real-world failure modes.")
 ```
 Output: `transcript.md`
 
 **Panel Review**: Load skill, dispatch reviewers in parallel, synthesize
 ```
-task(category="artistry", prompt="Review: {topic}", run_in_background=true)
-task(category="writing", prompt="Review: {topic}", run_in_background=true)
-task(category="ultrabrain", prompt="Review: {topic}", run_in_background=true)
+task(category="artistry", prompt="[DEBATE] Review: {topic}", run_in_background=true)
+task(category="writing", prompt="[DEBATE] Review: {topic}", run_in_background=true)
+task(category="ultrabrain", prompt="[DEBATE] Review: {topic}", run_in_background=true)
 ```
 Output: `panel-review.md`, `judges/judge-{role}.md`
 
 **Pre-mortem**: Load skill, dispatch Mephistopheles with pre-mortem prompt
 ```
-task(category="mephistopheles", prompt="PRE-MORTEM: TONE: Catastrophist (intensity: 80%). This project will FAIL. Describe exactly how, why, and when. Project: {topic}")
+task(category="mephistopheles", prompt="[DEBATE] PRE-MORTEM: TONE: Catastrophist (intensity: 80%). This project will FAIL. Describe exactly how, why, and when. Project: {topic}")
 ```
 Output: `pre-mortem.md`
 
 **Red Team**: Load skill, dispatch Mephistopheles with red team prompt + target
 ```
-task(category="mephistopheles", prompt="RED TEAM: TONE: Maximum-adversary (intensity: 90%). Break this system. Find vulnerabilities, abuse vectors, edge cases. Target: {target}")
+task(category="mephistopheles", prompt="[DEBATE] RED TEAM: TONE: Maximum-adversary (intensity: 90%). Break this system. Find vulnerabilities, abuse vectors, edge cases. Target: {target}")
 ```
 Output: `red-team-report.md`
 
 **Architecture Adversary (quick)**: Load skill, dispatch Oracle then Mephistopheles
 ```
-task(subagent_type="oracle", prompt="Propose architecture for: {question}")
-task(category="mephistopheles", prompt="Challenge this architecture: TONE: Generous-adversary (intensity: 60%). {oracle_proposal}")
+task(subagent_type="oracle", prompt="[DEBATE] Propose architecture for: {question}")
+task(category="mephistopheles", prompt="[DEBATE] Challenge this architecture: TONE: Generous-adversary (intensity: 60%). {oracle_proposal}")
 ```
 Output: `architecture-challenge.md`
 

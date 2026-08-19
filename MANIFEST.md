@@ -107,8 +107,8 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 18 paired regression tests (36 files total) | Required |
-| 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 19 paired regression tests (38 files total) | Required |
+| 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016) | Required |
 | 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled, provider removed from opencode.json; port 18200) | Optional |
 
 ## Directory Structure
@@ -177,7 +177,7 @@ ez-omo-config/
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, and Python operator helpers.
 - **Systemd**: watcher service plus a periodic integrity-check service and 30-minute timer.
-- **Tests**: active repo verification scripts, the 18-pair regression corpus (36 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Tests**: active repo verification scripts, the 19-pair regression corpus (38 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

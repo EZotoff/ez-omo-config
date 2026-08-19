@@ -7,10 +7,11 @@ import type { Plugin } from "@opencode-ai/plugin"
  * Review Enforcer Plugin — intercepts task() completions via tool.execute.after
  * and injects review instructions into the output that Atlas sees.
  *
- * Skips: failure markers in output, [REVIEW-TASK]/[REVIEW-FIX] markers (recursion),
- * consultative subagent dispatches (analysis work — nothing to review), and
- * plan-complete injection for sessions outside the active boulder's lineage
- * (mirrors OMO's resolveActiveBoulderSession predicate) or with paused/abandoned status.
+ * Skips: failure markers and OMO abort stubs in output, degenerate near-empty outputs,
+ * [REVIEW-TASK]/[REVIEW-FIX]/[DEBATE] dispatch markers (recursion), consultative subagent
+ * or category dispatches (analysis work — nothing to review), and plan-complete injection for
+ * sessions outside the active boulder's lineage (mirrors OMO's resolveActiveBoulderSession
+ * predicate) or with paused/abandoned status.
  * Uses node:fs appendFileSync (not Bun.write — spike showed reliability issues).
  */
 
@@ -30,6 +31,7 @@ const SUCCESS_INDICATOR = "## SUBAGENT WORK COMPLETED"
 const RECURSION_MARKERS = [
 	"[REVIEW-TASK]",
 	"[REVIEW-FIX]",
+	"[DEBATE]",
 ] as const
 
 /** Consultative subagents produce analysis, not implementation — code-review mandates don't apply. */
@@ -42,6 +44,12 @@ const CONSULTATIVE_SUBAGENT_TYPES = new Set([
 	"multimodal-looker",
 	"document-writer",
 ])
+
+/** Category-routed dispatches that are consultative (analysis-only). Debate judge categories (artistry/writing/ultrabrain) also do implementation work elsewhere, so they are covered by the [DEBATE] dispatch marker instead. */
+const CONSULTATIVE_CATEGORIES = new Set(["mephistopheles"])
+
+/** Outputs shorter than this without the success indicator carry no reviewable work. */
+const DEGENERATE_OUTPUT_THRESHOLD = 250
 
 /** Boulder statuses that must never trigger the plan-complete injection. "completed" is allowed — the injection fires at the completion moment, before completeBoulder runs. */
 const INACTIVE_BOULDER_STATUSES = new Set(["paused", "abandoned"])
@@ -157,7 +165,7 @@ function detectFailure(output: string): string | null {
 	return null
 }
 
-function detectRecursion(output: string, argsStr: string): string | null {
+export function detectRecursion(output: string, argsStr: string): string | null {
 	for (const marker of RECURSION_MARKERS) {
 		if (output.includes(marker) || argsStr.includes(marker)) {
 			return marker
@@ -197,8 +205,11 @@ export function isConsultativeDispatch(args: unknown): boolean {
 		const value = parsed[key]
 		if (typeof value === "string" && CONSULTATIVE_SUBAGENT_TYPES.has(value)) return true
 	}
+	const category = parsed["category"]
+	if (typeof category === "string" && CONSULTATIVE_CATEGORIES.has(category)) return true
 	return false
 }
+
 
 /** True when currentSessionId belongs to the boulder's session lineage (root mirror session_ids). */
 export function sessionOwnsBoulder(currentSessionId: string, sessionIds: readonly string[]): boolean {
@@ -211,6 +222,17 @@ export function sessionOwnsBoulder(currentSessionId: string, sessionIds: readonl
 export function boulderStatusAllowsInjection(status: unknown): boolean {
 	if (typeof status !== "string") return true
 	return !INACTIVE_BOULDER_STATUSES.has(status)
+}
+
+/** True for OMO sync-task abort stubs: a task that died of provider exhaustion / fallback-chain abort returns 'Aborted\n\nto continue: task(task_id=...' — a failure, not a completion. */
+export function isAbortStub(output: string): boolean {
+	return output.startsWith("Aborted") || output.includes("to continue: task(task_id=")
+}
+
+/** True for near-empty outputs without the positive success indicator — nothing reviewable. */
+export function isDegenerateOutput(output: string): boolean {
+	if (output.includes(SUCCESS_INDICATOR)) return false
+	return output.length < DEGENERATE_OUTPUT_THRESHOLD
 }
 
 function getPlanProgress(currentSessionId: string): { total: number; checked: number; complete: boolean } | null {
@@ -325,9 +347,10 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 				const argsStr = safeStringifyArgs(input.args)
 
 				log("info", `Intercepted task completion — session=${input.sessionID}, callID=${input.callID}, outputLength=${taskOutput.length}`)
+
 				// Consultative gate: analysis/review subagents produce no implementation work.
 				if (isConsultativeDispatch(input.args)) {
-					const reason = "task targets a consultative subagent (oracle/metis/momus/explore/librarian/multimodal-looker/document-writer) — no implementation work to review"
+					const reason = "task targets a consultative subagent or category (oracle/metis/momus/explore/librarian/multimodal-looker/document-writer/mephistopheles) — no implementation work to review"
 					log("info", `SKIP (consultative) — ${reason}`)
 					appLog("debug", `review-enforcer: skipped — ${reason}`)
 					return
@@ -344,6 +367,23 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 					}
 				}
 
+				// Abort-stub guard: OMO returns an abort stub when a sync task dies mid-flight
+				// (e.g. provider fallback chain exhausted). That is a failure, not a completion.
+				if (isAbortStub(taskOutput)) {
+					const reason = "task output is an OMO abort stub (task died mid-flight)"
+					log("info", `SKIP (abort-stub) — ${reason}`)
+					appLog("debug", `review-enforcer: skipped — ${reason}`)
+					return
+				}
+
+				// Degenerate-output guard: near-empty completions carry no reviewable work.
+				if (isDegenerateOutput(taskOutput)) {
+					const reason = `task output is degenerate (${taskOutput.length} chars, no success indicator) — nothing to review`
+					log("info", `SKIP (degenerate) — ${reason}`)
+					appLog("debug", `review-enforcer: skipped — ${reason}`)
+					return
+				}
+
 				const recursionMarker = detectRecursion(taskOutput, argsStr)
 				if (recursionMarker) {
 					const reason = `Contains recursion marker: "${recursionMarker}"`
@@ -354,7 +394,7 @@ export const ReviewEnforcerPlugin: Plugin = async (ctx) => {
 
 				// Timeout guard: measure elapsed time for getPlanProgress (sync I/O)
 				const progressStart = Date.now()
-			const progress = getPlanProgress(input.sessionID ?? "")
+				const progress = getPlanProgress(input.sessionID ?? "")
 				const progressElapsed = Date.now() - progressStart
 				if (progressElapsed > 5000) {
 					log("warn", `getPlanProgress took ${progressElapsed}ms (>5s threshold) — result discarded`)

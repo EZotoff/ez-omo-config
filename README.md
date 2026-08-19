@@ -189,8 +189,8 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 56 | `opencode-patch-integrity-check.service` | `systemd/user/` | Periodic integrity check service |
 | 57 | `opencode-patch-integrity-check.timer` | `systemd/user/` | 30-minute periodic timer |
 | 58 | `run_regressions.sh` | `tests/` | Regression corpus harness |
-| 59 | `regressions/` | `tests/` | 18 paired regression tests, 36 files total |
-| 59a | `harness.ts` | `tests/review-enforcer/` | Behavioral harness for review-enforcer gating (lineage + consultative; drives regression pairs 014/015) |
+| 59 | `regressions/` | `tests/` | 19 paired regression tests, 38 files total |
+| 59a | `harness.ts` | `tests/review-enforcer/` | Behavioral harness for review-enforcer gating (lineage, consultative, abort-stub, degenerate; drives regression pairs 014/015/016) |
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15: unit disabled; port 18200; requires `~/src/flare` repo + `~/flare-cache`; mem-fraction 0.84) |
