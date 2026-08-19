@@ -230,7 +230,8 @@
       503,
       504
     ],
-    "retries_before_fallback": 2
+    "retries_before_fallback": 2,
+    "timeout_seconds": 300
   },
   "git_master": {
     "commit_footer": false,
