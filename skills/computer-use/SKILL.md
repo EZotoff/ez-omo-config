@@ -10,10 +10,11 @@ mcp:
 # Computer Use (cua-driver)
 
 You control the local Linux X11 desktop through the `skill_mcp` tool with
-`mcp_name: "cua"`. One tool per call, e.g.:
+`mcp_name: "cua"`. One tool per call. Keep image-producing calls on the CLI
+path (explained below); non-image example:
 
 ```
-skill_mcp(mcp_name="cua", tool_name="get_window_state", arguments={"pid": ..., "window_id": ...})
+skill_mcp(mcp_name="cua", tool_name="get_window_state", arguments={"pid": ..., "window_id": ..., "include_screenshot": false})
 ```
 
 Infrastructure facts (already deployed, do not change):
@@ -37,15 +38,35 @@ Infrastructure facts (already deployed, do not change):
 1. **Element rung (preferred).** `list_windows` → find target →
    `get_window_state` (returns `elements[]` with `element_token` + the app tree) →
    act by `element_token` (`click`, `set_value`, `type_text`...). No coordinate math
-   needed. Re-read the tree after any UI change — tokens go stale.
+   needed. Re-read the tree after any UI change — tokens go stale. Cross-check the
+   tree against pixels when it looks wrong: Electron apps echo-confirm and
+   virtualized lists report bogus geometry (the tree sometimes lies).
+   Background `type_text`: AT-SPI EditableText lands in UNFOCUSED GTK4/Qt6
+   editables — no focus needed; terminals take a focus-free pty route.
+   Non-editable focused widgets (canvas, spreadsheet cell) need the foreground rung.
 2. **Pixel rung (fallback).** The screenshot from `get_window_state` is in
    **window-local pixels** — pixel actions take x,y relative to that window's
    screenshot, NOT the desktop. Ground coordinates with `look_at` on the saved
-   image when unsure. Click centers of elements; on miss, re-shoot, adjust, retry.
+   image when unsure. Click centers of elements; on miss, re-shoot, adjust,
+   retry. Apply the ~47px header offset before clicking (see Failure modes).
+
 3. **Foreground escalation (last resort).** Background delivery is the default and
    safe for co-work. If a tool returns `background_unavailable` with an escalation
    hint, foreground mode briefly focuses the target — acceptable only for brief
    input, and never while the user is typing in that window.
+
+## Browser loop (read/navigate-only on this host)
+
+```
+list_windows → get_browser_state(pid, window_id, session)        # BIND
+  ↳ must report binding_quality "exact" + mutation_allowed true
+get_browser_state(target_id, tab_id, snapshot_format="semantic_v2")  # SNAPSHOT
+browser_navigate → re-snapshot to VERIFY → end_session to REVOKE
+```
+
+Page refs (`p<snapshot>:<index>`) are short-lived — re-snapshot after any
+   navigation. Page input (`browser_click`/`browser_type`) is refused upstream
+   (#3239) — do not retry it; verify by reading state instead.
 
 ## Core tool catalog (~20 of 60; full list via `skill_mcp` `list_tools`)
 
@@ -66,8 +87,12 @@ sessions beyond a label, deprecated aliases.
 
 - Multi-step work: pass the same short `session` label on every call (e.g.
   `"email-triage"`) — keys lifecycle and cleanup.
-- Screenshot-heavy loops: use `include_screenshot: false` on `get_window_state`
-  when you only need the tree; cap `max_elements` (≤200) on Electron/large apps.
+- **Never return screenshots through `skill_mcp`.** OMO JSON-stringifies MCP
+  results, turning image blocks into enormous base64 text. For pixels, call the
+  CLI through bash with `screenshot_out_file` (e.g. `cua-driver call
+  get_desktop_state '{"screenshot_out_file":"/tmp/opencode/cua/shot.png"}'`),
+  then use `look_at` on that file. For tree-only work, always pass
+  `include_screenshot:false`. Cap `max_elements` (≤200) on Electron/large apps.
 - Some apps ignore synthetic input (rare; the tool reports it honestly). If an
   action lands as `effect: "unverifiable"`, verify with `verify_state` or a fresh
   screenshot before assuming success.

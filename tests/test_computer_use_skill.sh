@@ -29,6 +29,8 @@ check "MCP launcher expands HOME at runtime" grep -Fq 'command: bash' "$SKILL"
 check "MCP proxy uses shared daemon socket" grep -Fq 'cua-driver mcp --socket "$HOME/.cache/cua-driver/cua-driver.sock"' "$SKILL"
 check "MCP proxy disables overlay defensively" grep -Fq -- '--no-overlay' "$SKILL"
 check "skill contains no machine-specific home path" bash -c '! grep -q "/home/ezotoff" "$1"' _ "$SKILL"
+check "skill forbids inline MCP screenshots" grep -Fq 'Never return screenshots through `skill_mcp`' "$SKILL"
+check "skill requires file-based screenshot transport" grep -Fq 'screenshot_out_file' "$SKILL"
 
 UNIT="$HOME/.config/systemd/user/cua-driver.service"
 if [[ -f "$UNIT" ]]; then

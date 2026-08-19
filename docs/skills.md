@@ -271,6 +271,8 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 **Current browser boundary (cua-driver 0.20.0, Linux X11)**: existing-profile attachment is proven with a pre-published Chrome `DevToolsActivePort`; state reads, semantic snapshots, navigation, and revocation work. Page input does not — both trusted and DOM-event click routes return `route_unavailable` ([trycua/cua#3239](https://github.com/trycua/cua/issues/3239)). Treat attached Chrome as read/navigate-only until upstream resolves it.
 
+**Transport split**: non-image operations use lazy OMO `skill_mcp`; screenshot operations MUST use cua-driver's CLI `screenshot_out_file` and then `look_at`. OMO currently JSON-stringifies skill-MCP results, so inline MCP image blocks would become base64 text and flood the agent's context.
+
 **Upstream tracking**: [#3236 overlay freeze](https://github.com/trycua/cua/issues/3236) · [#3237 coordinate frame](https://github.com/trycua/cua/issues/3237) · [#3238 launch focus](https://github.com/trycua/cua/issues/3238) · [#3239 Linux browser attach/input](https://github.com/trycua/cua/issues/3239)
 
 **Dependencies**: machine-local daemon (NOT in this repo): `~/.local/share/cua-driver/v0.20.0/` binary, systemd user unit `cua-driver.service` (`serve --no-overlay`, unconfined — this is what restores AT-SPI vs snap-confined clients), default socket `~/.cache/cua-driver/cua-driver.sock`, telemetry disabled via `~/.cua-driver/config.json`
