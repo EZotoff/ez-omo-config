@@ -7,7 +7,7 @@
 // GLM-5.3 dropped thinking_budget for reasoning_effort (low/high/max only).
 const CLAMP_TABLE = {
   "zai-coding-plan":       { field: "reasoning_effort", values: { low: "low", high: "high", max: "max" } },
-  "kimi-for-coding-oauth": { field: "reasoning_effort", values: { low: "low", medium: "medium", high: "high" } },
+  "kimi-for-coding-oauth": { field: "reasoning_effort", values: { low: "low", medium: "medium", high: "high", max: "max" } },
   "openai":                { field: "reasoningEffort",   values: { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" } },
   "google":                { field: "thinkingLevel",     values: { minimal: "minimal", low: "low", medium: "medium", high: "high" } },
   "deepseek":              { field: "reasoning_effort",  values: { low: "low", medium: "medium", high: "high", max: "max" } },

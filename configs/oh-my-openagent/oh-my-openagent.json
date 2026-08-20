@@ -25,7 +25,7 @@
       "variant": "high",
       "fallback_models": [
         "opencode-go/deepseek-v4-pro",
-        "kimi-for-coding-oauth/kimi-for-coding",
+        "kimi-for-coding-oauth/k3",
         "zai-coding-plan/glm-5.3",
         "google/gemini-3.1-pro-preview"
       ],
@@ -56,7 +56,7 @@
       ]
     },
     "prometheus": {
-      "model": "kimi-for-coding-oauth/kimi-for-coding",
+      "model": "kimi-for-coding-oauth/k3",
       "variant": "high",
       "fallback_models": [
         "zai-coding-plan/glm-5.3",
@@ -95,7 +95,7 @@
       "fallback_models": [
         "openai/gpt-5.6-sol",
         "opencode-go/deepseek-v4-pro",
-        "kimi-for-coding-oauth/kimi-for-coding"
+        "kimi-for-coding-oauth/k3"
       ],
       "skills": [
         "wisdom"
@@ -142,7 +142,7 @@
       "model": "zai-coding-plan/glm-5.3",
       "variant": "max",
       "fallback_models": [
-        "kimi-for-coding-oauth/kimi-for-coding",
+        "kimi-for-coding-oauth/k3",
         "openai/gpt-5.6-sol",
         "opencode-go/deepseek-v4-pro"
       ]
@@ -187,7 +187,7 @@
       "variant": "high",
       "fallback_models": [
         "opencode-go/deepseek-v4-pro",
-        "kimi-for-coding-oauth/kimi-for-coding",
+        "kimi-for-coding-oauth/k3",
         "zai-coding-plan/glm-5.3"
       ]
     },

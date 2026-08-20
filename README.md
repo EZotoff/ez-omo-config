@@ -301,7 +301,7 @@ Combine flags as needed:
 | **Google** | Gemini and Antigravity-hosted models | Gemini 3.7 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
 | **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
 | **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
-| **Kimi For Coding (OAuth)** | Kimi K3 via device-flow OAuth (Allegretto+ tier) | Kimi K3 (`kimi-for-coding` model id; opencode-kimi-full plugin gates all body-shaping hooks on this exact id; supports off/auto/low/medium/high reasoning_effort; context length discovered at runtime via `/coding/v1/models`) |
+| **Kimi For Coding (OAuth)** | Kimi K2.7 Code + K3 via device-flow OAuth (Allegretto+ tier) | K2.7 Code (`kimi-for-coding` model id, 256k context; opencode-kimi-full plugin gates all body-shaping hooks on this exact id; supports off/auto/low/medium/high reasoning_effort; context length discovered at runtime via `/coding/v1/models`), Kimi K3 (`k3` model id, up to 1M context on Allegretto+; low/high/max reasoning_effort; no plugin body-shaping — ships wire id verbatim; ~2× the quota of `k3-256k`) |
 | **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5.3 |
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
@@ -313,8 +313,8 @@ Combine flags as needed:
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/kimi-for-coding` | Orchestrator with wisdom injection |
-| **prometheus** | `kimi-for-coding-oauth/kimi-for-coding` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **atlas** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/k3` | Orchestrator with wisdom injection |
+| **prometheus** | `kimi-for-coding-oauth/k3` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Planner, deep reasoning, HTML proposal packets before executable plans |
 | **sisyphus** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Executor, focused tasks |
 | **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.3` | Search, documentation |
@@ -322,7 +322,7 @@ Combine flags as needed:
 | **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Complex frontend work |
 | **document-writer** | `openai/gpt-5.6-terra` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | `google/gemini-3.7-flash`, `kimi-for-coding-oauth/kimi-for-coding` | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.6-sol` | high | `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/kimi-for-coding`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **oracle** | `openai/gpt-5.6-sol` | high | `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/k3`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `zai-coding-plan/glm-5.3` | max | `google/gemini-3.1-pro-preview` | Deep analysis |
 | **momus** | `openai/gpt-5.6-sol` | xhigh | `opencode-go/deepseek-v4-pro`, `google/gemini-3.1-pro-preview` | Code review, critique |
 | **hephaestus** | `openai/gpt-5.6-sol` | xhigh | `opencode-go/deepseek-v4-pro` | Infrastructure, deployment |

@@ -92,7 +92,7 @@ expected_agent_models = {
     'sisyphus': 'zai-coding-plan/glm-5.3',
     'hephaestus': 'openai/gpt-5.6-sol',
     'oracle': 'openai/gpt-5.6-sol',
-    'prometheus': 'kimi-for-coding-oauth/kimi-for-coding',
+    'prometheus': 'kimi-for-coding-oauth/k3',
     'metis': 'zai-coding-plan/glm-5.3',
     'momus': 'openai/gpt-5.6-sol',
     'multimodal-looker': 'openai/gpt-5.6-terra',
@@ -128,7 +128,7 @@ print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
     'sisyphus': ['openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
-    'oracle': ['opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.3', 'google/gemini-3.1-pro-preview'],
+    'oracle': ['opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3', 'google/gemini-3.1-pro-preview'],
     'prometheus': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
     'metis': ['google/gemini-3.1-pro-preview'],
     'momus': ['opencode-go/deepseek-v4-pro', 'google/gemini-3.1-pro-preview'],
@@ -146,8 +146,8 @@ for name, expected in expected_agent_models.items():
             sys.exit(1)
 
 expected_category_fallbacks = {
-    'ultrabrain': ['kimi-for-coding-oauth/kimi-for-coding', 'openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
-    'deep': ['opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/kimi-for-coding', 'zai-coding-plan/glm-5.3'],
+    'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],
+    'deep': ['opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
     'quick': ['zai-coding-plan/glm-5.3'],
     'unspecified-low': ['zai-coding-plan/glm-5.3'],
     'unspecified-high': ['openai/gpt-5.6-sol', 'opencode-go/deepseek-v4-pro'],

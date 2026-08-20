@@ -128,7 +128,7 @@
       "max_retries": 0,
       "backoff_ms": [1000],
       "retry_after_tool_execution": false,
-      "description": "Request size exceeds the current model's context window (e.g., 1048576 limit on Kimi K3). Immediately falls back via the agent's fallback chain — operators should ensure a large-context model (e.g., openai/gpt-5.6-sol at 1.05M) is reachable in each agent's chain so the session can continue while OpenCode/OMO context management compacts or prunes history.",
+      "description": "Request size exceeds the current model's context window (e.g. 262144 limit on kimi-for-coding / Kimi K2.7 Code, the default coding-plan model id; the k3 model id reaches 1048576 on Allegretto+ tiers). Immediately falls back via the agent's fallback chain — operators should ensure a large-context model (e.g., openai/gpt-5.6-sol at 1.05M) is reachable in each agent's chain so the session can continue while OpenCode/OMO context management compacts or prunes history.",
       "added_by": "sisyphus",
       "added_at": "2026-06-24"
     },

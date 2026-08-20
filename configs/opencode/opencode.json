@@ -405,7 +405,7 @@
       },
       "models": {
         "kimi-for-coding": {
-          "name": "Kimi K3",
+          "name": "Kimi K2.7 Code",
           "reasoning": true,
           "attachment": true,
           "options": {},
@@ -436,6 +436,40 @@
             },
             "high": {
               "reasoning_effort": "high"
+            }
+          }
+        },
+        "k3": {
+          "name": "Kimi K3 (1M)",
+          "reasoning": true,
+          "attachment": true,
+          "options": {},
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 1048576,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "reasoning_effort": "low"
+            },
+            "high": {
+              "reasoning_effort": "high"
+            },
+            "max": {
+              "reasoning_effort": "max"
             }
           }
         }
