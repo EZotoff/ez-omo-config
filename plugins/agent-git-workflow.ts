@@ -8,8 +8,10 @@
  * omo--commit-policy-alignment) removed the "never commit without asking"
  * block, and the auto-checkpoint plugin provides idle-timeout safety-net
  * commits. Neither tells the agent HOW to coordinate with other agents
+ * Neither tells the agent HOW to coordinate with other agents
  * working in the same repo: when to branch, when to sync, how to handle
- * merge conflicts.
+ * merge conflicts, or how to reclaim worktrees/branches when the unit is
+ * done (allocation is automated; reclamation must be too, or worktrees leak).
  *
  * Attribution (author identity, co-author trailers, footers) is intentionally
  * NOT handled here — owned by the active Git config and OMO git_master setting.
@@ -55,13 +57,17 @@ git rebase origin/master   # or: git merge origin/master — your call
 \`\`\`
 Resolve any conflicts directly without asking. Never commit conflict markers (\`<<<<<<<\`, \`=======\`, \`>>>>>>>\`).
 
-### Branch lifecycle
-Short-lived agent branches are disposable. When the logical unit is complete:
+### Branch lifecycle (worktree-aware)
+Short-lived agent branches are disposable. When the logical unit is complete, merge AND reclaim — a worktree left behind is leaked work, not a safety net:
 \`\`\`
-git checkout master
-git merge --no-ff <branch>   # preserve the branch's commits as a group
-git branch -D <branch>
+# from the MAIN repo worktree — never from inside the worktree being reclaimed:
+git merge --no-ff <branch>        # preserve the branch's commits as a group
+git worktree remove <path>        # REQUIRED before branch delete (git refuses to delete a checked-out branch)
+git branch -d <branch>            # lowercase -d ONLY (merged-safe); -D is blocked by git-safety
 \`\`\`
+If the branch lives in a worktree, prefer the \`worktree_delete\` tool (optionally with a \`target\`) — it runs pre-delete hooks (port freeing, state cleanup) and snapshots uncommitted changes before removal.
+If a completed worktree is dirty: diff it against master first, port unique work into the merge or a branch, THEN remove — never silently discard uncommitted work. If the work is genuinely worthless, say so explicitly in the final report instead.
+Plain in-repo branches (no worktree): \`git checkout master && git merge --no-ff <branch> && git branch -d <branch>\`.
 Push to remote only when explicitly authorized by the user.
 
 ### Out of scope (handled elsewhere)

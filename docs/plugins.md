@@ -191,7 +191,7 @@ At each evidence state, agents may only use approved claim language:
 - **Commit format**: Conventional Commits subject only. No author override, no trailers, no footers — attribution is owned by the active Git config and `git_master` setting.
 - **Branching reflex**: at the start of non-trivial work, check `git log --since='2 hours ago' --all` and `git branch -a`. Branch as `agent/<agent-name>/<task-scope>` if another agent's work overlaps your target files. Otherwise master/trunk is fine.
 - **Sync protocol**: on a branch older than 30 min, `git fetch && git rebase origin/master` before non-trivial edits. Resolve conflicts directly.
-- **Branch lifecycle**: merge back with `--no-ff`, delete the branch. Push only when explicitly authorized.
+- **Branch lifecycle (worktree-aware)**: merge with `--no-ff` from the main worktree, then `git worktree remove <path>` and `git branch -d` (lowercase; `-D` is blocked by git-safety). Prefer the `worktree_delete` tool for worktree branches — it runs pre-delete hooks and snapshots dirty trees. Never silently discard uncommitted work in a completed worktree. Push only when explicitly authorized.
 - **Out of scope**: idle checkpoints (auto-checkpoint), multi-agent worktree orchestration (parallel-dev skill), complex merges with state tracking (merge-agent skill).
 
 **Why this is a plugin, not a skill**: the user reported that permissive commit text in the base system prompt was insufficient — agents still didn't commit proactively because they had permission but no trigger or procedure. A skill would require explicit invocation; this plugin force-loads the procedure into every session so the reflex is always present. The procedure is short enough (~350 tokens) that the per-session cost is negligible.
