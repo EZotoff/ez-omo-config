@@ -387,6 +387,28 @@ async function removeWorktree(
 	const result = await git(["worktree", "remove", "--force", worktreePath], repoRoot)
 	return result.ok ? Result.ok(undefined) : Result.err(result.error)
 }
+/**
+ * Resolve a target (branch name like "plan/foo" or absolute worktree path)
+ * to its {branch, path} via `git worktree list --porcelain`.
+ * Skips detached/malformed entries. Returns null when nothing matches.
+ */
+function resolveWorktreeTarget(
+	porcelain: string,
+	target: string,
+): { branch: string; path: string } | null {
+	for (const block of porcelain.split("\n\n")) {
+		const lines = block.split("\n").filter((line) => line.length > 0)
+		const wtPath = lines.find((l) => l.startsWith("worktree "))?.slice("worktree ".length)
+		const branchRef = lines.find((l) => l.startsWith("branch "))?.slice("branch ".length)
+		if (!wtPath || !branchRef) continue
+		const branch = branchRef.replace(/^refs\/heads\//, "")
+		if (branch === target || wtPath === target) {
+			return { branch, path: wtPath }
+		}
+	}
+	return null
+}
+
 
 // =============================================================================
 // FILE SYNC MODULE
@@ -1007,23 +1029,50 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 
 			worktree_delete: tool({
 				description:
-					"Delete the current worktree and clean up. Changes will be committed before removal.",
+				"Delete a worktree and clean up. Without arguments, deletes the CURRENT session's worktree (it will be removed when this session goes idle). With `target` (branch name like 'plan/foo' or absolute worktree path), reclaims THAT worktree instead — callable from the main session. Uncommitted changes are snapshotted to the branch before removal; the branch is then deleted only if fully merged, otherwise kept for recovery. Refuses to remove the main repo worktree.",
 				args: {
 					reason: tool.schema
 						.string()
 						.describe("Brief explanation of why you are calling this tool"),
+					target: tool.schema
+						.string()
+						.optional()
+						.describe(
+							"Branch name (e.g. 'plan/foo') or absolute path of the worktree to reclaim. Defaults to the current session's worktree.",
+					),
 				},
-				async execute(_args, toolCtx) {
-					// Find current session's worktree
-					const session = getSession(database, toolCtx?.sessionID ?? "")
-					if (!session) {
-						return `No worktree associated with this session`
+				async execute(args, toolCtx) {
+					let branch: string
+					let worktreePath: string
+
+					if (args.target) {
+						const listResult = await git(["worktree", "list", "--porcelain"], directory)
+						if (!listResult.ok) {
+							return `Failed to list worktrees: ${listResult.error}`
+						}
+						const resolved = resolveWorktreeTarget(listResult.value, args.target)
+						if (!resolved) {
+							return `No worktree matches target '${args.target}' (expected a branch name like 'plan/foo' or an absolute worktree path)`
+						}
+						branch = resolved.branch
+						worktreePath = resolved.path
+					} else {
+						const session = getSession(database, toolCtx?.sessionID ?? "")
+						if (!session) {
+							return `No worktree associated with this session. Pass a target (branch name or worktree path) to reclaim a specific worktree.`
+						}
+						branch = session.branch
+						worktreePath = session.path
+					}
+
+					if (path.resolve(worktreePath) === path.resolve(directory)) {
+						return `Refusing to remove the main repo worktree`
 					}
 
 					// Set pending delete for session.idle (atomic operation)
-					setPendingDelete(database, { branch: session.branch, path: session.path }, client)
+					setPendingDelete(database, { branch, path: worktreePath }, client)
 
-					return `Worktree marked for cleanup. It will be removed when this session ends.`
+					return `Worktree ${branch} marked for cleanup. It will be removed when this session goes idle. Uncommitted changes will be snapshotted to the branch; the branch is deleted only if fully merged.`
 				},
 			}),
 		},
@@ -1042,20 +1091,33 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 					await runHooks(worktreePath, config.hooks.preDelete, log)
 				}
 
-				// Commit any uncommitted changes
-				const addResult = await git(["add", "-A"], worktreePath)
-				if (!addResult.ok) log.warn(`[worktree] git add failed: ${addResult.error}`)
+				// Snapshot uncommitted changes — ONLY when the tree is dirty.
+				// An unconditional --allow-empty commit would move the branch tip past
+				// the merge point and make `git branch -d` refuse every reclaim (the
+				// 2026-08 14-worktree leak, resurrected in contentless form).
+				const statusResult = await git(["status", "--porcelain"], worktreePath)
+				if (statusResult.ok && statusResult.value.length > 0) {
+					const addResult = await git(["add", "-A"], worktreePath)
+					if (!addResult.ok) log.warn(`[worktree] git add failed: ${addResult.error}`)
 
-				const commitResult = await git(
-					["commit", "-m", "chore(worktree): session snapshot", "--allow-empty"],
-					worktreePath,
-				)
-				if (!commitResult.ok) log.warn(`[worktree] git commit failed: ${commitResult.error}`)
+					const commitResult = await git(
+						["commit", "-m", "chore(worktree): session snapshot"],
+						worktreePath,
+					)
+					if (!commitResult.ok) log.warn(`[worktree] git commit failed: ${commitResult.error}`)
+				}
 
 				// Remove worktree
 				const removeResult = await removeWorktree(directory, worktreePath)
 				if (!removeResult.ok) {
 					log.warn(`[worktree] Failed to remove worktree: ${removeResult.error}`)
+				} else {
+					// Delete the branch when fully merged (lowercase -d refuses unmerged —
+					// a snapshot commit ahead of master stays recoverable on its branch)
+					const branchResult = await git(["branch", "-d", branch], directory)
+					if (!branchResult.ok) {
+						log.info(`[worktree] Branch ${branch} kept (not fully merged): ${branchResult.error}`)
+					}
 				}
 
 				// Clear pending delete atomically
