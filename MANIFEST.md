@@ -99,6 +99,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28g | test_update_to_latest_skill.sh | (repo only) | `tests/` | (repo only) | Update Pipeline Verification | Required |
 | 28h | test_dcp_payload_budget.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Byte-Budget Verification | Archived (`.retired`) |
 | 28i | test_computer_use_skill.sh | (repo only) | `tests/` | (repo only) | Computer-Use Skill + Live MCP Safety Contract | Required |
+| 28j | test_worktree_reclaim.sh | (repo only) | `tests/` | (repo only) | Worktree Reclaim Contract (worktree_delete target semantics) | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/` | (repo only) | Byte-Budget Configuration Reference | Required |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
@@ -109,6 +110,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
 | 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 19 paired regression tests (38 files total) | Required |
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016) | Required |
+| 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled, provider removed from opencode.json; port 18200) | Optional |
 
 ## Directory Structure
@@ -225,6 +227,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 25 | `oh-my-openagent--external-system-premise-discipline` | `oh-my-openagent` | active | 2026-08-13 | config-layer patch in `configs/oh-my-openagent/oh-my-openagent.json` — planning/review agents must state assumptions about external systems instead of fabricating state |
 | 26 | `omo--model-less-spawn-fallback` | `oh-my-openagent` | active | 2026-08-14 | source patch in `packages/omo-opencode/src/features/background-agent/manager.ts` — background subagent spawns without an explicit model fall back to a configured default instead of failing |
 | 27 | `omo--lookat-fallback-patience` | `oh-my-openagent` | active | 2026-08-16 | `grep -c 'LOOK_AT_FALLBACK_PATIENCE_MS' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch; look_at re-polls an empty child-session result for up to 60s so runtime-fallback answers that land after the primary model's failed attempt are retrieved instead of racing to `Error: No response from multimodal-looker agent`; regression pair `tests/regressions/013-lookat-fallback-patience.sh` |
+| 28 | `oh-my-openagent--start-work-worktree-teardown` | `oh-my-openagent@4.19.2` | active | 2026-08-23 | `grep -c 'A worktree left behind is a leak' ~/oh-my-openagent-v4.19.2/dist/skills/start-work/SKILL.md` — plain-text skill patch; adds direct-mode worktree reclaim (merge → worktree remove → `branch -d`) as Completion step 3; closes the allocation/reclamation asymmetry that leaked 14 worktrees+branches |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Closed loop between cutover and patch reconciliation |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled; port 18200; requires `~/src/flare` + `~/flare-cache`; chat template derived by `derive-flare-chat-template.py`) |
 | 63 | `derive-flare-chat-template.py` | (repo only) | `scripts/` | No-think + multi-system-merge chat template generator for FLARE-4B serving |
