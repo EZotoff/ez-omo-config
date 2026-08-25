@@ -9,6 +9,7 @@ SRC="$HOME/src/opencode/packages/tui/src/context/local.tsx"
 sed -e 's/async function prune/function prune/' \
     -e 's/for (const id of fromFile) if (!merged.includes(id)) merged.push(id)//' \
     -e 's/onDisk.filter((id) => id !== sessionID)/sessionStore.pinned/' \
+    -e 's/const disk = new Set(onDisk)/const disk = new Set(sessionStore.pinned)/' \
     "$SRC" > "$tmpdir/local.tsx"
 TEST="$(cd "$(dirname "$0")" && pwd)/012-pinned-session-race-fix.sh"
 if PIN_RACE_SRC="$tmpdir/local.tsx" bash "$TEST" >/dev/null 2>&1; then

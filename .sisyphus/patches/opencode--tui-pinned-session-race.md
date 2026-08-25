@@ -5,10 +5,10 @@ target_file: "packages/tui/src/context/local.tsx"
 target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
-applied_date: "2026-08-15"
+applied_date: "2026-08-15 (v1 races), 2026-08-26 (v2 togglePin RMW)"
 dep_version: "1.18.5"
 runtime_effective: false
-runtime_effective_note: "Fix compiled into live v1.18.5 binary 2026-08-15 12:25 (source commit e7f5981ea on fix/link-click-v1.18.5-solidjs). Binary swap done; awaiting live verification: pin in a TUI started after the swap, then observe via .sisyphus/pin-watch.log that a session.deleted prune in another TUI preserves the pin. Flip to true after that observation."
+runtime_effective_note: "v1 (merge guard + prune RMW, commit e7f5981ea, live since 2026-08-15 12:25): 11 days of pin-watch.log surveillance show zero startup-read or prune-path wipes — all corruption events since v1 are the togglePin path. v2 (togglePin file-level RMW, commit e31c20ca3, live since 2026-08-26): awaiting first post-swap togglePin write in pin-watch.log that preserves ids unknown to the writing process. Flip to true after that observation."
 upstream_issue: "none"
 verification_pattern: "pinned"
 verification_note: "Bun minification strips comments and renames locals; this patch contains no unique string literal or property key, so pattern-presence is a weak pre-filter only. Authority rests on the regression test (tests/regressions/012-pinned-session-race-fix.sh), source commit e7f5981ea, and the runtime_effective flag."
@@ -75,6 +75,23 @@ Two changes in `createSession()` (`packages/tui/src/context/local.tsx`):
 ## Regression Test
 
 `tests/regressions/012-pinned-session-race-fix.sh` (+ `.kill.sh`) asserts the two structural fix markers remain in the TUI source and that `prune()` never regains a `save()` call.
+
+## Recurrence 2026-08-25 — Race 3: stale togglePin whole-array write (v2)
+
+Surveillance (`.sisyphus/pin-watch.log`) captured the recurrence that v1 documented as residual risk:
+
+- 17:55:18 — PID 18464 pins `ses_fe6b51ec4ffeCNm6lddCbq2abR` (ez-omo-bench, "Distributed GPU use") → 38 pins on disk.
+- 19:35:44 — PID 18794, a TUI started BEFORE 17:55, pins an unrelated session → `togglePin` calls `save()` → writes its stale 37-pin startup-era array + its own toggle → **the 17:55 pin is wiped from disk**.
+- 19:40:00 — PID 18794 unpins that session → 37 pins remain, the victim pin is gone.
+- 23:22 — reboot. Post-boot TUIs read the corrupted file; the user sees the pin missing and re-pins at 00:06:21 (PID 74243).
+
+The reboot was again only the messenger — corruption happened 3h47m earlier. v1 fixed the startup read and `prune` write paths but left `togglePin` writing the full process-local in-memory array.
+
+### v2 Fix (2026-08-26, source commit e31c20ca3)
+
+`togglePin` is now a file-level read-modify-write, mirroring the v1 `prune` fix: toggle direction comes from this TUI's in-memory view (preserving user intent as displayed), but the write mutates only the toggled id against the file's CURRENT content; every other id on disk is preserved. In-memory state is synced to the disk result. If the file is unreadable, the write falls back to the in-memory projection so the user's toggle is never silently dropped.
+
+Residual risk (accepted): two togglePin/prune RMWs interleaving within milliseconds can lose one update. Pin toggles are human-paced (seconds apart); the pre-v2 failure mode required only a stale process and ANY later toggle, which is now impossible.
 
 ## Runtime Verification
 

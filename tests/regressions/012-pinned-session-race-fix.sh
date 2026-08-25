@@ -18,4 +18,18 @@ if grep -qE '^\s*save\(\)' <(sed -n '/async function prune/,/^      }$/p' "$SRC"
     echo "FAIL: prune() still calls save() — stale in-memory overwrite path is back"
     exit 1
 fi
+# v2 (2026-08-26): togglePin must ALSO be a file-level RMW. A stale TUI toggling any
+# pin rewrote its whole startup-era in-memory array, wiping pins added by other
+# processes (observed 2026-08-25 19:35:44: PID 18794 wrote a stale 37-pin array +
+# its own toggle, erasing the pin added 17:55 by PID 18464 — pin-watch.log).
+assert_grep 'const disk = new Set(onDisk)' "$SRC"
+TOGGLE_REGION=$(sed -n '/togglePin(sessionID: string)/,/^      },$/p' "$SRC")
+if grep -qE '^\s*save\(\)' <(echo "$TOGGLE_REGION"); then
+    echo "FAIL: togglePin() still calls save() — stale in-memory toggle overwrite path is back"
+    exit 1
+fi
+if ! grep -q 'writeJsonAtomic' <(echo "$TOGGLE_REGION"); then
+    echo "FAIL: togglePin() lost its file-level writeJsonAtomic RMW"
+    exit 1
+fi
 exit 0
