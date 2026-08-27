@@ -5,7 +5,7 @@
       "model": "zai-coding-plan/glm-5.3",
       "fallback_models": [
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ],
       "skills": [
         "wisdom"
@@ -17,14 +17,14 @@
       "model": "openai/gpt-5.6-sol",
       "variant": "xhigh",
       "fallback_models": [
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ]
     },
     "oracle": {
       "model": "openai/gpt-5.6-sol",
       "variant": "high",
       "fallback_models": [
-        "opencode-go/deepseek-v4-pro",
+        "ollama-cloud/deepseek-v4-pro:0813",
         "kimi-for-coding-oauth/k3",
         "zai-coding-plan/glm-5.3",
         "google/gemini-3.1-pro-preview"
@@ -61,7 +61,7 @@
       "fallback_models": [
         "zai-coding-plan/glm-5.3",
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ],
       "skills": [
         "wisdom"
@@ -82,7 +82,7 @@
       "model": "openai/gpt-5.6-sol",
       "variant": "xhigh",
       "fallback_models": [
-        "opencode-go/deepseek-v4-pro",
+        "ollama-cloud/deepseek-v4-pro:0813",
         "google/gemini-3.1-pro-preview"
       ],
       "skills": [
@@ -94,7 +94,7 @@
       "model": "zai-coding-plan/glm-5.3",
       "fallback_models": [
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro",
+        "ollama-cloud/deepseek-v4-pro:0813",
         "kimi-for-coding-oauth/k3"
       ],
       "skills": [
@@ -106,7 +106,7 @@
       "model": "zai-coding-plan/glm-5.3",
       "fallback_models": [
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ],
       "skills": [
         "wisdom"
@@ -118,7 +118,7 @@
       "variant": "max",
       "fallback_models": [
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ],
       "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses GLM 5.3 (high thinking) for strong reasoning and instruction-following on complex frontend work."
     },
@@ -144,7 +144,7 @@
       "fallback_models": [
         "kimi-for-coding-oauth/k3",
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ]
     },
     "artistry": {
@@ -153,7 +153,7 @@
       "fallback_models": [
         "zai-coding-plan/glm-5.3",
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ]
     },
     "quick": {
@@ -173,7 +173,7 @@
       "variant": "high",
       "fallback_models": [
         "openai/gpt-5.6-sol",
-        "opencode-go/deepseek-v4-pro"
+        "ollama-cloud/deepseek-v4-pro:0813"
       ]
     },
     "writing": {
@@ -186,7 +186,7 @@
       "model": "openai/gpt-5.6-sol",
       "variant": "high",
       "fallback_models": [
-        "opencode-go/deepseek-v4-pro",
+        "ollama-cloud/deepseek-v4-pro:0813",
         "kimi-for-coding-oauth/k3",
         "zai-coding-plan/glm-5.3"
       ]
@@ -194,7 +194,7 @@
     "mephistopheles": {
       "model": "openai/gpt-5.6-terra",
       "fallback_models": [
-        "opencode-go/deepseek-v4-pro",
+        "ollama-cloud/deepseek-v4-pro:0813",
         "zai-coding-plan/glm-5.3",
         "kimi-for-coding-oauth/kimi-for-coding"
       ],

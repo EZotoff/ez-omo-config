@@ -8,7 +8,8 @@
     "deepseek",
     "inception",
     "uni-lux",
-    "ollama-local"
+    "ollama-local",
+    "ollama-cloud"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -662,9 +663,39 @@
           "attachment": false
         }
       }
+    },
+    "ollama-cloud": {
+      "name": "Ollama Cloud",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://ollama.com/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000
+      },
+      "models": {
+        "deepseek-v4-flash:0731": {
+          "name": "DeepSeek V4 Flash (Ollama Cloud)",
+          "reasoning": true,
+          "interleaved": { "field": "reasoning" },
+          "limit": { "context": 1048576, "output": 393216 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "deepseek-v4-pro:0813": {
+          "name": "DeepSeek V4 Pro (Ollama Cloud)",
+          "reasoning": true,
+          "interleaved": { "field": "reasoning" },
+          "limit": { "context": 1048576, "output": 393216 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "minimax-m3": {
+          "name": "MiniMax M3 (Ollama Cloud)",
+          "limit": { "context": 524288 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        }
+      }
     }
   },
   "autoupdate": false,
   "$schema": "https://opencode.ai/config.json",
-  "small_model": "opencode-go/deepseek-v4-flash"
+  "small_model": "ollama-cloud/deepseek-v4-flash:0731"
 }

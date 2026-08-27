@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 8 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
 
 Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains reusable presets, plugins, skills, and scripts organized into a portable configuration you can fork and adapt.
 
@@ -61,7 +61,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Git safety guardrails** — three-layer protection: always-block non-git destructive ops (`rm -rf`, `chmod -R 777`, `dd of=/dev/`), **history-rewrite block** (`git commit --amend`, `git rebase`, `git push --force*`, `git branch -D`, `git stash clear`, `git reflog expire`, `git gc --prune`, and `git reset <ref>` where ref is a strict ancestor of HEAD — catches the post-commit destructive case), and dirty-tree-conditional git ops (`git reset --hard`, `git clean -f`, etc.). Worktree-aware: status checks use the bash command's actual cwd.
 - **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
 - **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
-- **Runtime fallback** — automatic model switching across 9 providers when APIs fail or rate-limit; compaction-mode failures retry through the dedicated `compaction_fallback_models` chain (compaction itself follows the session model — no pinned compaction model)
+- **Runtime fallback** — automatic model switching across 10 providers when APIs fail or rate-limit; compaction-mode failures retry through the dedicated `compaction_fallback_models` chain (compaction itself follows the session model — no pinned compaction model)
 - **Wisdom system** — learning management that captures and reuses development knowledge
 - **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions; injection is gated to implementation dispatches (consultative subagents skipped) and to sessions inside the active boulder's session lineage
 - **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
@@ -296,7 +296,7 @@ Combine flags as needed:
 
 ## Configuration Highlights
 
-### 8 Enabled Providers
+### 10 Enabled Providers
 
 | Provider | Description | Key Models |
 |----------|-------------|------------|
@@ -308,26 +308,27 @@ Combine flags as needed:
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
 | **Inception Labs** | Mercury models | Mercury 2 |
 | **Uni.lu LiteLLM** | Local University of Luxembourg LiteLLM proxy on DGX Spark | DeepSeek V4 Flash (vLLM), Kimi K3, GLM 5.2 |
+| **Ollama Cloud** | Hosted Ollama models via the ollama.com OpenAI-compatible API (Bearer API key in auth.json) | DeepSeek V4 Flash (`deepseek-v4-flash:0731`), DeepSeek V4 Pro (`deepseek-v4-pro:0813`), MiniMax M3 |
 
-> **Parked**: a self-hosted FLARE-4B provider (`flare-serve.service`, port 18200) was trialled 2026-08-15 and disabled the same day — 14.6GB VRAM did not coexist with ComfyUI on the 16GB GPU. `small_model`/title generation reverted to `opencode-go/deepseek-v4-flash`. The unit, chat-template script (`scripts/derive-flare-chat-template.py`), and model cache (`~/flare-cache`) are kept for a possible retry.
+> **Parked**: a self-hosted FLARE-4B provider (`flare-serve.service`, port 18200) was trialled 2026-08-15 and disabled the same day — 14.6GB VRAM did not coexist with ComfyUI on the 16GB GPU. `small_model`/title generation reverted to `opencode-go/deepseek-v4-flash`; `small_model` later moved to `ollama-cloud/deepseek-v4-flash:0731` (27 Aug 2026; title generation remains on opencode-go). The unit, chat-template script (`scripts/derive-flare-chat-template.py`), and model cache (`~/flare-cache`) are kept for a possible retry.
 
 ### 13 Agent Model Assignments
 
 | Agent | Primary Model | Variant | Fallback Model | Purpose |
 |-------|---------------|---------|----------------|---------|
-| **atlas** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/k3` | Orchestrator with wisdom injection |
-| **prometheus** | `kimi-for-coding-oauth/k3` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Planner, deep reasoning, HTML proposal packets before executable plans |
-| **sisyphus** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Executor, focused tasks |
-| **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Category task executor |
+| **atlas** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813`, `kimi-for-coding-oauth/k3` | Orchestrator with wisdom injection |
+| **prometheus** | `kimi-for-coding-oauth/k3` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Planner, deep reasoning, HTML proposal packets before executable plans |
+| **sisyphus** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Executor, focused tasks |
+| **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Category task executor |
 | **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.3` | Search, documentation |
 | **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.3` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol`, `opencode-go/deepseek-v4-pro` | Complex frontend work |
+| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Complex frontend work |
 | **document-writer** | `openai/gpt-5.6-terra` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | `google/gemini-3.7-flash`, `kimi-for-coding-oauth/kimi-for-coding` | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.6-sol` | high | `opencode-go/deepseek-v4-pro`, `kimi-for-coding-oauth/k3`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
+| **oracle** | `openai/gpt-5.6-sol` | high | `ollama-cloud/deepseek-v4-pro:0813`, `kimi-for-coding-oauth/k3`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
 | **metis** | `zai-coding-plan/glm-5.3` | max | `google/gemini-3.1-pro-preview` | Deep analysis |
-| **momus** | `openai/gpt-5.6-sol` | xhigh | `opencode-go/deepseek-v4-pro`, `google/gemini-3.1-pro-preview` | Code review, critique |
-| **hephaestus** | `openai/gpt-5.6-sol` | xhigh | `opencode-go/deepseek-v4-pro` | Infrastructure, deployment |
+| **momus** | `openai/gpt-5.6-sol` | xhigh | `ollama-cloud/deepseek-v4-pro:0813`, `google/gemini-3.1-pro-preview` | Code review, critique |
+| **hephaestus** | `openai/gpt-5.6-sol` | xhigh | `ollama-cloud/deepseek-v4-pro:0813` | Infrastructure, deployment |
 
 #### Prometheus planning artifact flow
 
