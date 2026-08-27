@@ -148,8 +148,8 @@ for name, expected in expected_agent_models.items():
 expected_category_fallbacks = {
     'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813'],
     'deep': ['ollama-cloud/deepseek-v4-pro:0813', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
-    'quick': ['zai-coding-plan/glm-5.3'],
-    'unspecified-low': ['zai-coding-plan/glm-5.3'],
+    'quick': ['ollama-cloud/deepseek-v4-flash:0731', 'zai-coding-plan/glm-5.3'],
+    'unspecified-low': ['ollama-cloud/deepseek-v4-flash:0731', 'zai-coding-plan/glm-5.3'],
     'unspecified-high': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813'],
     'mephistopheles': ['ollama-cloud/deepseek-v4-pro:0813', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
 }
@@ -171,10 +171,10 @@ for name in ('quick', 'unspecified-low'):
         print(f'FAIL: categories.{name}.variant expected None, got {route.get("variant")!r}')
         sys.exit(1)
     fallbacks = route.get('fallback_models', [])
-    if fallbacks != ['zai-coding-plan/glm-5.3']:
+    if fallbacks != ['ollama-cloud/deepseek-v4-flash:0731', 'zai-coding-plan/glm-5.3']:
         print(f'FAIL: categories.{name}.fallback_models expected kimi fallback, got {fallbacks!r}')
         sys.exit(1)
-print('PASS: quick and unspecified-low use DeepSeek V4 Flash with kimi fallback')
+print('PASS: quick and unspecified-low use DeepSeek V4 Flash with ollama-cloud flash fallback')
 
 for (scope, name), expected in expected_gemini_routes.items():
     actual = (agents if scope == 'agents' else categories).get(name, {}).get('model')

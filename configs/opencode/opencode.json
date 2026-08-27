@@ -31,7 +31,7 @@
   ],
   "agent": {
     "title": {
-      "model": "opencode-go/deepseek-v4-flash"
+      "model": "ollama-cloud/deepseek-v4-flash:0731"
     }
   },
   "compaction": {
@@ -689,7 +689,9 @@
         },
         "minimax-m3": {
           "name": "MiniMax M3 (Ollama Cloud)",
-          "limit": { "context": 524288 },
+          "reasoning": true,
+          "interleaved": { "field": "reasoning" },
+          "limit": { "context": 524288, "output": 131072 },
           "modalities": { "input": ["text"], "output": ["text"] }
         }
       }

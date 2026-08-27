@@ -310,7 +310,7 @@ Combine flags as needed:
 | **Uni.lu LiteLLM** | Local University of Luxembourg LiteLLM proxy on DGX Spark | DeepSeek V4 Flash (vLLM), Kimi K3, GLM 5.2 |
 | **Ollama Cloud** | Hosted Ollama models via the ollama.com OpenAI-compatible API (Bearer API key in auth.json) | DeepSeek V4 Flash (`deepseek-v4-flash:0731`), DeepSeek V4 Pro (`deepseek-v4-pro:0813`), MiniMax M3 |
 
-> **Parked**: a self-hosted FLARE-4B provider (`flare-serve.service`, port 18200) was trialled 2026-08-15 and disabled the same day — 14.6GB VRAM did not coexist with ComfyUI on the 16GB GPU. `small_model`/title generation reverted to `opencode-go/deepseek-v4-flash`; `small_model` later moved to `ollama-cloud/deepseek-v4-flash:0731` (27 Aug 2026; title generation remains on opencode-go). The unit, chat-template script (`scripts/derive-flare-chat-template.py`), and model cache (`~/flare-cache`) are kept for a possible retry.
+> **Parked**: a self-hosted FLARE-4B provider (`flare-serve.service`, port 18200) was trialled 2026-08-15 and disabled the same day — 14.6GB VRAM did not coexist with ComfyUI on the 16GB GPU. `small_model`/title generation reverted to `opencode-go/deepseek-v4-flash`; `small_model` and title generation later moved to `ollama-cloud/deepseek-v4-flash:0731` (27 Aug 2026). The unit, chat-template script (`scripts/derive-flare-chat-template.py`), and model cache (`~/flare-cache`) are kept for a possible retry.
 
 ### 13 Agent Model Assignments
 
@@ -320,8 +320,8 @@ Combine flags as needed:
 | **prometheus** | `kimi-for-coding-oauth/k3` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Planner, deep reasoning, HTML proposal packets before executable plans |
 | **sisyphus** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Executor, focused tasks |
 | **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Category task executor |
-| **librarian** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.3` | Search, documentation |
-| **explore** | `opencode-go/minimax-m3` | default | `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.3` | Discovery, exploration |
+| **librarian** | `opencode-go/minimax-m3` | default | `ollama-cloud/minimax-m3`, `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.3` | Search, documentation |
+| **explore** | `opencode-go/minimax-m3` | default | `ollama-cloud/minimax-m3`, `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.3` | Discovery, exploration |
 | **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Complex frontend work |
 | **document-writer** | `openai/gpt-5.6-terra` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
 | **multimodal-looker** | `openai/gpt-5.6-terra` | default | `google/gemini-3.7-flash`, `kimi-for-coding-oauth/kimi-for-coding` | Image/PDF analysis |

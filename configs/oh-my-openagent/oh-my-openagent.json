@@ -37,6 +37,7 @@
     "librarian": {
       "model": "opencode-go/minimax-m3",
       "fallback_models": [
+        "ollama-cloud/minimax-m3",
         "openai/gpt-5.6-terra",
         "zai-coding-plan/glm-5.3"
       ]
@@ -44,6 +45,7 @@
     "explore": {
       "model": "opencode-go/minimax-m3",
       "fallback_models": [
+        "ollama-cloud/minimax-m3",
         "openai/gpt-5.6-luna",
         "zai-coding-plan/glm-5.3"
       ]
@@ -159,12 +161,14 @@
     "quick": {
       "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
+        "ollama-cloud/deepseek-v4-flash:0731",
         "zai-coding-plan/glm-5.3"
       ]
     },
     "unspecified-low": {
       "model": "opencode-go/deepseek-v4-flash",
       "fallback_models": [
+        "ollama-cloud/deepseek-v4-flash:0731",
         "zai-coding-plan/glm-5.3"
       ]
     },
