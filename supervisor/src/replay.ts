@@ -87,7 +87,10 @@ async function main(): Promise<void> {
       // redirects (question/negation openers) — a context where CONTINUE would
       // be a genuine false positive. Substantive approvals-with-additions are
       // deliberately EXCLUDED (semantically they are go-aheads).
-      const REDIRECT_RE = /^(what|why|how|who|when|where|which|can|could|would|is|are|do|does|did|no\b|don't|dont|stop|wait|actually|instead|not\b|before|first)\b/i
+      // True rejection signal only: explicit redirect/negation after the worker
+      // proposed something. Question-openers are excluded — a new question after an
+      // incomplete reply is often a legitimate continue point, not a rejection.
+      const REDIRECT_RE = /^(no\b|nope|don't|dont|stop|wait|hold on|actually|instead|rather|not\b|never|cancel)\b/i
       const kind: "continue" | "control" | null = isContinuePush(nextUser)
         ? current.turn.origin === "human" || current.turn.origin === "unknown" ? "continue" : null
         : nextUser.trim().length > 80 && REDIRECT_RE.test(nextUser.trim())
