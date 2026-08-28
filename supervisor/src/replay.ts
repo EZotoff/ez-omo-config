@@ -38,7 +38,7 @@ function compactTurns(messages: readonly Message[], sessionID: string): CompactT
 
 async function main(): Promise<void> {
   const args = new Map(process.argv.slice(2).map((v, i, all) => (v.startsWith("--") ? [v.slice(2), all[i + 1] ?? ""] : [String(i), v])))
-  const allProjects = args.has("--all")
+  const allProjects = args.has("all")
   const root = args.get("--root") ?? "/home/ezotoff/AI_projects/veran"
   const maxContinue = Number(args.get("--sample") ?? 30)
   const maxControl = Number(args.get("--control") ?? 15)
