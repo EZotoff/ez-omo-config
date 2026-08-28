@@ -73,6 +73,21 @@ export class OpencodeClient {
     })
   }
 
+  async listAllSessions(): Promise<readonly Session[]> {
+    const raw = z.array(sessionSchema).parse(await this.request("/experimental/session?limit=10000"))
+    return raw.map((session) => {
+      const parentID = session.parentID ?? session.parent_id
+      const updated = session.time?.updated
+      return {
+        id: session.id,
+        directory: session.directory,
+        ...(parentID === undefined ? {} : { parentID }),
+        ...(session.title === undefined ? {} : { title: session.title }),
+        ...(updated === undefined ? {} : { timeUpdatedMs: updated }),
+      }
+    })
+  }
+
   async listMessages(sessionID: string, directory: string): Promise<readonly Message[]> {
     const raw = z.array(messageEnvelopeSchema).parse(
       await this.request(`/session/${encodeURIComponent(sessionID)}/message?directory=${encodeURIComponent(directory)}`),

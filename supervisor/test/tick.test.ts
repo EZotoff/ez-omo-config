@@ -14,10 +14,16 @@ const valid = JSON.stringify({
 
 describe("parseDecision", () => {
   test("accepts strict valid JSON", () => expect(parseDecision(valid, 0.6).action).toBe("STEER"))
-  test("normalizes safe GLM aliases for no-op decisions", () => {
+  test.each([
+    ["none", "none", null],
+    ["approve", "approve", "msg-9"],
+    ["allow", "allow", null],
+    ["no_action", "no_action", null],
+    ["answer", "answer", "msg-7"],
+  ])("normalizes observed GLM no-op alias %s", (_name, action, target) => {
     const raw = JSON.stringify({
-      action: "none",
-      target: null,
+      action,
+      target,
       rationale: "Benign turn; no intervention needed",
       citations: ["msg-1"],
       confidence: 0.98,

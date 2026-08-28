@@ -38,6 +38,7 @@ function compactTurns(messages: readonly Message[], sessionID: string): CompactT
 
 async function main(): Promise<void> {
   const args = new Map(process.argv.slice(2).map((v, i, all) => (v.startsWith("--") ? [v.slice(2), all[i + 1] ?? ""] : [String(i), v])))
+  const allProjects = args.has("--all")
   const root = args.get("--root") ?? "/home/ezotoff/AI_projects/veran"
   const maxContinue = Number(args.get("--sample") ?? 30)
   const maxControl = Number(args.get("--control") ?? 15)
@@ -54,20 +55,25 @@ async function main(): Promise<void> {
   const adapter = new ZaiAdapter(baseURL, config.model.id, apiKey)
 
   const cutoff = Date.now() - days * 86_400_000
-  const sessions = (await client.listSessions(root)).filter((s) => (s.timeUpdatedMs ?? 0) >= cutoff)
-  console.error(`scan: ${sessions.length} sessions updated within ${days}d`)
+  type ScanSession = { id: string; directory: string; timeUpdatedMs?: number }
+  const sessions: readonly ScanSession[] = allProjects
+    ? (await client.listAllSessions()).filter((s) => (s.timeUpdatedMs ?? 0) >= cutoff)
+    : (await client.listSessions(root)).filter((s) => (s.timeUpdatedMs ?? 0) >= cutoff)
+  console.error(`scan: ${sessions.length} sessions updated within ${days}d across ${allProjects ? "all projects" : root}`)
 
   const all: Message[][] = []
   for (const session of sessions) {
-    const messages: Message[] = [...(await client.listMessages(session.id, root))]
+    const messages: Message[] = [...(await client.listMessages(session.id, session.directory))]
     all.push(messages)
   }
   const childIDs = deriveChildSessionIDs(all.flat())
   const top = topLevelSessions(sessions, childIDs)
-  console.error(`topology: ${top.length} top-level (${childIDs.size} children derived)`)
+  const directories = new Set(top.map((session) => session.directory))
+  console.error(`topology: ${top.length} top-level across ${directories.size} project dirs (${childIDs.size} children derived)`)
 
   const perSession = new Map<string, CompactTurn[]>()
   for (let i = 0; i < top.length; i += 1) perSession.set(top[i]!.id, compactTurns(all[i] ?? [], top[i]!.id))
+  const dirOf = new Map(top.map((session) => [session.id, session.directory]))
 
   type Case = { kind: "continue" | "control"; session: string; target: Turn; targetCreatedMs: number; history: Turn[] }
   const cases: Case[] = []
@@ -97,8 +103,10 @@ async function main(): Promise<void> {
   let done = 0
   for (const c of [...continueCases, ...controlCases]) {
     const siblingChanges: Record<string, Turn[]> = {}
+    const targetDir = dirOf.get(c.session)
     for (const [sessionID, turns] of siblings) {
       if (sessionID === c.session) continue
+      if (dirOf.get(sessionID) !== targetDir) continue
       siblingChanges[sessionID] = turns.filter((t) => t.userCreatedMs > 0 && t.userCreatedMs <= c.targetCreatedMs).map((t) => t.turn)
     }
     const context: AssembledContext = assembleContext({

@@ -30,7 +30,9 @@ function normalizeDecisionValue(value: unknown): unknown {
   const actionRaw = input["action"]
   if (typeof actionRaw !== "string") return value
   const actionUpper = actionRaw.toUpperCase().replace(/[ -]/g, "_")
-  const NOOP_ALIASES = new Set(["NONE", "NOOP", "NO_OP", "DO_NOTHING", "NO_ACTION", "APPROVE", "OK", "ACCEPTED", "APPROVED"])
+  // Complete alias set observed in production GLM outputs (ledger + benchmark raws,
+  // 2026-08-28): none, approve, allow, no_action, answer — all semantic no-ops here.
+  const NOOP_ALIASES = new Set(["NONE", "NOOP", "NO_OP", "DO_NOTHING", "NO_ACTION", "APPROVE", "APPROVED", "ACCEPTED", "OK", "ALLOW", "ANSWER", "AGREE"])
   const action = NOOP_ALIASES.has(actionUpper) ? "ACCEPT" : actionUpper
   const normalized: Record<string, unknown> = { ...input, action }
   if (normalized["target"] === null) delete normalized["target"]
