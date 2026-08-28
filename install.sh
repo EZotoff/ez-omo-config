@@ -42,6 +42,7 @@ ITEMS=(
     "configs|configs/oh-my-openagent/oh-my-openagent.json|$HOME/.config/opencode/oh-my-openagent.json"
     "configs|extras/ocx.jsonc|$HOME/.opencode/ocx.jsonc"
     "configs|configs/opencode/worktree.jsonc|$HOME/.opencode/worktree.jsonc"
+    "configs|configs/opencode-supervisor/supervisor.json|$HOME/.config/opencode-supervisor/supervisor.json"
     "plugins|plugins/worktree.ts|$HOME/.opencode/plugin/worktree.ts"
     "plugins|plugins/worktree|$HOME/.opencode/plugin/worktree"
     "plugins|plugins/git-safety.ts|$HOME/.opencode/plugin/git-safety.ts"
@@ -94,6 +95,7 @@ ITEMS=(
     "scripts|systemd/user/opencode-patch-integrity-check.service|$HOME/.config/systemd/user/opencode-patch-integrity-check.service"
     "scripts|systemd/user/opencode-patch-integrity-check.timer|$HOME/.config/systemd/user/opencode-patch-integrity-check.timer"
     "scripts|systemd/user/flare-serve.service|$HOME/.config/systemd/user/flare-serve.service"
+    "scripts|systemd/user/opencode-supervisor.service|$HOME/.config/systemd/user/opencode-supervisor.service"
 )
 
 usage() {

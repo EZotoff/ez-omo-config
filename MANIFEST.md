@@ -43,6 +43,8 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 4x | skill-nudger/state.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
 | 4y | skill-nudger/nudge.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
 | 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
+| 5b | supervisor.json | `~/.config/opencode-supervisor/` | `configs/opencode-supervisor/` | `$HOME/.config/opencode-supervisor/` | Project Supervisor P0 | Optional |
+| 5c | supervisor/ | (repo only) | `supervisor/` | (executed from checkout) | Project Supervisor P0 | Optional |
 | 6 | worktree.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Worktree Plugin | Required |
 | 7 | worktree/state.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
 | 8 | worktree/terminal.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
@@ -112,6 +114,8 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled, provider removed from opencode.json; port 18200) | Optional |
+| 62b | `opencode-supervisor.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Project Supervisor P0 shadow observer | Optional |
+| 62c | `test_supervisor_config.sh` | (repo only) | `tests/` | (repo only) | Project Supervisor static contract | Required |
 
 ## Directory Structure
 
@@ -125,7 +129,9 @@ ez-omo-config/
 ├── configs/
 │   ├── opencode/           # Main OpenCode configuration (4 files + aspect-dynamics + output-shaper)
 │   ├── oh-my-openagent/     # Oh-My-OpenAgent configuration (1 file)
+│   ├── opencode-supervisor/  # Project Supervisor P0 config and reference
 │   └── retry-errors.json    # Retry registry for provider-connect-retry plugin
+├── supervisor/              # Bun + strict TypeScript P0 observer service and tests
 ├── plugins/
 │   ├── worktree.ts         # Worktree plugin core
 │   ├── auto-checkpoint.ts  # Semantic session-scoped checkpoint plugin
@@ -155,7 +161,7 @@ ez-omo-config/
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
 │   ├── verify-live-patches.sh # Runtime-resolved tracked-patch verifier
 │   └── watch-runtime-patches.sh # Runtime binary inotify watcher
-├── systemd/user/           # Watcher service and periodic integrity-check units
+├── systemd/user/           # Patch integrity units and Project Supervisor user service
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, live deployment verification, and observability contract
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
@@ -174,11 +180,11 @@ ez-omo-config/
 
 - **Total Artifacts**: repo-managed OpenCode/OMO commands, configs, plugins, skills, scripts, tests, docs, extras, and Docker templates.
 - **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
-- **Core Configs**: 22 files (opencode.json, opencode.jsonc, disabled magic-context.jsonc reference config, worktree.jsonc, provider-connect-retry.mjs, oh-my-openagent.json, retry-errors.json, stack-locations.json, aspect-dynamics.mjs, 7 aspect-dynamics support modules, 2 seed sets, output-shaper.mjs, and 4 output-shaper support modules). DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
+- **Core Configs**: existing OpenCode/OMO configs plus the Project Supervisor P0 `supervisor.json`. DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, and Python operator helpers.
-- **Systemd**: watcher service plus a periodic integrity-check service and 30-minute timer.
+- **Systemd**: watcher service, periodic integrity-check service and timer, plus the Project Supervisor P0 user service.
 - **Tests**: active repo verification scripts, the 19-pair regression corpus (38 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 

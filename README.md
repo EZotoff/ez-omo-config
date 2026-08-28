@@ -72,6 +72,7 @@ After running `./install.sh`, your OpenCode CLI gains:
 - **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
 - **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
 - **Patch-preservation safety infrastructure** — regression corpus, rewritten verifier, inotify watcher, and periodic integrity check protect against patch drift during updates
+- **Project Supervisor P0** — read-only external observer for top-level project sessions; projects human-visible turns, runs shadow GLM judgment ticks, and writes only to a local hash-chained ledger
 
 ---
 
@@ -82,11 +83,11 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
 | 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
-| 2-5 | **Configs** | 29 files | Core OpenCode and OMO configuration files, including the Aspect Dynamics plugin, its support modules, two seed aspect sets, the Output Shaper plugin with its support modules, and the Skill Nudger plugin with its support modules |
+| 2-5 | **Configs** | 30 files | Core OpenCode, OMO, and Project Supervisor configuration files, including Aspect Dynamics, Output Shaper, and Skill Nudger support modules |
 | 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, review workflows, and OS computer use (cua-driver MCP, machine-local daemon). (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
-| 31a | **Systemd** | 3 user units | Reactive inotify watcher plus a periodic patch-integrity service and timer |
+| 31a | **Systemd** | 4 user units | Reactive patch watcher, periodic integrity units, and the read-only Project Supervisor service |
 | 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, computer-use skill/MCP safety, and the 18-pair regression corpus (patch preservation + gating regressions) |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
@@ -106,6 +107,8 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection (finish `other` AND `stop` with zero tokens), escalating nudge prompts, per-message model fallback, registry-driven error matching, and compaction-mode failure fallback (retries compaction through `compaction_fallback_models` via `session.summarize`) |
 | 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, 5-stage escalating nudge prompts (sisyphus/atlas/default), per-message fallback models, empty-response detection rules for GLM, and the dedicated `compaction_fallback_models` chain |
 | 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
+| 5b | `supervisor.json` | `configs/opencode-supervisor/` | P0 shadow observer configuration: roots, timing, model, context limits, and confidence floor |
+| 5c | `supervisor/` | `supervisor/` | Bun + strict TypeScript read-only observer service, status CLI, and component tests |
 | 6 | `worktree.ts` | `plugins/` | Git worktree management plugin |
 | 7 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |
 | 8 | `worktree/terminal.ts` | `plugins/worktree/` | Terminal integration for worktrees |
@@ -196,7 +199,9 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15: unit disabled; port 18200; requires `~/src/flare` repo + `~/flare-cache`; mem-fraction 0.84) |
+| 62b | `opencode-supervisor.service` | `systemd/user/` | P0 shadow observer user service; depends on the existing OpenCode service and binds no port |
 | 63 | `derive-flare-chat-template.py` | `scripts/` | Derives the SGLang chat template for FLARE-4B: forces no-think decoding and merges consecutive leading system messages (OpenCode always sends two system messages; stock template rejects with 400) |
+| 64 | `test_supervisor_config.sh` | `tests/` | Static contract for supervisor config, unit, and installer registrations |
 
 ---
 

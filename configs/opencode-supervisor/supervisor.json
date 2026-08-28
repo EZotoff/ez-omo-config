@@ -1,0 +1,14 @@
+{
+  "server_url": "http://127.0.0.1:3021",
+  "model": {"provider": "zai-coding-plan", "id": "glm-5.3"},
+  "grace_period_s": 60,
+  "min_intervention_interval_s": 300,
+  "max_tick_concurrency": 4,
+  "target_history_cap_pairs": 50,
+  "sibling_turn_window": 3,
+  "token_budget": 20000,
+  "confidence_floor": 0.6,
+  "roots": [
+    {"path": "/home/ezotoff/AI_projects/veran", "mode": "shadow"}
+  ]
+}

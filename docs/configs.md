@@ -6,6 +6,14 @@ The OhMyOpenCode configuration system provides portable, reusable OpenCode setti
 
 Configuration files control OpenCode behavior, provider settings, plugin loading, model assignments, and permission restrictions. All configs are copied from the local OpenCode installation with personal paths normalized to `$HOME` notation.
 
+## Project Supervisor P0
+
+`configs/opencode-supervisor/supervisor.json` configures the external read-only supervisor. It observes the existing server at `server_url`, supervises only configured top-level project roots, applies grace and minimum-interval limits, caps assembled context, and sends stateless JSON judgment requests to the configured model. P0 accepts only `off` and `shadow`; unknown keys or modes fail closed.
+
+The installer places the config at `$HOME/.config/opencode-supervisor/supervisor.json`. The service writes no OpenCode session data and binds no port. Its only writes are the hash-chained ledger and atomic status snapshot under `$HOME/.local/state/opencode-supervisor/`. The provider key remains in `$HOME/.local/share/opencode/auth.json` and is never persisted by the supervisor.
+
+Evidence state: `repo_implemented`. Not verified live: `live_file_installed`, `active_config_registered`, `runtime_loaded`, `real_project_behavior_proven`.
+
 ---
 
 ## opencode.json
