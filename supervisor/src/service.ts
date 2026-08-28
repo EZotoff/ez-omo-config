@@ -111,7 +111,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
       const previousManifest = runtime.manifest
       runtime.manifest = (await reconcile(runtime.root)).manifest
       const scan = runtime.manifest.sessions.find((entry) => entry.session.id === sessionID)
-      const target = scan?.turns.at(-1)
+      // Supervision targets are human-initiated turns only. Machine-driven turns
+      // (ralph pushes, nudges, synthetic) are already owned by their machinery —
+      // per the standing design rule, the supervisor stands down for them.
+      const target = scan?.turns.filter((turn) => turn.origin === "human" || turn.origin === "unknown").at(-1)
       if (target !== undefined && target.assistantMessageID !== undefined) {
         ledger = await ledger.append("WORKER_TURN_COMPLETED", { sessionID, messageID: target.assistantMessageID })
         if (target.origin === "unknown") ledger = await ledger.append("CLASSIFIED_UNKNOWN", { sessionID, messageID: target.userMessageID })

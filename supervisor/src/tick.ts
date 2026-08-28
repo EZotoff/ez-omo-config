@@ -28,10 +28,10 @@ function normalizeDecisionValue(value: unknown): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return value
   const input = value as Record<string, unknown>
   const actionRaw = input["action"]
-  const actionUpper = typeof actionRaw === "string" ? actionRaw.toUpperCase().replace(/[ -]/g, "_") : actionRaw
-  const action = actionUpper === "NONE" || actionUpper === "NOOP" || actionUpper === "NO_OP" || actionUpper === "DO_NOTHING"
-    ? "ACCEPT"
-    : actionUpper
+  if (typeof actionRaw !== "string") return value
+  const actionUpper = actionRaw.toUpperCase().replace(/[ -]/g, "_")
+  const NOOP_ALIASES = new Set(["NONE", "NOOP", "NO_OP", "DO_NOTHING", "NO_ACTION", "APPROVE", "OK", "ACCEPTED", "APPROVED"])
+  const action = NOOP_ALIASES.has(actionUpper) ? "ACCEPT" : actionUpper
   const normalized: Record<string, unknown> = { ...input, action }
   if (normalized["target"] === null) delete normalized["target"]
   const citations = normalized["citations"]
