@@ -11,6 +11,16 @@ const valid = JSON.stringify({
 
 describe("parseDecision", () => {
   test("accepts strict valid JSON", () => expect(parseDecision(valid, 0.6).action).toBe("STEER"))
+  test("normalizes safe GLM aliases for no-op decisions", () => {
+    const raw = JSON.stringify({
+      action: "none",
+      target: null,
+      rationale: "Benign turn; no intervention needed",
+      citations: ["msg-1"],
+      confidence: 0.98,
+    })
+    expect(parseDecision(raw, 0.6)).toMatchObject({ action: "ACCEPT", citations: [] })
+  })
   test.each([
     ["malformed", "{"],
     ["missing citations", JSON.stringify({ action: "STEER", rationale: "x", confidence: 0.9 })],

@@ -6,6 +6,7 @@ import { OpencodeClient, type ServerEvent } from "./client"
 import { loadApiKey, loadConfig, loadProviderBaseURL } from "./config"
 import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
+import { pollRootOnce } from "./poller"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTick } from "./tick"
@@ -159,36 +160,41 @@ export async function runService(signal: AbortSignal): Promise<void> {
     return previous.kind !== "GRACE" && result.state.kind === "GRACE" && !result.illegal
   }
 
+  const periodicReconcile = setInterval(() => {
+    for (const root of config.roots) {
+      if (root.mode === "off") continue
+      void reconcile(root.path)
+    }
+  }, 600_000)
+  signal.addEventListener("abort", () => clearInterval(periodicReconcile), { once: true })
+
+  // Polling ingress (SSE is unusable on live 1.18.5 for project events — see poller.ts).
+  const POLL_INTERVAL_MS = 20_000
   for (const root of config.roots) {
     if (root.mode === "off") continue
-    const runtime = await reconcile(root.path)
+    await reconcile(root.path)
+    const watchStates = new Map<string, { messageCount: number; completed: boolean }>()
     void (async () => {
-      for await (const event of client.events(root.path, signal)) {
-        if (event.type === "server.connected") {
-          await reconcile(root.path)
-          continue
-        }
-        if (event.type !== "session.status" && event.type !== "session.next.step.ended" && event.type !== "session.next.synthetic") continue
-        const sessionID = eventSessionID(event)
-        const statusValue = event.properties?.["status"]
-        const statusType = typeof statusValue === "object" && statusValue !== null && "type" in statusValue
-          ? statusValue.type
-          : undefined
-        if (sessionID === undefined) continue
-        if (statusType === "retry") {
-          await applyEvent(runtime, sessionID, { type: "retry", at: Date.now() })
-          continue
-        }
-        if (statusType === "busy") {
-          await applyEvent(runtime, sessionID, { type: "busy", at: Date.now() })
-          continue
-        }
-        if (event.type === "session.next.synthetic") {
-          await applyEvent(runtime, sessionID, { type: "compaction", at: Date.now() })
-          continue
-        }
-        if (statusType === "idle" || event.type === "session.next.step.ended") {
-          if (await applyEvent(runtime, sessionID, { type: "idle", at: Date.now() })) await enqueueIdle(runtime, sessionID)
+      while (!signal.aborted) {
+        await Bun.sleep(POLL_INTERVAL_MS)
+        const runtime = runtimes.get(root.path)
+        if (runtime === undefined) continue
+        try {
+          const childIDs = new Set(runtime.manifest.childSessionIDs)
+          const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now())
+          for (const sig of signals) {
+            if (sig.kind === "busy") {
+              await applyEvent(runtime, sig.sessionID, { type: "busy", at: Date.now() })
+            } else if (sig.kind === "idle") {
+              if (await applyEvent(runtime, sig.sessionID, { type: "idle", at: Date.now() })) {
+                await enqueueIdle(runtime, sig.sessionID)
+              }
+            }
+          }
+        } catch (error) {
+          if (error instanceof Error) {
+            ledger = await ledger.append("ERROR", { root: root.path, error: error.message })
+          }
         }
       }
     })()

@@ -95,11 +95,14 @@ export class OpencodeClient {
     }))
   }
 
-  async *events(directory: string, signal: AbortSignal): AsyncGenerator<ServerEvent> {
+  async *events(_directory: string, signal: AbortSignal): AsyncGenerator<ServerEvent> {
     let backoff = 500
     while (!signal.aborted) {
       try {
-        const response = await fetch(new URL(`/event?directory=${encodeURIComponent(directory)}`, this.baseURL), { signal, headers: this.authHeader() })
+        // NB: directory-filtered SSE is broken on live 1.18.5 (delivers nothing to external
+        // subscribers — see patch entry opencode--sse-directory-filter-removal). Subscribe
+        // unfiltered and let the caller filter by supervised session membership.
+        const response = await fetch(new URL("/event", this.baseURL), { signal, headers: this.authHeader() })
         if (!response.ok || response.body === null) throw new ClientError(`event HTTP ${response.status}`)
         const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
         let buffer = ""

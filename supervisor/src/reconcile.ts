@@ -15,6 +15,7 @@ export type ScanManifest = {
   readonly startedAt: string
   readonly completedAt: string
   readonly complete: true
+  readonly childSessionIDs: readonly string[]
   readonly sessions: readonly SessionScan[]
 }
 
@@ -82,5 +83,5 @@ export async function reconcileRoot(
   const sessions = fetched
     .filter((scan) => top.has(scan.session.id))
     .map((scan) => ({ ...scan, turns: projectTurns(scan.messages, registry) }))
-  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, sessions }
+  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, childSessionIDs: [...childIDs], sessions }
 }
