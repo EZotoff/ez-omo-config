@@ -1,5 +1,5 @@
 export type MachineWriterPattern = {
-  readonly writer: "ralph-loop" | "provider-connect-retry" | "aspect-dynamics"
+  readonly writer: "ralph-loop" | "provider-connect-retry" | "aspect-dynamics" | "system-notification"
   readonly regex: RegExp
   readonly description: string
 }
@@ -40,6 +40,14 @@ export const machineWriterPatterns: readonly MachineWriterPattern[] = [
     writer: "provider-connect-retry",
     regex: new RegExp(`^(?:${retryPrompts.map(escapeRegex).join("|")})$`),
     description: "provider-connect-retry escalating nudge prompts",
+  },
+  {
+    writer: "system-notification",
+    // OMO/system background-task notifications and internal markers are injected
+    // as ordinary user-role messages without the synthetic flag (observed live:
+    // 60 of 124 "human-visible" veran turns in a 21-day window were these).
+    regex: /^<system-reminder>|<!-- OMO_INTERNAL_(?:INITIATOR|NOREPLY) -->/,
+    description: "OMO/system background notifications injected as user messages",
   },
   {
     writer: "aspect-dynamics",
