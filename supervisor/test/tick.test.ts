@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test"
-import { parseDecision } from "../src/tick"
+import { parseDecision, runTick } from "../src/tick"
+import type { ReasoningAdapter } from "../src/adapter"
+import type { AssembledContext } from "../src/assembler"
+import type { Turn } from "../src/types"
 
 const valid = JSON.stringify({
   action: "STEER",
@@ -28,4 +31,13 @@ describe("parseDecision", () => {
   ])("falls back to ABSTAIN for %s output", (_name, input) => {
     expect(parseDecision(input, 0.6).action).toBe("ABSTAIN")
   })
+})
+
+
+test("runTick fails closed to ABSTAIN when provider errors", async () => {
+  const adapter: ReasoningAdapter = { complete: async () => { throw new Error("rate limited") } }
+  const target: Turn = { sessionID: "ses-a", userMessageID: "u1", assistantMessageID: "a1", origin: "unknown", userText: "x", assistantText: "y", transcript: "USER: x\nASSISTANT: y" }
+  const context: AssembledContext = { text: target.transcript, estimatedTokens: 5, truncated: false }
+  const decision = await runTick({ adapter, target, context, confidenceFloor: 0.6 })
+  expect(decision).toMatchObject({ action: "ABSTAIN", rationale: "reasoning adapter failed" })
 })

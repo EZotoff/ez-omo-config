@@ -79,5 +79,12 @@ export async function runTick(request: TickRequest): Promise<Decision> {
     `TARGET SESSION ${request.target.sessionID} MESSAGE ${request.target.userMessageID}`,
     request.context.text,
   ].join("\n\n")
-  return parseDecision(await request.adapter.complete(prompt), request.confidenceFloor)
+  try {
+    return parseDecision(await request.adapter.complete(prompt), request.confidenceFloor)
+  } catch (error) {
+    const status = typeof error === "object" && error !== null && "status" in error && typeof error.status === "number"
+      ? ` HTTP ${error.status}`
+      : ""
+    return abstain(`reasoning adapter failed${status}`)
+  }
 }
