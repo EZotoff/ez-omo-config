@@ -1,5 +1,9 @@
 {
   "server_url": "http://127.0.0.1:3021",
+  "server_username": "opencode",
+  "server_password_env": "OPENCODE_SERVER_PASSWORD",
+  "initial_window_days": 7,
+  "fetch_concurrency": 8,
   "model": {"provider": "zai-coding-plan", "id": "glm-5.3"},
   "grace_period_s": 60,
   "min_intervention_interval_s": 300,

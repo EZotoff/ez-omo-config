@@ -47,7 +47,7 @@ function eventSessionID(event: ServerEvent): string | undefined {
 }
 
 function emptyStatus(): SupervisorStatus {
-  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0 }
+  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0 }
 }
 
 export async function runService(signal: AbortSignal): Promise<void> {
@@ -56,7 +56,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const stateDirectory = join(homedir(), ".local", "state", "opencode-supervisor")
   const statusPath = join(stateDirectory, "status.json")
   const ledgerPath = join(stateDirectory, "ledger.jsonl")
-  const client = new OpencodeClient(config.server_url)
+  const client = new OpencodeClient(config.server_url, {
+    username: config.server_username,
+    password: process.env[config.server_password_env] ?? "",
+  })
   const baseURL = await loadProviderBaseURL(join(repoRoot, "configs", "opencode", "opencode.json"), config.model.provider)
   const apiKey = await loadApiKey(join(homedir(), ".local", "share", "opencode", "auth.json"), config.model.provider)
   const adapter = new ZaiAdapter(baseURL, config.model.id, apiKey)
@@ -67,8 +70,8 @@ export async function runService(signal: AbortSignal): Promise<void> {
 
   const reconcile = async (root: string): Promise<RootRuntime> => {
     const manifest = await reconcileRoot(client, root, emptyRegistry, {
-      initialWindowDays: 7,
-      fetchConcurrency: 8,
+      initialWindowDays: config.initial_window_days,
+      fetchConcurrency: config.fetch_concurrency,
     })
     const runtime = runtimes.get(root) ?? {
       root,
@@ -84,6 +87,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
     status.queueDepths[root] = runtime.queueDepth
     const turns = [...runtimes.values()].flatMap((entry) => entry.manifest.sessions.flatMap((scan) => scan.turns))
     status.unknownOriginRate = turns.length === 0 ? 0 : turns.filter((turn) => turn.origin === "unknown").length / turns.length
+    status.machineMarkedRate = turns.length === 0 ? 0 : turns.filter((turn) => turn.origin === "machine-synthetic" || turn.origin === "machine-template").length / turns.length
     await writeStatus(statusPath, status)
     return runtime
   }
