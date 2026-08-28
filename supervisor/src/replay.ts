@@ -83,9 +83,14 @@ async function main(): Promise<void> {
     for (let i = 0; i + 1 < turns.length; i += 1) {
       const current = turns[i]!
       const nextUser = turns[i + 1]!.turn.userText
+      // Negative control: the next human message clearly opens a NEW topic or
+      // redirects (question/negation openers) — a context where CONTINUE would
+      // be a genuine false positive. Substantive approvals-with-additions are
+      // deliberately EXCLUDED (semantically they are go-aheads).
+      const REDIRECT_RE = /^(what|why|how|who|when|where|which|can|could|would|is|are|do|does|did|no\b|don't|dont|stop|wait|actually|instead|not\b|before|first)\b/i
       const kind: "continue" | "control" | null = isContinuePush(nextUser)
         ? current.turn.origin === "human" || current.turn.origin === "unknown" ? "continue" : null
-        : nextUser.trim().length > 80
+        : nextUser.trim().length > 80 && REDIRECT_RE.test(nextUser.trim())
           ? "control"
           : null
       if (kind === null) continue
