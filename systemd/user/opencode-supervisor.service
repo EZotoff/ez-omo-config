@@ -1,0 +1,20 @@
+# Requires the repository checked out at ~/ez-omo-config.
+[Unit]
+Description=OpenCode Project Supervisor (P0 shadow mode)
+After=opencode.service
+Wants=opencode.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/openchamber/openchamber.env
+ExecStart=%h/.bun/bin/bun run %h/ez-omo-config/supervisor/src/main.ts
+Type=simple
+ExecStart=%h/.bun/bin/bun run %h/ez-omo-config/supervisor/src/main.ts
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
