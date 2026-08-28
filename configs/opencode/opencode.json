@@ -676,23 +676,79 @@
         "deepseek-v4-flash:0731": {
           "name": "DeepSeek V4 Flash (Ollama Cloud)",
           "reasoning": true,
-          "interleaved": { "field": "reasoning" },
-          "limit": { "context": 1048576, "output": 393216 },
-          "modalities": { "input": ["text"], "output": ["text"] }
+          "interleaved": {
+            "field": "reasoning"
+          },
+          "limit": {
+            "context": 1048576,
+            "output": 393216
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
         },
         "deepseek-v4-pro:0813": {
           "name": "DeepSeek V4 Pro (Ollama Cloud)",
           "reasoning": true,
-          "interleaved": { "field": "reasoning" },
-          "limit": { "context": 1048576, "output": 393216 },
-          "modalities": { "input": ["text"], "output": ["text"] }
+          "interleaved": {
+            "field": "reasoning"
+          },
+          "limit": {
+            "context": 1048576,
+            "output": 393216
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
         },
         "minimax-m3": {
           "name": "MiniMax M3 (Ollama Cloud)",
           "reasoning": true,
-          "interleaved": { "field": "reasoning" },
-          "limit": { "context": 524288, "output": 131072 },
-          "modalities": { "input": ["text"], "output": ["text"] }
+          "interleaved": {
+            "field": "reasoning"
+          },
+          "limit": {
+            "context": 524288,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
+    "qwen-tunnel": {
+      "name": "Qwen3.8-27B+MTP (uni-pc tunnel)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://10.71.71.3:18061/v1",
+        "apiKey": "qwen-tunnel",
+        "chunkTimeout": 600000,
+        "headerTimeout": 600000
+      },
+      "models": {
+        "qwen3.8-27b": {
+          "name": "Qwen3.8 27B IQ3_XXS+MTP (4080S)",
+          "limit": {
+            "context": 65536,
+            "output": 16384
+          },
+          "attachment": false
         }
       }
     }
