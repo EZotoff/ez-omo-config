@@ -89,6 +89,7 @@ async function main(): Promise<void> {
           ? "control"
           : null
       if (kind === null) continue
+      if (current.turn.assistantMessageID === undefined || current.turn.assistantText.trim() === "") continue
       if ((usedPerSession.get(`${sessionID}:${kind}`) ?? 0) >= perSessionCap) continue
       usedPerSession.set(`${sessionID}:${kind}`, (usedPerSession.get(`${sessionID}:${kind}`) ?? 0) + 1)
       cases.push({ kind, session: sessionID, target: current.turn, targetCreatedMs: current.userCreatedMs, history: turns.slice(0, i + 1).map((t) => t.turn) })
