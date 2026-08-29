@@ -9,7 +9,8 @@
     "inception",
     "uni-lux",
     "ollama-local",
-    "ollama-cloud"
+    "ollama-cloud",
+    "qwen-tunnel"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -746,7 +747,11 @@
       },
       "models": {
         "qwen3.8-27b": {
-          "name": "Qwen3.8 27B IQ3_XXS+MTP (4080S)",
+          "name": "Qwen3.8 27B IQ3_XXS+MTP (uni-pc 4060 Ti)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
           "limit": {
             "context": 65536,
             "output": 16384
