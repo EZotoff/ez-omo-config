@@ -1,5 +1,5 @@
 export type MachineWriterPattern = {
-  readonly writer: "ralph-loop" | "provider-connect-retry" | "aspect-dynamics" | "system-notification"
+  readonly writer: "ralph-loop" | "provider-connect-retry" | "aspect-dynamics" | "system-notification" | "astra-automation"
   readonly regex: RegExp
   readonly description: string
 }
@@ -48,6 +48,17 @@ export const machineWriterPatterns: readonly MachineWriterPattern[] = [
     // 60 of 124 "human-visible" veran turns in a 21-day window were these).
     regex: /^<system-reminder>|<!-- OMO_INTERNAL_(?:INITIATOR|NOREPLY) -->/,
     description: "OMO/system background notifications injected as user messages",
+  },
+  {
+    writer: "astra-automation",
+    // Kraken hosts an autonomous ASTRA research conductor: a night-shepherd timer
+    // (~15 min, 01:00-07:00) nudges a fixed session ("AUTOMATED SHEPHERD CHECK ..."),
+    // and the conductor self-starts experiment sessions ("ASTRA Night N", "EXPERIMENT/
+    // HYPOTHESIS H1" kickoffs, "Continue Project ~/AI_projects/kraken"). These turns
+    // are machine-initiated — the supervisor stands down for them (their continuation
+    // machinery is the schedule itself). Observed live 2026-08-29.
+    regex: /^(?:AUTOMATED SHEPHERD CHECK\b|ASTRA Night \d|EXPERIMENT \(ASTRA|Experiment H\d|HYPOTHESIS H\d|You are an ASTRA experiment worker|Continue Project ~\/AI_projects\/kraken)/,
+    description: "ASTRA autonomous research kickoffs and shepherd nudges (kraken)",
   },
   {
     writer: "aspect-dynamics",
