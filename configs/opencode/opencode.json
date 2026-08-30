@@ -561,6 +561,41 @@
     "opencode-go": {
       "options": {
         "chunkTimeout": 30000
+      },
+      "models": {
+        "qwen3.8-flash": {
+          "name": "Qwen 3.8 Flash (Flash-Next)",
+          "reasoning": true,
+          "attachment": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "reasoning_effort": "low"
+            },
+            "medium": {
+              "reasoning_effort": "medium"
+            },
+            "xhigh": {
+              "reasoning_effort": "xhigh"
+            }
+          }
+        }
       }
     },
     "inception": {

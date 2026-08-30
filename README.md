@@ -307,7 +307,7 @@ Combine flags as needed:
 |----------|-------------|------------|
 | **Google** | Gemini and Antigravity-hosted models | Gemini 3.7 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
 | **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
-| **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash |
+| **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash, Qwen 3.8 Flash (explicit config entry: 1M ctx / 131k out, text+image+video input, low/medium/xhigh reasoning_effort variants; serves the production Qwen3.8-Flash-Next) |
 | **Kimi For Coding (OAuth)** | Kimi K2.7 Code + K3 via device-flow OAuth (Allegretto+ tier) | K2.7 Code (`kimi-for-coding` model id, 256k context; opencode-kimi-full plugin gates all body-shaping hooks on this exact id; supports off/auto/low/medium/high reasoning_effort; context length discovered at runtime via `/coding/v1/models`), Kimi K3 (`k3` model id, up to 1M context on Allegretto+; low/high/max reasoning_effort; no plugin body-shaping — ships wire id verbatim; ~2× the quota of `k3-256k`) |
 | **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5.3 |
 | **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
