@@ -163,6 +163,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 30e | `handoff-relay/` | `skills/` | Acceptance-boundary skill: handoff emit/resume with digest validation, STALE marks, and decision checkpoints |
 | 30f | `verify-built/` | `skills/` | Acceptance-boundary skill: stage-1 plan-vs-diff alignment ledger bound to an immutable digest; GAP/INFERRED marks; accept/fix/reject recommendation |
 | 30g | `inbound-triage/` | `skills/` | Acceptance-boundary skill: selection-gated inbox triage with version-aware dedup registry |
+| 30h | `add-provider/` | `.opencode/skill/` | Project-scoped skill (not installed; loaded by OpenCode from the repo): provider/model onboarding checklist + offline reference-integrity audit — prevents the six recurring setup failure classes (missing limit fields, enabled-list omission, upstream limit poisoning, wrong ids/limits, stale-process activation gaps, reference drift). Full RCA: `.opencode/skill/add-provider/references/rca-2026-08-30.md` |
 | 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
 | 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |

@@ -366,6 +366,16 @@ postmortem-policy/ + handoff-relay/ + verify-built/ + inbound-triage/ → decisi
 
 ---
 
+## Project-Scoped Skills
+
+Besides the installed (user-scoped) skills above, the repo carries skills that load from the project's `.opencode/skill/` directory — OpenCode picks them up automatically for sessions running inside this repository, with no install step.
+
+| Skill | Scope | Location | Purpose |
+|-------|------|----------|---------|
+| `add-provider/` | Project | `.opencode/skill/add-provider/` (not installed) | Provider/model onboarding checklist + offline reference-integrity audit. MUST-USE when adding or changing models/providers in `configs/opencode/opencode.json` — prevents the six recurring setup failure classes documented in its `references/rca-2026-08-30.md` |
+
+---
+
 ## See Also
 
 - [Plugins Documentation](plugins.md) — review-enforcer.ts integration

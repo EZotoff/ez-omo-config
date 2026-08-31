@@ -81,6 +81,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 30e | handoff-relay/ | `~/.config/opencode/skills/handoff-relay/` | `skills/handoff-relay/` | `$HOME/.config/opencode/skills/` | Session Handoff Emit/Resume | Optional |
 | 30f | verify-built/ | `~/.config/opencode/skills/verify-built/` | `skills/verify-built/` | `$HOME/.config/opencode/skills/` | Stage-1 Alignment Verification | Optional |
 | 30g | inbound-triage/ | `~/.config/opencode/skills/inbound-triage/` | `skills/inbound-triage/` | `$HOME/.config/opencode/skills/` | Inbox Triage (selection-gated) | Optional |
+| 30h | add-provider/ (project-scoped) | (project-local) | `.opencode/skill/add-provider/` | not installed — OpenCode loads it from the repo when sessions run in this project | Provider/Model Onboarding (checklist + audit) | Required |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
