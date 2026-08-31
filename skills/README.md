@@ -88,7 +88,7 @@ Stage-1 acceptance verification: requirements-alignment check between the active
 - **Install**: `install.sh --skills`
 
 ### inbound-triage/
-Selection-gated triage of raw human-channel input. Parses `<project>/.omo/inbox/*.md` dumps into typed items (bug/request/concern/idea/decision) with priority and feature attribution; cross-references against a plain-file registry with version-aware supersession (amended feedback supersedes, uncertain dedup is surfaced, never silenced); presents numbered impact-ranked recommendations and dispatches nothing until the operator selects.
+Selection-gated triage of raw human-channel input pasted directly into the session (primary flow) or dropped as inbox files (optional). Converts pastes into typed items (bug/request/concern/idea/decision) with priority and feature attribution; cross-references against a plain-file registry with version-aware supersession (amended feedback supersedes, uncertain dedup is surfaced, never silenced); presents numbered impact-ranked recommendations and dispatches nothing until the operator selects.
 - **Dependencies**: None; per-project `.omo/inbox/` convention
 - **Use Case**: WhatsApp/email/PR-comment feedback → decision-ready items with a dedup memory
 - **Install**: `install.sh --skills`

@@ -315,7 +315,7 @@ Stage-1 acceptance verification: plan-vs-diff alignment ledger bound to an immut
 **Install Method**: `install.sh --skills`
 
 ### inbound-triage/
-Selection-gated triage: `.omo/inbox/*.md` → typed items with priority/feature attribution → version-aware dedup registry (supersession, uncertain-dup surfaced) → numbered recommendations; dispatch strictly after operator selection.
+Selection-gated triage: raw input pasted directly into the session (primary — the operator never touches files) or dropped as optional `.omo/inbox/*.md` → typed items with priority/feature attribution → version-aware dedup registry (supersession, uncertain-dup surfaced) → numbered recommendations; dispatch strictly after operator selection.
 
 **Install Target**: `$HOME/.config/opencode/skills/inbound-triage/`
 
