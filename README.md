@@ -82,7 +82,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 
 | # | Category | Artifacts | Description |
 |---|----------|-----------|-------------|
-| 1 | **Commands** | 4 files | Slash commands for OpenCode workflows |
+| 1 | **Commands** | 10 files | Slash commands for OpenCode workflows — model presets, session utilities, handoff emit/resume, and four specialist review presets (design-review, option-compare, dual-review, escalate) |
 | 2-5 | **Configs** | 30 files | Core OpenCode, OMO, and Project Supervisor configuration files, including Aspect Dynamics, Output Shaper, and Skill Nudger support modules |
 | 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, review workflows, and OS computer use (cua-driver MCP, machine-local daemon). (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
@@ -101,6 +101,12 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 1b | `vscode.md` | `commands/` | VS Code launcher command stub (handled by plugin) |
 | 1c | `session-id.md` | `commands/` | Session ID clipboard command stub (handled by plugin) |
 | 1d | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
+| 1e | `handoff.md` | `commands/` | Handoff emission command — emits a versioned `.builder-kit/audit/handoff-*.md` artifact at a stable session boundary |
+| 1f | `resume-from.md` | `commands/` | Handoff resume command — boots from a handoff artifact behind a continue/revise/archive decision checkpoint |
+| 1g | `design-review.md` | `commands/` | Review preset: draft (artistry) → critique (oracle) → challenge (mephistopheles) |
+| 1h | `option-compare.md` | `commands/` | Review preset: independent per-option drafts → judge → adversarial check on the ranking |
+| 1i | `dual-review.md` | `commands/` | Review preset: functional (oracle) + design (artistry) lanes in parallel, conflicts stated |
+| 1j | `escalate.md` | `commands/` | Review preset: binding three-judge panel with dissent and calibration note |
 | 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
 | 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
 | 3b | `dcp.jsonc.retired` | `configs/opencode/` | Retired DCP plugin config. Magic Context was tried as the replacement on 2026-06-23 and is currently disabled. Not installed. |
@@ -153,6 +159,10 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
 | 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
 | 30c | `patch-opencode/` | `skills/` | Minimal-fix procedure for patching the live OpenCode binary from the exact release tag |
+| 30d | `postmortem-policy/` | `skills/` | Acceptance-boundary skill: incident→policy ladder (root cause → instruction gap → minimal amendment → apply/revise/drop checkpoint) |
+| 30e | `handoff-relay/` | `skills/` | Acceptance-boundary skill: handoff emit/resume with digest validation, STALE marks, and decision checkpoints |
+| 30f | `verify-built/` | `skills/` | Acceptance-boundary skill: stage-1 plan-vs-diff alignment ledger bound to an immutable digest; GAP/INFERRED marks; accept/fix/reject recommendation |
+| 30g | `inbound-triage/` | `skills/` | Acceptance-boundary skill: selection-gated inbox triage with version-aware dedup registry |
 | 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
 | 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
 | 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |

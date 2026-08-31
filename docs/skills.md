@@ -287,6 +287,45 @@ These skills provide domain-specific enhancements and can be installed based on 
 
 ---
 
+---
+
+## Acceptance-Boundary Skills (2026-08-31)
+
+Four capabilities productizing the operator's recurring workflow patterns (veran corpus analysis, Jul–Aug 2026). All four share one contract — the **acceptance boundary**: they collect evidence, prepare decisions, and stop at explicit decision checkpoints; none of them dispatches, merges, continues, or writes policy without an explicit operator selection.
+
+### postmortem-policy/
+Incident→policy ladder: root cause → find the instruction gap in AGENTS.md/skills/wisdom → propose the minimal amendment → apply/revise/drop checkpoint. Severity gate against policy spam; falsifiability requirement on every rule.
+
+**Install Target**: `$HOME/.config/opencode/skills/postmortem-policy/`
+
+**Install Method**: `install.sh --skills`
+
+### handoff-relay/
+Handoff emit/resume: versioned `.builder-kit/audit/handoff-*.md` artifacts emitted only at stable boundaries; resume validates against actual repo state (STALE marks), reads cited artifacts, and opens continue/revise/archive before executing. Wraps into `/handoff` and `/resume-from` commands.
+
+**Install Target**: `$HOME/.config/opencode/skills/handoff-relay/`
+
+**Install Method**: `install.sh --skills`
+
+### verify-built/
+Stage-1 acceptance verification: plan-vs-diff alignment ledger bound to an immutable digest header; every requirement mapped to evidence or marked GAP/INFERRED; ends at accept/fix-then-recheck/reject plus residual-risk list. Stages 2–3 (project-owned empirical QA; acceptance report) documented, not assumed.
+
+**Install Target**: `$HOME/.config/opencode/skills/verify-built/`
+
+**Install Method**: `install.sh --skills`
+
+### inbound-triage/
+Selection-gated triage: `.omo/inbox/*.md` → typed items with priority/feature attribution → version-aware dedup registry (supersession, uncertain-dup surfaced) → numbered recommendations; dispatch strictly after operator selection.
+
+**Install Target**: `$HOME/.config/opencode/skills/inbound-triage/`
+
+**Install Method**: `install.sh --skills`
+
+### Review-preset commands
+Four visible, editable composition templates in `commands/`: `/design-review` (draft→critique→challenge), `/option-compare` (independent drafts → judge → adversarial check), `/dual-review` (functional + design lanes in parallel, conflicts stated), `/escalate` (binding three-judge panel with dissent and calibration note). All end at operator decisions; none dispatches autonomously.
+
+---
+
 ## Dependency Clusters
 
 ```
@@ -296,6 +335,9 @@ wisdom/ → wisdom-common.sh → wisdom-search.sh, wisdom-write.sh, etc.
 Review System Cluster:
 atlas-review-handler/ → review-protocol/ (direct dependency)
                     → wisdom/ (reference)
+
+Acceptance-Boundary Cluster (mutual contract, no code dependency):
+postmortem-policy/ + handoff-relay/ + verify-built/ + inbound-triage/ → decision checkpoints → operator
 ```
 
 ---
@@ -308,6 +350,10 @@ atlas-review-handler/ → review-protocol/ (direct dependency)
 | patch-tracker/ | Optional | `$HOME/.config/opencode/skills/patch-tracker/` | `install.sh` |
 | register-retry-error/ | Optional | `$HOME/.config/opencode/skills/register-retry-error/` | `install.sh` |
 | session-id/ | Optional | `$HOME/.config/opencode/skills/session-id/` | `install.sh` |
+| postmortem-policy/ | Optional | `$HOME/.config/opencode/skills/postmortem-policy/` | `install.sh` |
+| handoff-relay/ | Optional | `$HOME/.config/opencode/skills/handoff-relay/` | `install.sh` |
+| verify-built/ | Optional | `$HOME/.config/opencode/skills/verify-built/` | `install.sh` |
+| inbound-triage/ | Optional | `$HOME/.config/opencode/skills/inbound-triage/` | `install.sh` |
 | atlas-review-handler/ | Required | `$HOME/.config/opencode/skills/atlas-review-handler/` | `install.sh` |
 | review-protocol/ | Required | `$HOME/.config/opencode/skills/review-protocol/` | `install.sh` |
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |

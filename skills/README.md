@@ -68,3 +68,27 @@ Reader-first writing for any deliverable a human reads to understand a result �
 - **Dependencies**: None
 - **Use Case**: Producing or editing any reader-facing report/summary/brief; loaded by `/debate` at result-synthesis points
 - **Install**: `install.sh --skills`
+
+### postmortem-policy/
+Incident→policy ladder. After a workflow failure, regression, or repeated agent mistake: root cause → find the instruction gap (AGENTS.md / skills / wisdom) → propose the minimal amendment → stop at an apply/revise/drop checkpoint. Severity gate prevents policy spam; falsifiability requirement states how each rule's failure would be recognized.
+- **Dependencies**: wisdom scripts (search/write) when a wisdom entry is the chosen amendment
+- **Use Case**: Converting incidents into durable, minimal agent-policy changes without unapproved edits
+- **Install**: `install.sh --skills`
+
+### handoff-relay/
+Session handoff emit/resume. Emission packages a session's mission, state, and next steps into a versioned `.builder-kit/audit/handoff-*.md` artifact at stable boundaries only (never on raw context-window pressure). Resume validates the artifact against the repo's actual state (STALE marks for moved HEAD), reads cited entry artifacts, and opens a continue/revise/archive decision checkpoint before any execution. Includes a cross-operator variant for other operators' agents.
+- **Dependencies**: None; `/handoff` and `/resume-from` commands are thin wrappers
+- **Use Case**: Cross-session, cross-operator context relay without copy-paste and without blind continuation
+- **Install**: `install.sh --skills`
+
+### verify-built/
+Stage-1 acceptance verification: requirements-alignment check between the active plan/spec and the implementation diff. Binds every ledger to an immutable digest header (sha + dirty-state) so post-run changes visibly invalidate it; maps each requirement to commit/file/test evidence or marks GAP/INFERRED; always ends at an accept/fix-then-recheck/reject recommendation plus a residual-risk list. Stages 2 (project-owned empirical QA) and 3 (acceptance report) are documented but not assumed.
+- **Dependencies**: git; an active plan/spec to verify against
+- **Use Case**: Replacing "did you actually do it" challenges with a digest-bound evidence ledger
+- **Install**: `install.sh --skills`
+
+### inbound-triage/
+Selection-gated triage of raw human-channel input. Parses `<project>/.omo/inbox/*.md` dumps into typed items (bug/request/concern/idea/decision) with priority and feature attribution; cross-references against a plain-file registry with version-aware supersession (amended feedback supersedes, uncertain dedup is surfaced, never silenced); presents numbered impact-ranked recommendations and dispatches nothing until the operator selects.
+- **Dependencies**: None; per-project `.omo/inbox/` convention
+- **Use Case**: WhatsApp/email/PR-comment feedback → decision-ready items with a dedup memory
+- **Install**: `install.sh --skills`

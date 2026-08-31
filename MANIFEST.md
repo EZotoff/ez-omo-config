@@ -14,6 +14,12 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 1b | vscode.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
 | 1c | session-id.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
 | 1d | session-info.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands | Required |
+| 1e | handoff.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (handoff emission) | Optional |
+| 1f | resume-from.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (handoff resume + decision checkpoint) | Optional |
+| 1g | design-review.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
+| 1h | option-compare.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
+| 1i | dual-review.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
+| 1j | escalate.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
 | 2 | opencode.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 3 | opencode.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
 | 3b | dcp.jsonc.retired | `configs/opencode/` | `configs/opencode/` | (not installed) | RETIRED 2026-06-23 — DCP retired; Magic Context currently disabled | Archived |
@@ -71,6 +77,10 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 29 | parallel-dev/ | `~/.config/opencode/skills/parallel-dev/` | `skills/parallel-dev/` | `$HOME/.config/opencode/skills/` | Parallel Dev | Optional |
 | 30b | update-to-latest/ | `~/.config/opencode/skills/update-to-latest/` | `skills/update-to-latest/` | `$HOME/.config/opencode/skills/` | Update Pipeline | Optional |
 | 30c | patch-opencode/ | `~/.config/opencode/skills/patch-opencode/` | `skills/patch-opencode/` | `$HOME/.config/opencode/skills/` | OpenCode Binary Patching | Optional |
+| 30d | postmortem-policy/ | `~/.config/opencode/skills/postmortem-policy/` | `skills/postmortem-policy/` | `$HOME/.config/opencode/skills/` | Incident→Policy (approval-gated) | Optional |
+| 30e | handoff-relay/ | `~/.config/opencode/skills/handoff-relay/` | `skills/handoff-relay/` | `$HOME/.config/opencode/skills/` | Session Handoff Emit/Resume | Optional |
+| 30f | verify-built/ | `~/.config/opencode/skills/verify-built/` | `skills/verify-built/` | `$HOME/.config/opencode/skills/` | Stage-1 Alignment Verification | Optional |
+| 30g | inbound-triage/ | `~/.config/opencode/skills/inbound-triage/` | `skills/inbound-triage/` | `$HOME/.config/opencode/skills/` | Inbox Triage (selection-gated) | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
