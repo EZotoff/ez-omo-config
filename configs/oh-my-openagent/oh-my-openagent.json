@@ -181,6 +181,7 @@
     },
     "unspecified-low": {
       "model": "opencode-go/deepseek-v4-flash",
+      "variant": "low",
       "fallback_models": [
         "ollama-cloud/deepseek-v4-flash:0731",
         "opencode-go/deepseek-v4-flash",
