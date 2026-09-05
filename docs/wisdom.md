@@ -867,6 +867,6 @@ chmod +x ~/.sisyphus/scripts/wisdom-*.sh
 
 ## See Also
 
-- [skills/README.md](skills/README.md) - Skill documentation
-- [scripts/wisdom/README.md](scripts/wisdom/README.md) - Script bundle documentation
+- [skills/README.md](../skills/README.md) - Skill documentation
+- [scripts/wisdom/README.md](../scripts/wisdom/README.md) - Script bundle documentation
 - `wisdom --help` - Skill help (when loaded in OpenCode)

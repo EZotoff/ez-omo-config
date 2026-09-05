@@ -154,7 +154,7 @@ To install on Windows, use WSL (Ubuntu recommended):
   1. Install WSL:  https://learn.microsoft.com/en-us/windows/wsl/install
   2. In WSL:       git clone https://github.com/EZotoff/ez-omo-config.git
                      cd ez-omo-config && ./install.sh
-See README.md 'Platform Notes' for details." ;;
+See README.md 'Platform Support' for details." ;;
         *)
             fail "Unsupported OS: $kernel. Supported: Linux, macOS, Windows-via-WSL." ;;
     esac

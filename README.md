@@ -4,15 +4,13 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Production-ready OpenCode + Oh-My-OpenAgent configuration. 10 enabled AI providers, 13 specialized agents, git safety & worktree plugins, one-command install with automatic backups.
+> Personal, **locally patched** OpenCode + Oh-My-OpenAgent configuration: 11 enabled providers, 13 specialized agents, git-safety and worktree plugins, one-command install with automatic backups.
 
-Clone, run `./install.sh`, and get a fully configured AI coding environment in seconds. This repo contains reusable presets, plugins, skills, and scripts organized into a portable configuration you can fork and adapt.
+This is a working production setup you can fork and adapt — not a turnkey universal distribution. Some capabilities depend on local runtime patches (see [The OMO runtime fork](#the-omo-runtime-fork-primary-machine) and [docs/patches.md](docs/patches.md)). The repo contains reusable presets, plugins, skills, and scripts; the full artifact inventory with install targets lives in [MANIFEST.md](MANIFEST.md) (the single source of truth — this README carries only the category summary).
 
 ---
 
 ## Quick Start
-
-Get up and running in six steps:
 
 ```bash
 # 1. Install prerequisites
@@ -44,505 +42,242 @@ cp auth.json.example ~/.local/share/opencode/auth.json
 opencode
 ```
 
-The installer uses relative paths in `opencode.json` — no manual path
-updates are needed on a new machine. Config files are symlinked from
-`~/.config/opencode/` into this repo, so editing either path updates the
-same file.
+Config files are symlinked from `~/.config/opencode/` into this repo, so editing either path updates the same file. Local plugin references in `opencode.json` are relative — **but** the OMO runtime reference is machine-local on the primary machine; see the fork note below before forking.
 
 ---
 
-## What Changes After Installing
+## The OMO runtime fork (primary machine)
 
-After running `./install.sh`, your OpenCode CLI gains:
+The live `opencode.json` loads Oh-My-OpenAgent from a **local fork** — upstream **v4.19.2** plus tracked patches — at `file:///home/ezotoff/oh-my-openagent-v4.19.2`. This is deliberate and test-acknowledged: while tracked patches are active, the fork is the canonical runtime source (npm `@latest` resolution previously lost patches silently).
 
-- **`/models-preset`** — view all 13 agent model assignments, category presets, the compaction fallback chain, and small model at a glance
-- **`/session-id`** — copy the invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
-- **`/session-info`** — copy project path, session title, and invoking session ID to clipboard; true no-LLM cancellation depends on the active local `opencode--command-hook-cancellation` patch
-- **Git safety guardrails** — three-layer protection: always-block non-git destructive ops (`rm -rf`, `chmod -R 777`, `dd of=/dev/`), **history-rewrite block** (`git commit --amend`, `git rebase`, `git push --force*`, `git branch -D`, `git stash clear`, `git reflog expire`, `git gc --prune`, and `git reset <ref>` where ref is a strict ancestor of HEAD — catches the post-commit destructive case), and dirty-tree-conditional git ops (`git reset --hard`, `git clean -f`, etc.). Worktree-aware: status checks use the bash command's actual cwd.
-- **Worktree-aware development** — parallel worktrees with port allocation and Docker isolation
-- **Semantic session-scoped checkpoints** — automatic git checkpoint commits scoped to root session trees, with LLM-powered file selection and temp-index safety
-- **Runtime fallback** — automatic model switching across 10 providers when APIs fail or rate-limit; compaction-mode failures retry through the dedicated `compaction_fallback_models` chain (compaction itself follows the session model — no pinned compaction model)
-- **Wisdom system** — learning management that captures and reuses development knowledge
-- **Review enforcement** — automated code review triggers after completing implementation work, with regression corpus output included in review and plan-completion instructions; injection is gated to implementation dispatches (consultative subagents skipped) and to sessions inside the active boulder's session lineage
-- **Clickable file links (TUI)** — every agent formats file references as `[label](file:///abs/path)` markdown links so they are clickable in OSC 8 terminals (Ghostty, Kitty, WezTerm, Alacritty, iTerm2); closes the gap between the built-in prompts' "backtick paths are clickable" claim and the OpenTUI renderer, which only linkifies real markdown links
-- **Agent git workflow** — every agent follows the same parallel-agent coordination procedure: commit at logical-unit boundaries with Conventional Commits (no author override — attribution deferred to git_master config); branch as `agent/<name>/<scope>` when concurrent agent work is detected; sync/rebase on stale branches; worktree-aware merge-back-and-reclaim when the unit is done (merge `--no-ff` from the main worktree → `git worktree remove` → lowercase `git branch -d`, or `worktree_delete` with a target from the main session; dirty worktrees are diffed and ported, never silently discarded). Complements the commit-policy patches (permission) and auto-checkpoint plugin (idle safety-net commits)
-- **Aspect Dynamics** — deterministic heuristic scoring that detects emotional and behavioral patterns in conversation transcripts and dispatches transcript-visible advisory nudges to guide agent tone and focus
-- **Output Shaper** — reduces model output tokens via terseness injection and reasoning-effort dialing on resume turns
-- **OpenCode/OMO context management** — OpenCode compaction and OMO preemptive compaction/context-window hooks are enabled; Magic Context is retained only as a disabled config file.
-- **Safe update pipeline** — guided OpenCode/OMO update analysis with explicit human approval gate, patch-tracker integration, rollback capability, adaptive regression testing, and evidence-state claim discipline
-- **Global deployment-skill mandate** — every session loads `~/.config/opencode/AGENTS.md`, which requires invoking the `/deployment` skill before binding ports or launching dev/test servers. Eliminates cross-project port conflicts
-- **Patch-preservation safety infrastructure** — regression corpus, rewritten verifier, inotify watcher, and periodic integrity check protect against patch drift during updates
-- **Project Supervisor P0** — read-only external observer for top-level project sessions; projects human-visible turns, runs shadow GLM judgment ticks, and writes only to a local hash-chained ledger
+- **Patch inventory**: 21 active patches — a mix of source patches (carried as fork commits), dist-level patches (applied to the built bundle), and config-layer mitigations. Index: [docs/patches.md](docs/patches.md); authoritative entries with reapply instructions: [`.sisyphus/patches/`](.sisyphus/patches/).
+- **On another machine**: upstream npm OMO loads fine, but these advertised behaviors degrade without the fork: fallback retry budget (`retries_before_fallback=2`), `look_at` fallback patience, resume-skip task continuation, background-spawn model default, `/start-work` worktree reclaim, clean agent display names.
+- **Reproducing the fork**: clone upstream at `v4.19.2`, apply the source patches per their registry entries, build, then reapply the dist-level patches per-entry against the built bundle. The owner's procedure is the `update-to-latest` skill — a documented operational path, not a turnkey bootstrap.
+- **Recommended durable fix (follow-up)**: publish the fork (GitHub tag or npm tarball built with the dist patches) so `opencode.json` can reference a reproducible artifact instead of a home-directory path. Tracked as a separate task; this note and the config switch together when it lands.
+
+The OpenCode binary itself is also rebuilt from release tags with tracked patches — see [docs/patches.md](docs/patches.md) and the `patch-opencode` / `update-to-latest` skills.
+
+---
+
+## What You Get
+
+- **`/models-preset`** — all 13 agent model assignments, category presets, compaction fallback chain, small model, at a glance
+- **`/session-id` / `/session-info` / `/vscode`** — clipboard/launcher commands intercepted with no LLM turn (no-LLM cancellation depends on the active `opencode--command-hook-cancellation` patch)
+- **Git safety guardrails** — always-block non-git destructive ops (`rm -rf`, `chmod -R 777`, `dd of=/dev/`), history-rewrite block (`--amend`, `rebase`, `push --force*`, `branch -D`, ancestor `reset`, …), dirty-tree-conditional git ops; worktree-aware via the command's actual cwd
+- **Worktree-aware development** — parallel worktrees with port allocation and optional Docker isolation
+- **Semantic checkpoints** — automatic git checkpoint commits scoped to root session trees (LLM file selection, temp-index safety)
+- **Runtime fallback** — automatic model switching across providers on API errors/rate limits; retry budget and 300s fallback timeout tuned by fork patches
+- **Wisdom system** — capture and reuse development knowledge across sessions
+- **Review enforcement** — automated code-review trigger after implementation work, gated to implementation dispatches in the active session lineage
+- **Clickable file links (TUI)** — every agent emits `[label](file:///abs/path)` links (works around the OpenTUI markdown-only linkification gap)
+- **Agent git workflow** — uniform parallel-agent coordination: Conventional-Commit reflex, branch-on-concurrency, worktree merge-back-and-reclaim
+- **Aspect Dynamics** — deterministic heuristic scoring of transcript tone/behavior with advisory nudges
+- **Output Shaper** — terseness injection + reasoning-effort dialing on resume turns
+- **Skill Nudger** — ephemeral skill suggestions when tool signals match the catalog
+- **Safe update pipeline** — guided OpenCode/OMO updates with approval gate, patch preservation, rollback, evidence-state discipline
+- **Patch-preservation infrastructure** — regression corpus (20 pairs), patch verifier, inotify watcher, 30-min integrity timer
+- **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
+- **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
 
 ---
 
 ## What's Included
 
-This repository contains a portable OpenCode/OMO configuration bundle organized into 9 categories:
+| Category | Count | Contents |
+|---|---|---|
+| **Commands** | 10 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate) |
+| **Configs** | 43 files | OpenCode + OMO + Supervisor configs; retry registry; Aspect Dynamics, Output Shaper, Skill Nudger modules |
+| **Plugins** | 22 files | worktree, git-safety, review-enforcer, vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
+| **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
+| **Scripts** | 37 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, operator tools |
+| **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
+| **Systemd** | 6 units | patch watcher, integrity check service + timer, supervisor, interactive attach daemon, parked FLARE-4B server |
+| **Tests** | 95 files | config/plugin/update/computer-use contracts + 20-pair regression corpus (40 files) |
+| **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
+| **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
-| # | Category | Artifacts | Description |
-|---|----------|-----------|-------------|
-| 1 | **Commands** | 10 files | Slash commands for OpenCode workflows — model presets, session utilities, handoff emit/resume, and four specialist review presets (design-review, option-compare, dual-review, escalate) |
-| 2-5 | **Configs** | 30 files | Core OpenCode, OMO, and Project Supervisor configuration files, including Aspect Dynamics, Output Shaper, and Skill Nudger support modules |
-| 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, and TUI clickable-link system-prompt injection |
-| 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, review workflows, and OS computer use (cua-driver MCP, machine-local daemon). (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
-| 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
-| 31a | **Systemd** | 5 user units | Reactive patch watcher, periodic integrity units, the read-only Project Supervisor service, and the interactive attach daemon (127.0.0.1:3030 for `opencode attach` + OC Beacon mobile) |
-| 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, computer-use skill/MCP safety, and the 18-pair regression corpus (patch preservation + gating regressions) |
-| 33 | **Extras** | 1 file | Additional registry configuration |
-| 34-35 | **Docker** | 2 files | Worktree container templates |
-| 36-39 | **Docs** | 6 files | Configuration, plugin, skills, worktree state, live deployment verification, compatibility debt, and retired DCP byte-budget reference |
+Counts are tracked files per top-level directory (module directories count as one line in prose, files in tables). Per-artifact paths, install targets, and statuses: [MANIFEST.md](MANIFEST.md).
 
-### Complete Artifact Inventory
+`playwright`, `frontend-ui-ux`, and `github-triage` skills ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.
 
-| # | Artifact | Path | Purpose |
-|---|----------|------|---------|
-| 1 | `models-preset.md` | `commands/` | Slash command for showing current OMO model assignments plus compaction and small-model settings |
-| 1b | `vscode.md` | `commands/` | VS Code launcher command stub (handled by plugin) |
-| 1c | `session-id.md` | `commands/` | Session ID clipboard command stub (handled by plugin) |
-| 1d | `session-info.md` | `commands/` | Session info clipboard command stub (handled by plugin) |
-| 1e | `handoff.md` | `commands/` | Handoff emission command — emits a versioned `.builder-kit/audit/handoff-*.md` artifact at a stable session boundary |
-| 1f | `resume-from.md` | `commands/` | Handoff resume command — boots from a handoff artifact behind a continue/revise/archive decision checkpoint |
-| 1g | `design-review.md` | `commands/` | Review preset: draft (artistry) → critique (oracle) → challenge (mephistopheles) |
-| 1h | `option-compare.md` | `commands/` | Review preset: independent per-option drafts → judge → adversarial check on the ranking |
-| 1i | `dual-review.md` | `commands/` | Review preset: functional (oracle) + design (artistry) lanes in parallel, conflicts stated |
-| 1j | `escalate.md` | `commands/` | Review preset: binding three-judge panel with dissent and calibration note |
-| 2 | `opencode.json` | `configs/opencode/` | Main OpenCode provider and model configuration |
-| 3 | `opencode.jsonc` | `configs/opencode/` | User-specific OpenCode settings |
-| 3b | `dcp.jsonc.retired` | `configs/opencode/` | Retired DCP plugin config. Magic Context was tried as the replacement on 2026-06-23 and is currently disabled. Not installed. |
-| 4 | `provider-connect-retry.mjs` | `configs/opencode/` | Auto-retry logic for provider connections with empty-response detection (finish `other` AND `stop` with zero tokens), escalating nudge prompts, per-message model fallback, registry-driven error matching, and compaction-mode failure fallback (retries compaction through `compaction_fallback_models` via `session.summarize`) |
-| 4b | `retry-errors.json` | `configs/` | Retry registry: error patterns, backoff schedules, 5-stage escalating nudge prompts (sisyphus/atlas/default), per-message fallback models, empty-response detection rules for GLM, and the dedicated `compaction_fallback_models` chain |
-| 5 | `oh-my-openagent.json` | `configs/oh-my-openagent/` | Agent model assignments and experimental features |
-| 5b | `supervisor.json` | `configs/opencode-supervisor/` | P0 shadow observer configuration: roots, timing, model, context limits, and confidence floor |
-| 5c | `supervisor/` | `supervisor/` | Bun + strict TypeScript read-only observer service, status CLI, and component tests |
-| 6 | `worktree.ts` | `plugins/` | Git worktree management plugin |
-| 7 | `worktree/state.ts` | `plugins/worktree/` | Worktree state management |
-| 8 | `worktree/terminal.ts` | `plugins/worktree/` | Terminal integration for worktrees |
-| 9 | `git-safety.ts` | `plugins/` | Git safety protocol enforcement |
-| 10 | `review-enforcer.ts` | `plugins/` | Automated code review triggers |
-| 11 | `kdco-primitives/` | `plugins/` | Shared library for plugins |
-| 11b | `vscode.ts` | `plugins/` | VS Code launcher plugin (intercepts /vscode and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
-| 11c | `session-id.ts` | `plugins/` | Session ID clipboard plugin (intercepts /session-id and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
-| 11d | `session-info.ts` | `plugins/` | Session info clipboard plugin (intercepts /session-info and sets `output.cancelled = true`; true no-LLM behavior depends on the local OpenCode cancellation patch) |
-| 11f | `auto-checkpoint.ts` | `plugins/` | Semantic session-scoped checkpoint plugin |
-| 11h | `clickable-links.ts` | `plugins/` | System-prompt injection via `experimental.chat.system.transform` — tells every agent to format file references as `[label](file:///abs/path)` markdown links so they are clickable in the TUI |
-| 11i | `agent-git-workflow.ts` | `plugins/` | Force-loads a parallel-agent git coordination procedure into every session via `experimental.chat.system.transform`: commit reflex after logical units, Conventional Commits format without author override (attribution deferred to git_master), branching reflex when concurrent agent work detected, sync/rebase protocol, branch lifecycle. Complements auto-checkpoint (idle safety-net) and commit-policy patches (permission) |
-| 12 | `wisdom/` | `skills/` | Wisdom propagation and knowledge management (primary runtime memory skill) |
-| 12b | `patch-tracker/` | `skills/` | Patch registry CRUD and post-update verification skill |
-| 12c | `register-retry-error/` | `skills/` | Retryable error pattern registration skill |
-| 12d | `session-id/` | `skills/` | Session ID clipboard (skill form, mirrors the `/session-id` plugin) |
-| 12e | `debate/` | `skills/` | Structured adversarial analysis: quick modes (challenge, panel, pre-mortem, red team) plus a decision-review protocol with binding/advisory judges producing ADOPT/REVISE/REJECT/ESCALATE verdicts |
-| 12f | `reader-report/` | `skills/` | Reader-first writing for reports/summaries/briefs: 8-rule reader contract (incl. empty states, terminal action, PDF surface), no AI-speak, rendered-report craft (styling floor, emphasis dial, one-earned-moment motion budget), lint+independent-review enforcement. Loaded by `/debate` at result-synthesis points |
-| 13 | `atlas-review-handler/` | `skills/` | Review orchestration skill |
-| 14 | `review-protocol/` | `skills/` | Code review protocol implementation |
-| 16 | `deployment/` | `skills/` | Infrastructure deployment helpers |
-| 16b | `AGENTS.md` (global) | `configs/opencode/` | Global user-level agent instructions loaded by OpenCode on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs` |
-| 18 | `wisdom-common.sh` | `scripts/wisdom/` | Shared wisdom utilities |
-| 19 | `wisdom-search.sh` | `scripts/wisdom/` | Search wisdom database |
-| 20 | `wisdom-write.sh` | `scripts/wisdom/` | Write new learnings |
-| 21 | `wisdom-sync.sh` | `scripts/wisdom/` | Sync wisdom across notepads |
-| 22 | `wisdom-archive.sh` | `scripts/wisdom/` | Archive old wisdom entries |
-| 23 | `wisdom-delete.sh` | `scripts/wisdom/` | Delete wisdom entries |
-| 24 | `wisdom-edit.sh` | `scripts/wisdom/` | Edit existing wisdom |
-| 25 | `wisdom-gc.sh` | `scripts/wisdom/` | Garbage collect wisdom |
-| 26 | `wisdom-merge.sh` | `scripts/wisdom/` | Merge wisdom databases |
-| 26a | `wisdom-observe.sh` | `scripts/wisdom/` | Operator-facing observability CLI for wisdom events |
-| 26b | `wisdom-publish.sh` | `scripts/wisdom/` | Publishes a wisdom entry as a derivative artifact |
-| 26c | `wisdom-closeout.sh` | `scripts/wisdom/` | Closeout capture handler (provenance=closeout) |
-| 26d | `wisdom-nominate.sh` | `scripts/wisdom/` | Passive nomination handler for candidate wisdom |
-| 26e | `wisdom-migrate.sh` | `scripts/wisdom/` | Migration backups + idempotent manifest import |
-| 26f | `wisdom-restore.sh` | `scripts/wisdom/` | Restores backup tarballs produced by migrate |
-| 26g | `manifest-write.sh` | `scripts/wisdom/` | Creates knowledge manifests with YAML frontmatter |
-| 26h | `knowledge-constants.sh` | `scripts/wisdom/` | Shared constants sourced by `wisdom-publish.sh`, `manifest-write.sh`, and tests |
-| 27 | `ocx.jsonc` | `extras/` | Additional registry configuration |
-| 28 | `merge-agent/` | `skills/` | Safe branch merging with guardrails |
-| 29 | `parallel-dev/` | `skills/` | Multi-agent orchestration with decision framework |
-| 30b | `update-to-latest/` | `skills/` | Safe OpenCode/OMO update pipeline with explicit approval gate, patch-tracker integration, rollback capability, and evidence-state reporting |
-| 30c | `patch-opencode/` | `skills/` | Minimal-fix procedure for patching the live OpenCode binary from the exact release tag |
-| 30d | `postmortem-policy/` | `skills/` | Acceptance-boundary skill: incident→policy ladder (root cause → instruction gap → minimal amendment → apply/revise/drop checkpoint) |
-| 30e | `handoff-relay/` | `skills/` | Acceptance-boundary skill: handoff emit/resume with digest validation, STALE marks, and decision checkpoints |
-| 30f | `verify-built/` | `skills/` | Acceptance-boundary skill: stage-1 plan-vs-diff alignment ledger bound to an immutable digest; GAP/INFERRED marks; accept/fix/reject recommendation |
-| 30g | `inbound-triage/` | `skills/` | Acceptance-boundary skill: selection-gated inbox triage with version-aware dedup registry |
-| 30h | `add-provider/` | `.opencode/skill/` | Project-scoped skill (not installed; loaded by OpenCode from the repo): provider/model onboarding checklist + offline reference-integrity audit — prevents the six recurring setup failure classes (missing limit fields, enabled-list omission, upstream limit poisoning, wrong ids/limits, stale-process activation gaps, reference drift). Full RCA: `.opencode/skill/add-provider/references/rca-2026-08-30.md` |
-| 31 | `worktree-post-create.sh` | `scripts/` | State creation, port allocation, and Docker start. Install: `$HOME/.opencode/scripts/worktree-post-create.sh` |
-| 32 | `worktree-pre-delete.sh` | `scripts/` | Container stop, port free, and state cleanup. Install: `$HOME/.opencode/scripts/worktree-pre-delete.sh` |
-| 33 | `worktree.jsonc` | `configs/opencode/` | Worktree sync config and hook registration. Install: `$HOME/.opencode/worktree.jsonc` |
-| 34 | `worktree-compose.template.yml` | `docker/` | Per-worktree container isolation template |
-| 35 | `docker/README.md` | `docker/` | Docker worktree setup instructions |
-| 36 | `worktree-state-schema.md` | `docs/` | Runtime state file formats and locations |
-| 38 | `aspect-dynamics.mjs` | `configs/opencode/` | Config-layer plugin entry: heuristic scoring and advisory nudge dispatch |
-| 39 | `aspect-dynamics/config.mjs` | `configs/opencode/` | Config loader with deferred-field safeguards |
-| 40 | `aspect-dynamics/context.mjs` | `configs/opencode/` | Conversation context extraction and recursion guard |
-| 41 | `aspect-dynamics/heuristics.mjs` | `configs/opencode/` | Deterministic heuristic scorer for aspect sets |
-| 42 | `aspect-dynamics/session-state.mjs` | `configs/opencode/` | Per-session state tracking, deduplication, and circuit breaker |
-| 43 | `aspect-dynamics/sets.mjs` | `configs/opencode/` | Aspect set loader and resolver |
-| 44 | `aspect-dynamics/nudge.mjs` | `configs/opencode/` | Transcript-visible advisory nudge formatter |
-| 45 | `aspect-dynamics/logging.mjs` | `configs/opencode/` | Structured logging utilities |
-| 46 | `aspect-dynamics/sets/emotions-v1.json` | `configs/opencode/` | Seed aspect set for emotional tone detection |
-| 46a | `output-shaper.mjs` | `configs/opencode/` | Config-layer plugin entry: terseness injection + reasoning-effort dialing for resume turns |
-| 46b | `output-shaper/config.mjs` | `configs/opencode/` | Config loader with test override |
-| 46c | `output-shaper/logging.mjs` | `configs/opencode/` | File-based structured logging |
-| 46d | `output-shaper/model-gating.mjs` | `configs/opencode/` | Per-provider clamp field table and model gating |
-| 46e | `output-shaper/resume-detector.mjs` | `configs/opencode/` | Resume-after-tool-result detection |
-| 46f | `skill-nudger.mjs` | `configs/opencode/` | Config-layer plugin entry: tool-signal detection and ephemeral skill-suggestion nudge dispatch via `experimental.chat.messages.transform` |
-| 46g | `skill-nudger/*.mjs` | `configs/opencode/` | 6 support modules: config, logging, catalog, signals, state, nudge |
-| 47a | `tests/skill-nudger/harness.mjs` | `tests/skill-nudger/` | Test harness for skill-nudger unit tests (12 cases incl. guardrails and no-false-positives) |
-| 48a | `tests/test_skill_nudger_runtime.sh` | `tests/` | Regression wrapper for skill-nudger runtime verification (auto-discovered by `run_all.sh`) |
-| 48b | `tests/test_worktree_reclaim.sh` | `tests/` | Regression wrapper for the worktree reclaim contract (auto-discovered by `run_all.sh`) |
-| 47b | `tests/worktree-reclaim/harness.mjs` | `tests/worktree-reclaim/` | Integration harness for worktree reclaim: worktree_delete target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot |
-| 47 | `tests/aspect-dynamics/harness.mjs` | `tests/aspect-dynamics/` | Test harness for aspect-dynamics unit tests |
-| 48 | `tests/test_aspect_dynamics_runtime.sh` | `tests/` | Regression wrapper for aspect-dynamics runtime verification |
-| 49 | `scripts/verify-live-deployment.sh` | `scripts/` | Live deployment verifier with evidence-state validation |
-| 50 | `tests/test_live_deployment_contract.sh` | `tests/` | Repo-safe contract tests for live deployment verification |
-| 50b | `tests/test_review_enforcer_completion_instruction.sh` | `tests/` | Regression test for PLAN_COMPLETION_INSTRUCTION block extraction and content verification |
-| 50c | `tests/test_openai_provider.sh` | `tests/` | Regression test for Codex display provider presence in opencode.json (`openai` key) |
-| 51 | `docs/live-deployment-verification.md` | `docs/` | Live Deployment Verification Gate documentation |
-| 51a | `aspect-dynamics/sets/emotions-v2.json` | `configs/opencode/` | Versioned distress-focused seed aspect set with profanity-aware heuristics |
-| 52 | `docs/dcp-byte-budget.md` | `docs/` | RETIRED 2026-06-23: DCP byte-budget gate reference. Magic Context was tried as the replacement and is currently disabled. Historical record only. |
-| 53 | `verify-live-patches.sh` | `scripts/` | Rewritten patch verifier with all 7 structural fixes and runtime-resolved target checks |
-| 54 | `watch-runtime-patches.sh` | `scripts/` | inotify watcher for runtime binary integrity |
-| 55 | `opencode-patch-watcher.service` | `systemd/user/` | systemd user service for write detection |
-| 56 | `opencode-patch-integrity-check.service` | `systemd/user/` | Periodic integrity check service |
-| 57 | `opencode-patch-integrity-check.timer` | `systemd/user/` | 30-minute periodic timer |
-| 58 | `run_regressions.sh` | `tests/` | Regression corpus harness |
-| 59 | `regressions/` | `tests/` | 19 paired regression tests, 38 files total |
-| 59a | `harness.ts` | `tests/review-enforcer/` | Behavioral harness for review-enforcer gating (lineage, consultative, abort-stub, degenerate; drives regression pairs 014/015/016) |
-| 60 | `test_patch_entries.sh` | `tests/` | Schema validation for all active patch-tracker entries (frontmatter completeness: surfaces, runtime_effective, target_file). Catches metadata destruction at commit time |
-| 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
-| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15: unit disabled; port 18200; requires `~/src/flare` repo + `~/flare-cache`; mem-fraction 0.84) |
-| 62b | `opencode-supervisor.service` | `systemd/user/` | P0 shadow observer user service; depends on the existing OpenCode service and binds no port |
-| 62d | `opencode-interactive.service` | `systemd/user/` | Interactive attach daemon: `opencode serve` on 127.0.0.1:3030 with basic auth (`serve-interactive.env`, template `serve-interactive.env.example`); desktop `oa()` attach target and OC Beacon Android backend via tailnet-only tailscale serve TLS |
-| 63 | `derive-flare-chat-template.py` | `scripts/` | Derives the SGLang chat template for FLARE-4B: forces no-think decoding and merges consecutive leading system messages (OpenCode always sends two system messages; stock template rejects with 400) |
-| 64 | `test_supervisor_config.sh` | `tests/` | Static contract for supervisor config, unit, and installer registrations |
-
----
-
-## Architecture Overview
-
-This configuration bridges **OpenCode** (the core CLI) with **Oh-My-OpenAgent** (enhancement layer).
+### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    OpenCode CLI                            │
-│         (Core AI coding assistant engine)                  │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-         ┌───────────┴───────────┐
-         │                       │
-┌────────▼─────────┐    ┌────────▼─────────┐
-│  Config Layer    │    │   Plugin Layer   │
-│  (opencode.json) │    │  (TypeScript)    │
-│  - Providers     │    │  - Worktrees     │
-│  - Models        │    │  - Git Safety    │
-│  - Settings      │    │  - Reviews       │
-└────────┬─────────┘    └────────┬─────────┘
-         │                       │
-         └───────────┬───────────┘
-                     │
-         ┌───────────▼───────────┐
-│   Oh-My-OpenAgent Layer        │
-│   (oh-my-openagent.json)       │
-│   - Agent assignments         │
-│   - Category overrides        │
-│   - Experimental features     │
-└───────────┬───────────────────┘
-            │
-    ┌───────┴───────┐
-    │               │
-┌───▼────┐   ┌──────▼──────┐
-│ Skills │   │   Scripts   │
-│ (Dirs) │   │  (Shell)    │
-│ - Test │   │ - Wisdom    │
-│ - Deploy│  │ - Search    │
-│ - UX   │   │ - Sync      │
-└────────┘   └─────────────┘
+OpenCode CLI  ──┬── Config layer (opencode.json: providers, models, settings)
+                ├── Plugin layer (TypeScript: worktree, git-safety, review, …)
+                └── OMO layer (oh-my-openagent.json: agents, categories, hooks)
+                        ├── Skills (wisdom, debate, update pipeline, …)
+                        └── Scripts (wisdom suite, worktree hooks, verifiers)
 ```
-
-### Category Descriptions
-
-- **Commands**: Slash command prompts for repeatable OpenCode workflows
-- **Configs**: Provider definitions, model configurations, and retry logic
-- **Plugins**: TypeScript extensions that add worktree management, git safety checks, and review enforcement
-- **Skills**: Specialized agent capabilities for browser testing, deployment, UI/UX design, updates, and review workflows
-- **Scripts**: Shell utilities for the wisdom propagation system, worktree lifecycle, and live deployment verification
-- **Extras**: Optional registry and utility configurations
 
 ---
 
 ## Installation Options
 
-The `install.sh` script supports several modes and flags:
-
-### Preview Mode
 ```bash
-./install.sh --dry-run    # Show what would be installed without making changes
+./install.sh --dry-run    # preview without changes
+./install.sh --symlink    # default: symlink live configs into this repo
+./install.sh --copy       # copy files instead of symlinking
+
+# Selective install (combine as needed)
+./install.sh --configs --plugins   # e.g. preview configs and plugins only
+./install.sh --commands --skills --scripts
 ```
 
-### Installation Modes
-```bash
-./install.sh --symlink    # Create symlinks (default, recommended for development)
-./install.sh --copy       # Copy files instead of symlinking
-```
-
-### Selective Installation
-Install only specific artifact types:
-```bash
-./install.sh --configs    # Install only config files
-./install.sh --commands   # Install only slash commands
-./install.sh --plugins    # Install only plugins
-./install.sh --skills     # Install only skills
-./install.sh --scripts    # Install all scripts (wisdom + worktree hooks)
-```
-
-The `commands` category installs slash-command prompts into `~/.config/opencode/command/`, including `/models-preset` at `~/.config/opencode/command/models-preset.md`.
-
-Combine flags as needed:
-```bash
-./install.sh --dry-run --configs --plugins   # Preview configs and plugins only
-```
+Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 
 ### Platform Support
 
-| Platform | Support | Prerequisites | Install |
-|----------|---------|---------------|---------|
-| **Linux** | Native | — | `./install.sh` |
-| **macOS** | Native | `brew install bash bun jq python` (bash 4.3+ required; stock `/bin/bash` is 3.2) | `./install.sh` |
-| **Windows** | Via WSL | Run inside WSL (Ubuntu). See [WSL install guide](https://learn.microsoft.com/en-us/windows/wsl/install). Git Bash, Cygwin, and native PowerShell are NOT supported. | inside WSL: `./install.sh` |
+| Platform | Support | Prerequisites |
+|----------|---------|---------------|
+| **Linux** | Native | — |
+| **macOS** | Native | `brew install bash bun jq python` (bash 4.3+; stock `/bin/bash` is 3.2) |
+| **Windows** | Via WSL | Run inside WSL (Ubuntu). Git Bash, Cygwin, native PowerShell NOT supported |
 
 ---
 
 ## Configuration Highlights
 
-### 10 Enabled Providers
+### 11 Enabled Providers
 
-| Provider | Description | Key Models |
-|----------|-------------|------------|
-| **Google** | Gemini and Antigravity-hosted models | Gemini 3.7 Flash, Gemini 3.1 Pro Preview, Antigravity Gemini 3.5 Flash, Claude Sonnet/Opus Thinking |
-| **Codex** | GPT models via Codex OAuth (`openai` provider key); picker restricted to the configured whitelist | GPT 5.6 Sol, GPT 5.6 Terra, GPT 5.6 Luna |
-| **OpenCode Go** | Built-in OpenCode Go provider | Minimax M3, Kimi K2.6, DeepSeek V4 Flash, Qwen 3.8 Flash (explicit config entry: 1M ctx / 131k out, text+image+video input, low/medium/xhigh reasoning_effort variants; serves the production Qwen3.8-Flash-Next) |
-| **Kimi For Coding (OAuth)** | Kimi K2.7 Code + K3 via device-flow OAuth (Allegretto+ tier) | K2.7 Code (`kimi-for-coding` model id, 256k context; opencode-kimi-full plugin gates all body-shaping hooks on this exact id; supports off/auto/low/medium/high reasoning_effort; context length discovered at runtime via `/coding/v1/models`), Kimi K3 (`k3` model id, up to 1M context on Allegretto+; low/high/max reasoning_effort; no plugin body-shaping — ships wire id verbatim; ~2× the quota of `k3-256k`) |
-| **Z.AI Coding Plan** | GLM models via Coding Plan OpenAI-compatible API | GLM 5.3 |
-| **DeepSeek** | DeepSeek V4 | DeepSeek V4 Flash, DeepSeek V4 Pro |
-| **Inception Labs** | Mercury models | Mercury 2 |
-| **Uni.lu LiteLLM** | Local University of Luxembourg LiteLLM proxy on DGX Spark | DeepSeek V4 Flash (vLLM), Kimi K3, GLM 5.2 |
-| **Ollama Cloud** | Hosted Ollama models via the ollama.com OpenAI-compatible API (Bearer API key in auth.json) | DeepSeek V4 Flash (`deepseek-v4-flash:0731`), DeepSeek V4 Pro (`deepseek-v4-pro:0813`), MiniMax M3 |
+8 public cloud, 1 personal endpoint, 2 machine-local (tagged).
 
-> **Parked**: a self-hosted FLARE-4B provider (`flare-serve.service`, port 18200) was trialled 2026-08-15 and disabled the same day — 14.6GB VRAM did not coexist with ComfyUI on the 16GB GPU. `small_model`/title generation reverted to `opencode-go/deepseek-v4-flash`; `small_model` and title generation later moved to `ollama-cloud/deepseek-v4-flash:0731` (27 Aug 2026). The unit, chat-template script (`scripts/derive-flare-chat-template.py`), and model cache (`~/flare-cache`) are kept for a possible retry.
+| Provider | Models | Notes |
+|----------|--------|-------|
+| **google** | Gemini 3.7 Flash, Gemini 3.1 Pro Preview, Antigravity-hosted Gemini/Claude | |
+| **openai** (Codex OAuth) | GPT 5.6 Sol / Terra / Luna | OAuth: `opencode auth login openai` |
+| **opencode-go** | Minimax M3, Kimi K2.6, DeepSeek V4 Flash, Qwen 3.8 Flash | explicit Qwen entry: 1M ctx / 131k out |
+| **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
+| **zai-coding-plan** | GLM 5.3 | Coding Plan API |
+| **deepseek** | V4 Flash, V4 Pro | |
+| **inception** | Mercury 2 | |
+| **ollama-cloud** | DeepSeek V4 Flash/Pro, MiniMax M3 | ollama.com OpenAI-compatible API |
+| **uni-lux** *(personal endpoint)* | DeepSeek V4 Flash, Kimi K3, GLM 5.2 | university LiteLLM proxy — bring your own endpoint/key |
+| **ollama-local** *(machine-local)* | local models | `127.0.0.1:18210` |
+| **qwen-tunnel** *(machine-local)* | Qwen | LAN `10.71.71.3:18061` |
+
+`auth.json.example` carries 9 provider entries (7 API keys + 2 OAuth). Model-limit details, reasoning-effort variants, and per-model caveats: [docs/configs.md](docs/configs.md).
 
 ### 13 Agent Model Assignments
 
-| Agent | Primary Model | Variant | Fallback Model | Purpose |
-|-------|---------------|---------|----------------|---------|
-| **atlas** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813`, `kimi-for-coding-oauth/k3` | Orchestrator with wisdom injection |
-| **prometheus** | `kimi-for-coding-oauth/k3` | high | `zai-coding-plan/glm-5.3`, `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Planner, deep reasoning, HTML proposal packets before executable plans |
-| **sisyphus** | `zai-coding-plan/glm-5.3` | high | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Executor, focused tasks |
-| **sisyphus-junior** | `zai-coding-plan/glm-5.3` | default | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Category task executor |
-| **librarian** | `opencode-go/minimax-m3` | default | `ollama-cloud/minimax-m3`, `openai/gpt-5.6-terra`, `zai-coding-plan/glm-5.3` | Search, documentation |
-| **explore** | `opencode-go/minimax-m3` | default | `ollama-cloud/minimax-m3`, `openai/gpt-5.6-luna`, `zai-coding-plan/glm-5.3` | Discovery, exploration |
-| **frontend-ui-ux-engineer** | `zai-coding-plan/glm-5.3` | max | `openai/gpt-5.6-sol`, `ollama-cloud/deepseek-v4-pro:0813` | Complex frontend work |
-| **document-writer** | `openai/gpt-5.6-terra` | default | `zai-coding-plan/glm-5.3` | Writing, documentation |
-| **multimodal-looker** | `openai/gpt-5.6-terra` | default | `google/gemini-3.7-flash`, `kimi-for-coding-oauth/kimi-for-coding` | Image/PDF analysis |
-| **oracle** | `openai/gpt-5.6-sol` | high | `ollama-cloud/deepseek-v4-pro:0813`, `kimi-for-coding-oauth/k3`, `zai-coding-plan/glm-5.3`, `google/gemini-3.1-pro-preview` | Q&A, knowledge queries |
-| **metis** | `zai-coding-plan/glm-5.3` | max | `google/gemini-3.1-pro-preview` | Deep analysis |
-| **momus** | `openai/gpt-5.6-sol` | xhigh | `ollama-cloud/deepseek-v4-pro:0813`, `google/gemini-3.1-pro-preview` | Code review, critique |
-| **hephaestus** | `openai/gpt-5.6-sol` | xhigh | `ollama-cloud/deepseek-v4-pro:0813` | Infrastructure, deployment |
+| Agent | Primary | Variant | Fallbacks |
+|-------|---------|---------|-----------|
+| atlas | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro → k3 |
+| prometheus | `kimi-for-coding-oauth/k3` | high | glm-5.3 → gpt-5.6-sol → ollama dsv4-pro |
+| sisyphus | `zai-coding-plan/glm-5.3` | high | gpt-5.6-sol → ollama dsv4-pro |
+| sisyphus-junior | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro |
+| librarian | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-terra → glm-5.3 |
+| explore | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-luna → glm-5.3 |
+| frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | gpt-5.6-sol → ollama dsv4-pro |
+| document-writer | `openai/gpt-5.6-terra` | default | glm-5.3 |
+| multimodal-looker | `openai/gpt-5.6-terra` | default | gemini-3.7-flash → k2.7-code |
+| oracle | `openai/gpt-5.6-sol` | high | ollama dsv4-pro → k3 → glm-5.3 → gemini-3.1-pro |
+| metis | `zai-coding-plan/glm-5.3` | max | gemini-3.1-pro-preview |
+| momus | `openai/gpt-5.6-sol` | xhigh | ollama dsv4-pro → gemini-3.1-pro |
+| hephaestus | `openai/gpt-5.6-sol` | xhigh | ollama dsv4-pro |
 
-#### Prometheus planning artifact flow
+For complex multi-step work, prometheus produces an HTML proposal packet for human review before the canonical Markdown plan in `.omo/plans/`. Simple work stays lean and autonomous.
 
-For complex multi-step work, Prometheus produces an HTML Proposal+Design Packet before generating the executable Markdown plan. The flow is:
+### Key Features
 
-```
-User request → Prometheus HTML Proposal+Design Packet → pre-plan checkpoint → .omo/plans/*.md → Atlas/Sisyphus execution
-```
+| Feature | Status | Notes |
+|---------|--------|-------|
+| OpenCode compaction | Enabled | `compaction.auto=true`, `compaction.prune=true` |
+| OMO context hooks | Partially | context-window-monitor + anthropic-limit-recovery active; **preemptive compaction disabled** (premature triggering on 1M-context models) |
+| Dynamic context pruning | Enabled | 2-turn error purge, write-supersession dedup, `background_output` protection |
+| Aggressive truncation | Enabled | verbose tool outputs truncated |
+| Runtime fallback | Enabled | on 404/429/5xx; `retries_before_fallback=2`, `timeout_seconds=300` (fork patch); works for sync and background sub-agents |
+| Turn protection | Enabled | task/todowrite/lsp_rename protected 3 turns after use |
+| Background-task circuit breaker | Enabled | `maxToolCalls=500`, `consecutiveThreshold=15` (OMO default 4000/20) |
+| Auto-update checker | Disabled | updates managed manually via `update-to-latest` |
+| Magic Context | Disabled | retained config only, for rollback/reference |
 
-The HTML packet is for human review and discussion. The Markdown plan remains canonical for execution. Simple or single-step work stays lean and autonomous and does not require reusable HTML template or generator infrastructure.
+### Runaway-subagent defenses
 
-### Key Experimental Features
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| **Magic Context** | Disabled | Plugin removed from `opencode.json#plugin`; `magic-context.jsonc#enabled=false` is retained for rollback/reference only. |
-| **OpenCode Compaction** | Enabled | `opencode.json#compaction.auto=true` and `compaction.prune=true`; OpenCode owns built-in context compaction/pruning. |
-| **OMO Context Hooks** | Enabled | `preemptive-compaction`, `context-window-monitor`, and `anthropic-context-window-limit-recovery` are no longer listed in `disabled_hooks`; `experimental.preemptive_compaction=true`. |
-| **Aggressive Truncation** | Enabled | Truncates verbose tool outputs aggressively |
-| **Runtime Fallback** | Enabled | OMO `runtime_fallback.enabled=true` — session.status path dispatches fallback models on API errors (404, 429, 500, 502, 503, 504). Works for both synchronous and background sub-agents. `retries_before_fallback=2` (fork patch `omo--retries-before-fallback`): provider auto-retry signals for attempts 1–2 are left to OpenCode's native same-model retry; the first signal with attempt 3 aborts the retry loop and fails over to the agent's fallback chain. `timeout_seconds=300` (OMO native knob, default 30; raised 2026-08-19): a fallback model now gets 5 minutes before timeout-escalation aborts it — the 30s default killed streaming-slow fallback models mid-generation (2026-08-19 debate-session incident: 4 models each aborted at 30s with partial output flowing, task died with `MessageAbortedError`). Config is snapshotted at server startup — restart required after changes. |
-| **Turn Protection** | Enabled | Protects critical tools (task, todowrite, lsp_rename) for 3 turns after use |
-| **Purge Errors (2-turn)** | Enabled | OMO `dynamic_context_pruning.strategies.purge_errors` is enabled with a 2-turn retention window. |
-| **Background Task Circuit Breaker** | Enabled (maxToolCalls=500, consecutiveThreshold=15) | Configured to cancel runaway subagent tasks when a task reaches 500 total tool calls or 15 consecutive identical tool+input signatures. OMO default is 4000/20; lowered thresholds trip earlier |
-| **Auto-Update Checker** | Disabled | `oh-my-openagent.json#disabled_hooks: ["auto-update-checker"]` opts out of OMO's startup update-check hook. Updates are managed manually via the `update-to-latest` skill |
-
-### Doom-Loop Mitigations
-
-The configuration includes layered defenses against runaway subagent sessions (forensic root cause: 14 Jun 2025 visual-engineering QA loop burned $43.58 / 14.3M input tokens in 77 minutes; 21 Jun build/test ping-pong burned $12.75 / 50M cache-read tokens in 27 minutes):
-
-| Layer | Setting | Effect |
-|-------|---------|--------|
-| **Model demotion** | `oh-my-openagent.json#categories.visual-engineering.model` = `google/gemini-3.7-flash` | Intro pricing $0.75/$3.75 per 1M in/out tokens vs far pricier Pro Preview; 1M context preserved |
-| **Aggressive error purge** | Enabled via OMO dynamic context pruning | Drops failed build/test outputs after 2 turns using OMO's context-pruning strategy. |
-| **Tool-call circuit breaker** | `oh-my-openagent.json#background_task.circuitBreaker.{maxToolCalls: 500, consecutiveThreshold: 15}` | Configured to cancel any subagent task that reaches 500 total tool calls or repeats the same tool+input 15× in a row. Catches 14 Jun-class stuck-repeat loops only; alternation patterns (e.g. 21 Jun's `npm run build` ↔ `npm run test`) reset the consecutive counter each call and are NOT cancelled by this setting. |
-
-**Known limitation**: `consecutiveThreshold` only catches *strictly* consecutive identical signatures. Alternating tool patterns (`build → test → build → test`) and same-tool varying-input patterns (screenshot-with-varying-URL) reset the counter each call and defeat the detector. The `maxToolCalls` cap is the only hard backstop for those patterns, and it triggers on total volume rather than loop shape. Shape-based alternation detection is planned as a sliding-window extension to OMO's circuit breaker (where task cancellation actually works), not as an OpenCode plugin.
-
-**Evidence state**: The OMO/config-setting mitigations are `repo_implemented`, `live_file_installed` (via symlink), and `active_config_registered`.
-
-### Removed: Subagent Loop Guard Plugin (2026-07-25)
-
-The `subagent-loop-guard.ts` plugin was removed. Post-incident analysis showed its sliding-window rules (same-tool frequency, same-tool varying-input) matched legitimate tool-dense investigation work far more often than real doom loops, its only enforcement action was mutating bash calls into no-op echoes (agents simply routed around it by switching tools), and it hooked every session including root orchestrators despite being named for subagents. OMO's `consecutiveThreshold` already covers strict-repeat loops with real task cancellation. The one genuine gap it leaves — alternation/varying-input shape detection — is planned as an extension to OMO's own circuit breaker in `manager.ts`, scoped to background subagent tasks, where cancellation authority exists.
-
-### Future Work: Periodic Lead-Agent Inspection
-
-The mitigations above are reactive (detect-and-block). A complementary proactive mechanism would let the lead agent periodically inspect running subagents without breaking their flow. Sketch of options:
-
-| Option | Mechanism | Breaks Flow? | Complexity |
-|--------|-----------|--------------|------------|
-| **Push (transcript inject)** | Plugin uses `client.session.promptAsync(parentID, status)` every 15 min | Yes — parent processes injection as new user turn | Medium |
-| **Pull (sidecar log)** | Plugin writes status snapshots to `~/.sisyphus/agent-watch/<child>.json`; parent reads when curious | No (passive) | Low |
-| **Pull (transcript annotation)** | Plugin annotates the parent's next tool call args with a status comment | No (in-band) | Medium |
-| **Upstream OMO patch** | Fix `lastMessageAt` assignment in `manager.ts` so the existing babysitter hook fires | No (handled by OMO) | High (requires OMO source patch + maintenance) |
-
-Out of current scope. Will revisit after observing how the circuit breaker performs in real visual-engineering subagent runs.
-
-### Context Management
-
-Magic Context (`@cortexkit/opencode-magic-context@latest`) is disabled. It is no longer registered in `opencode.json#plugin`, and `magic-context.jsonc#enabled` is `false` for rollback/reference only.
-
-OpenCode and OMO now own context management:
-
-- `opencode.json#compaction.auto=true` — OpenCode automatic compaction is enabled.
-- `opencode.json#compaction.prune=true` — OpenCode compaction pruning is enabled.
-- `oh-my-openagent.json#experimental.preemptive_compaction=false` — OMO preemptive compaction is disabled (was triggering premature compaction on GLM 5.2/GPT 5.5 with 1M context windows).
-- `oh-my-openagent.json#disabled_hooks` only disables `auto-update-checker`; context hooks are active.
-- `oh-my-openagent.json#experimental.dynamic_context_pruning.enabled=true` — OMO dynamic context pruning is enabled, including 2-turn error purging, write-supersession deduplication, and `background_output` protection from dedup truncation.
-
-Historical context:
-
-- DCP (`@tarquinen/opencode-dcp@3.1.13`) remains retired; `dcp.jsonc` is archived to `dcp.jsonc.retired`.
-- The 3 DCP patches remain retired: bounded-range-archive-mode, byte-budget, compress-tool-prompt-contract.
-
-### Patch Documentation
-
-For install locations, failure string meanings, and reapply instructions:
-- **Context overflow max-token detection**: `.sisyphus/patches/oh-my-openagent--context-overflow-max-token-error.md` (active on OMO v4.19.2)
-- **Clean agent display names**: `.sisyphus/patches/omo--clean-agent-display-names.md` (active on OMO v4.19.2)
-- **Commit policy alignment**: `.sisyphus/patches/omo--commit-policy-alignment.md` (active on OMO v4.19.2)
-- **OpenCode command hook cancellation**: `.sisyphus/patches/opencode--command-hook-cancellation.md` (active on v1.18.5 binary, `runtime_effective: true` — enables no-LLM cancellation for `/session-id`, `/vscode`, `/session-info` via `output.cancelled = true` in the command hook)
-- **OpenCode SSE directory filter removal**: `.sisyphus/patches/opencode--sse-directory-filter-removal.md` (`runtime_effective: false` on v1.18.5 — NOT deprecated. Investigation found workspaceID is never populated (0/2107 sessions); the SSE ternary always falls back to directory check; original worktree-events problem persists. Patch needs reimplementation for the rewritten event.ts. See patch entry's `## Deprecation Investigation` section)
-- **OpenCode TUI link-click workaround (wrapped OSC 8)**: `.sisyphus/patches/opencode--link-click-wrapped-osc8.md` (active on v1.18.5 binary, `runtime_effective: true` as of 2026-08-03 — redesigned hook via child `CodeRenderable.onChunks` setter recovered the dead `_linkifyMarkdownChunks` path; works around Alacritty commit 275726f regression where wrapped OSC 8 hyperlinks are only clickable on the first visual line)
-- **OpenCode TUI pinned-session reset**: `.sisyphus/patches/opencode--tui-pinned-session-race.md` (v1 2026-08-15 commit e7f5981ea + v2 2026-08-26 commit e31c20ca3, compiled into live v1.18.5 binary; `runtime_effective: false` until live verification — v1: startup read-overwrite race + stale multi-process prune overwrite on `~/.local/state/opencode/session.json`; v2: stale multi-process `togglePin` whole-array write, observed via pin-watch surveillance wiping a pin 3h47m before the 2026-08-25 reboot; regression pair `tests/regressions/012-pinned-session-race-fix.sh`)
-- **Exclude auto-slash commands**: `.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md` (active on OMO v4.19.2)
-- **Auto-slash-command duplicate user args**: `.sisyphus/patches/omo--auto-slash-command-duplicate-user-args.md` (active on OMO v4.19.2)
-- **GLM preemptive compaction threshold**: `.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md` (**DEPRECATED 2026-08-05** — GLM 5.1's mid-window context degradation does not occur on GLM 5.2 with 1M context; OMO preemptive compaction is disabled anyway due to premature triggering on large-context models)
-- **Parent-wake sync mode for TUI render**: `.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md` (ROLLED BACK — ineffective; root cause is upstream OpenCode TUI SSE bug, not OMO dispatch mode)
-- **Parent-wake live-route rollback**: `oh-my-openagent.json#experimental.disable_live_parent_wake_routing=true` keeps parent wakes on the in-process dispatch path because externally routed parent-wake turns can be persisted without live-rendering in the current OpenCode TUI.
-- **Boulder worktree authoritative state**: `.sisyphus/patches/omo--boulder-worktree-authoritative-state.md` (superseded by upstream v4.12.1 works-map architecture)
-- **Remove activity stagnation bypass**: `.sisyphus/patches/omo--remove-activity-stagnation-bypass.md` (upstreamed in OMO commit df7e1ae1)
-- **Sync delegate_task result bloat**: `.sisyphus/patches/omo--sync-delegate-task-result-bloat.md` (active — config-level mitigation via prompt_append on atlas/sisyphus agents; durable fix requires OMO code change in `fetchSyncResult`)
-- **Durable OMO log path**: `.sisyphus/patches/omo--durable-log-path.md` (active on OMO v4.19.2; `runtime_effective` pending post-restart observation in task 9 — dist-level patch on the Bun-minified bundle, not a source patch)
-- **Fallback toast names originating agent/session**: `.sisyphus/patches/omo--fallback-toast-origin.md` (active on OMO v4.19.2; `runtime_effective: false` until a real fallback toast is observed post-restart — dist-level patch, pattern match necessary but not sufficient)
-- **Runtime fallback retries before fallback**: `.sisyphus/patches/omo--retries-before-fallback.md` (active on OMO v4.19.2, `runtime_effective: true` since 2026-08-15 — source patch, fork commit 49f6728; budget guard observed live on real provider retry signals, provider recovered within budget and sessions stayed on GLM; adds `runtime_fallback.retries_before_fallback` config knob, default 0 = legacy fail-on-first-signal)
-- **look_at fallback patience**: `.sisyphus/patches/omo--lookat-fallback-patience.md` (active on OMO v4.19.2 — dist-level patch; when the multimodal-looker child session's extracted response is empty, re-poll it for up to 60s so a runtime-fallback answer that lands after the primary model's failed attempt is retrieved instead of racing to `Error: No response from multimodal-looker agent`; `runtime_effective: true` since 2026-08-16 — observed on a throwaway server: patience loop re-polled past the empty primary attempt and retrieved the gemini-3.7-flash fallback answer 2.0s after the pre-patch failure point. Regression pair `tests/regressions/013-lookat-fallback-patience.sh`)
-- **start-work worktree teardown**: `.sisyphus/patches/oh-my-openagent--start-work-worktree-teardown.md` (active on OMO v4.19.2 — plain-text skill patch, not a binary patch; adds direct-mode worktree reclaim as `/start-work` Completion step 3: merge `--no-ff` → `git worktree remove` → lowercase `git branch -d` or `worktree_delete` with target; dirty worktrees must be diffed and ported or explicitly declared discarded. Companion to the worktree-aware agent-git-workflow lifecycle and the `worktree_delete` target parameter — together they close the allocation/reclamation asymmetry that leaked 14 worktrees+branches through Jul–Aug 2026)
-
----
-
-## Related Projects
-
-- **[OMO Pulse](https://github.com/EZotoff/omo-pulse)** - Dashboard for monitoring Oh-My-OpenAgent activity and agent performance
+`visual-engineering` demoted to Gemini Flash intro pricing; 2-turn error purge; circuit breaker 500/15. Known limitation: the consecutive-signature detector misses alternating and varying-input loops — `maxToolCalls` is the only hard backstop for those shapes. Incident forensics and the planned shape-based extension: [docs/history/incidents.md](docs/history/incidents.md).
 
 ---
 
 ## Dependencies
 
-Before using this configuration, install the following prerequisites:
-
 | Dependency | Required? | Install |
-|------------|-----------|--------|
+|------------|-----------|---------|
 | **OpenCode CLI** | Required | [opencode.ai](https://opencode.ai) — `curl -fsSL https://opencode.ai/install \| bash` |
-| **bun** | Required | [bun.sh](https://bun.sh) — `curl -fsSL https://bun.sh/install \| bash` |
-| **jq** | Required by worktree hooks, wisdom scripts | `brew install jq` (macOS) · `sudo apt-get install -y jq` (Linux) |
-| **python3** | Auth.json parsing, portable helper fallbacks | `brew install python` (macOS) · `sudo apt-get install -y python3` (Linux) |
-| **bash >= 4.3** | Wisdom scripts use `local -n` namerefs | macOS: `brew install bash` (stock is 3.2) · Linux: preinstalled |
-| **Oh-My-OpenAgent** | Local patched fork | Loaded from `file:///home/ezotoff/oh-my-openagent-v4.19.2`. The fork is the canonical runtime source while tracked OMO patches remain active. |
-| **Docker** | Optional | [docker.com](https://docker.com) — only needed for worktree container isolation |
-| **inotify-tools** | Required for patch watcher | `sudo apt install -y inotify-tools` |
-| **API keys** | Required | See `auth.json.example` for the 8 enabled providers. Run `./scripts/check-prerequisites.sh` to verify. |
+| **Oh-My-OpenAgent** | Required | npm default; primary machine uses the [local fork](#the-omo-runtime-fork-primary-machine) (upstream v4.19.2 + patches) |
+| **bun** | Required | [bun.sh](https://bun.sh) |
+| **jq** | Required (worktree hooks, wisdom scripts) | `brew install jq` / `sudo apt-get install -y jq` |
+| **python3** | Required (auth parsing, helpers) | `brew install python` / `sudo apt-get install -y python3` |
+| **bash >= 4.3** | Required (wisdom namerefs) | macOS: `brew install bash`; Linux: preinstalled |
+| **inotify-tools** | Required (patch watcher) | `sudo apt install -y inotify-tools` |
+| **Docker** | Optional (worktree isolation) | [docker.com](https://docker.com) |
+| **API keys** | Required | `auth.json.example` (9 providers); verify with `./scripts/check-prerequisites.sh` |
 
-The installer handles placing configuration files in the correct locations. It does not install OpenCode CLI, bun, Docker, `inotify-tools`, or the local OMO fork. This machine's `opencode.json` references `~/oh-my-openagent-v4.19.2`; new machines must provide an equivalent patched fork or deliberately change the plugin reference through the update-to-latest workflow.
-
-**Binary patches** (optional): Several features (true no-LLM `/session-id`, `/session-info`, `/vscode` cancellation) require patches to the OpenCode binary or OMO npm cache. These are documented in `.sisyphus/patches/` but NOT auto-applied by `install.sh`. Use the `patch-opencode` skill or follow the patch docs manually.
+The installer places configuration files; it does not install OpenCode CLI, bun, Docker, inotify-tools, or OMO. Binary/bundle patches are documented in [docs/patches.md](docs/patches.md) and are **not** auto-applied by `install.sh`.
 
 ---
 
 ## Backup & Rollback
 
-### Automatic Backups
-
-The installer automatically backs up your existing configuration before making changes:
+Before replacing anything, the installer backs up each existing target into a `$HOME`-relative tree:
 
 ```
-~/.ez-omo-backup/
-├── 2024-01-15_143022/     # Timestamped backup directory
-│   ├── opencode.json
-│   ├── oh-my-openagent.json
-│   └── plugins/
-├── 2024-01-14_090511/
-│   └── ...
+~/.ez-omo-backup/<timestamp>/
+├── .config/opencode/…      # backed-up live configs
+├── .opencode/…             # plugins, scripts, worktree config
+└── .sisyphus/…             # wisdom scripts, patch verifier
 ```
 
-### Manual Restore
-
-To restore a previous configuration:
+Restore everything the installer touched:
 
 ```bash
-# List available backups
-ls -la ~/.ez-omo-backup/
-
-# Restore a specific backup
-cp -r ~/.ez-omo-backup/2024-01-15_143022/* ~/.config/opencode/
-
-# Or restore just the configs
-cp ~/.ez-omo-backup/2024-01-15_143022/opencode.json ~/.config/opencode/
-cp ~/.ez-omo-backup/2024-01-15_143022/oh-my-openagent.json ~/.config/opencode/
+cp -R "$HOME/.ez-omo-backup/<timestamp>"/. "$HOME"/
 ```
 
-Backups are retained indefinitely. Clean up old backups periodically:
+Restore a single file (note the `$HOME`-relative subpath):
+
 ```bash
-rm -rf ~/.ez-omo-backup/2024-01-*
+cp ~/.ez-omo-backup/<timestamp>/.config/opencode/opencode.json ~/.config/opencode/
 ```
+
+**Symlink-mode caveat**: restoring copies files *over* the symlinks this repo installed, replacing them with plain copies. Re-run `./install.sh --symlink` afterwards to re-link, or restore selectively inside the repo instead.
+
+Backups are retained indefinitely — clean old ones periodically (`rm -rf ~/.ez-omo-backup/<old-timestamp>`).
 
 ---
 
-## Detailed Documentation
-
-For in-depth guides on specific components:
+## Documentation
 
 | Topic | Location |
 |-------|----------|
-| Configuration | [docs/configs.md](docs/configs.md) |
-| Plugin Development | [docs/plugins.md](docs/plugins.md) |
-| Skill Authoring | [docs/skills.md](docs/skills.md) |
-| Wisdom System | [docs/wisdom.md](docs/wisdom.md) |
-| Compatibility Debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
-| Observability Contract | [docs/configs.md](docs/configs.md) |
-| Live Deployment Verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
-| DCP Byte-Budget Gate (RETIRED) | [docs/dcp-byte-budget.md](docs/dcp-byte-budget.md) |
+| Artifact inventory (single source of truth) | [MANIFEST.md](MANIFEST.md) |
+| Configuration files | [docs/configs.md](docs/configs.md) |
+| Plugin system | [docs/plugins.md](docs/plugins.md) |
+| Skill system | [docs/skills.md](docs/skills.md) |
+| Wisdom system | [docs/wisdom.md](docs/wisdom.md) |
+| Patch index | [docs/patches.md](docs/patches.md) |
+| Live deployment verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
+| Observability (non-wisdom) | [docs/non-wisdom-observability.md](docs/non-wisdom-observability.md) |
+| Compatibility debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
+| Worktree state schema | [docs/worktree-state-schema.md](docs/worktree-state-schema.md) |
+| OMO v4.x config reference (vendored) | [docs/omo-config-reference.md](docs/omo-config-reference.md) |
+
+History (dated snapshots): [incidents & experiments](docs/history/incidents.md) · [DCP byte-budget (retired)](docs/history/dcp-byte-budget.md) · [update migration v1.14.28](docs/history/update-migration-v1.14.28.md) · [patch-management architecture review](docs/history/architecture-review-patch-management-2026-06-28.md)
+
+---
+
+## Related Projects
+
+- **[OMO Pulse](https://github.com/EZotoff/omo-pulse)** — dashboard for monitoring Oh-My-OpenAgent activity and agent performance
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
+MIT — see [LICENSE](LICENSE).
 
 ## Disclaimer
 
-This is a personal configuration repository. Your mileage may vary. These settings reflect specific preferences and workflows that may not suit everyone. Feel free to fork, modify, and adapt to your own needs.
-
-- Models and providers are subject to availability and rate limits
-- Experimental features may change behavior between updates
-- Always review changes before applying to your system
-- API costs apply based on your provider usage
+This is a personal configuration repository; settings reflect specific preferences, providers, and patched runtimes. Fork and adapt. Models are subject to availability and rate limits; experimental features may change behavior between updates; API costs apply; review changes before applying them to your system.
 
 ---
 

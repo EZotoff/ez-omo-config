@@ -4,7 +4,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 
 > **Platform support**: artifacts install on Linux (native), macOS (native, Homebrew Bash 4.3+ required), and Windows via WSL. Install targets are identical across all three (`$HOME`-relative). See `install.sh` `detect_os()` and `README.md` "Platform Support". Cross-platform CI: `.github/workflows/cross-platform.yml`.
 
-> **Atomic install pathway**: an item may declare multiple groups via `+`-joined tags (e.g. `skills+configs`). It installs whenever ANY declared group is selected. Used by the global `AGENTS.md`, which must travel with the `/deployment` skill AND read like a config file. See `category_selected` in `install.sh`.
+> **Counting semantics** (README category table follows the same rules): counts are tracked files per top-level directory (`git ls-files <dir> | wc -l`); a multi-file module directory (e.g. `aspect-dynamics/`, `supervisor/`, `kdco-primitives/`) may appear as one logical row in prose tables but its files count individually in category counts. The per-artifact table below is the single source of truth for paths, install targets, and statuses — README carries the category summary only.
 
 ## Artifacts Table
 
@@ -99,9 +99,9 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 26f | wisdom-restore.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26g | manifest-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 26h | knowledge-constants.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
-| 26a | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
-| 26b | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
-| 26c | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
+| 31 | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
+| 32 | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
+| 49 | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 | 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
 | 28a | test_dcp_bounded_range.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Verification | Archived (`.retired`) |
@@ -114,16 +114,21 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28i | test_computer_use_skill.sh | (repo only) | `tests/` | (repo only) | Computer-Use Skill + Live MCP Safety Contract | Required |
 | 28j | test_worktree_reclaim.sh | (repo only) | `tests/` | (repo only) | Worktree Reclaim Contract (worktree_delete target semantics) | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
-| 30 | dcp-byte-budget.md | (repo only) | `docs/` | (repo only) | Byte-Budget Configuration Reference | Required |
+| 29b | patches.md | (repo only) | `docs/` | (repo only) | Documentation — patch index (thin index over `.sisyphus/patches/`) | Required |
+| 30 | dcp-byte-budget.md | (repo only) | `docs/history/` | (repo only) | RETIRED 2026-06-23 — DCP byte-budget reference (historical) | Archived |
+| 30b | history/ | (repo only) | `docs/history/` | (repo only) | Dated snapshots: incidents, retired DCP, update migrations, architecture reviews | Archived |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
 | 54 | `watch-runtime-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | inotify watcher for runtime binary integrity | Required |
 | 55 | `opencode-patch-watcher.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | systemd user service for watcher | Optional |
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 19 paired regression tests (38 files total) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 20 paired regression tests (40 files total) | Required |
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
+| 60 | `test_patch_entries.sh` | (repo only) | `tests/` | (repo only) | Patch-entry schema gate (frontmatter completeness: surfaces, runtime_effective, target_file) | Required |
+| 61 | `test_patch_versions.sh` | (repo only) | `tests/` | (repo only) | Patch version drift gate after binary/OMO upgrades | Required |
+| 63 | `derive-flare-chat-template.py` | (repo only) | `scripts/` | (repo only) | FLARE-4B chat-template generator (PARKED with `flare-serve.service`) | Optional |
 | 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled, provider removed from opencode.json; port 18200) | Optional |
 | 62b | `opencode-supervisor.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Project Supervisor P0 shadow observer | Optional |
 | 62c | `test_supervisor_config.sh` | (repo only) | `tests/` | (repo only) | Project Supervisor static contract | Required |
@@ -175,11 +180,13 @@ ez-omo-config/
 │   └── watch-runtime-patches.sh # Runtime binary inotify watcher
 ├── systemd/user/           # Patch integrity units and Project Supervisor user service
 ├── extras/                 # Extra configurations (ocx.jsonc)
-├── docs/                   # Documentation for configs, plugins, skills, wisdom, compatibility debt, live deployment verification, and observability contract
+├── docs/                   # Active documentation (configs, plugins, skills, wisdom, patches, verification, observability, compatibility debt, worktree state, OMO reference)
+│   ├── patches.md            # Patch index over .sisyphus/patches/
+│   └── history/              # Dated snapshots: incidents, retired DCP, update migrations, architecture reviews
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
 │   ├── live-deployment-verification.md  # Live Deployment Verification Gate documentation
-├── tests/                  # Bash verification suite, 18-file regression corpus, and helpers
+├── tests/                  # Bash verification suite, 20-pair regression corpus, and harnesses
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities
 │   └── audit-wisdom-first.sh  # Validates no contradictory dual-system language remains
 ├── install.sh              # Bootstrap installer
@@ -191,24 +198,24 @@ ez-omo-config/
 ## Artifact Summary
 
 - **Total Artifacts**: repo-managed OpenCode/OMO commands, configs, plugins, skills, scripts, tests, docs, extras, and Docker templates.
-- **Commands**: 4 slash command prompts (`models-preset.md`, `vscode.md`, `session-id.md`, `session-info.md`)
+- **Commands**: 10 slash command prompts (model presets, session utilities, handoff emit/resume, four review presets)
 - **Core Configs**: existing OpenCode/OMO configs plus the Project Supervisor P0 `supervisor.json`. DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, and Python operator helpers.
-- **Systemd**: watcher service, periodic integrity-check service and timer, plus the Project Supervisor P0 user service.
-- **Tests**: active repo verification scripts, the 19-pair regression corpus (38 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Systemd**: 6 user units — patch watcher, integrity-check service + timer, Project Supervisor, interactive attach daemon, and the parked FLARE-4B server.
+- **Tests**: active repo verification scripts (95 tracked files), the 20-pair regression corpus (40 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
 
 | # | Artifact | Path | Purpose | Install Command |
 |---|----------|------|---------|-----------------|
-| E1 | `auth.json.example` | `auth.json.example` | Template for `~/.local/share/opencode/auth.json` showing all 8 enabled providers and their key formats | `cp auth.json.example ~/.local/share/opencode/auth.json` |
+| E1 | `auth.json.example` | `auth.json.example` | Template for `~/.local/share/opencode/auth.json`: 9 provider entries (7 API-key + 2 OAuth) covering the 11 enabled providers | `cp auth.json.example ~/.local/share/opencode/auth.json` |
 | E2 | `check-prerequisites.sh` | `scripts/check-prerequisites.sh` | Verifies OpenCode CLI, bun, OMO npm cache, config files, local plugins, API keys, skills, Docker (optional), and patch docs | `./scripts/check-prerequisites.sh` |
 | E3 | OpenCode CLI | external | Core AI coding assistant runtime | [opencode.ai](https://opencode.ai) |
 | E4 | bun | external | JavaScript runtime for TypeScript plugin loading | [bun.sh](https://bun.sh) |
-| E5 | `oh-my-openagent-v4.19.2` | `/home/ezotoff/oh-my-openagent-v4.19.2` (external local fork) | Canonical OMO runtime source carrying tracked local patches; replaces mutable npm `@latest` resolution | Clone/build separately; loaded via `file://` in `opencode.json` |
+| E5 | `oh-my-openagent-v4.19.2` | `/home/ezotoff/oh-my-openagent-v4.19.2` (external local fork; base: upstream OMO **v4.19.2**) | Canonical OMO runtime source carrying tracked local patches (index: `docs/patches.md`); replaces mutable npm `@latest` resolution | Clone/build separately; loaded via `file://` in `opencode.json` — see README "The OMO runtime fork" |
 | E6 | Docker | external (optional) | Container runtime for worktree isolation | [docker.com](https://docker.com) |
 | E7 | `browser-lifecycle-plugin` | external (optional) | Agent-browser session cleanup on idle. Not in default config — add manually to `opencode.json#plugin` if needed. | Clone from source and add `file://` path |
 
@@ -247,9 +254,6 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 27 | `omo--lookat-fallback-patience` | `oh-my-openagent` | active | 2026-08-16 | `grep -c 'LOOK_AT_FALLBACK_PATIENCE_MS' ~/oh-my-openagent-v4.19.2/dist/index.js` — live dist patch; look_at re-polls an empty child-session result for up to 60s so runtime-fallback answers that land after the primary model's failed attempt are retrieved instead of racing to `Error: No response from multimodal-looker agent`; regression pair `tests/regressions/013-lookat-fallback-patience.sh` |
 | 28 | `oh-my-openagent--start-work-worktree-teardown` | `oh-my-openagent@4.19.2` | active | 2026-08-23 | `grep -c 'A worktree left behind is a leak' ~/oh-my-openagent-v4.19.2/dist/skills/start-work/SKILL.md` — plain-text skill patch; adds direct-mode worktree reclaim (merge → worktree remove → `branch -d`) as Completion step 3; closes the allocation/reclamation asymmetry that leaked 14 worktrees+branches |
 | 29 | `omo--resume-skip-keep-running` | `oh-my-openagent@4.19.2` | active | 2026-08-30 | `grep -c 'keeping task running until next idle' ~/oh-my-openagent-v4.19.2/dist/index.js` — source patch (fork commit 8b883adab): busy-session resume skips (`active`/`reserved` gate statuses) keep the background task running instead of rolling it back to a terminal snapshot, so the child's eventual `session.idle` completes the task and notifies the parent; fixes the silent continuation deadlock observed 2026-08-30 (ses_facae8e4affezS7URnSTmMXIbz / bg_c16e323d); regression pair `tests/regressions/017-resume-skip-keep-running.sh` |
-| 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Closed loop between cutover and patch reconciliation |
-| 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled; port 18200; requires `~/src/flare` + `~/flare-cache`; chat template derived by `derive-flare-chat-template.py`) |
-| 63 | `derive-flare-chat-template.py` | (repo only) | `scripts/` | No-think + multi-system-merge chat template generator for FLARE-4B serving |
 
 ## Operator Tools (Repo-Only, Not Installed)
 

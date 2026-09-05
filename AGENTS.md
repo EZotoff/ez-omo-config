@@ -120,9 +120,9 @@ Prefer codegraph/LSP facts over memory. If a tool is unavailable or returns no u
 
 Because this repo IS the live configuration, any change to config files, plugins, skills, scripts, or install targets must keep all repo documentation accurate. Agents making changes must:
 
-1. **Update MANIFEST.md** if artifact counts, paths, or categories change.
-2. **Update README.md** if the artifact inventory, installation options, provider list, agent assignments, or feature descriptions change.
-3. **Update relevant docs/*.md** files (docs/configs.md, docs/plugins.md, docs/skills.md, docs/wisdom.md, docs/worktree-state-schema.md) when the corresponding component changes.
+1. **MANIFEST.md is the single per-artifact inventory** (paths, install targets, statuses). Update it whenever an artifact is added, removed, renamed, or changes status. Include the Patch Registry row for any new `.sisyphus/patches/` entry.
+2. **README.md carries the category summary only** — never a per-artifact inventory. Update README only when a category is added/removed, a category's headline count/purpose changes, or the provider list, agent assignments, install options, or feature descriptions change.
+3. **Update relevant docs/*.md** files (docs/configs.md, docs/plugins.md, docs/skills.md, docs/wisdom.md, docs/patches.md, docs/worktree-state-schema.md) when the corresponding component changes. Dated snapshots go to docs/history/ and are not updated after the fact.
 4. **Update per-directory READMEs** (configs/opencode/README.md, docker/README.md, or any other directory README) when files in that directory are added, removed, or renamed.
 5. **Update install.sh** when new files need symlinking, old files are removed, or install targets change. The ITEMS array must stay in sync with the actual repo contents.
 

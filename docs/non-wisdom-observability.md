@@ -6,7 +6,7 @@ This page links to per-system observability documentation for the four non-Wisdo
 
 ### Aspect Dynamics
 
-- **Repo docs**: [configs/opencode/aspect-dynamics/README.md](../configs/opencode/aspect-dynamics/README.md) (if present), [configs/opencode/README.md](../configs/opencode/README.md)
+- **Repo docs**: `configs/opencode/aspect-dynamics/` module docs, [configs/opencode/README.md](../configs/opencode/README.md)
 - **Implementation**: `configs/opencode/aspect-dynamics.mjs`, `configs/opencode/aspect-dynamics/logging.mjs`
 - **Tests**: `tests/test_aspect_dynamics_runtime.sh`
 - **Runbook section**: See `.sisyphus/evidence/task-11-non-wisdom-observability-runbook.md` — Aspect Dynamics
@@ -26,13 +26,12 @@ This page links to per-system observability documentation for the four non-Wisdo
 - **Tests**: `bun test` (239 tests)
 - **Runbook section**: See `.sisyphus/evidence/task-11-non-wisdom-observability-runbook.md` — Decision Extractor
 
-### DCP Bounded-Memory
+### DCP Bounded-Memory — RETIRED 2026-06-23
 
-- **Repo docs**: [README.md](../README.md) (DCP Observability section), [docs/configs.md](configs.md)
-- **Patch docs**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md`
-- **Implementation**: `configs/opencode/dcp.jsonc`
-- **Tests**: `tests/test_dcp_bounded_range.sh`, `tests/test_dcp_startup_warning.sh`
-- **Runbook section**: See `.sisyphus/evidence/task-11-non-wisdom-observability-runbook.md` — DCP bounded-memory
+> DCP was removed and its config archived to `configs/opencode/dcp.jsonc.retired`; the DCP tests are `.retired` and the byte-budget reference moved to [docs/history/dcp-byte-budget.md](history/dcp-byte-budget.md). This section is kept as a pointer only.
+
+- **Patch docs**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md` (status: retired)
+- **Historical reference**: `configs/opencode/dcp.jsonc.retired`, `tests/test_dcp_bounded_range.sh.retired`, `tests/test_dcp_startup_warning.sh.retired`
 
 ## Consolidated Runbook
 
