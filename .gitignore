@@ -9,6 +9,8 @@ node_modules
 # Python caches
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
 # OMO runtime state at repo root is a forbidden zone per configs/stack-locations.json
 .omo/
