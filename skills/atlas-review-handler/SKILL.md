@@ -35,9 +35,13 @@ task(
   load_skills=["review-protocol"],
   run_in_background=true,
   description="Review [task-name] changes",
-  prompt="[REVIEW-TASK] Review the changes made by the previous task. Run git diff to see the changes, analyze them, and return structured findings in CRITICAL/WARNING/INFO format. DO NOT run builds or tests. DO NOT modify files."
+  prompt="[REVIEW-TASK] Review the changes made by the previous task. Run git diff to see the changes, analyze them, and return structured findings in CRITICAL/WARNING/INFO format. DO NOT run builds or tests. DO NOT modify files.
+
+IF the task produced or modified data artifacts (pipeline stages, generated datasets/corpora, model outputs, scored results): ALSO read the actual intermediate output files (at least 5 per stage) — raw values, not aggregates — and check for degenerate patterns: empty/whitespace outputs, zero-variance or all-perfect scores across conditions meant to differ, identical outputs across variants, duplicated template clauses, cardinality mismatches at stage boundaries. Report any degenerate pattern as CRITICAL; downstream stages silently mask upstream bugs.")
 )
 ```
+
+The intermediary-output clause is CONDITIONAL: include it only when the completed task's deliverable includes data artifacts. Reading output files is permitted (review-protocol forbids builds/tests, not reads). For pure code changes with no data artifacts, omit it.
 
 **Step 2: Wait for results, then parse**
 
