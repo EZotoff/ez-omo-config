@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenCode on Android — Setup Recap · 2026-09-05</title>
+<!--
+  design-system: product lane · dark register #1B1814/#EDE9DF · accent teal #4DAFB6 (print register #006A71)
+  type stacks (local, no webfonts): display Georgia/Iowan/serif · body system sans · meta ui-monospace
+  zero javascript · print stylesheet @page
+  audience: the owner, reopening this months later; knows OpenCode, not this project's details
+-->
+<style>
+  :root{
+    --paper:#1B1814; --paper2:#211E18; --ink:#EDE9DF; --ink-dim:#C9C3B4;
+    --accent:#4DAFB6; --accent-ink:#0E3A3D; --line:#3A352C;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font:16px/1.65 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    letter-spacing:.005em;
+  }
+  main{max-width:70ch; margin:0 auto; padding:48px 24px 96px}
+  h1,h2,h3{font-family:Georgia,"Iowan Old Style","Times New Roman",serif; font-weight:600; line-height:1.25; letter-spacing:.01em}
+  h1{font-size:2rem; margin:0 0 4px}
+  h2{font-size:1.35rem; margin:64px 0 8px; padding-top:8px; border-top:1px solid var(--line)}
+  h3{font-size:1.05rem; margin:28px 0 6px}
+  p{margin:10px 0}
+  .kicker{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--accent)}
+  .subtitle{color:var(--ink-dim); font-size:.95rem; margin:0 0 8px}
+  .meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; color:var(--ink-dim); margin:20px 0 0; border-top:1px solid var(--line); padding-top:12px}
+  a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:3px}
+  strong{color:var(--ink); font-weight:650}
+  em{color:var(--ink-dim)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.85em; background:var(--paper2); border:1px solid var(--line); border-radius:4px; padding:1px 5px; overflow-wrap:anywhere}
+  pre{background:var(--paper2); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow-x:auto}
+  pre code{background:none; border:none; padding:0; font-size:.84rem; line-height:1.6}
+  .callout{background:var(--paper2); border-left:3px solid var(--accent); border-radius:0 8px 8px 0; padding:14px 18px; margin:24px 0}
+  .callout p{margin:4px 0}
+  .tag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--accent); color:var(--accent); border-radius:3px; padding:1px 6px; white-space:nowrap}
+  .tag.pending{border-color:#D9A441; color:#D9A441}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:.9rem}
+  th{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-dim); text-align:left; border-bottom:1px solid var(--line); padding:6px 10px 6px 0}
+  td{border-bottom:1px solid var(--line); padding:8px 10px 8px 0; vertical-align:top; overflow-wrap:anywhere}
+  td:first-child{white-space:nowrap}
+  .num{font-variant-numeric:tabular-nums}
+  ul{margin:8px 0; padding-left:22px}
+  li{margin:4px 0}
+  details{border:1px solid var(--line); border-radius:8px; padding:8px 14px; margin:12px 0; background:var(--paper2)}
+  summary{cursor:pointer; font-weight:600}
+  details[open] summary{margin-bottom:8px}
+  footer{margin-top:64px; border-top:1px solid var(--line); padding-top:14px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; color:var(--ink-dim)}
+
+  @media print{
+    :root{--paper:#FAF8F3; --paper2:#F1EDE4; --ink:#1B1814; --ink-dim:#57503F; --accent:#006A71; --line:#D8D2C2}
+    body{font-size:11pt; line-height:1.5}
+    main{max-width:none; padding:0}
+    h2{break-after:avoid; page-break-after:avoid}
+    h3,table,.callout,pre,details,li{break-inside:avoid; page-break-inside:avoid}
+    details{border-style:dashed}
+    details>*{display:block}
+    summary{display:list-item}
+    a{color:var(--accent); text-decoration:underline}
+    @page{margin:2cm 1.6cm;
+      @bottom-right{content:"p." counter(page) " / " counter(pages); font-size:8pt; color:#57503F}
+      @bottom-left{content:"OpenCode on Android — recap · 2026-09-05"; font-size:8pt; color:#57503F}
+    }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<p class="kicker">Infrastructure recap</p>
+<h1>OpenCode on Android: built, secured, one action from verified</h1>
+<p class="subtitle">How coding sessions on <strong>ez-raider</strong> (the Linux workstation) became reachable from an Android phone — and what is still open.</p>
+<p class="meta">Date: 2026-09-05 · Scope: workstation + tailnet setup · Client: OC Beacon 0.3.0 · Audience: the owner, months later</p>
+
+<div class="callout">
+  <p><strong>The result:</strong> a dedicated OpenCode server now runs on ez-raider as a boot-enabled service, reachable only through the private Tailscale network with real TLS encryption and password authentication. The Android app (OC Beacon) is installed on the phone (nothing-phone-2). <strong>One action remains:</strong> the app's server address must be changed to the <code>https://</code> URL below — the <code>http://</code> address entered first no longer exists. That connection is also the acceptance test: once one session runs from the phone, the last open decision — retiring the old mobile solution (OpenChamber) — can be taken.</p>
+</div>
+
+<h2>Why this exists</h2>
+<p>Previously, every project directory ran its own separate <code>opencode</code> process inside a Zellij pane (Zellij is a terminal multiplexer; its panes are the workstation's split terminal windows). Those processes die with their pane and are invisible to any other device — a phone can only talk to an OpenCode server that listens on the network. A second, older mobile access route (OpenChamber, a Telegram-facing bot on port 3021) already existed but is now slated for retirement once the new path proves itself.</p>
+<p>The occasion was a Gemini-generated PDF recommending an Android setup. Its architecture advice was correct; its literal commands were not safe to follow (details below). This recap documents both the critique and what was actually built instead.</p>
+
+<h2>What was assessed</h2>
+
+<h3>The advice PDF: right architecture, unsafe commands</h3>
+<p>The PDF recommended one central <code>opencode serve</code> daemon plus lightweight attached terminals, accessed from Android over Tailscale — and that architecture is genuinely how OpenCode (v1.18.5, the installed version) is designed to work. Every command it cited was verified against the live binary and exists.</p>
+<p>Its instructions had one dangerous gap: they said to bind the server to <code>0.0.0.0</code> — every network interface, LAN included — with no password. An OpenCode server API can execute shell commands and edit files; unauthenticated, it is a remote-code-execution endpoint for anything that can reach the port. The setup below deliberately does the opposite: loopback-only binding, TLS, and a password.</p>
+
+<h3>The Android app (OC Beacon): audited, fit for purpose</h3>
+<p>OC Beacon is a community fork of an existing Android client called OC Remote (the original open-source app this one builds on; Kotlin, MIT licence, actively maintained — last code push four days before this setup). A static source review — the code was read line by line, but the app was not run — found the quality unusually high for a solo project and no security defects in the code paths examined. Measured, not assumed:</p>
+<ul>
+  <li>Server passwords and the GitHub login token are encrypted with the Android hardware keystore (AES/GCM) and excluded from cloud backups and device transfers.</li>
+  <li>Crash logs are scrubbed of credentials, tokens, IP addresses, and file paths before anything leaves the device; no advertising or tracking libraries are present anywhere.</li>
+  <li>In-app updates verify both a SHA-256 checksum and the developer's signing certificate before installing.</li>
+</ul>
+<p>Three informed trade-offs were accepted (documented in the project, not hidden): it allows plain-HTTP server addresses by design (irrelevant here — this setup is HTTPS); a GitHub client secret is compiled into the app (low impact on its own); and the optional bug-report feature attaches logs to a semi-public gist (off by default, user-initiated).</p>
+<p>The app version installed is the official signed release <span class="num">0.3.0</span> — chosen over a custom build so the app's own update mechanism keeps working across future releases.</p>
+
+<h2>What was built</h2>
+
+<h3>A second OpenCode server, dedicated to mobile and interactive work</h3>
+<p>A new systemd user service, <code>opencode-interactive.service</code>, runs <code>opencode serve</code> on port <span class="num">3030</span>, bound to <code>127.0.0.1</code> only. It starts at boot, restarts on failure, and is completely independent of the OpenChamber service — a crash or restart of one cannot touch the other. Desktop terminals can attach to it later with <code>opencode attach http://127.0.0.1:3030 --dir &lt;project&gt;</code> to get the same pane-immortality the phone gets; existing habits need no change until then.</p>
+
+<h3>Safe exposure to the phone</h3>
+<p>The OpenCode API is never bound to a physical network interface. Instead, Tailscale's built-in reverse proxy publishes it inside the private tailnet at:</p>
+<pre><code>https://ez-raider.tailb8fd09.ts.net:3030</code></pre>
+<p>with a Let's Encrypt certificate (a real certificate authority, so the phone trusts it with no custom configuration). Access requires a username and password; the password is stored only in <code>~/.config/opencode/serve-interactive.env</code> (permission 600, readable by the owner's account alone) and is deliberately not reproduced in this document. Devices must be members of the tailnet to see the address at all; the internet at large sees nothing.</p>
+<p>Verified from the workstation on setup day: the address answers <span class="num">401</span> (refused) without credentials and <span class="num">200</span> (accepted) with them.</p>
+
+<h3>Leftovers removed</h3>
+<p>The machine previously published a Tailscale "Funnel" — a public-internet address — that forwarded to port 4400, where no service had been listening for some time. It was removed; the machine now exposes nothing to the public internet. Tailscale management was also switched to a non-root operator account (<code>ezotoff</code>), so future proxy changes no longer need administrator rights.</p>
+
+<h2>Where everything lives</h2>
+<table>
+  <tr><th>Piece</th><th>Location / value</th><th>Notes</th></tr>
+  <tr><td>Server service</td><td><code>~/.config/systemd/user/opencode-interactive.service</code></td><td>Enabled at boot; journal via <code>journalctl --user -u opencode-interactive</code></td></tr>
+  <tr><td>Credentials</td><td><code>~/.config/opencode/serve-interactive.env</code></td><td>Username <code>opencode</code> + password; file mode 600</td></tr>
+  <tr><td>Phone address</td><td class="num"><code>https://ez-raider.tailb8fd09.ts.net:3030</code></td><td>HTTPS scheme and the ts.net name are both required</td></tr>
+  <tr><td>Port registry</td><td><code>~/.sisyphus/ports.json</code> → project <code>opencode-interactive</code> (<span class="num">3030–3039</span>)</td><td>Prevents future port collisions</td></tr>
+  <tr><td>App installer</td><td><code>~/Downloads/oc-beacon-0.3.0.apk</code></td><td>Official release; SHA-256 <code>ba77f6f5aa52b9602338a50f26e1eb2def874c1a2e8a661c812579618e9c0243</code></td></tr>
+  <tr><td>Knowledge entry</td><td>wisdom <code>20260905-131629-bfr0</code></td><td>Machine-readable record of this whole setup</td></tr>
+  <tr><td>Old system (untouched)</td><td><code>opencode.service</code> on port 3021 (OpenChamber)</td><td>Still running; retire after the new path is verified</td></tr>
+</table>
+
+<h2>Status and what remains</h2>
+
+<table>
+  <tr><th>Item</th><th>State</th><th>Detail</th></tr>
+  <tr><td>Workstation server</td><td><span class="tag">done</span></td><td>Running, boot-enabled, loopback-only, password-protected (verified 2026-09-05)</td></tr>
+  <tr><td>Tailnet TLS exposure</td><td><span class="tag">done</span></td><td>Let's Encrypt cert; refused/accepted behaviour verified with and without credentials</td></tr>
+  <tr><td>App installed on phone</td><td><span class="tag">done</span></td><td>OC Beacon 0.3.0; phone active on the tailnet (direct connection)</td></tr>
+  <tr><td>App server address</td><td><span class="tag pending">action needed</span></td><td>Must read exactly <code>https://ez-raider.tailb8fd09.ts.net:3030</code> — the first-entered <code>http://</code> address predates the TLS switch and cannot connect</td></tr>
+  <tr><td>First session from the phone</td><td><span class="tag pending">not yet observed</span></td><td>No phone-initiated session has been confirmed on the server; this is the acceptance test</td></tr>
+  <tr><td>OpenChamber retirement</td><td><span class="tag pending">decision open</span></td><td>Stop and disable <code>opencode.service</code> (port 3021) once the new path holds up in daily use</td></tr>
+</table>
+
+<p>No defects that block this use were found in the app review; the three accepted trade-offs are listed above, and the review's limit (static, not runtime) is stated there. Nothing on the workstation side is pending. Of the three open rows: fixing the address is the action, running one session is its acceptance test, and OpenChamber retirement is the decision that follows both.</p>
+
+<h2>Next action</h2>
+<p>In OC Beacon on the phone, edit the server entry to <code>https://ez-raider.tailb8fd09.ts.net:3030</code> with username <code>opencode</code> and the password from <code>~/.config/opencode/serve-interactive.env</code>, connect, and start one test session. Once that works, retire OpenChamber.</p>
+
+<footer>
+  Self-contained recap · evidence: live checks on ez-raider, 2026-09-05 · app review: static source audit of the OC Beacon repository (no runtime testing of the app itself) · editorially reviewed in two layers (deterministic lint + independent cold read; two clarity findings fixed)
+</footer>
+
+</main>
+</body>
+</html>
