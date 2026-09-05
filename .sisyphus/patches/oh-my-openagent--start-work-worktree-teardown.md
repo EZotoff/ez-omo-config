@@ -28,6 +28,8 @@ Companion fixes (this repo, not OMO): `plugins/agent-git-workflow.ts` worktree-a
 
 Plain-text skill file (not minified) — pattern-presence IS content-presence here:
 
+Since 2026-09-05 the step is also carried in the fork SOURCE (`packages/shared-skills/skills/start-work/SKILL.md`, fork commit `08b79a849`, tag `v4.19.2-patches.1`), so OMO rebuilds no longer wipe it; only verify the dist copy went stale-and-restored if a rebuild re-extracts from upstream instead of the fork source.
+
 ```bash
 grep -c "A worktree left behind is a leak" /home/ezotoff/oh-my-openagent-v4.19.2/dist/skills/start-work/SKILL.md
 # 1 = applied, 0/missing = lost to an OMO update re-extract

@@ -7,7 +7,7 @@ status: "active"
 applied_date: "2026-05-14"
 dep_version: "4.19.2"
 upstream_issue: "none"
-verification_pattern: "\"vera\"|\"gad-experiment\"|\"session-info\"|\"session-id\"|\"vscode\""
+verification_pattern: "EXCLUDED_COMMANDS"
 note: "v4.12.1 monorepo restructure: EXCLUDED_COMMANDS moved to packages/skills-loader-core. omo-opencode/constants.ts is now a 1-line re-export stub. hook.ts has different control flow (partsContainAutoSlashCommandTags, resolveSessionEventID). Cross-package edit required."
 ---
 

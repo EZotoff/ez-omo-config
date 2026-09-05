@@ -7,7 +7,7 @@ status: "active"
 applied_date: "2026-04-30"
 dep_version: "4.19.2"
 upstream_issue: "none"
-verification_pattern: "sisyphus: \\"Sisyphus\\""
+verification_pattern: "normalizeAgentForPrompt"
 post_update_status: "reapply_required"
 note: "2026-07-25: source-level fix landed in fork branch fix/clean-display-names-source-v4.12.1 (commit df87198). AGENT_DISPLAY_NAMES values are now plain names at the source; earlier iterations of this patch only edited the dist bundle, which silently regressed on every rebuild. Regression test: ez-omo-config/tests/test_display_names_no_verbose_suffix.sh."
 ---

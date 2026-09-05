@@ -54,12 +54,25 @@ import os
 import sys
 from urllib.parse import unquote, urlparse
 
+config_file = os.path.abspath(os.environ["VERIFY_CONFIG"])
+config_dir = os.path.dirname(config_file)
+# Relative specs resolve the way opencode loads them: against the directory of the
+# config file AS OPENCODE SEES IT. When verifying the repo-side copy of a config that
+# is symlinked live at ~/.config/opencode/, that base is ~/.config/opencode.
+live_candidate = os.path.join(os.path.expanduser("~/.config/opencode"), os.path.basename(config_file))
+if os.path.realpath(live_candidate) == os.path.realpath(config_file):
+    config_dir = os.path.dirname(live_candidate)
 with open(os.environ["VERIFY_CONFIG"], encoding="utf-8") as handle:
     plugins = json.load(handle).get("plugin", [])
 paths = []
 for plugin in plugins:
-    if isinstance(plugin, str) and plugin.startswith("file://"):
+    if not isinstance(plugin, str):
+        continue
+    if plugin.startswith("file://"):
         paths.append(unquote(urlparse(plugin).path))
+    elif plugin.startswith("."):
+        # config-relative spec: resolve like opencode config/plugin.ts (against the config file dir)
+        paths.append(os.path.normpath(os.path.join(config_dir, plugin)))
 preferred = [path for path in paths if "oh-my-openagent" in path]
 selected = preferred[0] if preferred else (paths[0] if len(paths) == 1 else "")
 if not selected:
@@ -296,6 +309,30 @@ for entry in "${entries[@]}"; do
                 check_paths+=("$check_path")
             fi
         done
+        if ((all_targets_present == 0)) && [[ -n "$target_install_path" && "$target_install_path" != "$runtime_path" ]]; then
+            # Config-layer patches target files in this repo (target_install_path),
+            # not inside the dependency tree resolved from the plugin array.
+            alt_present=1
+            alt_paths=()
+            for relative_file in "${target_files[@]}"; do
+                relative_file="${relative_file#"${relative_file%%[![:space:]]*}"}"
+                relative_file="${relative_file%"${relative_file##*[![:space:]]}"}"
+                if [[ -f "$target_install_path/$relative_file" ]]; then
+                    alt_paths+=("$target_install_path/$relative_file")
+                else
+                    alt_present=0
+                fi
+            done
+            if ((alt_present == 1)); then
+                runtime_path="$target_install_path"
+                display_path="$runtime_path"
+                check_paths=("${alt_paths[@]}")
+                all_targets_present=1
+            fi
+        fi
+        if ((all_targets_present == 0)); then
+            result="MISSING-TARGET"
+        fi
         if ((all_targets_present == 0)); then
             result="MISSING-TARGET"
         fi
