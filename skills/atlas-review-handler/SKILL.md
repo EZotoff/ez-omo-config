@@ -60,7 +60,9 @@ task(
   prompt="[REVIEW-FIX] Fix the following CRITICAL findings from the review:
   1. [finding 1]
   2. [finding 2]
-  Fix ONLY these specific issues. Do NOT refactor. Do NOT run builds. Fix the issues and exit."
+  Fix ONLY these specific issues. Do NOT refactor. Do NOT run builds. Fix the issues and exit.
+
+IF a fix changes a convention that applies at multiple call sites (a flag/param on every call to a model or endpoint): enumerate ALL sibling call sites and apply the fix at each — partial application is the recurring failure mode. Stay within the fix class; that sweep is not a refactor."
 )
 ```
 
