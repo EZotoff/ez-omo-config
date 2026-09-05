@@ -16,6 +16,13 @@ Evidence state: `repo_implemented`. Not verified live: `live_file_installed`, `a
 
 ---
 
+
+## opencode-interactive.service
+
+`systemd/user/opencode-interactive.service` runs the dedicated interactive OpenCode daemon (`opencode serve --hostname 127.0.0.1 --port 3030`), separate from the OpenChamber backend on :3021. It is the attach target for desktop TUI work (the `oa()` shell wrapper in `~/.zshrc`) and the backend the OC Beacon Android client reaches through a tailnet-only `tailscale serve` TLS proxy (`https://<host>.<tailnet>.ts.net:3030`). Sessions started via attach live on the daemon, so they survive pane close and are visible on the phone.
+
+Auth is basic (`OPENCODE_SERVER_USERNAME`/`OPENCODE_SERVER_PASSWORD`) loaded from `$HOME/.config/opencode/serve-interactive.env` (mode 600, never committed; template: `serve-interactive.env.example` in the repo root). Port range 3030–3039 is registered in `~/.sisyphus/ports.json` under `opencode-interactive`. The public surface is zero: the daemon binds loopback only; the TLS proxy is reachable exclusively inside the tailnet.
+
 ## opencode.json
 
 **Purpose**: Main OpenCode configuration file. Controls core agent behavior, providers, plugins, and models.

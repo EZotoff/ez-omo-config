@@ -87,7 +87,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 6-11 | **Plugins** | TypeScript files + kdco-primitives dir | TypeScript plugins for worktrees, git safety, review enforcement, VS Code launcher, session clipboard commands, semantic checkpointing, and TUI clickable-link system-prompt injection |
 | 12-22 | **Skills** | Skill directories | Specialized agent skills for retry-error registration, patch tracking, deployment, parallel development, safe update pipelines, review workflows, and OS computer use (cua-driver MCP, machine-local daemon). (`playwright`, `frontend-ui-ux`, and `github-triage` ship with [OMO upstream](https://github.com/code-yeongyu/oh-my-openagent) and are not vendored here.) |
 | 22-31 | **Scripts** | Shell scripts | Wisdom propagation, observability, worktree lifecycle, live deployment verification, patch verification, and runtime watching |
-| 31a | **Systemd** | 4 user units | Reactive patch watcher, periodic integrity units, and the read-only Project Supervisor service |
+| 31a | **Systemd** | 5 user units | Reactive patch watcher, periodic integrity units, the read-only Project Supervisor service, and the interactive attach daemon (127.0.0.1:3030 for `opencode attach` + OC Beacon mobile) |
 | 32 | **Tests** | Test scripts | Regression tests for config, plugins, updates, computer-use skill/MCP safety, and the 18-pair regression corpus (patch preservation + gating regressions) |
 | 33 | **Extras** | 1 file | Additional registry configuration |
 | 34-35 | **Docker** | 2 files | Worktree container templates |
@@ -211,6 +211,7 @@ This repository contains a portable OpenCode/OMO configuration bundle organized 
 | 61 | `test_patch_versions.sh` | `tests/` | Drift gate: fails on unresolved VERSION-DRIFT after binary upgrades. Forces patch reconciliation as part of the same commit/PR as the cutover |
 | 62 | `flare-serve.service` | `systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15: unit disabled; port 18200; requires `~/src/flare` repo + `~/flare-cache`; mem-fraction 0.84) |
 | 62b | `opencode-supervisor.service` | `systemd/user/` | P0 shadow observer user service; depends on the existing OpenCode service and binds no port |
+| 62d | `opencode-interactive.service` | `systemd/user/` | Interactive attach daemon: `opencode serve` on 127.0.0.1:3030 with basic auth (`serve-interactive.env`, template `serve-interactive.env.example`); desktop `oa()` attach target and OC Beacon Android backend via tailnet-only tailscale serve TLS |
 | 63 | `derive-flare-chat-template.py` | `scripts/` | Derives the SGLang chat template for FLARE-4B: forces no-think decoding and merges consecutive leading system messages (OpenCode always sends two system messages; stock template rejects with 400) |
 | 64 | `test_supervisor_config.sh` | `tests/` | Static contract for supervisor config, unit, and installer registrations |
 

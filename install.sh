@@ -106,6 +106,7 @@ ITEMS=(
     "scripts|systemd/user/opencode-patch-integrity-check.timer|$HOME/.config/systemd/user/opencode-patch-integrity-check.timer"
     "scripts|systemd/user/flare-serve.service|$HOME/.config/systemd/user/flare-serve.service"
     "scripts|systemd/user/opencode-supervisor.service|$HOME/.config/systemd/user/opencode-supervisor.service"
+    "scripts|systemd/user/opencode-interactive.service|$HOME/.config/systemd/user/opencode-interactive.service"
 )
 
 usage() {

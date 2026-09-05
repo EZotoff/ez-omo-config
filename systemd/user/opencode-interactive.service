@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenCode Interactive Server (loopback + tailscale serve TLS, OC Beacon client)
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/home/ezotoff/.config/opencode/serve-interactive.env
+ExecStart=/home/ezotoff/.opencode/bin/opencode serve --hostname 127.0.0.1 --port 3030
+Environment=PATH=/home/ezotoff/.local/bin:/home/ezotoff/bin:/home/ezotoff/.bun/bin:/home/ezotoff/.opencode/bin:/home/ezotoff/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/home/ezotoff/.dotnet/tools
+Environment=SSH_AUTH_SOCK=/run/user/1000/keyring/ssh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
