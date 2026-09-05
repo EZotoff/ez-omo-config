@@ -98,14 +98,9 @@ assert_grep '\$HOME/.config/opencode/provider-connect-retry.mjs' "$REPO_ROOT/con
 assert_grep '\$HOME/.opencode/ocx.jsonc' "$REPO_ROOT/configs/opencode/README.md"
 
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/commands/models-preset.md"
-# Allow file:// URLs (machine-specific OMO fork reference is intentional);
-# only fail on bare /home/ezotoff paths outside file:// URLs
-if grep -v 'file://' "$REPO_ROOT/configs/opencode/opencode.json" | grep -q '/home/ezotoff'; then
-    echo "FAIL: Bare /home/ezotoff path found in opencode.json (outside file:// URLs)"
-    TESTS_FAILED=$((TESTS_FAILED + 1))
-else
-    TESTS_PASSED=$((TESTS_PASSED + 1))
-fi
+# OMO fork is referenced config-relative (../../oh-my-openagent-v4.19.2 -> $HOME/oh-my-openagent-v4.19.2);
+# no absolute machine paths are allowed anywhere in the config
+assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.json"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/opencode.jsonc"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/configs/opencode/provider-connect-retry.mjs"
 assert_no_grep '/home/ezotoff' "$REPO_ROOT/extras/ocx.jsonc"

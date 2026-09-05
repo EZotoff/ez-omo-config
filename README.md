@@ -42,18 +42,18 @@ cp auth.json.example ~/.local/share/opencode/auth.json
 opencode
 ```
 
-Config files are symlinked from `~/.config/opencode/` into this repo, so editing either path updates the same file. Local plugin references in `opencode.json` are relative — **but** the OMO runtime reference is machine-local on the primary machine; see the fork note below before forking.
+Config files are symlinked from `~/.config/opencode/` into this repo, so editing either path updates the same file. All plugin references in `opencode.json` — including the patched OMO fork — are config-relative, so no manual path updates are needed on a new machine that follows the [fork install](#the-omo-runtime-fork) step.
 
 ---
 
-## The OMO runtime fork (primary machine)
+## The OMO runtime fork
 
-The live `opencode.json` loads Oh-My-OpenAgent from a **local fork** — upstream **v4.19.2** plus tracked patches — at `file:///home/ezotoff/oh-my-openagent-v4.19.2`. This is deliberate and test-acknowledged: while tracked patches are active, the fork is the canonical runtime source (npm `@latest` resolution previously lost patches silently).
+`opencode.json` loads Oh-My-OpenAgent from a **published fork** — upstream **v4.19.2** plus tracked patches — via a config-relative reference: `"../../oh-my-openagent-v4.19.2"`, resolving to `$HOME/oh-my-openagent-v4.19.2` on any machine. Fork source: [EZotoff/oh-my-openagent](https://github.com/EZotoff/oh-my-openagent), branch `fix/custom-patches-v4.19.2`, tag `v4.19.2-patches`. The fork is the canonical runtime source while tracked patches are active (npm `@latest` resolution previously lost patches silently).
 
+- **Install the fork**: `git clone -b v4.19.2-patches https://github.com/EZotoff/oh-my-openagent.git ~/oh-my-openagent-v4.19.2 && cd ~/oh-my-openagent-v4.19.2 && bun install && bun run build`, then reapply the dist-level patches per their registry entries (source patches are already fork commits).
 - **Patch inventory**: 21 active patches — a mix of source patches (carried as fork commits), dist-level patches (applied to the built bundle), and config-layer mitigations. Index: [docs/patches.md](docs/patches.md); authoritative entries with reapply instructions: [`.sisyphus/patches/`](.sisyphus/patches/).
 - **On another machine**: upstream npm OMO loads fine, but these advertised behaviors degrade without the fork: fallback retry budget (`retries_before_fallback=2`), `look_at` fallback patience, resume-skip task continuation, background-spawn model default, `/start-work` worktree reclaim, clean agent display names.
-- **Reproducing the fork**: clone upstream at `v4.19.2`, apply the source patches per their registry entries, build, then reapply the dist-level patches per-entry against the built bundle. The owner's procedure is the `update-to-latest` skill — a documented operational path, not a turnkey bootstrap.
-- **Recommended durable fix (follow-up)**: publish the fork (GitHub tag or npm tarball built with the dist patches) so `opencode.json` can reference a reproducible artifact instead of a home-directory path. Tracked as a separate task; this note and the config switch together when it lands.
+- **Updates**: the owner's procedure is the `update-to-latest` skill — a documented operational path, not a turnkey bootstrap.
 
 The OpenCode binary itself is also rebuilt from release tags with tracked patches — see [docs/patches.md](docs/patches.md) and the `patch-opencode` / `update-to-latest` skills.
 

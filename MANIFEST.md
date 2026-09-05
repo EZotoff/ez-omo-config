@@ -215,7 +215,7 @@ ez-omo-config/
 | E2 | `check-prerequisites.sh` | `scripts/check-prerequisites.sh` | Verifies OpenCode CLI, bun, OMO npm cache, config files, local plugins, API keys, skills, Docker (optional), and patch docs | `./scripts/check-prerequisites.sh` |
 | E3 | OpenCode CLI | external | Core AI coding assistant runtime | [opencode.ai](https://opencode.ai) |
 | E4 | bun | external | JavaScript runtime for TypeScript plugin loading | [bun.sh](https://bun.sh) |
-| E5 | `oh-my-openagent-v4.19.2` | `/home/ezotoff/oh-my-openagent-v4.19.2` (external local fork; base: upstream OMO **v4.19.2**) | Canonical OMO runtime source carrying tracked local patches (index: `docs/patches.md`); replaces mutable npm `@latest` resolution | Clone/build separately; loaded via `file://` in `opencode.json` — see README "The OMO runtime fork" |
+| E5 | `oh-my-openagent-v4.19.2` | `$HOME/oh-my-openagent-v4.19.2` (published fork of upstream **v4.19.2**: [EZotoff/oh-my-openagent](https://github.com/EZotoff/oh-my-openagent), tag `v4.19.2-patches`) | Canonical OMO runtime source carrying tracked local patches (index: `docs/patches.md`); replaces mutable npm `@latest` resolution | `git clone -b v4.19.2-patches https://github.com/EZotoff/oh-my-openagent.git ~/oh-my-openagent-v4.19.2` + build; referenced config-relatively as `../../oh-my-openagent-v4.19.2` in `opencode.json` — see README "The OMO runtime fork" |
 | E6 | Docker | external (optional) | Container runtime for worktree isolation | [docker.com](https://docker.com) |
 | E7 | `browser-lifecycle-plugin` | external (optional) | Agent-browser session cleanup on idle. Not in default config — add manually to `opencode.json#plugin` if needed. | Clone from source and add `file://` path |
 

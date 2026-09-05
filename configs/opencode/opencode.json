@@ -22,7 +22,7 @@
     "opencode-anthropic-auth",
     "@franlol/opencode-md-table-formatter@latest",
     "opencode-kimi-full",
-    "file:///home/ezotoff/oh-my-openagent-v4.19.2",
+    "../../oh-my-openagent-v4.19.2",
     "../../.opencode/plugin/clickable-links.ts",
     "../../.opencode/plugin/session-info.ts",
     "../../.opencode/plugin/session-id.ts",
