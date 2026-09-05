@@ -101,7 +101,7 @@ expected_agent_models = {
 expected_category_models = {
     'ultrabrain': 'zai-coding-plan/glm-5.3',
     'deep': 'openai/gpt-5.6-sol',
-    'quick': 'qwen-tunnel/qwen3.8-27b',
+    'quick': 'zai-coding-plan/glm-5.3-flash',
     'unspecified-low': 'opencode-go/deepseek-v4-flash',
     'unspecified-high': 'zai-coding-plan/glm-5.3',
     'mephistopheles': 'openai/gpt-5.6-terra',
@@ -147,7 +147,7 @@ for name, expected in expected_agent_models.items():
 expected_category_fallbacks = {
     'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
     'deep': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
-    'quick': ['zai-coding-plan/glm-5.3-flash', 'ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
+    'quick': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
     'unspecified-low': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
     'unspecified-high': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
     'mephistopheles': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
@@ -166,7 +166,7 @@ for name, expected in expected_category_models.items():
 print('PASS: OMO GPT-heavy routes use openai without retired-provider fallbacks')
 
 expected_flash_fallbacks = {
-    'quick': ['zai-coding-plan/glm-5.3-flash', 'ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
+    'quick': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
     'unspecified-low': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
 }
 for name, expected in expected_flash_fallbacks.items():
