@@ -318,6 +318,22 @@ The `prometheus` agent is configured via `prompt_append` to produce a human-faci
 
 **Scope (v1)**: This is a prompt contract only. There is no template or generator infrastructure in v1. The artifact format and path conventions are enforced via the agent's configured prompt instructions.
 
+### Pipeline Intermediary Output Gate Contracts (atlas / prometheus / sisyphus)
+
+Added 2026-09-05 after the ESM ontology-RAG incident (ses_fa6168d3cffelHaTLGyScr0mRU): a benchmark pipeline passed 281 tests and 4/4 Final Wave reviewers while every generated answer was an empty string and the judge scored all 288 empty answers a perfect 5/5 — no verification layer read intermediary pipeline outputs. Root cause class: every gate (worker tests, atlas Phase 4, REVIEW-ENFORCER, F1–F4) verified the scaffold (tests pass, exit 0, artifacts exist) and never the data.
+
+Three prompt contracts now cover the gap:
+
+- **atlas `prompt_append`** — "Pipeline Intermediary Output Gate": for any task delivering a data pipeline, completion requires an intermediary-output audit (read ≥5 raw outputs per stage; block on degenerate patterns — empty outputs, zero-variance scores across conditions designed to differ, identical outputs across variants, duplicated template clauses, cardinality mismatches; degenerate-input negative controls on consumer stages — a judge/scorer returning perfect scores on empty input is a bug; cross-cutting-fix sweep over ALL sibling call sites). At the Final Wave, atlas adds an output-audit reviewer (F5) to pipeline plans whose F-wave lacks one — F1–F4 approval alone does not close a pipeline plan.
+- **prometheus `prompt_append`** — pipeline plans must carry per-stage OUTPUT CONTRACTS in task acceptance criteria (schema + cardinality + non-degeneracy invariants), degenerate-input negative controls for consumer stages, an intermediary-output-audit F-wave reviewer, and an explicit cross-cutting model-call-convention risk with a call-site enumeration task.
+- **sisyphus `prompt_append`** — "Pipeline Work: Output Verification + Routing": (1) pipeline builds of 3+ stages default to the plan route (Prometheus → start-work) instead of inline implementation — inline builds have repeatedly shipped the thinking-channel/JSON-degeneracy bug family; (2) when pipeline work is done inline regardless, the verification loop extends with the same intermediary-output audit before any done claim.
+
+The `atlas-review-handler` skill's REVIEW-TASK template gained the matching conditional clause: reviews of data-producing tasks must read ≥5 intermediate outputs per stage and report degenerate patterns as CRITICAL.
+
+**Evidence basis**: ESM audit artifact `.sisyphus/evidence/audit-intermediaries.md` (3 bugs: empty generation on 72/72 items, judge degeneracy 288/288, doubled-clause queries 45/240) plus the recurring same-family history in ESM sessions (JSON-reliability saga, sequential model loading ×3).
+
+**Scope**: prompt contracts only (config-layer). **Evidence state**: `repo_implemented` + `live_file_installed` + `active_config_registered`; **not verified live: `runtime_loaded`, `real_project_behavior_proven` — restart OpenCode (`systemctl --user restart opencode.service`) to activate, then observe on the next pipeline plan/session.
+
 **Install Target**: `$HOME/.config/opencode/oh-my-openagent.json`
 
 **Status**: Required
