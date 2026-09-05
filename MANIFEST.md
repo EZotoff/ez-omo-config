@@ -113,6 +113,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28h | test_dcp_payload_budget.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Byte-Budget Verification | Archived (`.retired`) |
 | 28i | test_computer_use_skill.sh | (repo only) | `tests/` | (repo only) | Computer-Use Skill + Live MCP Safety Contract | Required |
 | 28j | test_worktree_reclaim.sh | (repo only) | `tests/` | (repo only) | Worktree Reclaim Contract (worktree_delete target semantics) | Required |
+| 28k | test_default_agent_pin.sh | (repo only) | `tests/` | (repo only) | Default-Agent Pin (`default_agent: Sisyphus` in opencode.json; anti-regression for the 2026-09-05 OC Beacon build-default incident) | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 29b | patches.md | (repo only) | `docs/` | (repo only) | Documentation — patch index (thin index over `.sisyphus/patches/`) | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/history/` | (repo only) | RETIRED 2026-06-23 — DCP byte-budget reference (historical) | Archived |

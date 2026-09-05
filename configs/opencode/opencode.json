@@ -35,6 +35,7 @@
       "model": "ollama-cloud/deepseek-v4-flash:0731"
     }
   },
+  "default_agent": "Sisyphus",
   "compaction": {
     "auto": true,
     "prune": true,
@@ -514,8 +515,7 @@
               "reasoning_effort": "max"
             }
           }
-        }
-        ,
+        },
         "glm-5.3-flash": {
           "name": "GLM 5.3 Flash",
           "attachment": true,
@@ -827,5 +827,9 @@
   },
   "autoupdate": false,
   "$schema": "https://opencode.ai/config.json",
-  "small_model": "ollama-cloud/deepseek-v4-flash:0731"
+  "small_model": "ollama-cloud/deepseek-v4-flash:0731",
+  "tool_output": {
+    "max_lines": 400,
+    "max_bytes": 24576
+  }
 }

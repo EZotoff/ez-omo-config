@@ -5,7 +5,7 @@ This directory contains the portable OpenCode config bundle copied from the loca
 | File | What it configures | Install target |
 |---|---|---|
 | `AGENTS.md` | Global user-level agent instructions loaded by OpenCode on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers and uses vanilla code discovery guidance. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` |
-| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, and runtime defaults. Local repo plugins and the patched OMO fork all use config-relative paths (no machine-specific paths). | `$HOME/.config/opencode/opencode.json` |
+| `opencode.json` | Main OpenCode configuration: enabled providers, plugins, models, limits, OpenCode compaction, runtime defaults, and the pinned default agent (`default_agent: Sisyphus`). Local repo plugins and the patched OMO fork all use config-relative paths (no machine-specific paths). | `$HOME/.config/opencode/opencode.json` |
 | `opencode.jsonc` | Local bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` |
 | `magic-context.jsonc` | Disabled Magic Context configuration retained for rollback/reference | `$HOME/.config/opencode/magic-context.jsonc` |
 | `dcp.jsonc.retired` | Retired DCP plugin configuration. Kept for historical reference. | Not installed |
