@@ -51,7 +51,7 @@ These skills provide core functionality and are essential for the OhMyOpenCode w
 - Delegates critical fixes via task()
 - Enforces max 2 review iterations per task
 - Manages workflow: request → delegate → receive → parse → fix → verify
-- Conditional intermediary-output audit (added 2026-09-05): when the reviewed task produced data artifacts, the REVIEW-TASK prompt requires reading ≥5 raw outputs per stage and reporting degenerate patterns (empty outputs, zero-variance scores, duplicated template clauses) as CRITICAL
+- Conditional intermediary-output audit (added 2026-09-05, consolidated same day): REVIEW-TASK prompts for data-producing tasks read ≥5 raw outputs per stage and report degenerate patterns (empty outputs, zero-variance scores, duplicated template clauses) as CRITICAL; REVIEW-FIX prompts sweep ALL sibling call sites when a fix belongs to a call-site class (partial-application antidote)
 
 **Dependencies**:
 
