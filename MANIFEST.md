@@ -142,7 +142,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 ```
 ez-omo-config/
 ├── commands/
-│   └── models-preset.md    # Slash command prompt for model tables
+│   └── models-preset.md    # Slash command prompt for model tables + consistency scan
 │   └── vscode.md           # VS Code launcher (handled by plugin, no LLM)
 │   └── session-id.md       # Session ID clipboard (handled by plugin, no LLM)
 │   └── session-info.md     # Session info clipboard (handled by plugin, no LLM)
