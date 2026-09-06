@@ -49,6 +49,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 4x | skill-nudger/state.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
 | 4y | skill-nudger/nudge.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
 | 4z | agent-default-guard.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Agent Default Guard (rewrites client-sent `build` agent to pinned `default_agent`; OC Beacon mitigation) | Required |
+| 4aa | agent/document-writer.md | `~/.config/opencode/agent/` | `configs/opencode/agent/` | `$HOME/.config/opencode/agent/` | Opencode-native agent file for custom `document-writer` agent (frontmatter + body = system prompt; `agents.<name>.prompt` in oh-my-openagent.json is builtin-only/dead for custom names) | Required |
 | 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
 | 5b | supervisor.json | `~/.config/opencode-supervisor/` | `configs/opencode-supervisor/` | `$HOME/.config/opencode-supervisor/` | Project Supervisor P0 | Optional |
 | 5c | supervisor/ | (repo only) | `supervisor/` | (executed from checkout) | Project Supervisor P0 | Optional |
