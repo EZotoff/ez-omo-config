@@ -49,12 +49,15 @@ const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 				["bash", "-c", `printf '%s' '${safeResult}' | xclip -selection clipboard`],
 			)
 
+			const toast = (message: string, variant: "success" | "error") =>
+				client.tui.showToast({ body: { title: "Session Info", message, variant } }).catch(() => {
+					// toast is best-effort — never break the command hook
+				})
+
 			if (!clipResult.success) {
-				console.error(
-					`[session-info] Failed to copy to clipboard (exit ${clipResult.exitCode}). Is xclip installed?`,
-				)
+				toast(`Failed to copy to clipboard (exit ${clipResult.exitCode}). Is xclip installed?`, "error")
 			} else {
-				console.error("[session-info] Copied session info to clipboard.")
+				toast("Copied session info to clipboard.", "success")
 			}
 
 			// Suppress the command from reaching the LLM by clearing parts in place.

@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { logWarn } from "./logging.mjs";
 
 const DEFAULT_CONFIG = {
   enabled: true,
@@ -31,31 +32,31 @@ export function clearTestConfig() {
 
 function validateConfig(candidate) {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-    console.warn("[output-shaper] Invalid config: outputShaper must be an object");
+    logWarn("Invalid config: outputShaper must be an object");
     return false;
   }
 
   if (candidate.enabled !== undefined && typeof candidate.enabled !== "boolean") {
-    console.warn(`[output-shaper] Invalid config: enabled must be boolean, got ${typeof candidate.enabled}`);
+    logWarn(`Invalid config: enabled must be boolean, got ${typeof candidate.enabled}`);
     return false;
   }
 
   if (candidate.logLevel !== undefined && !(candidate.logLevel in LOG_LEVELS)) {
-    console.warn(
+    logWarn(
       `[output-shaper] Invalid config: logLevel must be one of ${Object.keys(LOG_LEVELS).join(", ")}, got ${candidate.logLevel}`
     );
     return false;
   }
 
   if (candidate.tersenessInstruction !== undefined && typeof candidate.tersenessInstruction !== "string") {
-    console.warn(
+    logWarn(
       `[output-shaper] Invalid config: tersenessInstruction must be a string, got ${typeof candidate.tersenessInstruction}`
     );
     return false;
   }
 
   if (candidate.resumeThinkingLevel !== undefined && typeof candidate.resumeThinkingLevel !== "string") {
-    console.warn(
+    logWarn(
       `[output-shaper] Invalid config: resumeThinkingLevel must be a string, got ${typeof candidate.resumeThinkingLevel}`
     );
     return false;
@@ -77,7 +78,7 @@ export async function loadConfig() {
   try {
     raw = readFileSync(OMO_CONFIG_PATH, "utf8");
   } catch (err) {
-    console.warn(`[output-shaper] outputShaper config not found at ${OMO_CONFIG_PATH}: ${err.message}`);
+    logWarn(`outputShaper config not found at ${OMO_CONFIG_PATH}: ${err.message}`);
     return null;
   }
 
@@ -85,13 +86,13 @@ export async function loadConfig() {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    console.warn(`[output-shaper] Failed to parse ${OMO_CONFIG_PATH}: ${err.message}`);
+    logWarn(`Failed to parse ${OMO_CONFIG_PATH}: ${err.message}`);
     return null;
   }
 
   const outputShaper = parsed?.outputShaper;
   if (!outputShaper || typeof outputShaper !== "object" || Array.isArray(outputShaper)) {
-    console.warn(`[output-shaper] Missing outputShaper block in ${OMO_CONFIG_PATH}`);
+    logWarn(`Missing outputShaper block in ${OMO_CONFIG_PATH}`);
     return null;
   }
 

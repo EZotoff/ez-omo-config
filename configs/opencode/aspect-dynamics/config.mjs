@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { logInfo, logWarn } from "./logging.mjs";
 
 const DEFAULT_CONFIG = {
   enabled: true,
@@ -26,17 +27,17 @@ export const __testConfigOverride = { value: null };
 
 function validateConfig(candidate) {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-    console.warn("[aspect-dynamics] Invalid config: aspectDynamics must be an object");
+    logWarn("Invalid config: aspectDynamics must be an object");
     return false;
   }
 
   if (candidate.activeSets !== undefined && !Array.isArray(candidate.activeSets)) {
-    console.warn(`[aspect-dynamics] Invalid config: activeSets must be an array, got ${typeof candidate.activeSets}`);
+    logWarn(`Invalid config: activeSets must be an array, got ${typeof candidate.activeSets}`);
     return false;
   }
 
   if (candidate.heuristicPreFilter !== undefined && typeof candidate.heuristicPreFilter !== "boolean") {
-    console.warn(
+    logWarn(
       `[aspect-dynamics] Invalid config: heuristicPreFilter must be boolean, got ${typeof candidate.heuristicPreFilter}`
     );
     return false;
@@ -46,14 +47,14 @@ function validateConfig(candidate) {
     candidate.contextWindowTurns !== undefined
     && (!Number.isFinite(candidate.contextWindowTurns) || candidate.contextWindowTurns <= 0)
   ) {
-    console.warn(
+    logWarn(
       `[aspect-dynamics] Invalid config: contextWindowTurns must be a positive number, got ${candidate.contextWindowTurns}`
     );
     return false;
   }
 
   if (candidate.logLevel !== undefined && !(candidate.logLevel in LOG_LEVELS)) {
-    console.warn(
+    logWarn(
       `[aspect-dynamics] Invalid config: logLevel must be one of ${Object.keys(LOG_LEVELS).join(", ")}, got ${candidate.logLevel}`
     );
     return false;
@@ -72,7 +73,7 @@ function logDeferredFields(config) {
   if (config.polishingModel) deferred.push("polishingModel");
   if (config.dreamAgent) deferred.push("dreamAgent");
   if (deferred.length > 0 && shouldLogInfo(config)) {
-    console.info(`[aspect-dynamics] Deferred fields present (inert in MVP): ${deferred.join(", ")}`);
+    logInfo(`Deferred fields present (inert in MVP): ${deferred.join(", ")}`);
   }
 }
 
@@ -91,7 +92,7 @@ export async function loadConfig() {
   try {
     raw = readFileSync(OMO_CONFIG_PATH, "utf8");
   } catch (err) {
-    console.warn(`[aspect-dynamics] aspectDynamics config not found at ${OMO_CONFIG_PATH}: ${err.message}`);
+    logWarn(`aspectDynamics config not found at ${OMO_CONFIG_PATH}: ${err.message}`);
     return null;
   }
 
@@ -99,13 +100,13 @@ export async function loadConfig() {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    console.warn(`[aspect-dynamics] Failed to parse ${OMO_CONFIG_PATH}: ${err.message}`);
+    logWarn(`Failed to parse ${OMO_CONFIG_PATH}: ${err.message}`);
     return null;
   }
 
   const aspectDynamics = parsed?.aspectDynamics;
   if (!aspectDynamics || typeof aspectDynamics !== "object" || Array.isArray(aspectDynamics)) {
-    console.warn(`[aspect-dynamics] Missing aspectDynamics block in ${OMO_CONFIG_PATH}`);
+    logWarn(`Missing aspectDynamics block in ${OMO_CONFIG_PATH}`);
     return null;
   }
 

@@ -56,7 +56,7 @@ export function emitProof(eventType, payload = {}) {
     appendFileSync(PROOF_PATH, `${JSON.stringify(record)}\n`, "utf8");
     truncateProofIfNeeded();
   } catch (err) {
-    console.error(`${PLUGIN_PREFIX} proof write failed: ${err.message}`);
+    emitLog("error", `proof write failed: ${err.message}`);
   }
 }
 
@@ -70,16 +70,49 @@ function truncateProofIfNeeded() {
       writeFileSync(PROOF_PATH, `${kept.join("\n")}\n`, "utf8");
     }
   } catch (err) {
-    console.error(`${PLUGIN_PREFIX} proof truncation failed: ${err.message}`);
+    emitLog("error", `proof truncation failed: ${err.message}`);
+  }
+}
+
+// Diagnostic log sink — file-based. Console output is forbidden for plugins:
+// it leaks into the TUI viewport, journald, and `opencode run --format json`
+// streams (AGENTS.md plugin rule; root cause of the 2026-09-06 stdout spam).
+const LOG_DIR = join(homedir(), ".config", "opencode");
+const LOG_PATH = join(LOG_DIR, "skill-nudger.log");
+
+// Test override — allows harness to intercept diagnostic logs without file I/O
+export const __testLogOverride = { value: null };
+
+function ensureLogDir() {
+  try {
+    if (!existsSync(LOG_DIR)) {
+      mkdirSync(LOG_DIR, { recursive: true });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function emitLog(level, msg) {
+  if (!shouldLog(level)) return;
+  const line = `[${new Date().toISOString()}] ${PLUGIN_PREFIX} [${level}] ${msg}`;
+  if (__testLogOverride.value) {
+    __testLogOverride.value.push({ level, msg: line });
+    return;
+  }
+  try {
+    if (!ensureLogDir()) return;
+    appendFileSync(LOG_PATH, `${line}\n`, "utf8");
+  } catch {
+    // File write failures are silently dropped — logging must never break the plugin
   }
 }
 
 export function logInfo(msg) {
-  if (!shouldLog("info")) return;
-  console.info(`${PLUGIN_PREFIX} ${msg}`);
+  emitLog("info", msg);
 }
 
 export function logWarn(msg) {
-  if (!shouldLog("warn")) return;
-  console.warn(`${PLUGIN_PREFIX} ${msg}`);
+  emitLog("warn", msg);
 }

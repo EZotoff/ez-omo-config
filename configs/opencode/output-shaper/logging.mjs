@@ -12,6 +12,9 @@ let currentLogLevel = "info";
 const LOG_DIR = join(homedir(), ".config", "opencode");
 const LOG_PATH = join(LOG_DIR, "output-shaper.log");
 
+// Test override — allows harness to intercept diagnostic logs without file I/O
+export const __testLogOverride = { value: null };
+
 export function setLogLevel(level) {
   currentLogLevel = level in LOG_LEVELS ? level : "warn";
 }
@@ -33,10 +36,13 @@ function ensureLogDir() {
 
 function write(level, msg) {
   if (!shouldLog(level)) return;
+  const line = `[${new Date().toISOString()}] ${PLUGIN_PREFIX} [${level}] ${msg}`;
+  if (__testLogOverride.value) {
+    __testLogOverride.value.push({ level, msg: line });
+    return;
+  }
   if (!ensureLogDir()) return;
 
-  const ts = new Date().toISOString();
-  const line = `[${ts}] ${PLUGIN_PREFIX} [${level}] ${msg}`;
   try {
     appendFileSync(LOG_PATH, `${line}\n`, "utf8");
   } catch {

@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { extname, join } from "node:path";
+import { logWarn } from "./logging.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const SETS_DIR = join(__dirname, "sets");
@@ -55,7 +56,7 @@ export async function loadSets() {
   try {
     filenames = readdirSync(SETS_DIR);
   } catch (err) {
-    console.warn(`[aspect-dynamics] Failed to read sets directory ${SETS_DIR}: ${err.message}; returning empty set list`);
+    logWarn(`Failed to read sets directory ${SETS_DIR}: ${err.message}; returning empty set list`);
     return [];
   }
 
@@ -75,11 +76,11 @@ export async function loadSets() {
         if (isValidSet(entry)) {
           loaded.push(entry);
         } else {
-          console.warn(`[aspect-dynamics] Skipping invalid set entry in ${filename}`);
+          logWarn(`Skipping invalid set entry in ${filename}`);
         }
       }
     } catch (err) {
-      console.warn(`[aspect-dynamics] Failed to load ${filename}: ${err.message}; skipping`);
+      logWarn(`Failed to load ${filename}: ${err.message}; skipping`);
     }
   }
 
@@ -109,7 +110,7 @@ export function selectActiveSets(sets, activeSetIds) {
   for (const id of activeSetIds) {
     const set = sets.find((s) => s.id === id);
     if (!set) {
-      console.warn(`[aspect-dynamics] Unknown active set ID: ${id}`);
+      logWarn(`Unknown active set ID: ${id}`);
       return [];
     }
     result.push(set);

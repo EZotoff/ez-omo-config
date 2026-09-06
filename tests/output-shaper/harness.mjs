@@ -18,6 +18,8 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+import { __testLogOverride } from "../../configs/opencode/output-shaper/logging.mjs";
+
 const PLUGIN_PATH = join(__dirname, "..", "..", "configs", "opencode", "output-shaper.mjs");
 const CONFIG_PATH = join(__dirname, "..", "..", "configs", "opencode", "output-shaper", "config.mjs");
 
@@ -94,20 +96,11 @@ function pass(message) {
 
 function captureLogs() {
   const logs = [];
-  const originalWarn = console.warn;
-  const originalInfo = console.info;
-  const originalError = console.error;
-
-  console.warn = (...args) => logs.push({ level: "warn", msg: args.join(" ") });
-  console.info = (...args) => logs.push({ level: "info", msg: args.join(" ") });
-  console.error = (...args) => logs.push({ level: "error", msg: args.join(" ") });
-
+  __testLogOverride.value = logs;
   return {
     logs,
     restore() {
-      console.warn = originalWarn;
-      console.info = originalInfo;
-      console.error = originalError;
+      __testLogOverride.value = null;
     },
     hasWarn(substr) {
       return logs.some((l) => l.level === "warn" && l.msg.includes(substr));

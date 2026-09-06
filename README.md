@@ -92,7 +92,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Scripts** | 37 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
 | **Systemd** | 6 units | patch watcher, integrity check service + timer, supervisor, interactive attach daemon, parked FLARE-4B server |
-| **Tests** | 97 files | config/plugin/update/computer-use contracts + 20-pair regression corpus (40 files) |
+| **Tests** | 98 files | config/plugin/update/computer-use contracts + 20-pair regression corpus (40 files) |
 | **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 

@@ -60,7 +60,7 @@ export function emitProof(eventType, payload = {}) {
     // Retention cap: truncate to most recent MAX_PROOF_EVENTS lines
     truncateProofIfNeeded();
   } catch (err) {
-    console.error("[aspect-dynamics proof] write failed:", err);
+    emitLog("error", `proof write failed: ${err.message}`);
   }
 }
 
@@ -74,7 +74,7 @@ function truncateProofIfNeeded() {
       writeFileSync(PROOF_PATH, `${kept.join("\n")}\n`, "utf8");
     }
   } catch (err) {
-    console.error("[aspect-dynamics proof] truncation failed:", err);
+    emitLog("error", `proof truncation failed: ${err.message}`);
   }
 }
 
@@ -106,28 +106,57 @@ export function resetProofEvents() {
       writeFileSync(PROOF_PATH, "", "utf8");
     }
   } catch (err) {
-    console.error("[aspect-dynamics proof] reset failed:", err);
+    emitLog("error", `proof reset failed: ${err.message}`);
+  }
+}
+
+// Diagnostic log sink — file-based. Console output is forbidden for plugins:
+// it leaks into the TUI viewport, journald, and `opencode run --format json`
+// streams (AGENTS.md plugin rule; root cause of the 2026-09-06 stdout spam).
+const LOG_DIR = join(homedir(), ".config", "opencode");
+const LOG_PATH = join(LOG_DIR, "aspect-dynamics.log");
+
+// Test override — allows harness to intercept diagnostic logs without file I/O
+export const __testLogOverride = { value: null };
+
+function ensureLogDir() {
+  try {
+    if (!existsSync(LOG_DIR)) {
+      mkdirSync(LOG_DIR, { recursive: true });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function emitLog(level, msg) {
+  if (!shouldLog(level)) return;
+  const line = `[${new Date().toISOString()}] ${PLUGIN_PREFIX} [${level}] ${msg}`;
+  if (__testLogOverride.value) {
+    __testLogOverride.value.push({ level, msg: line });
+    return;
+  }
+  try {
+    if (!ensureLogDir()) return;
+    appendFileSync(LOG_PATH, `${line}\n`, "utf8");
+  } catch {
+    // File write failures are silently dropped — logging must never break the plugin
   }
 }
 
 export function logInfo(msg) {
-  if (!shouldLog("info")) return;
-  console.info(`${PLUGIN_PREFIX} ${msg}`);
+  emitLog("info", msg);
 }
 
 export function logWarn(msg) {
-  if (!shouldLog("warn")) return;
-  console.warn(`${PLUGIN_PREFIX} ${msg}`);
+  emitLog("warn", msg);
 }
 
 export function logError(msg) {
-  if (!shouldLog("error")) return;
-  console.error(`${PLUGIN_PREFIX} ${msg}`);
+  emitLog("error", msg);
 }
 
 export function logEvent(eventType, sessionID, extra = "") {
-  if (!shouldLog("info")) return;
-  const ts = new Date().toISOString();
-  const line = `[${ts}] ${PLUGIN_PREFIX} [${eventType}] session=${sessionID} ${extra}`.trim();
-  console.info(line);
+  emitLog("info", `[${eventType}] session=${sessionID} ${extra}`.trim());
 }

@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { logWarn } from "./logging.mjs";
 
 const DEFAULT_CONFIG = {
   enabled: true,
@@ -26,29 +27,29 @@ export const __testConfigOverride = { value: null };
 
 function validateConfig(candidate) {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-    console.warn("[skill-nudger] Invalid config: skillNudger must be an object");
+    logWarn("Invalid config: skillNudger must be an object");
     return false;
   }
 
   if (candidate.enabled !== undefined && typeof candidate.enabled !== "boolean") {
-    console.warn(`[skill-nudger] Invalid config: enabled must be boolean, got ${typeof candidate.enabled}`);
+    logWarn(`Invalid config: enabled must be boolean, got ${typeof candidate.enabled}`);
     return false;
   }
 
   for (const key of ["windowSize", "repeatFailureThreshold", "loopThreshold", "maxNudgesPerSession", "cooldownToolCalls", "freshnessMs"]) {
     if (candidate[key] !== undefined && (!Number.isFinite(candidate[key]) || candidate[key] <= 0)) {
-      console.warn(`[skill-nudger] Invalid config: ${key} must be a positive number`);
+      logWarn(`Invalid config: ${key} must be a positive number`);
       return false;
     }
   }
 
   if (candidate.disabledSignals !== undefined && !Array.isArray(candidate.disabledSignals)) {
-    console.warn(`[skill-nudger] Invalid config: disabledSignals must be an array, got ${typeof candidate.disabledSignals}`);
+    logWarn(`Invalid config: disabledSignals must be an array, got ${typeof candidate.disabledSignals}`);
     return false;
   }
 
   if (candidate.logLevel !== undefined && !(candidate.logLevel in LOG_LEVELS)) {
-    console.warn(`[skill-nudger] Invalid config: logLevel must be one of ${Object.keys(LOG_LEVELS).join(", ")}`);
+    logWarn(`Invalid config: logLevel must be one of ${Object.keys(LOG_LEVELS).join(", ")}`);
     return false;
   }
 
@@ -74,7 +75,7 @@ export async function loadConfig() {
     if (err.code === "ENOENT") {
       return { ...DEFAULT_CONFIG };
     }
-    console.warn(`[skill-nudger] Failed to read config: ${err.message}`);
+    logWarn(`Failed to read config: ${err.message}`);
     return null;
   }
 }
