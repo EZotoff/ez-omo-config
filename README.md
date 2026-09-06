@@ -144,7 +144,7 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 
 | Provider | Models | Notes |
 |----------|--------|-------|
-| **google** | Gemini 3.7 Flash, Gemini 3.1 Pro Preview, Antigravity-hosted Gemini/Claude | |
+| **google** | Gemini 3.8 Flash, Gemini 3.1 Pro Preview, Antigravity-hosted Gemini/Claude | |
 | **openai** (Codex OAuth) | GPT 5.6 Sol / Terra / Luna | OAuth: `opencode auth login openai` |
 | **opencode-go** | Minimax M3, Kimi K2.6, DeepSeek V4 Flash, Qwen 3.8 Flash | explicit Qwen entry: 1M ctx / 131k out |
 | **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
@@ -162,19 +162,19 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 
 | Agent | Primary | Variant | Fallbacks |
 |-------|---------|---------|-----------|
-| atlas | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro → k3 |
-| prometheus | `kimi-for-coding-oauth/k3` | high | glm-5.3 → gpt-5.6-sol → ollama dsv4-pro |
-| sisyphus | `zai-coding-plan/glm-5.3` | high | gpt-5.6-sol → ollama dsv4-pro |
-| sisyphus-junior | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro |
-| librarian | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-terra → glm-5.3 |
+| atlas | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro → k3 |
+| prometheus | `kimi-for-coding-oauth/k3` | high | glm-5.3 → gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
+| sisyphus | `zai-coding-plan/glm-5.3` | high | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
+| sisyphus-junior | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
+| librarian | `zai-coding-plan/glm-5.3-flash` | default | glm-5.3 → ollama m3 → opencode-go m3 → gpt-5.6-terra |
 | explore | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-luna → glm-5.3 |
-| frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | gpt-5.6-sol → ollama dsv4-pro |
+| frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
 | document-writer | `openai/gpt-5.6-terra` | default | glm-5.3 |
-| multimodal-looker | `openai/gpt-5.6-terra` | default | gemini-3.7-flash → k2.7-code |
-| oracle | `openai/gpt-5.6-sol` | high | ollama dsv4-pro → k3 → glm-5.3 → gemini-3.1-pro |
+| multimodal-looker | `zai-coding-plan/glm-5.3-flash` | default | gpt-5.6-terra → gemini-3.8-flash |
+| oracle | `openai/gpt-5.6-sol` | high | ollama dsv4-pro → opencode-go dsv4-pro → k3 → glm-5.3 → gemini-3.1-pro |
 | metis | `zai-coding-plan/glm-5.3` | max | gemini-3.1-pro-preview |
-| momus | `openai/gpt-5.6-sol` | xhigh | ollama dsv4-pro → gemini-3.1-pro |
-| hephaestus | `openai/gpt-5.6-sol` | xhigh | ollama dsv4-pro |
+| momus | `openai/gpt-5.6-sol` | xhigh | ollama dsv4-pro → opencode-go dsv4-pro → gemini-3.1-pro |
+| hephaestus | `openai/gpt-5.6-sol` | xhigh | ollama dsv4-pro → opencode-go dsv4-pro |
 
 For complex multi-step work, prometheus produces an HTML proposal packet for human review before the canonical Markdown plan in `.omo/plans/`. Simple work stays lean and autonomous.
 
