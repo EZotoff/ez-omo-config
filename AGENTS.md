@@ -13,6 +13,7 @@ The active configs are **symlinked** to this repo — editing a file here IS edi
 | **OMO config** | `configs/oh-my-openagent/oh-my-openagent.json` | `~/.config/opencode/oh-my-openagent.json` → store |
 | **Provider retry plugin** | `configs/opencode/provider-connect-retry.mjs` | `~/.config/opencode/provider-connect-retry.mjs` → store |
 | **Retry error registry** | `configs/retry-errors.json` | `~/.config/opencode/retry-errors.json` → store |
+| **Agent default guard** | `configs/opencode/agent-default-guard.mjs` | `~/.config/opencode/agent-default-guard.mjs` → store |
 | **Auth / API keys** | — | `~/.local/share/opencode/auth.json` (NEVER committed) |
 
 ## How It Works

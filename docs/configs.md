@@ -417,6 +417,23 @@ These fields are inert by default. They are logged only when `logLevel` is set t
 
 Config-layer plugin that watches completed tool calls (`tool.execute.after`) for deterministic behavioral signals and queues ephemeral skill-suggestion nudges, delivered on the session's next LLM round-trip via `experimental.chat.messages.transform`.
 
+## agent-default-guard.mjs
+
+Config-layer plugin that rewrites incoming chat messages explicitly requesting the demoted `build` agent to the `default_agent` pinned in `opencode.json`, before the message is persisted.
+
+**Why**: OC Beacon (Android client, `LeoNardo-LB/oc-beacon`) hardcodes `"build"` as the preselected agent for new sessions (`ModelConfigDelegate.kt: MutableStateFlow("build" to false)`) and never reads server `default_agent` for chat preselection. On this rig OMO demotes `build` to a hidden subagent, but OpenCode accepts hidden agents for dispatch, so every new phone session ran as `build`. Server config alone cannot change a client-side hardcoded default.
+
+**Mechanics**: the `chat.message` hook fires in `prompt.ts createUserMessage()` before `sessions.updateMessage(info)` persists the user message; the run loop resolves the turn's agent from the persisted `lastUser.agent`. Mutating `output.message.agent` flips the whole session to the default agent; OC Beacon's UI then adopts it from the first user message.
+
+**Guards** (fail-open — dispatch is never blocked): rewrite only when `input.agent === "build"`, `default_agent` is set in the sibling `opencode.json`, the live agent registry (60 s cache) shows `build` as demoted (hidden/subagent — i.e., OMO active), and the target is a visible primary. Any error leaves the message untouched.
+
+**Verification**: unit harness `tests/agent-default-guard/harness.mjs` (9 checks); live probe 2026-09-06 — `POST /session/:id/message` with `agent: "build"` persisted `agent: "Sisyphus"` and the assistant turn ran as Sisyphus.
+
+**Log**: `~/.config/opencode/agent-default-guard.log` (rewrite + fail-open reasons).
+
+**Install Target**: `$HOME/.config/opencode/agent-default-guard.mjs`
+
+
 **Signals (rules-only MVP)**:
 
 | Signal | Trigger | Suggestion |

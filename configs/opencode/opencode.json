@@ -17,6 +17,7 @@
     "./aspect-dynamics.mjs",
     "./output-shaper.mjs",
     "./skill-nudger.mjs",
+    "./agent-default-guard.mjs",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",

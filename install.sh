@@ -43,6 +43,7 @@ ITEMS=(
     "configs|configs/opencode/output-shaper.mjs|$HOME/.config/opencode/output-shaper.mjs"
     "configs|configs/opencode/output-shaper|$HOME/.config/opencode/output-shaper"
     "configs|configs/opencode/skill-nudger.mjs|$HOME/.config/opencode/skill-nudger.mjs"
+    "configs|configs/opencode/agent-default-guard.mjs|$HOME/.config/opencode/agent-default-guard.mjs"
     "configs|configs/opencode/skill-nudger|$HOME/.config/opencode/skill-nudger"
     "configs|configs/retry-errors.json|$HOME/.config/opencode/retry-errors.json"
     "configs|configs/oh-my-openagent/oh-my-openagent.json|$HOME/.config/opencode/oh-my-openagent.json"
