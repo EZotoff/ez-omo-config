@@ -109,6 +109,15 @@
 
 `build`, `plan`, `sisyphus`, `hephaestus`, `sisyphus-junior`, `OpenCode-Builder`, `prometheus`, `metis`, `momus`, `oracle`, `librarian`, `explore`, `multimodal-looker`, `atlas` + `.catchall()` for custom agents.
 
+### 3.2b ⚠️ LOCAL WARNING — custom agent names: `prompt`/`prompt_append`/`mode` are dead fields (verified 2026-09-06, OMO v4.19.2)
+
+> The `agents:` map is **builtin-agent overrides only** for prompt-shaping fields. `pluginConfig.agents` is consumed for `prompt`/`prompt_append` merging exclusively in the builtin factory path (`agent-config-handler.ts` → `createBuiltinAgents` → `builtin-agents/agent-overrides.ts` `mergeAgentConfig`). For any non-builtin name (e.g. `document-writer`, `frontend-ui-ux-engineer`), `prompt`, `prompt_append`, and `mode` are **silently dropped** — no merge path exists, no warning is emitted.
+>
+> Fields that DO work at runtime for custom names (consumed by name-keyed lookups elsewhere: model resolution, variant, runtime-fallback chains, ultrawork override): `model`, `variant`, `fallback_models` — which is exactly what makes the trap confusing: routing works, the prompt doesn't. (`description` is likewise redundant for custom names — the agent .md frontmatter owns it.)
+>
+> **Custom agent system prompts go in opencode-native agent files**: `configs/opencode/agent/<name>.md` — frontmatter (`description`, `mode`, `model`) + body = system prompt. OMO loads them via `loadAgentSources` (`agent-source-loader.ts`); `install.sh` symlinks them into `~/.config/opencode/agent/`. Working example: [`configs/opencode/agent/document-writer.md`](../configs/opencode/agent/document-writer.md). Never put a custom agent's prompt in `agents.<name>.prompt`.
+
+
 ### 3.3 Agent override fields
 
 | Field | Type | Description |
