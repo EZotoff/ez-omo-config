@@ -175,14 +175,16 @@
     "quick": {
       "model": "zai-coding-plan/glm-5.3-flash",
       "fallback_models": [
+        "opencode-go/deepseek-v4-flash-vision-exp",
         "ollama-cloud/deepseek-v4-flash:0731",
         "opencode-go/deepseek-v4-flash"
       ]
     },
     "unspecified-low": {
-      "model": "ollama-cloud/deepseek-v4-flash:0731",
+      "model": "opencode-go/deepseek-v4-flash-vision-exp",
       "variant": "low",
       "fallback_models": [
+        "ollama-cloud/deepseek-v4-flash:0731",
         "opencode-go/deepseek-v4-flash",
         "zai-coding-plan/glm-5.3"
       ]

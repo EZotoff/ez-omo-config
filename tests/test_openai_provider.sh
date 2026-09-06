@@ -102,7 +102,7 @@ expected_category_models = {
     'ultrabrain': 'zai-coding-plan/glm-5.3',
     'deep': 'openai/gpt-5.6-sol',
     'quick': 'zai-coding-plan/glm-5.3-flash',
-    'unspecified-low': 'ollama-cloud/deepseek-v4-flash:0731',
+    'unspecified-low': 'opencode-go/deepseek-v4-flash-vision-exp',
     'unspecified-high': 'zai-coding-plan/glm-5.3',
     'mephistopheles': 'openai/gpt-5.6-terra',
     'visual-engineering': 'zai-coding-plan/glm-5.3-flash',
@@ -148,8 +148,8 @@ for name, expected in expected_agent_models.items():
 expected_category_fallbacks = {
     'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
     'deep': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
-    'quick': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
-    'unspecified-low': ['opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
+    'quick': ['opencode-go/deepseek-v4-flash-vision-exp', 'ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
+    'unspecified-low': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
     'unspecified-high': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
     'mephistopheles': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
     'visual-engineering': ['zai-coding-plan/glm-5.3', 'google/gemini-3.8-flash'],
@@ -167,8 +167,8 @@ for name, expected in expected_category_models.items():
 print('PASS: OMO GPT-heavy routes use openai without retired-provider fallbacks')
 
 expected_flash_fallbacks = {
-    'quick': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
-    'unspecified-low': ['opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
+    'quick': ['opencode-go/deepseek-v4-flash-vision-exp', 'ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash'],
+    'unspecified-low': ['ollama-cloud/deepseek-v4-flash:0731', 'opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
 }
 for name, expected in expected_flash_fallbacks.items():
     route = categories.get(name, {})
@@ -220,7 +220,7 @@ print('PASS: aspectDynamics dream agent GPT route prefers openai')
 
 with open('$REPO_ROOT/configs/retry-errors.json') as f:
     retry_cfg = json.load(f)
-expected_chain = ['opencode-go/deepseek-v4-flash', 'ollama-cloud/deepseek-v4-flash:0731', 'zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol']
+expected_chain = ['opencode-go/deepseek-v4-flash-vision-exp', 'opencode-go/deepseek-v4-flash', 'ollama-cloud/deepseek-v4-flash:0731', 'zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol']
 if retry_cfg.get('compaction_fallback_models') != expected_chain:
     print(f'FAIL: compaction_fallback_models expected {expected_chain!r}, got {retry_cfg.get("compaction_fallback_models")!r}')
     sys.exit(1)
