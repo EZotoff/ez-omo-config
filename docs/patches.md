@@ -37,6 +37,7 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 | `omo--exclude-selected-auto-slash-commands` | active | — | [entry](../.sisyphus/patches/omo--exclude-selected-auto-slash-commands.md) |
 | `omo--runtime-fallback-checktoolstate-bypass` (fork port of upstream PR #5357) | active | — | [entry](../.sisyphus/patches/omo--runtime-fallback-checktoolstate-bypass.md) |
 | `omo--sync-delegate-task-result-bloat` (config-level prompt_append) | active | — | [entry](../.sisyphus/patches/omo--sync-delegate-task-result-bloat.md) |
+| `omo--ultrawork-subagent-guard` — default-mode ultrawork injection skips subagent/non-main sessions (fork commits 52a175587 + 753602683) | active | false | [entry](../.sisyphus/patches/omo--ultrawork-subagent-guard.md) |
 | `ez-omo-config--commit-policy-override` | deprecated | — | [entry](../.sisyphus/patches/ez-omo-config--commit-policy-override.md) |
 | `omo--glm-preemptive-compaction-threshold` | deprecated | — | [entry](../.sisyphus/patches/omo--glm-preemptive-compaction-threshold.md) |
 | `omo--boulder-worktree-authoritative-state` | superseded | — | [entry](../.sisyphus/patches/omo--boulder-worktree-authoritative-state.md) |
