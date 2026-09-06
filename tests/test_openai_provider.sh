@@ -131,7 +131,7 @@ expected_agent_fallbacks = {
     'prometheus': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
     'metis': ['google/gemini-3.1-pro-preview'],
     'momus': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'google/gemini-3.1-pro-preview'],
-    'explore': ['ollama-cloud/minimax-m3', 'openai/gpt-5.6-luna', 'zai-coding-plan/glm-5.3'],
+    'explore': ['ollama-cloud/minimax-m3', 'openai/gpt-5.6-luna'],
 }
 
 for name, expected in expected_agent_models.items():

@@ -50,8 +50,7 @@
       "model": "opencode-go/minimax-m3",
       "fallback_models": [
         "ollama-cloud/minimax-m3",
-        "openai/gpt-5.6-luna",
-        "zai-coding-plan/glm-5.3"
+        "openai/gpt-5.6-luna"
       ]
     },
     "multimodal-looker": {

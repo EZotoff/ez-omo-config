@@ -167,7 +167,7 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 | sisyphus | `zai-coding-plan/glm-5.3` | high | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
 | sisyphus-junior | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
 | librarian | `zai-coding-plan/glm-5.3-flash` | default | glm-5.3 → ollama m3 → opencode-go m3 → gpt-5.6-terra |
-| explore | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-luna → glm-5.3 |
+| explore | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-luna |
 | frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
 | document-writer | `openai/gpt-5.6-terra` | default | glm-5.3 |
 | multimodal-looker | `zai-coding-plan/glm-5.3-flash` | default | gpt-5.6-terra → gemini-3.8-flash |
