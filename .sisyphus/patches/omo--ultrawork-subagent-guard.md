@@ -8,8 +8,8 @@ applied_date: "2026-09-06"
 dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "isSubagentSession"
-runtime_effective: false
-note: "Source patch, committed in the fork as 52a175587 (guard + tests) and 753602683 (plugin-interface wiring) on branch fix/custom-patches-v4.19.2, embedded in dist/index.js via the 2026-09-06 rebuild. Behavioral patch (server plugin handler), not a rendering/monkey patch — pattern-presence in the bundle plus unit tests carry the structural guarantee; the live subagent-observation check below flips runtime_effective."
+runtime_effective: true
+note: "Source patch, committed in the fork as 52a175587 (guard + tests) and 753602683 (plugin-interface wiring) on branch fix/custom-patches-v4.19.2, embedded in dist/index.js via the 2026-09-06 rebuild. runtime_effective: true since 2026-09-07 07:52 CEST — both live checks observed post-restart (see Runtime Status)."
 ---
 
 # Ultrawork Default-Mode Injection Skips Subagent Sessions
@@ -88,5 +88,14 @@ The guard is the block starting `if (sessionState && input.sessionID) {` in `sys
 ## Durable Alternative
 
 Upstream fix in `code-yeongyu/oh-my-openagent`: the guard mirrors the maintainer's own keyword-path logic (hook.ts:108-117) — strong precedent. Filing an issue + PR (default-mode system.transform injection should skip subagent/non-main sessions exactly like the keyword-detector default-mode branch) would let this patch be marked `upstreamed`.
+Status: not-yet-pursued — candidate for an upstream PR against `code-yeongyu/oh-my-openagent`.
 
+## Runtime Status
+
+**Observed effective: 2026-09-07 07:52 CEST (post-restart, both live checks).**
+
+- Restart: `systemctl --user restart opencode.service opencode-interactive.service` at 07:41:49 CEST (omo-tg.service is masked/retired; the two restarted units are its successor surfaces). Fresh serve processes confirmed on ports 3021 + 3030.
+- **(a) Main sessions keep ultrawork (operator requirement holds):** fresh headless `opencode run` in /tmp/opencode (session ses_f85989622ffeTaXWZhZ6j3wlBh) — OMO log line `2026-09-07T05:46:32.855Z [keyword-detector] Default ultrawork mode auto-activated (injected via system prompt)`, and a direct system-prompt probe (`does your system prompt contain a section about ULTRAWORK MODE?`) answered **YES**. (Note: a first probe instructed to reply "exactly one word" skipped the announcement — flash-tier literal compliance, not missing injection; the YES probe is the direct evidence.)
+- **(b) Subagent sessions get ZERO injection:** task()-spawned child (category quick, Sisyphus-Junior, session ses_f859086feffexaSXJN9qjPoZ6q, parent ses_f8881938affeJ7TpVVWXROHgtA) — full export via opencode.db (12 messages, all parts, including the 26KB task-prompt context) contains **0 occurrences** of `ULTRAWORK` or `ultrawork-mode`; no announcement in any assistant message nor in the returned result. Pre-patch baseline: 26/28 bench subject sessions announced (ez-omo-bench 2026-09-01 forensics).
+- ez-omo-bench's interim mitigation (per-workspace `ultrawork: false`) is now a harmless no-op as predicted; left in place as belt-and-suspenders.
 Status: not-yet-pursued — candidate for an upstream PR against `code-yeongyu/oh-my-openagent`.
