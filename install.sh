@@ -55,6 +55,7 @@ ITEMS=(
     "plugins|plugins/worktree|$HOME/.opencode/plugin/worktree"
     "plugins|plugins/git-safety.ts|$HOME/.opencode/plugin/git-safety.ts"
     "plugins|plugins/review-enforcer.ts|$HOME/.opencode/plugin/review-enforcer.ts"
+    "plugins|plugins/review-enforcer|$HOME/.opencode/plugin/review-enforcer"
     "plugins|plugins/auto-checkpoint.ts|$HOME/.opencode/plugin/auto-checkpoint.ts"
     "plugins|plugins/vscode.ts|$HOME/.opencode/plugin/vscode.ts"
     "plugins|plugins/session-id.ts|$HOME/.opencode/plugin/session-id.ts"

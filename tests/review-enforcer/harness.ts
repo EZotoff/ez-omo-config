@@ -2,9 +2,13 @@
 /**
  * Behavioral harness for review-enforcer gating logic (regressions 014/015).
  *
- * Imports the plugin module and exercises the pure gating functions:
+ * Imports the pure gating helpers module and exercises them:
  *   - lineage mode:      normalizeSessionId / sessionOwnsBoulder / boulderStatusAllowsInjection
  *   - consultative mode: isConsultativeDispatch
+ *
+ * NOTE: helpers live in plugins/review-enforcer/helpers.ts (NOT the plugin file) since
+ * 2026-09-08 — the opencode plugin loader calls every function export of a plugin
+ * module as a plugin constructor, so the plugin entry must not export helpers.
  *
  * The module under test can be overridden via REVIEW_ENFORCER_MODULE (used by
  * kill-tests, which point it at a preserved pre-fix copy and expect failure).
@@ -13,7 +17,7 @@ import { pathToFileURL } from "node:url"
 
 const target = process.env.REVIEW_ENFORCER_MODULE
 	? pathToFileURL(process.env.REVIEW_ENFORCER_MODULE).href
-	: new URL("../../plugins/review-enforcer.ts", import.meta.url).href
+	: new URL("../../plugins/review-enforcer/helpers.ts", import.meta.url).href
 
 const mod = (await import(target)) as {
 	isConsultativeDispatch?: (args: unknown) => boolean

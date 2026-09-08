@@ -146,7 +146,7 @@ At each evidence state, agents may only use approved claim language:
 
 **Plan Completion Closeout Summary**: When all plan tasks are complete, the plugin injects a `PLAN_COMPLETION_INSTRUCTION` requiring a response-only `Closeout Summary` covering TLDR of functionality created, expected behavior, user testing follow-up, and an evidence caveat (`Not verified live: [missing state]`). The closeout must not be written to `.sisyphus/`, notepads, evidence files, or wisdom — it is response-only.
 
-**Dependencies**: Works alongside `review-protocol/` skill
+**Dependencies**: `plugins/review-enforcer/helpers.ts` (pure gating helpers — MUST stay out of the plugin entry: OpenCode's plugin loader calls every function export of a plugin module as a plugin constructor, so exported helpers got invoked with PluginInput and threw `output.includes is not a function` on every fresh server, 2026-09-08; regression pair 018). Works alongside `review-protocol/` skill
 
 **Install Target**: `$HOME/.opencode/plugin/review-enforcer.ts`
 
@@ -280,7 +280,7 @@ git-safety.ts
 └── (self-contained)
 
 review-enforcer.ts
-└── (integrates with review-protocol skill)
+└── review-enforcer/helpers.ts  # pure gating helpers (loader never auto-loads subdirectories)
 
 ```
 

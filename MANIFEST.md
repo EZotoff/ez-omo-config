@@ -58,6 +58,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 8 | worktree/terminal.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
 | 9 | git-safety.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Git Safety | Required |
 | 10 | review-enforcer.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Review Protocol | Required |
+| 10a | review-enforcer/helpers.ts | `~/.opencode/plugin/review-enforcer/` | `plugins/review-enforcer/` | `$HOME/.opencode/plugin/review-enforcer/` | Pure gating helpers (kept out of the plugin entry — opencode's loader calls every function export as a plugin constructor; 2026-09-08 incident) | Required |
 | 10b | auto-checkpoint.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Checkpoint Plugin (opt-in runtime) | Required |
 | 11 | kdco-primitives/ | `~/.opencode/plugin/kdco-primitives/` | `plugins/kdco-primitives/` | `$HOME/.opencode/plugin/kdco-primitives/` | KDCO Library | Required |
 | 11b | vscode.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | VS Code Launcher | Optional |
@@ -128,8 +129,8 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 20 paired regression tests (40 files total) | Required |
-| 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 21 paired regression tests (42 files total) | Required |
+| 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016; helpers module import since 018) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 60 | `test_patch_entries.sh` | (repo only) | `tests/` | (repo only) | Patch-entry schema gate (frontmatter completeness: surfaces, runtime_effective, target_file) | Required |
 | 61 | `test_patch_versions.sh` | (repo only) | `tests/` | (repo only) | Patch version drift gate after binary/OMO upgrades | Required |
@@ -158,7 +159,8 @@ ez-omo-config/
 │   ├── worktree.ts         # Worktree plugin core
 │   ├── auto-checkpoint.ts  # Semantic session-scoped checkpoint plugin
 │   ├── git-safety.ts       # Git safety protocol plugin
-│   ├── review-enforcer.ts  # Review enforcer plugin
+│   ├── review-enforcer.ts  # Review enforcer plugin (exports ONLY the plugin fn — loader contract)
+│   ├── review-enforcer/    # Pure gating helpers (test-importable; not on the loader surface)
 │   ├── vscode.ts           # VS Code launcher plugin (intercepts /vscode command)
 │   ├── session-id.ts       # Session ID clipboard plugin (intercepts /session-id command)
 │   ├── session-info.ts     # Session info clipboard plugin (intercepts /session-info command)

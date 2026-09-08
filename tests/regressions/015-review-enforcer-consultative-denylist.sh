@@ -17,13 +17,15 @@ source "$(cd "$(dirname "$0")/.." && pwd)/helpers.sh"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PLUGIN="$REPO_ROOT/plugins/review-enforcer.ts"
 HARNESS="$REPO_ROOT/tests/review-enforcer/harness.ts"
+HELPERS="$REPO_ROOT/plugins/review-enforcer/helpers.ts"
 
 assert_file_exists "$PLUGIN"
 assert_file_exists "$HARNESS"
+assert_file_exists "$HELPERS"
 command -v bun >/dev/null 2>&1 || { echo "FAIL: bun not found (hard dependency of this config)"; exit 1; }
 
 # Gate wiring must exist in the plugin source...
-assert_grep "CONSULTATIVE_SUBAGENT_TYPES" "$PLUGIN"
+assert_grep "CONSULTATIVE_SUBAGENT_TYPES" "$HELPERS"
 assert_grep "isConsultativeDispatch" "$PLUGIN"
 
 # ...and the denylist must behave correctly (skips consultative, fires for implementation).

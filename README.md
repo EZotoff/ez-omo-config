@@ -87,12 +87,12 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 |---|---|---|
 | **Commands** | 10 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate) |
 | **Configs** | 43 files | OpenCode + OMO + Supervisor configs; retry registry; Aspect Dynamics, Output Shaper, Skill Nudger modules |
-| **Plugins** | 22 files | worktree, git-safety, review-enforcer, vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
+| **Plugins** | 23 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
 | **Scripts** | 37 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
 | **Systemd** | 6 units | patch watcher, integrity check service + timer, supervisor, interactive attach daemon, parked FLARE-4B server |
-| **Tests** | 98 files | config/plugin/update/computer-use contracts + 20-pair regression corpus (40 files) |
+| **Tests** | 100 files | config/plugin/update/computer-use contracts + 21-pair regression corpus (42 files) |
 | **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
