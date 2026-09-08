@@ -28,16 +28,18 @@ source "$(cd "$(dirname "$0")/.." && pwd)/helpers.sh"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PLUGIN="$REPO_ROOT/plugins/review-enforcer.ts"
 HARNESS="$REPO_ROOT/tests/review-enforcer/harness.ts"
+HELPERS="$REPO_ROOT/plugins/review-enforcer/helpers.ts"
 
 assert_file_exists "$PLUGIN"
 assert_file_exists "$HARNESS"
+assert_file_exists "$HELPERS"
 command -v bun >/dev/null 2>&1 || { echo "FAIL: bun not found (hard dependency of this config)"; exit 1; }
 
 # Guard wiring must exist in the plugin source...
 assert_grep "isAbortStub" "$PLUGIN"
 assert_grep "isDegenerateOutput" "$PLUGIN"
-assert_grep "CONSULTATIVE_CATEGORIES" "$PLUGIN"
-assert_grep '"\[DEBATE\]"' "$PLUGIN"
+assert_grep "CONSULTATIVE_CATEGORIES" "$HELPERS"
+assert_grep '"\[DEBATE\]"' "$HELPERS"
 
 # ...and the guards must behave correctly (stub detection, degenerate guard,
 # [DEBATE] marker, mephistopheles category).
