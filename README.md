@@ -89,7 +89,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Configs** | 43 files | OpenCode + OMO + Supervisor configs; retry registry; Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 23 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
-| **Scripts** | 38 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, smoke-boot gate, operator tools |
+| **Scripts** | 39 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, smoke-boot gate, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
 | **Systemd** | 7 units | patch watcher, integrity check service + timer, integrity-failure alert, supervisor, interactive attach daemon, parked FLARE-4B server |
 | **Tests** | 100 files | config/plugin/update/computer-use contracts + 21-pair regression corpus (42 files) |
