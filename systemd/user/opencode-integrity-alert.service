@@ -1,0 +1,8 @@
+[Unit]
+Description=OpenCode Patch Integrity Alert — fires when the integrity check fails
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/ez-omo-config/scripts/integrity-alert.sh %n
+Environment=EZ_OMO_CONFIG_REPO=%h/ez-omo-config

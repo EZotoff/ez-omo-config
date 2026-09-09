@@ -1,5 +1,6 @@
 [Unit]
 Description=OpenCode Patch Integrity Check — periodic verify-live-patches run
+OnFailure=opencode-integrity-alert.service
 After=default.target
 
 [Service]

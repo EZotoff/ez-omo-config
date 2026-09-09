@@ -21,7 +21,7 @@
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
-    "@franlol/opencode-md-table-formatter@latest",
+    "@franlol/opencode-md-table-formatter@0.0.6",
     "opencode-kimi-full",
     "../../oh-my-openagent-v4.19.2",
     "../../.opencode/plugin/clickable-links.ts",

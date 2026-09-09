@@ -104,12 +104,14 @@ ITEMS=(
     "scripts|scripts/verify-live-deployment.sh|$HOME/.sisyphus/scripts/verify-live-deployment.sh"
     "scripts|scripts/verify-live-patches.sh|$HOME/.sisyphus/scripts/verify-live-patches.sh"
     "scripts|scripts/watch-runtime-patches.sh|$HOME/.sisyphus/scripts/watch-runtime-patches.sh"
+    "scripts|scripts/integrity-alert.sh|$HOME/.sisyphus/scripts/integrity-alert.sh"
     "scripts|systemd/user/opencode-patch-watcher.service|$HOME/.config/systemd/user/opencode-patch-watcher.service"
     "scripts|systemd/user/opencode-patch-integrity-check.service|$HOME/.config/systemd/user/opencode-patch-integrity-check.service"
     "scripts|systemd/user/opencode-patch-integrity-check.timer|$HOME/.config/systemd/user/opencode-patch-integrity-check.timer"
     "scripts|systemd/user/flare-serve.service|$HOME/.config/systemd/user/flare-serve.service"
     "scripts|systemd/user/opencode-supervisor.service|$HOME/.config/systemd/user/opencode-supervisor.service"
     "scripts|systemd/user/opencode-interactive.service|$HOME/.config/systemd/user/opencode-interactive.service"
+    "scripts|systemd/user/opencode-integrity-alert.service|$HOME/.config/systemd/user/opencode-integrity-alert.service"
 )
 
 usage() {

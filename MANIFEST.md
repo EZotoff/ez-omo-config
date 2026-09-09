@@ -125,6 +125,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 30b | history/ | (repo only) | `docs/history/` | (repo only) | Dated snapshots: incidents, retired DCP, update migrations, architecture reviews | Archived |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
 | 54 | `watch-runtime-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | inotify watcher for runtime binary integrity | Required |
+| 54a | `integrity-alert.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | OnFailure alert writer (journal `INTEGRITY-ALERT` line + `~/.local/state/opencode/patch-integrity.alert` marker + guarded notify-send) for integrity-check failures | Optional |
 | 55 | `opencode-patch-watcher.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | systemd user service for watcher | Optional |
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
@@ -139,6 +140,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 62b | `opencode-supervisor.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Project Supervisor P0 shadow observer | Optional |
 | 62c | `test_supervisor_config.sh` | (repo only) | `tests/` | (repo only) | Project Supervisor static contract | Required |
 | 62d | `opencode-interactive.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OpenCode interactive attach daemon (127.0.0.1:3030, basic auth via serve-interactive.env; OC Beacon mobile client via tailscale serve TLS) | Optional |
+| 62e | `opencode-integrity-alert.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OnFailure alert unit — fired when `opencode-patch-integrity-check.service` fails; journal + marker + desktop notification | Optional |
 
 ## Directory Structure
 

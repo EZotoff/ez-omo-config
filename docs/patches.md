@@ -52,4 +52,5 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 
 - Schema and drift gates: `tests/test_patch_entries.sh` (frontmatter completeness), `tests/test_patch_versions.sh` (version drift after upgrades).
 - Verifier: `scripts/verify-live-patches.sh` (also runs every 30 min via `opencode-patch-integrity-check.timer`).
+- Failure alerting: if the periodic check fails, `OnFailure=opencode-integrity-alert.service` fires — it writes a marker (`~/.local/state/opencode/patch-integrity.alert`), logs `INTEGRITY-ALERT: patch verification failing` to the journal, and sends a critical `notify-send` (guarded for headless rigs). Bridges the 2026-09-08 4+-hour silent-failure gap.
 - After ANY binary/OMO upgrade, all active patches must be reconciled in the same commit — see [AGENTS.md](../AGENTS.md).
