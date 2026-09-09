@@ -130,7 +130,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 21 paired regression tests (42 files total) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 22 paired regression tests (44 files total) | Required |
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016; helpers module import since 018) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 60 | `test_patch_entries.sh` | (repo only) | `tests/` | (repo only) | Patch-entry schema gate (frontmatter completeness: surfaces, runtime_effective, target_file) | Required |
@@ -196,7 +196,7 @@ ez-omo-config/
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
 │   ├── live-deployment-verification.md  # Live Deployment Verification Gate documentation
-├── tests/                  # Bash verification suite, 20-pair regression corpus, and harnesses
+├── tests/                  # Bash verification suite, 22-pair regression corpus, and harnesses
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities
 │   └── audit-wisdom-first.sh  # Validates no contradictory dual-system language remains
 ├── install.sh              # Bootstrap installer
@@ -214,7 +214,7 @@ ez-omo-config/
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, and Python operator helpers.
 - **Systemd**: 7 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon, and the parked FLARE-4B server.
-- **Tests**: active repo verification scripts (95 tracked files), the 20-pair regression corpus (40 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Tests**: active repo verification scripts (103 tracked files), the 22-pair regression corpus (44 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

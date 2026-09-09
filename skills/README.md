@@ -10,7 +10,7 @@ Primary runtime memory skill for institutional knowledge. The single source of t
 - **Use Case**: Searching and recording learnings from plan execution; operational knowledge queries
 
 ### atlas-review-handler/
-Atlas-level review orchestration handler. Processes automated review results from sub-agents, triages findings, delegates critical fixes, and manages the complete review workflow.
+Atlas-level review orchestration handler. Processes automated review results from sub-agents, triages findings, delegates critical fixes, and manages the complete review workflow. After review cycle 2, unresolved CRITICAL findings require RULE/BLOCK/PARK closeout — never silent demotion to INFO (2026-09-09).
 - **Dependencies**: review-protocol
 - **Use Case**: Managing review workflows and handling code review automation
 - **Live Gate Note**: The gate is enforced by tracked repo files: `AGENTS.md`, `plugins/review-enforcer.ts`, and `scripts/verify-live-deployment.sh`.

@@ -49,7 +49,7 @@ These skills provide core functionality and are essential for the OhMyOpenCode w
 - Processes automated review results from sub-agents
 - Triages findings (CRITICAL/WARNING/INFO)
 - Delegates critical fixes via task()
-- Enforces max 2 review iterations per task
+- Enforces max 2 review iterations per task; after cycle 2, unresolved CRITICAL findings require RULE/BLOCK/PARK closeout (in-scope fix with recorded ruling / stop for the user / user-accepted residual risk) — never demotion to INFO (fixed 2026-09-09)
 - Manages workflow: request → delegate → receive → parse → fix → verify
 - Conditional intermediary-output audit (added 2026-09-05, consolidated same day): REVIEW-TASK prompts for data-producing tasks read ≥5 raw outputs per stage and report degenerate patterns (empty outputs, zero-variance scores, duplicated template clauses) as CRITICAL; REVIEW-FIX prompts sweep ALL sibling call sites when a fix belongs to a call-site class (partial-application antidote)
 
