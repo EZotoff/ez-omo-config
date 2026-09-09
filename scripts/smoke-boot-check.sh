@@ -49,6 +49,7 @@ if [[ -z "$WORKDIR" ]]; then
 else
     CLEANUP_WORKDIR=0
 fi
+failed=0
 
 BEFORE="$(mktemp /tmp/opencode/smoke-before.XXXXXX)"
 AFTER="$(mktemp /tmp/opencode/smoke-after.XXXXXX)"
@@ -58,7 +59,12 @@ cleanup() {
     if ((CLEANUP_WORKDIR)); then
         rm -rf "$WORKDIR"
     fi
-    rm -f "$LOG" "$BEFORE" "$AFTER" "$FILTERED"
+    rm -f "$BEFORE" "$AFTER" "$FILTERED"
+    # The smoke-boot log is kept on failure: the failure message points the
+    # operator at it, so the trap must not delete the evidence it advertises.
+    if ((failed == 0)); then
+        rm -f "$LOG"
+    fi
 }
 trap cleanup EXIT
 
@@ -147,6 +153,7 @@ if [[ -n "$appeared" ]]; then
 fi
 
 if ((fail)); then
+    failed=1
     printf 'Smoke-boot FAILED. Full log: %s\n' "$LOG" >&2
     exit 1
 fi
