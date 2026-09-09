@@ -53,6 +53,16 @@ Optional evidence arguments:
 - `--runtime-evidence`: Requires a non-empty runtime evidence file, copies it to `runtime-evidence.txt`, and advances the highest state to `runtime_loaded`.
 
 The script intentionally does not prove `real_project_behavior_proven` by itself. Component-specific proof such as a CLI invocation, API call, browser/TUI trace, or domain-specific smoke test must be captured separately and cited in the closeout.
+## Fresh-Boot Smoke Gate (complementary script)
+
+The generic verifier above proves file/config states. A cutover can pass every pattern check yet ship a runtime that fails to boot — the 2026-09-08 incident (pattern-presence ≠ bootability). `scripts/smoke-boot-check.sh` closes that gap: it boots a FRESH throwaway `opencode run --print-logs` (random port, safe alongside live servers) and asserts plugins load (0 `failed to load plugin` lines), the agent resolves (0 `agent "..." not found` lines; agent-attributed `message=stream providerID=... agent=Sisyphus` canary line), a prompt round-trips the model loop (`exiting loop` line), opencode exits 0, and no pre-existing `opencode serve` process appears/disappears.
+
+```bash
+bash scripts/smoke-boot-check.sh   # exit 0 → 'Summary: smoke-boot OK | 0 plugin-load errors | 0 agent-not-found | stream+loop confirmed | opencode rc=0'
+```
+
+Exit 1 = broken boot (offending lines + log path on stderr) — a critical regression for any cutover. It is a MANDATORY post-cutover gate in the `update-to-latest` pipeline (see its Post-Cutover Smoke-Boot Gate section), run after the binary swap and patch reconciliation, before any `runtime_loaded` claim. `--print-logs` is load-bearing: it surfaces plugin-load ERROR lines that default output suppresses; the round-trip is therefore asserted via log-stream lines, not `"type":"text"` (which only exists in `--format json` mode).
+
 
 ## What It Checks
 

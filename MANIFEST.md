@@ -141,6 +141,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 62c | `test_supervisor_config.sh` | (repo only) | `tests/` | (repo only) | Project Supervisor static contract | Required |
 | 62d | `opencode-interactive.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OpenCode interactive attach daemon (127.0.0.1:3030, basic auth via serve-interactive.env; OC Beacon mobile client via tailscale serve TLS) | Optional |
 | 62e | `opencode-integrity-alert.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OnFailure alert unit — fired when `opencode-patch-integrity-check.service` fails; journal + marker + desktop notification | Optional |
+| 63a | `smoke-boot-check.sh` | (repo only) | `scripts/` | (repo only) | Fresh-boot smoke gate for cutovers: throws away an `opencode run --print-logs` boot, asserts 0 plugin-load errors, 0 agent-not-found, agent-attributed stream + loop-exit lines, rc=0, serve-set unchanged (patterns-in-file ≠ bootable, 2026-09-08 incident) | Required |
 
 ## Directory Structure
 

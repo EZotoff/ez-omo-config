@@ -257,6 +257,30 @@ Record all test results in the evidence directory. Any failure in a critical tes
 
 This gate is non-negotiable for patches whose `verification_pattern` is a minification-survivor (JS property key or string literal), because pattern-grep reports a false-positive APPLIED for those patches even when the code is dead. The v1.18.5 link-click regression passed Phase 12 because the gate was descriptive rather than enforced.
 
+### Post-Cutover Smoke-Boot Gate (MANDATORY)
+
+**When**: after the binary swap (Phase 9) and patch reconciliation (Phases 10–11), BEFORE the Phase 13 report may declare any live/runtime success state.
+
+**Why**: `verify-live-patches.sh` proves patterns exist in files — not that the runtime boots. The 2026-09-08 incident shipped a cutover where every patch pattern was present in the binary yet a stray plugin export made modules fail to load at boot, and the breakage went unnoticed until agents degraded. Pattern-presence ≠ bootability.
+
+**How** (self-contained; the gate spawns its own throwaway `opencode run` on a random port — safe alongside live servers, boot takes 60–90s):
+
+```bash
+bash scripts/smoke-boot-check.sh
+```
+
+Expected output on a healthy rig (exit code 0):
+
+```
+Summary: smoke-boot OK | 0 plugin-load errors | 0 agent-not-found | stream+loop confirmed | opencode rc=0
+```
+
+The gate boots a fresh `opencode run --print-logs` and asserts: zero `failed to load plugin` lines, zero `agent "..." not found` lines, an agent-attributed stream log line (`message=stream providerID=... modelID=... agent=Sisyphus` — the registry canary, absent when agents never register), an `exiting loop` line (prompt completed a model round-trip), opencode rc=0, and no pre-existing `opencode serve` process appearing/disappearing. `--print-logs` is mandatory in the gate: it is what surfaces the plugin-load ERROR lines that default output suppresses.
+
+**On failure** (exit 1, offending lines + full log path on stderr): treat as a critical regression and trigger the Rollback Policy. Do NOT report `runtime_loaded` or any success state for the cutover.
+
+Evidence transcripts: `.sisyphus/evidence/task-3-smoke-boot-green.txt` (healthy polarity), `.sisyphus/evidence/task-3-smoke-boot-catches-export-bug.txt` (failure polarity).
+
 ### Phase 13: Evidence Report and Claim Discipline
 
 Produce a final report using the exact evidence states from AGENTS.md:
