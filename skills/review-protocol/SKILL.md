@@ -134,6 +134,6 @@ The orchestrator (Atlas/Sisyphus) will:
 2. Wait for your response
 3. Parse your findings
 4. If CRITICAL > 0, spawn a separate fix task with `[REVIEW-FIX]` marker
-5. After 2 review cycles maximum, proceed regardless
+5. After 2 review cycles maximum, the orchestrator runs CRITICAL closeout (RULE/BLOCK/PARK) on unresolved CRITICAL findings — never silent demotion
 
 You do NOT need to manage the cycle count. You do NOT need to track state. Just review and report.

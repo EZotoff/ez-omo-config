@@ -46,7 +46,7 @@ Use your \`atlas-review-handler\` skill instructions:
 1. Delegate a review task with \`[REVIEW-TASK]\` marker using \`task(category="unspecified-low", load_skills=["review-protocol"], run_in_background=true)\`
 2. Wait for review results
 3. If CRITICAL findings > 0, delegate a fix task with \`[REVIEW-FIX]\` marker
-4. Maximum 2 review cycles, then proceed regardless
+4. Maximum two review cycles; unresolved CRITICAL findings require handler closeout (RULE/BLOCK/PARK) and must never be represented as approval
 
 Refer to your loaded \`atlas-review-handler\` skill for the complete protocol.
 
