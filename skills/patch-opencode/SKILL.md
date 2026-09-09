@@ -36,6 +36,7 @@ ps -ef | grep 'opencode serve' | grep -v grep
 4. **ALWAYS** build with `--single --skip-install --skip-embed-web-ui` for speed
 5. **ALWAYS** verify the build version matches the live version before installing
 6. **ALWAYS** test the fix on the real surface after installing
+7. **NEVER** redirect command output into a live runtime artifact (`~/oh-my-openagent-v4.19.2/dist/*`, `~/.opencode/bin/*`, `~/.opencode/plugin/*`, `~/.config/opencode/*` live configs). Diagnostic reads (`git show`, `cat`, `curl`) write to `.sisyphus/drafts/` or a mktemp path ONLY. Live-file writes go through the documented patch flows (timestamped `.pre-*` backup + verify). 2026-09-08: `git show <ref>:dist/index.js > dist/index.js` captured its own fatal error into the live bundle and killed every fresh session for 4+ hours.
 
 ## Procedure
 

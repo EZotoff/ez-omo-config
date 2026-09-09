@@ -24,6 +24,8 @@ Triggers: `/patch-tracker`, `/check-patches`, `/register-patch`, `patch external
 >
 > Direct patches are **technical debt by design**. Every patch registered here is a liability that must be re-verified after every dependency update. If a durable alternative exists, use it instead.
 
+> **NEVER redirect command output into a live runtime artifact** (`~/oh-my-openagent-v4.19.2/dist/*`, `~/.opencode/bin/*`, `~/.opencode/plugin/*`, `~/.config/opencode/*` live configs). Diagnostic reads (`git show`, `cat`, `curl`) write to `.sisyphus/drafts/` or a mktemp path ONLY. Live-file writes go through the documented patch flows (timestamped `.pre-*` backup + verify). 2026-09-08: `git show <ref>:dist/index.js > dist/index.js` captured its own fatal error into the live bundle and killed every fresh session for 4+ hours.
+
 ---
 
 ## WORKFLOW

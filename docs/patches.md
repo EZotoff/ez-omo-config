@@ -4,6 +4,8 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 
 - **Status values**: `active` (applied to a live dependency) · `retired` / `deprecated` (no longer applied) · `superseded` / `upstreamed` (obsoleted by upstream) · `rolled_back` (reverted as ineffective).
 - **runtime_effective** (shown only where tracked): whether the patched behavior has been *observed* on the live surface — pattern-presence in a binary is not effectiveness. `-` = not applicable.
+- **Live runtime artifact safety**: never redirect diagnostic output into `~/oh-my-openagent-v4.19.2/dist/*`, `~/.opencode/bin/*`, `~/.opencode/plugin/*`, or live `~/.config/opencode/*` configs. Write `git show`, `cat`, and `curl` output only to `.sisyphus/drafts/` or mktemp.
+- Live writes require the documented timestamped `.pre-*` backup and verification flow. A failed `git show` redirect destroyed the OMO bundle on 2026-09-08.
 
 ## OpenCode binary patches (live binary v1.18.5, rebuilt via `update-to-latest`)
 

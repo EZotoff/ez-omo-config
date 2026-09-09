@@ -46,6 +46,7 @@ Query upstream sources for available updates, including the GitHub Releases API 
 - Do NOT report "Could not determine exact number" unless every fallback in the cascades below has been attempted and documented.
 - Do NOT say "OMO is loaded from a local file path" from config evidence alone. Say "OMO is configured in active config as a local file path" unless runtime-loaded evidence proves the process loaded it.
 - Do NOT prescribe `git pull` as the update action for a local OMO source checkout. A local source checkout requires branch, dirty-state, patch, and session-continuity analysis before any source movement.
+- **NEVER redirect command output into a live runtime artifact** (`~/oh-my-openagent-v4.19.2/dist/*`, `~/.opencode/bin/*`, `~/.opencode/plugin/*`, `~/.config/opencode/*` live configs). Diagnostic reads (`git show`, `cat`, `curl`) write to `.sisyphus/drafts/` or a mktemp path ONLY. Live-file writes go through the documented patch flows (timestamped `.pre-*` backup + verify). 2026-09-08: `git show <ref>:dist/index.js > dist/index.js` captured its own fatal error into the live bundle and killed every fresh session for 4+ hours.
 
 #### OpenCode latest-version discovery cascade
 

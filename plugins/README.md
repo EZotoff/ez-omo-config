@@ -22,6 +22,8 @@ This directory packages OpenCode plugins copied from the local plugin registry f
 - `worktree.ts`, `worktree/state.ts`, and `worktree/terminal.ts` all depend on `plugins/kdco-primitives/`.
 - `kdco-primitives/` should be installed with the rest of the plugin bundle; moving or removing it breaks worktree-related imports.
 - `review-enforcer.ts` depends on `./review-enforcer/helpers` — keep `plugins/review-enforcer/` installed beside the plugin entry (the loader auto-loads only top-level `~/.opencode/plugin/*.ts`, so the helpers submodule is safely off the plugin surface).
+- Never redirect diagnostic output into a live runtime artifact. Send `git show`, `cat`, and `curl` output to `.sisyphus/drafts/` or mktemp only.
+- Live artifact writes require the documented timestamped `.pre-*` backup and verification flow. A failed `git show` redirect destroyed the OMO bundle on 2026-09-08.
 
 ## Portability
 
