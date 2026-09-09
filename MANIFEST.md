@@ -124,7 +124,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 30 | dcp-byte-budget.md | (repo only) | `docs/history/` | (repo only) | RETIRED 2026-06-23 — DCP byte-budget reference (historical) | Archived |
 | 30b | history/ | (repo only) | `docs/history/` | (repo only) | Dated snapshots: incidents, retired DCP, update migrations, architecture reviews | Archived |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
-| 54 | `watch-runtime-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | inotify watcher for runtime binary integrity | Required |
+| 54 | `watch-runtime-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | inotify watcher for runtime binary integrity (OpenCode bin + OMO fork dist, recursive; `*.pre-*`/`*.tmp*` dist writes log-only) | Required |
 | 54a | `integrity-alert.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | OnFailure alert writer (journal `INTEGRITY-ALERT` line + `~/.local/state/opencode/patch-integrity.alert` marker + guarded notify-send) for integrity-check failures | Optional |
 | 55 | `opencode-patch-watcher.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | systemd user service for watcher | Optional |
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
@@ -186,7 +186,7 @@ ez-omo-config/
 │   ├── wisdom/             # Wisdom propagation scripts (10 files)
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
 │   ├── verify-live-patches.sh # Runtime-resolved tracked-patch verifier
-│   └── watch-runtime-patches.sh # Runtime binary inotify watcher
+│   └── watch-runtime-patches.sh # Runtime binary + OMO dist inotify watcher
 ├── systemd/user/           # Patch integrity units and Project Supervisor user service
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Active documentation (configs, plugins, skills, wisdom, patches, verification, observability, compatibility debt, worktree state, OMO reference)
