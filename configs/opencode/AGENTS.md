@@ -45,6 +45,15 @@ When a fix doesn't work, your model of the system is the suspect — not just
 the fix. Before trying a second approach, re-read the source that governs
 the behavior you're trying to change.
 
+## Context discipline for small-context models (2026-09-05 lesson)
+
+A sub-agent on the local Qwen rig died mid-task from ONE tool output: unscoped `git status` in a repo with ~4,000 untracked files emitted more tokens than the model's whole 64k window. Rules for any session that may run on a context-limited model:
+
+- **Never run unscoped `git status`, `git diff`, or `find` in a repo you haven't inspected first.** Scope to paths: `git status --porcelain -- <path>`, `git diff -- <file>`, `ls <dir>`. Check repo health cheaply first: `git status --porcelain | wc -l`.
+- Prefer `git ls-files`, `git log --oneline -5`, and glob tools over raw listings.
+- Tool outputs are capped globally (`tool_output.max_lines/max_bytes`) — when a result arrives truncated, narrow the query instead of repeating it.
+
+
 ## Claude CLI auth model — subscription OAuth only, NO API key
 
 This machine uses the **Claude Pro/Max subscription** (OAuth credentials in `~/.claude/.credentials.json`). There is no `ANTHROPIC_API_KEY` and one must **not** be provisioned.
