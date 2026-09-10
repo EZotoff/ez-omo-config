@@ -309,7 +309,7 @@ Handoff emit/resume: versioned `.builder-kit/audit/handoff-*.md` artifacts emitt
 **Install Method**: `install.sh --skills`
 
 ### verify-built/
-Stage-1 acceptance verification: plan-vs-diff alignment ledger bound to an immutable digest header; every requirement mapped to evidence or marked GAP/INFERRED; ends at accept/fix-then-recheck/reject plus residual-risk list. Stages 2–3 (project-owned empirical QA; acceptance report) documented, not assumed.
+Stage-1 acceptance verification: plan-vs-diff alignment ledger bound to an immutable digest header; every requirement mapped to evidence or marked GAP/INFERRED; ends at accept/fix-then-recheck/reject plus residual-risk list; a plan with executed work but a missing/incomplete execution record (`## Execution Record`, `Execution baseline:`, `F#` verdict lines) also yields record GAP rows. Stages 2–3 (project-owned empirical QA; acceptance report) documented, not assumed.
 
 **Install Target**: `$HOME/.config/opencode/skills/verify-built/`
 

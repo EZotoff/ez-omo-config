@@ -82,7 +82,7 @@ Session handoff emit/resume. Emission packages a session's mission, state, and n
 - **Install**: `install.sh --skills`
 
 ### verify-built/
-Stage-1 acceptance verification: requirements-alignment check between the active plan/spec and the implementation diff. Binds every ledger to an immutable digest header (sha + dirty-state) so post-run changes visibly invalidate it; maps each requirement to commit/file/test evidence or marks GAP/INFERRED; always ends at an accept/fix-then-recheck/reject recommendation plus a residual-risk list. Stages 2 (project-owned empirical QA) and 3 (acceptance report) are documented but not assumed.
+Stage-1 acceptance verification: requirements-alignment check between the active plan/spec and the implementation diff. Binds every ledger to an immutable digest header (sha + dirty-state) so post-run changes visibly invalidate it; maps each requirement to commit/file/test evidence or marks GAP/INFERRED; always ends at an accept/fix-then-recheck/reject recommendation plus a residual-risk list. Stages 2 (project-owned empirical QA) and 3 (acceptance report) are documented but not assumed. Also GAP-flags a missing or incomplete plan execution record (`## Execution Record` with `Execution baseline:` and `F#` verdict lines) when the plan shows executed work.
 - **Dependencies**: git; an active plan/spec to verify against
 - **Use Case**: Replacing "did you actually do it" challenges with a digest-bound evidence ledger
 - **Install**: `install.sh --skills`
