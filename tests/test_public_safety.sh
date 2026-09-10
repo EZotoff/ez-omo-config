@@ -70,7 +70,8 @@ while IFS= read -r relative_path; do
     # Also skip files that intentionally contain system paths:
     #   - scripts/verify-live-deployment.sh: live deployment verifier
     #   - configs/stack-locations.json: machine-specific stack ownership manifest
-    if [[ "$relative_path" == "scripts/verify-live-deployment.sh" || "$relative_path" == "configs/stack-locations.json" ]]; then
+    #   - configs/opencode-supervisor/supervisor.json: machine-local observer roots (BLOCK-1 2026-09-09)
+    if [[ "$relative_path" == "scripts/verify-live-deployment.sh" || "$relative_path" == "configs/stack-locations.json" || "$relative_path" == "configs/opencode-supervisor/supervisor.json" ]]; then
         TESTS_PASSED=$((TESTS_PASSED + 1))
     elif grep -v 'file://' "$absolute_path" | grep -q '/home/ezotoff'; then
         echo "FAIL: Absolute path /home/ezotoff found in $relative_path (excluding file:// URLs)"
@@ -78,7 +79,7 @@ while IFS= read -r relative_path; do
     else
         TESTS_PASSED=$((TESTS_PASSED + 1))
     fi
-    if [[ "$relative_path" == "scripts/verify-live-deployment.sh" || "$relative_path" == "configs/stack-locations.json" ]]; then
+    if [[ "$relative_path" == "scripts/verify-live-deployment.sh" || "$relative_path" == "configs/stack-locations.json" || "$relative_path" == "configs/opencode-supervisor/supervisor.json" ]]; then
         TESTS_PASSED=$((TESTS_PASSED + 1))
     elif grep -v 'file://' "$absolute_path" | grep -q '/Users/ezotoff'; then
         echo "FAIL: Absolute path /Users/ezotoff found in $relative_path (excluding file:// URLs)"

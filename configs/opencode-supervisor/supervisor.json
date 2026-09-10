@@ -4,7 +4,10 @@
   "server_password_env": "OPENCODE_SERVER_PASSWORD",
   "initial_window_days": 7,
   "fetch_concurrency": 8,
-  "model": {"provider": "zai-coding-plan", "id": "glm-5.3"},
+  "model": {
+    "provider": "zai-coding-plan",
+    "id": "glm-5.3"
+  },
   "grace_period_s": 60,
   "min_intervention_interval_s": 300,
   "max_tick_concurrency": 4,
@@ -13,6 +16,21 @@
   "token_budget": 20000,
   "confidence_floor": 0.6,
   "roots": [
-    {"path": "/home/ezotoff/AI_projects/veran", "mode": "shadow"}
+    {
+      "path": "/home/ezotoff/AI_projects/veran",
+      "mode": "shadow"
+    },
+    {
+      "path": "/home/ezotoff/ez-omo-bench",
+      "mode": "shadow"
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/ANIA",
+      "mode": "shadow"
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/kraken",
+      "mode": "shadow"
+    }
   ]
 }
