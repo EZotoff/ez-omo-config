@@ -54,6 +54,18 @@ A sub-agent on the local Qwen rig died mid-task from ONE tool output: unscoped `
 - Tool outputs are capped globally (`tool_output.max_lines/max_bytes`) — when a result arrives truncated, narrow the query instead of repeating it.
 
 
+## Plan-execution records (durable execution baseline + final-wave verdicts)
+
+When you begin executing a work plan (a `/start-work` session — BEFORE the first task is dispatched), append this block to the END of the plan document being executed (normally `.omo/plans/*.md` — the plan you read before delegating tasks):
+
+    ## Execution Record
+
+    Execution baseline: <full HEAD SHA of the execution worktree — or the repo, if no worktree>
+
+Create the section only if it does not exist; if an `Execution baseline:` line is already present (resumed execution), never overwrite or duplicate it.
+
+When executing a plan with a Final Verification Wave: as you record each reviewer's verdict and check their F-box in the plan document, append `F#<n>: APPROVE|REJECT — <one-clause evidence>` to the plan's `## Execution Record` in the same editing pass — one line per reviewer, each reviewer's LATEST verdict, pointer-style evidence (command + exit code, evidence path, or file:line). Reviewer subagents stay read-only — YOU (the orchestrator) write these lines. These lines are the durable record of execution: `boulder.json` is deleted at completion and records nothing; the plan document survives.
+
 ## Claude CLI auth model — subscription OAuth only, NO API key
 
 This machine uses the **Claude Pro/Max subscription** (OAuth credentials in `~/.claude/.credentials.json`). There is no `ANTHROPIC_API_KEY` and one must **not** be provisioned.

@@ -27,6 +27,8 @@ Record `repo / branch / HEAD sha / dirty|clean / timestamp` before reading anyth
 
 From the active plan (`.omo/plans/*.md`, task brief, or issue): every requirement, checkbox, and stated done-condition — as a numbered list, each phrased as a checkable statement. Include scope prohibitions ("must not change X") as requirements.
 
+- Executed-plan record check: if the plan shows signs of execution (any checked `- [x]` box), also extract record requirements — one `Execution baseline:` line and one `F#<n>: verdict` line per final-wave reviewer under `## Execution Record`. Missing lines map to GAP ledger entries ("execution record missing: baseline" / "…: F#<n> verdict") — flag them; never reconstruct or invent them.
+
 ### 3. Map to evidence
 
 For each requirement, find the implementing evidence: commit sha, file:line, or test name. Rules:
