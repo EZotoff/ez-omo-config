@@ -769,25 +769,6 @@
             ]
           }
         },
-        "deepseek-v4-flash:0731": {
-          "name": "DeepSeek V4 Flash (Ollama Cloud)",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning"
-          },
-          "limit": {
-            "context": 1048576,
-            "output": 393216
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          }
-        },
         "deepseek-v4-pro:0813": {
           "name": "DeepSeek V4 Pro (Ollama Cloud)",
           "reasoning": true,

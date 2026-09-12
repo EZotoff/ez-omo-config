@@ -151,7 +151,7 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 | **zai-coding-plan** | GLM 5.3 | Coding Plan API |
 | **deepseek** | V4.1 Flash (`deepseek-flash`, native vision), V4 Pro | V4.1 replaces the temporary `deepseek-v4-flash` alias (retiring); Pro kept serving after the planned 14 Sep reroute was cancelled |
 | **inception** | Mercury 2 | |
-| **ollama-cloud** | DeepSeek V4.1 Flash, V4 Flash/Pro (pinned tags), MiniMax M3 | ollama.com OpenAI-compatible API |
+| **ollama-cloud** | DeepSeek V4.1 Flash, V4 Pro (pinned tag), MiniMax M3 | ollama.com OpenAI-compatible API; V4 Flash tag removed 12 Sep 2026 as redundant |
 | **uni-lux** *(personal endpoint)* | DeepSeek V4 Flash, Kimi K3, GLM 5.2 | university LiteLLM proxy — bring your own endpoint/key |
 | **ollama-local** *(machine-local)* | local models | `127.0.0.1:18210` |
 | **qwen-tunnel** *(machine-local)* | Qwen | LAN `10.71.71.3:18061` |
