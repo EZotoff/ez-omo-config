@@ -8,6 +8,8 @@
 
 import { homedir } from "node:os"
 import type { Plugin } from "@opencode-ai/plugin"
+import { copyToClipboard } from "./kdco-primitives/clipboard"
+
 
 const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 	const dir = worktree || directory
@@ -44,10 +46,7 @@ const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 
 			const result = `Project ${displayPath}; Session ${title}; ID ${input.sessionID}`
 
-			const safeResult = result.replace(/'/g, "'\\''")
-			const clipResult = Bun.spawnSync(
-				["bash", "-c", `printf '%s' '${safeResult}' | xclip -selection clipboard`],
-			)
+			const clipResult = copyToClipboard(result)
 
 			const toast = (message: string, variant: "success" | "error") =>
 				client.tui.showToast({ body: { title: "Session Info", message, variant } }).catch(() => {
@@ -55,7 +54,7 @@ const SessionInfoPlugin: Plugin = async ({ client, worktree, directory }) => {
 				})
 
 			if (!clipResult.success) {
-				toast(`Failed to copy to clipboard (exit ${clipResult.exitCode}). Is xclip installed?`, "error")
+				toast(`Failed to copy to clipboard (exit ${clipResult.exitCode})${clipResult.stderr ? `: ${clipResult.stderr}` : ""}. Is xclip installed?`, "error")
 			} else {
 				toast("Copied session info to clipboard.", "success")
 			}

@@ -33,7 +33,7 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 
 - Intercepts `/session-id` via `command.execute.before`
 - Uses the invoking hook's `sessionID` directly
-- Writes the raw session ID to the system clipboard with `xclip`
+- Writes the raw session ID to the system clipboard via the shared `kdco-primitives/clipboard.ts` helper (`xclip` with DISPLAY/XAUTHORITY discovery for display-less systemd-launched servers; regression pair 021)
 - Clears `output.parts` and sets `output.cancelled = true`; true no-LLM behavior requires the active `opencode--command-hook-cancellation` local OpenCode patch
 
 **Dependencies**: Active local OpenCode `opencode--command-hook-cancellation` patch for true no-LLM cancellation
@@ -51,7 +51,7 @@ This document covers TypeScript plugins under `plugins/`. The repository also in
 - Intercepts `/session-info` via `command.execute.before`
 - Resolves the active branch from the current worktree/project directory
 - Reads the invoking session title from the SDK using the hook's `sessionID`
-- Writes `Project <path>:<branch>; Session <title>; ID <session-id>` to the system clipboard with `xclip`
+- Writes `Project <path>:<branch>; Session <title>; ID <session-id>` to the system clipboard via the shared `kdco-primitives/clipboard.ts` helper (`xclip` with DISPLAY/XAUTHORITY discovery for display-less systemd-launched servers; regression pair 021)
 - Clears `output.parts` and sets `output.cancelled = true`; true no-LLM behavior requires the active `opencode--command-hook-cancellation` local OpenCode patch
 
 **Dependencies**: OpenCode plugin client session API; active local OpenCode `opencode--command-hook-cancellation` patch for true no-LLM cancellation

@@ -7,6 +7,8 @@
  * @module kdco-primitives
  */
 
+// Clipboard
+export { buildDisplayEnv, copyToClipboard, discoverX11Display } from "./clipboard"
 // Project identification
 export { getProjectId } from "./get-project-id"
 

@@ -75,7 +75,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Output Shaper** — terseness injection + reasoning-effort dialing on resume turns
 - **Skill Nudger** — ephemeral skill suggestions when tool signals match the catalog
 - **Safe update pipeline** — guided OpenCode/OMO updates with approval gate, patch preservation, rollback, evidence-state discipline
-- **Patch-preservation infrastructure** — regression corpus (23 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
+- **Patch-preservation infrastructure** — regression corpus (24 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
 - **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
 - **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
 
@@ -87,12 +87,12 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 |---|---|---|
 | **Commands** | 10 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate) |
 | **Configs** | 43 files | OpenCode + OMO + Supervisor configs; retry registry; Aspect Dynamics, Output Shaper, Skill Nudger modules |
-| **Plugins** | 23 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
+| **Plugins** | 24 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
 | **Scripts** | 39 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, smoke-boot gate, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
 | **Systemd** | 7 units | patch watcher, integrity check service + timer, integrity-failure alert, supervisor, interactive attach daemon, parked FLARE-4B server |
-| **Tests** | 105 files | config/plugin/update/computer-use contracts + 23-pair regression corpus (46 files) |
+| **Tests** | 107 files | config/plugin/update/computer-use contracts + 24-pair regression corpus (48 files) |
 | **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
