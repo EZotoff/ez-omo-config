@@ -1,6 +1,6 @@
 ---
 description: Specialist writer agent — repo-grounded docs and human-centric documents (reports, briefs, analysis summaries)
-mode: all
+mode: subagent
 model: openai/gpt-5.6-terra
 ---
 
