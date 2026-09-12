@@ -110,6 +110,49 @@ export class OpencodeClient {
     }))
   }
 
+  async createSession(directory: string, title: string): Promise<{ id: string; directory: string }> {
+    const body = JSON.stringify({ title })
+    let lastError: Error | undefined
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch(
+          new URL(`/session?directory=${encodeURIComponent(directory)}`, this.baseURL),
+          { method: "POST", headers: { ...this.authHeader(), "content-type": "application/json" }, body, signal: AbortSignal.timeout(15_000) },
+        )
+        if (!response.ok) throw new ClientError(`create session HTTP ${response.status}`)
+        const raw = z.object({ id: z.string(), directory: z.string() }).passthrough().parse(await response.json())
+        return { id: raw.id, directory: raw.directory }
+      } catch (error) {
+        if (!(error instanceof Error)) throw error
+        lastError = error
+        if (attempt < 2) await delay(250 * 2 ** attempt)
+      }
+    }
+    throw new ClientError("create session", { cause: lastError })
+  }
+
+  async promptAsync(sessionID: string, directory: string, text: string): Promise<void> {
+    const body = JSON.stringify({ parts: [{ type: "text", text }] })
+    const response = await fetch(
+      new URL(`/session/${encodeURIComponent(sessionID)}/prompt_async?directory=${encodeURIComponent(directory)}`, this.baseURL),
+      { method: "POST", headers: { ...this.authHeader(), "content-type": "application/json" }, body, signal: AbortSignal.timeout(15_000) },
+    )
+    if (!response.ok) throw new ClientError(`prompt_async HTTP ${response.status}`)
+  }
+
+  async toast(message: string, title: string): Promise<void> {
+    try {
+      await fetch(new URL("/tui/show-toast", this.baseURL), {
+        method: "POST",
+        headers: { ...this.authHeader(), "content-type": "application/json" },
+        body: JSON.stringify({ body: { title, message, variant: "warning" } }),
+        signal: AbortSignal.timeout(5_000),
+      })
+    } catch {
+      // No TUI connected — event silently dropped server-side; ignore.
+    }
+  }
+
   async *events(_directory: string, signal: AbortSignal): AsyncGenerator<ServerEvent> {
     let backoff = 500
     while (!signal.aborted) {

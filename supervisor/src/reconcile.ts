@@ -62,12 +62,15 @@ export async function reconcileRoot(
   root: string,
   registry: OriginRegistry,
   options: ReconcileOptions,
+  excludeIDs: ReadonlySet<string> = new Set(),
 ): Promise<ScanManifest> {
   const startedAt = new Date().toISOString()
   const nowMs = options.nowMs?.() ?? Date.now()
   const cutoff = nowMs - options.initialWindowDays * DAY_MS
   const all = await client.listSessions(root)
-  const inWindow = all.filter((session) => session.timeUpdatedMs === undefined || session.timeUpdatedMs >= cutoff)
+  const inWindow = all.filter(
+    (session) => !excludeIDs.has(session.id) && (session.timeUpdatedMs === undefined || session.timeUpdatedMs >= cutoff),
+  )
   const fetched = await mapPool(inWindow, options.fetchConcurrency, async (session): Promise<SessionScan> => {
     const messages = await client.listMessages(session.id, root)
     const watermark = messages.at(-1)?.id

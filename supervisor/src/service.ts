@@ -10,12 +10,15 @@ import { pollRootOnce } from "./poller"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTick } from "./tick"
+import { pickTarget } from "./targets"
+import { ConsoleManager } from "./console"
 import type { Action, Decision, OriginRegistry, Turn } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
 
 type RootRuntime = {
   readonly root: string
+  readonly mode: "shadow" | "observe" | "full"
   manifest: ScanManifest
   queueDepth: number
   lastTickAt: number
@@ -48,7 +51,7 @@ function eventSessionID(event: ServerEvent): string | undefined {
 }
 
 function emptyStatus(): SupervisorStatus {
-  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0 }
+  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {} }
 }
 
 export async function runService(signal: AbortSignal): Promise<void> {
@@ -68,14 +71,23 @@ export async function runService(signal: AbortSignal): Promise<void> {
   let ledger = await Ledger.open(ledgerPath)
   const status = emptyStatus()
   const runtimes = new Map<string, RootRuntime>()
+  const consoles = new ConsoleManager(
+    client,
+    join(stateDirectory, "consoles.json"),
+    () => ledger,
+    (next) => { ledger = next },
+  )
+  await consoles.load()
 
   const reconcile = async (root: string): Promise<RootRuntime> => {
     const manifest = await reconcileRoot(client, root, emptyRegistry, {
       initialWindowDays: config.initial_window_days,
       fetchConcurrency: config.fetch_concurrency,
-    })
-    const runtime = runtimes.get(root) ?? {
+    }, consoles.allSessionIDs())
+    const previous = runtimes.get(root)
+    const runtime = previous ?? {
       root,
+      mode: (config.roots.find((r) => r.path === root)?.mode ?? "shadow") as "shadow" | "observe" | "full",
       manifest,
       queueDepth: 0,
       lastTickAt: 0,
@@ -111,11 +123,16 @@ export async function runService(signal: AbortSignal): Promise<void> {
       const previousManifest = runtime.manifest
       runtime.manifest = (await reconcile(runtime.root)).manifest
       const scan = runtime.manifest.sessions.find((entry) => entry.session.id === sessionID)
-      // Supervision targets are human-initiated turns only. Machine-driven turns
-      // (ralph pushes, nudges, synthetic) are already owned by their machinery —
-      // per the standing design rule, the supervisor stands down for them.
-      const target = scan?.turns.filter((turn) => turn.origin === "human" || turn.origin === "unknown").at(-1)
-      if (target !== undefined && target.assistantMessageID !== undefined) {
+      // Operator-attention-point guard: tick only if the target reply is the
+      // session's LAST message. If anything arrived after it (a ralph push, a
+      // nudge, a user message), that idle moment was already handled — stand down.
+      const target = scan === undefined ? undefined : pickTarget(scan.turns, scan.messages)
+      if (target === undefined) {
+        if (scan !== undefined && scan.turns.length > 0) {
+          ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "target is not the session's last message (native continuation or newer turn intervened)" })
+        }
+      }
+      if (target !== undefined) {
         ledger = await ledger.append("WORKER_TURN_COMPLETED", { sessionID, messageID: target.assistantMessageID })
         if (target.origin === "unknown") ledger = await ledger.append("CLASSIFIED_UNKNOWN", { sessionID, messageID: target.userMessageID })
         const context = assembleContext({
@@ -133,6 +150,13 @@ export async function runService(signal: AbortSignal): Promise<void> {
         })
         const decision = await tickGate.run(() => runTick({ adapter, context, target, confidenceFloor: config.confidence_floor }))
         await recordDecision(decision, target)
+        if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
+          const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${c.quote.slice(0, 80)}`).join("; ")
+          const result = await consoles.openTicket(runtime.root, sessionID, scan?.session.title, decision.rationale, evidence || "no citations supplied")
+          if ("skipped" in result) {
+            ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `escalation suppressed: ${result.skipped}` })
+          }
+        }
         runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)
         runtime.lastTickAt = Date.now()
       }
@@ -175,7 +199,12 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const POLL_INTERVAL_MS = 20_000
   for (const root of config.roots) {
     if (root.mode === "off") continue
-    await reconcile(root.path)
+    const runtime0 = await reconcile(root.path)
+    status.modes = { ...status.modes, [root.path]: runtime0.mode }
+    await writeStatus(statusPath, status)
+    if (root.mode === "observe" || root.mode === "full") {
+      void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
+    }
     const watchStates = new Map<string, { messageCount: number; completed: boolean }>()
     void (async () => {
       while (!signal.aborted) {
@@ -183,7 +212,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         const runtime = runtimes.get(root.path)
         if (runtime === undefined) continue
         try {
-          const childIDs = new Set(runtime.manifest.childSessionIDs)
+          const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs()])
           const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now())
           for (const sig of signals) {
             if (sig.kind === "busy") {

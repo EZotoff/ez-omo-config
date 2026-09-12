@@ -4,7 +4,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { z } from "zod"
 
-const rootSchema = z.object({ path: z.string().min(1), mode: z.enum(["off", "shadow"]) }).strict()
+const rootSchema = z.object({ path: z.string().min(1), mode: z.enum(["off", "shadow", "observe", "full"]) }).strict()
 const configSchema = z.object({
   server_url: z.string().url(),
   server_username: z.string().min(1).default("opencode"),

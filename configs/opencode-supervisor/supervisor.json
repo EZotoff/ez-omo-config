@@ -18,19 +18,19 @@
   "roots": [
     {
       "path": "/home/ezotoff/AI_projects/veran",
-      "mode": "shadow"
+      "mode": "observe"
     },
     {
       "path": "/home/ezotoff/ez-omo-bench",
-      "mode": "shadow"
+      "mode": "observe"
     },
     {
       "path": "/home/ezotoff/AI_projects/ANIA",
-      "mode": "shadow"
+      "mode": "observe"
     },
     {
       "path": "/home/ezotoff/AI_projects/kraken",
-      "mode": "shadow"
+      "mode": "observe"
     }
   ]
 }

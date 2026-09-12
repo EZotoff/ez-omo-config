@@ -7,6 +7,7 @@ export const statusSchema = z.object({
   queueDepths: z.record(z.string(), z.number().int().nonnegative()),
   ticksByAction: z.record(z.string(), z.number().int().nonnegative()),
   unknownOriginRate: z.number().min(0).max(1),
+  modes: z.record(z.string(), z.string()).optional(),
   machineMarkedRate: z.number().min(0).max(1),
 }).strict()
 export type SupervisorStatus = z.infer<typeof statusSchema>

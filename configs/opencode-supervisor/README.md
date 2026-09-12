@@ -2,7 +2,7 @@
 
 Phase 0 is a read-only external observer. It reconciles top-level project sessions over HTTP, listens to SSE as a wake-up hint, projects human-visible turns, runs shadow judgment ticks, and records decisions in a local hash-chained ledger. It never writes to an OpenCode session.
 
-The bundled `supervisor.json` installs to `$HOME/.config/opencode-supervisor/supervisor.json`. The loader prefers that runtime path and otherwise uses the bundled file. Unknown keys and modes fail closed. P0 accepts only `off` and `shadow`; later rollout modes are intentionally unavailable.
+The bundled `supervisor.json` installs to `$HOME/.config/opencode-supervisor/supervisor.json`. The loader prefers that runtime path and otherwise uses the bundled file. Unknown keys and modes fail closed. Modes: `off` (root ignored), `shadow` (read-only: judge + log), `observe` (P1a: shadow plus ESCALATE — tickets are written to the per-root `[Supervisor]` console session only, never into worker sessions), `full` (all interventions; not enabled anywhere yet). CONTINUE/STEER/REFORMULATE writes remain locked regardless of mode until their gates are met.
 
 | Field | Meaning |
 |---|---|
