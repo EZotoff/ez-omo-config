@@ -57,6 +57,7 @@
           "name": "Gemini 3.8 Flash",
           "limit": {
             "context": 1048576,
+            "input": 983040,
             "output": 65536
           },
           "modalities": {
@@ -85,6 +86,7 @@
           "name": "Gemini 3.1 Pro Preview",
           "limit": {
             "context": 1048576,
+            "input": 983040,
             "output": 65536
           },
           "modalities": {
@@ -456,6 +458,7 @@
           },
           "limit": {
             "context": 1048576,
+            "input": 786432,
             "output": 262144
           },
           "modalities": {
@@ -495,6 +498,7 @@
           "name": "GLM 5.3",
           "limit": {
             "context": 1000000,
+            "input": 868928,
             "output": 131072
           },
           "modalities": {
@@ -522,6 +526,7 @@
           "attachment": true,
           "limit": {
             "context": 1048576,
+            "input": 917504,
             "output": 131072
           },
           "modalities": {
@@ -777,6 +782,7 @@
           },
           "limit": {
             "context": 1048576,
+            "input": 655360,
             "output": 393216
           },
           "modalities": {
@@ -796,6 +802,7 @@
           },
           "limit": {
             "context": 524288,
+            "input": 393216,
             "output": 131072
           },
           "modalities": {
