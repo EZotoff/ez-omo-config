@@ -149,9 +149,9 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 | **opencode-go** | Minimax M3, Kimi K2.6, DeepSeek V4 Flash, Qwen 3.8 Flash | explicit Qwen entry: 1M ctx / 131k out |
 | **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
 | **zai-coding-plan** | GLM 5.3 | Coding Plan API |
-| **deepseek** | V4 Flash, V4 Pro | |
+| **deepseek** | V4.1 Flash (`deepseek-flash`, native vision), V4 Pro | V4.1 replaces the temporary `deepseek-v4-flash` alias (retiring); Pro kept serving after the planned 14 Sep reroute was cancelled |
 | **inception** | Mercury 2 | |
-| **ollama-cloud** | DeepSeek V4 Flash/Pro, MiniMax M3 | ollama.com OpenAI-compatible API |
+| **ollama-cloud** | DeepSeek V4.1 Flash, V4 Flash/Pro (pinned tags), MiniMax M3 | ollama.com OpenAI-compatible API |
 | **uni-lux** *(personal endpoint)* | DeepSeek V4 Flash, Kimi K3, GLM 5.2 | university LiteLLM proxy — bring your own endpoint/key |
 | **ollama-local** *(machine-local)* | local models | `127.0.0.1:18210` |
 | **qwen-tunnel** *(machine-local)* | Qwen | LAN `10.71.71.3:18061` |
