@@ -150,7 +150,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         })
         const decision = await tickGate.run(() => runTick({ adapter, context, target, confidenceFloor: config.confidence_floor }))
         await recordDecision(decision, target)
-        if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
+        if ((decision.action === "ESCALATE" || decision.action === "DEMAND_EXPLANATION") && (runtime.mode === "observe" || runtime.mode === "full")) {
           const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${c.quote.slice(0, 80)}`).join("; ")
           const result = await consoles.openTicket(runtime.root, sessionID, scan?.session.title, decision.rationale, evidence || "no citations supplied")
           if ("skipped" in result) {

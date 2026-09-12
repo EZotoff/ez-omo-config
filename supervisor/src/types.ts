@@ -44,7 +44,15 @@ export type Turn = {
   readonly transcript: string
 }
 
-export const ACTIONS = ["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"] as const
+export const ACTIONS = [
+  "ACCEPT",
+  "ABSTAIN",
+  "CONTINUE",
+  "STEER",
+  "REFORMULATE",
+  "DEMAND_EXPLANATION",
+  "ESCALATE",
+] as const
 export type Action = (typeof ACTIONS)[number]
 
 export type Citation = {

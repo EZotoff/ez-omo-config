@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { parseDecision, runTick } from "../src/tick"
+import { parseDecision, runTick, POLICY } from "../src/tick"
 import type { ReasoningAdapter } from "../src/adapter"
 import type { AssembledContext } from "../src/assembler"
 import type { Turn } from "../src/types"
@@ -46,4 +46,51 @@ test("runTick fails closed to ABSTAIN when provider errors", async () => {
   const context: AssembledContext = { text: target.transcript, estimatedTokens: 5, truncated: false }
   const decision = await runTick({ adapter, target, context, confidenceFloor: 0.6 })
   expect(decision).toMatchObject({ action: "ABSTAIN", rationale: "reasoning adapter failed" })
+})
+
+describe("DEMAND_EXPLANATION", () => {
+  const raw = JSON.stringify({
+    action: "DEMAND_EXPLANATION",
+    rationale: "Conclusions rest on an agreement not present in the supplied transcript",
+    citations: [{ session: "ses-a", messageID: "msg-2", quote: "as agreed last sprint" }],
+    confidence: 0.85,
+  })
+
+  test("parses the action with citations", () => {
+    const d = parseDecision(raw, 0.6)
+    expect(d.action).toBe("DEMAND_EXPLANATION")
+    expect(d.citations).toHaveLength(1)
+  })
+
+  test.each([
+    ["explain", "explain"],
+    ["REQUEST_EXPLANATION", "request_explanation"],
+    ["EXPLANATION", "explanation"],
+  ])("normalizes alias %s", (_name, action) => {
+    const d = parseDecision(
+      JSON.stringify({
+        action,
+        rationale: "foundations missing",
+        citations: [{ session: "s", messageID: "m", quote: "q" }],
+        confidence: 0.8,
+      }),
+      0.6,
+    )
+    expect(d.action).toBe("DEMAND_EXPLANATION")
+  })
+
+  test("requires citations like other non-accept decisions", () => {
+    const d = parseDecision(
+      JSON.stringify({ action: "DEMAND_EXPLANATION", rationale: "x", confidence: 0.9 }),
+      0.6,
+    )
+    expect(d.action).toBe("ABSTAIN")
+  })
+
+  test("policy instructs the sufficiency test and the fresh-foundations demand", () => {
+    expect(POLICY).toContain("DEMAND_EXPLANATION")
+    expect(POLICY).toContain("could a competent operator, seeing ONLY the supplied transcript")
+    expect(POLICY).toContain("built from first principles")
+    expect(POLICY).toContain("relying on nothing from the session")
+  })
 })
