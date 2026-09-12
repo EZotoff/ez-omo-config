@@ -48,25 +48,12 @@ test("runTick fails closed to ABSTAIN when provider errors", async () => {
   expect(decision).toMatchObject({ action: "ABSTAIN", rationale: "reasoning adapter failed" })
 })
 
-describe("DEMAND_EXPLANATION", () => {
-  const raw = JSON.stringify({
-    action: "DEMAND_EXPLANATION",
-    rationale: "Conclusions rest on an agreement not present in the supplied transcript",
-    citations: [{ session: "ses-a", messageID: "msg-2", quote: "as agreed last sprint" }],
-    confidence: 0.85,
-  })
-
-  test("parses the action with citations", () => {
-    const d = parseDecision(raw, 0.6)
-    expect(d.action).toBe("DEMAND_EXPLANATION")
-    expect(d.citations).toHaveLength(1)
-  })
-
+describe("REFORMULATE covers foundational opacity (merged DEMAND_EXPLANATION)", () => {
   test.each([
     ["explain", "explain"],
     ["REQUEST_EXPLANATION", "request_explanation"],
-    ["EXPLANATION", "explanation"],
-  ])("normalizes alias %s", (_name, action) => {
+    ["DEMAND_EXPLANATION", "demand_explanation"],
+  ])("normalizes alias %s to REFORMULATE", (_name, action) => {
     const d = parseDecision(
       JSON.stringify({
         action,
@@ -76,21 +63,22 @@ describe("DEMAND_EXPLANATION", () => {
       }),
       0.6,
     )
-    expect(d.action).toBe("DEMAND_EXPLANATION")
+    expect(d.action).toBe("REFORMULATE")
   })
 
-  test("requires citations like other non-accept decisions", () => {
+  test("still requires citations", () => {
     const d = parseDecision(
-      JSON.stringify({ action: "DEMAND_EXPLANATION", rationale: "x", confidence: 0.9 }),
+      JSON.stringify({ action: "explain", rationale: "x", confidence: 0.9 }),
       0.6,
     )
     expect(d.action).toBe("ABSTAIN")
   })
 
-  test("policy instructs the sufficiency test and the fresh-foundations demand", () => {
-    expect(POLICY).toContain("DEMAND_EXPLANATION")
+  test("policy carries the sufficiency test and the from-first-principles demand", () => {
+    expect(POLICY).toContain("Sufficiency test before deciding")
     expect(POLICY).toContain("could a competent operator, seeing ONLY the supplied transcript")
-    expect(POLICY).toContain("built from first principles")
-    expect(POLICY).toContain("relying on nothing from the session")
+    expect(POLICY).toContain("rebuilt from first principles")
+    expect(POLICY).toContain("nothing from the session")
+    expect(POLICY).not.toContain("DEMAND_EXPLANATION")
   })
 })
