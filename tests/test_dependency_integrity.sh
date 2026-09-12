@@ -46,8 +46,10 @@ assert_file_exists "plugins/kdco-primitives/with-timeout.ts"
 
 assert_grep 'from "\./kdco-primitives/types"' "plugins/worktree.ts"
 assert_grep 'from "\./kdco-primitives/get-project-id"' "plugins/worktree.ts"
+# worktree.ts no longer imports worktree/terminal: the GUI-terminal handoff
+# was removed in favor of the TUI session-switch handoff (regression pair 022).
+# terminal.ts stays bundled (state.ts sibling integrity + kdco primitives).
 assert_grep 'from "\./worktree/state"' "plugins/worktree.ts"
-assert_grep 'from "\./worktree/terminal"' "plugins/worktree.ts"
 assert_grep 'from "\.\./kdco-primitives"' "plugins/worktree/state.ts"
 assert_grep 'from "\.\./kdco-primitives"' "plugins/worktree/terminal.ts"
 assert_grep 'export type { OpencodeClient } from "\./types"' "plugins/kdco-primitives/index.ts"

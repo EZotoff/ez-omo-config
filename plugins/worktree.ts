@@ -41,7 +41,6 @@ import {
 	removeSession,
 	setPendingDelete,
 } from "./worktree/state"
-import { openTerminal } from "./worktree/terminal"
 
 /** Maximum depth to traverse session parent chain */
 const MAX_SESSION_CHAIN_DEPTH = 10
@@ -794,7 +793,7 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 		tool: {
 			worktree_start: tool({
 				description:
-					"Create a worktree, open a new OpenCode session in the current TUI, and auto-run /start-work there.",
+					"Create a worktree, open a new OpenCode session in the current TUI, and auto-run /start-work there. Call it with the plan name, just like /start-work itself.",
 				args: {
 					planName: tool.schema
 						.string()
@@ -930,7 +929,7 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 
 			worktree_create: tool({
 				description:
-					"Create a new git worktree for isolated development. A new terminal will open with OpenCode in the worktree.",
+					"Create a new git worktree for isolated development and switch the TUI to a forked session with full conversation context, ready to continue work in the worktree. No GUI terminal is opened.",
 				args: {
 					branch: tool.schema
 						.string()
@@ -1004,15 +1003,21 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						`Forked session ${forkedSession.id}, plan: ${planCopied}, delegations: ${delegationsCopied}`,
 					)
 
-					// Spawn worktree with forked session
-					const terminalResult = await openTerminal(
-						worktreePath,
-						`opencode --session ${forkedSession.id}`,
-						args.branch,
-					)
-
-					if (!terminalResult.success) {
-						log.warn(`[worktree] Failed to open terminal: ${terminalResult.error}`)
+					// Autonomous handoff: switch the TUI to the forked session instead of
+					// opening a GUI terminal. The terminal flow silently failed on
+					// display-less systemd-launched servers (no DISPLAY) and was never
+					// the intent; the forked session lives in the main project directory,
+					// so it is visible and attachable from the running TUI.
+					await new Promise((resolve) => setTimeout(resolve, 500))
+					let handoffError = ""
+					try {
+						const innerClient = (client as unknown as Record<string, Record<string, unknown>>).session?._client as Record<string, unknown> | undefined
+						const post = innerClient?.post as ((opts: Record<string, unknown>) => Promise<unknown>) | undefined
+						if (!post) throw new Error("Could not access SDK transport")
+						await post({ url: "/tui/select-session", body: { sessionID: forkedSession.id } })
+					} catch (error) {
+						handoffError = error instanceof Error ? error.message : String(error)
+						log.warn(`[worktree] tui.selectSession failed: ${handoffError}`)
 					}
 
 					// Record session for tracking (used by delete flow)
@@ -1023,7 +1028,10 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						createdAt: new Date().toISOString(),
 					})
 
-					return `Worktree created at ${worktreePath}\n\nA new terminal has been opened with OpenCode.`
+					const handoffNote = handoffError
+						? `TUI switch failed (${handoffError}). Resume the session manually: opencode --session ${forkedSession.id}`
+						: `The TUI has switched to the forked session — continue working there.`
+					return `Worktree created at ${worktreePath}\n\n${handoffNote}`
 				},
 			}),
 

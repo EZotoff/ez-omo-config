@@ -214,7 +214,7 @@ ez-omo-config/
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, and Python operator helpers.
 - **Systemd**: 7 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon, and the parked FLARE-4B server.
-- **Tests**: active repo verification scripts (105 tracked files), the 23-pair regression corpus (46 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Tests**: active repo verification scripts (109 tracked files), the 25-pair regression corpus (50 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
