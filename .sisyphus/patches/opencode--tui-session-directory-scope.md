@@ -7,8 +7,8 @@ source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-12"
 dep_version: "1.18.5"
-runtime_effective: false
-runtime_effective_note: "Set after the v1.18.5 rebuild is installed and the live surface check passes: fresh `oa` TUI on ez-omo-config must (a) list only same-directory sessions and (b) NOT insert a foreign session that receives a synthetic session.updated via the API while the TUI is open. Until then this flag is false. NOTE: TUI-only patch — the binary swap is non-disruptive (mv+cp, no service restart); running TUIs keep the old code until relaunched."
+runtime_effective: true
+runtime_effective_note: "Observed live 2026-09-12 ~11:50 on the shared daemon (:3030). A/B at --dir /tmp/opencode (global project): OLD binary dialog listed foreign-directory sessions (verify-5 -> /tmp/opencode/verify-dc, verify-4, SMOKE-OK reply test -> /tmp/opencode/provider-check); PATCHED binary dialog listed only exact-/tmp/opencode sessions (scope-probe-114127 positive control) with zero foreign entries. Synthetic cross-dir session.updated (PATCH title on a /tmp session) never surfaced in the patched TUI. Captures: .sisyphus/evidence/opencode--tui-session-directory-scope/. Caveat: the old-TUI fallback-render path (store pollution visible mid-fetch) was not capturable via tmux timing; the insert guard itself is pinned by regression pair 020 and the probe-absent observation."
 upstream_issue: "none"
 verification_pattern: "Limit session list to current directory"
 verification_note: "String literal from the retitled app.toggle.session_directory_filter command — survives minification and is unique to this patch, but presence alone cannot prove the query/event-store behavior. The regression test (tests/regressions/020-session-directory-scope.sh) pins the source structure; ## Runtime Verification pins the behavior."
@@ -115,6 +115,24 @@ is stock opencode v1.18.5 (no server patch) — probed live as documented above.
    project scope (toggle restores old behavior).
 
 If the regression signal is observed → set `runtime_effective: false` and record it
+in a ## Current Runtime Status section; do NOT bump dep_version.
+
+### Observed 2026-09-12 (PASS)
+
+Steps 1–3 executed via tmux-driven attach TUIs against the live daemon, old backup
+binary vs patched binary side by side:
+
+- At `--dir /tmp/opencode` (global project), OLD dialog listed foreign-directory
+  sessions: `verify-5` (/tmp/opencode/verify-dc), `verify-4`, `SMOKE-OK reply test`
+  (/tmp/opencode/provider-check). PATCHED dialog listed only exact-/tmp/opencode
+  sessions — zero foreign entries, `scope-probe-114127` present as positive control.
+- Step 2 probe: synthetic `PATCH /session/<id>?directory=/tmp/opencode` retitled a
+  /tmp session (HTTP 200, title change confirmed via GET); it never appeared in the
+  patched TUI's list.
+- Step 4 partially exercised: patched TUI quick-switch footer showed slot `1` bound
+  to a same-directory pinned session only.
+- Captures: `.sisyphus/evidence/opencode--tui-session-directory-scope/`
+  (ab-old-tmp-dialog.txt, ab-new-tmp-dialog.txt, scope-new-settled.txt, probe.txt).
 in a ## Current Runtime Status section; do NOT bump dep_version.
 
 ## Reapply Instructions
