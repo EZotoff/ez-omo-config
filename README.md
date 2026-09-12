@@ -51,7 +51,7 @@ Config files are symlinked from `~/.config/opencode/` into this repo, so editing
 `opencode.json` loads Oh-My-OpenAgent from a **published fork** — upstream **v4.19.2** plus tracked patches — via a config-relative reference: `"../../oh-my-openagent-v4.19.2"`, resolving to `$HOME/oh-my-openagent-v4.19.2` on any machine. Fork source: [EZotoff/oh-my-openagent](https://github.com/EZotoff/oh-my-openagent), branch `fix/custom-patches-v4.19.2`, tag `v4.19.2-patches.1`. The fork is the canonical runtime source while tracked patches are active (npm `@latest` resolution previously lost patches silently).
 
 - **Install the fork**: `git clone -b v4.19.2-patches.1 https://github.com/EZotoff/oh-my-openagent.git ~/oh-my-openagent-v4.19.2 && cd ~/oh-my-openagent-v4.19.2 && bun install && bun run build`, then reapply the dist-level patches per their registry entries (source patches are already fork commits).
-- **Patch inventory**: 22 active patches — a mix of source patches (carried as fork commits), dist-level patches (applied to the built bundle), and config-layer mitigations. Index: [docs/patches.md](docs/patches.md); authoritative entries with reapply instructions: [`.sisyphus/patches/`](.sisyphus/patches/).
+- **Patch inventory**: 23 active patches — a mix of source patches (carried as fork commits), dist-level patches (applied to the built bundle), and config-layer mitigations. Index: [docs/patches.md](docs/patches.md); authoritative entries with reapply instructions: [`.sisyphus/patches/`](.sisyphus/patches/).
 - **On another machine**: upstream npm OMO loads fine, but these advertised behaviors degrade without the fork: fallback retry budget (`retries_before_fallback=2`), `look_at` fallback patience, resume-skip task continuation, background-spawn model default, `/start-work` worktree reclaim, clean agent display names.
 - **Updates**: the owner's procedure is the `update-to-latest` skill — a documented operational path, not a turnkey bootstrap.
 
@@ -75,7 +75,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Output Shaper** — terseness injection + reasoning-effort dialing on resume turns
 - **Skill Nudger** — ephemeral skill suggestions when tool signals match the catalog
 - **Safe update pipeline** — guided OpenCode/OMO updates with approval gate, patch preservation, rollback, evidence-state discipline
-- **Patch-preservation infrastructure** — regression corpus (22 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
+- **Patch-preservation infrastructure** — regression corpus (23 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
 - **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
 - **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
 
@@ -92,7 +92,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Scripts** | 39 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, smoke-boot gate, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
 | **Systemd** | 7 units | patch watcher, integrity check service + timer, integrity-failure alert, supervisor, interactive attach daemon, parked FLARE-4B server |
-| **Tests** | 103 files | config/plugin/update/computer-use contracts + 22-pair regression corpus (44 files) |
+| **Tests** | 105 files | config/plugin/update/computer-use contracts + 23-pair regression corpus (46 files) |
 | **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 

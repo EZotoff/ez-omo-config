@@ -17,6 +17,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 | `opencode--turn-summary-timestamp` — 24h+date turn-summary format | active | true | [entry](../.sisyphus/patches/opencode--turn-summary-timestamp.md) |
 | `opencode--sse-directory-filter-removal` — needs reimplementation for rewritten `event.ts` | active | false | [entry](../.sisyphus/patches/opencode--sse-directory-filter-removal.md) |
 | `opencode--tui-pinned-session-race` — v2 compiled in; awaiting live pin+prune verification | active | false | [entry](../.sisyphus/patches/opencode--tui-pinned-session-race.md) |
+| `opencode--tui-session-directory-scope` — session list + event store scoped to attach directory on the shared daemon; kills cross-dir session leakage (other `oa` terminals, /tmp global-project dirs) | active | false | [entry](../.sisyphus/patches/opencode--tui-session-directory-scope.md) |
 
 ## OMO fork patches (fork base v4.19.2 at `~/oh-my-openagent-v4.19.2`)
 

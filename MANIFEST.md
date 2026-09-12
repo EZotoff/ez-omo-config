@@ -130,7 +130,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 22 paired regression tests (44 files total) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 23 paired regression tests (46 files total) | Required |
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016; helpers module import since 018) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 60 | `test_patch_entries.sh` | (repo only) | `tests/` | (repo only) | Patch-entry schema gate (frontmatter completeness: surfaces, runtime_effective, target_file) | Required |
@@ -196,7 +196,7 @@ ez-omo-config/
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
 │   ├── live-deployment-verification.md  # Live Deployment Verification Gate documentation
-├── tests/                  # Bash verification suite, 22-pair regression corpus, and harnesses
+├── tests/                  # Bash verification suite, 23-pair regression corpus, and harnesses
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities
 │   └── audit-wisdom-first.sh  # Validates no contradictory dual-system language remains
 ├── install.sh              # Bootstrap installer
@@ -214,7 +214,7 @@ ez-omo-config/
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, and Python operator helpers.
 - **Systemd**: 7 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon, and the parked FLARE-4B server.
-- **Tests**: active repo verification scripts (103 tracked files), the 22-pair regression corpus (44 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Tests**: active repo verification scripts (105 tracked files), the 23-pair regression corpus (46 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
@@ -265,6 +265,7 @@ Patches in `.sisyphus/patches/` document local modifications to external depende
 | 28 | `oh-my-openagent--start-work-worktree-teardown` | `oh-my-openagent@4.19.2` | active | 2026-08-23 | `grep -c 'A worktree left behind is a leak' ~/oh-my-openagent-v4.19.2/dist/skills/start-work/SKILL.md` — plain-text skill patch; adds direct-mode worktree reclaim (merge → worktree remove → `branch -d`) as Completion step 3; closes the allocation/reclamation asymmetry that leaked 14 worktrees+branches |
 | 29 | `omo--resume-skip-keep-running` | `oh-my-openagent@4.19.2` | active | 2026-08-30 | `grep -c 'keeping task running until next idle' ~/oh-my-openagent-v4.19.2/dist/index.js` — source patch (fork commit 8b883adab): busy-session resume skips (`active`/`reserved` gate statuses) keep the background task running instead of rolling it back to a terminal snapshot, so the child's eventual `session.idle` completes the task and notifies the parent; fixes the silent continuation deadlock observed 2026-08-30 (ses_facae8e4affezS7URnSTmMXIbz / bg_c16e323d); regression pair `tests/regressions/017-resume-skip-keep-running.sh` |
 | 30 | `omo--ultrawork-subagent-guard` | `oh-my-openagent@4.19.2` | active | 2026-09-06 | `grep -c 'isSubagentSession' ~/oh-my-openagent-v4.19.2/packages/omo-opencode/src/plugin/system-transform.ts` — source patch (fork commits 52a175587 + 753602683): default-mode ultrawork system-prompt injection skips subagent/non-main sessions (mirrors keyword-detector hook.ts guard); main sessions keep injection; fixes the 26/28 bench-subject forced-announcement + one 0.0-score child-quit observed 2026-09-01 |
+| 31 | `opencode--tui-session-directory-scope` | `opencode` | active | 2026-09-12 | `bash tests/regressions/020-session-directory-scope.sh` — source commit 106ace2f7 on fix/link-click-v1.18.5-solidjs: `sessionListQuery` returns `{}` so the server exact-filters the list to the attach directory (x-opencode-directory routing), and `session.updated` INSERTs from the daemon's unfiltered global /event stream are dropped unless they originate from this TUI's directory; stops foreign sessions (other `oa` terminals, /tmp dirs on the global project) appearing in the session list, quick-switch slots, and dialog fallback on the shared daemon; toggle retitled in app.tsx; compiled into v1.18.5 binary; `runtime_effective: false` until live tmux verification |
 
 ## Operator Tools (Repo-Only, Not Installed)
 
