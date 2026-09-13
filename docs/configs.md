@@ -435,6 +435,22 @@ Config-layer plugin that rewrites incoming chat messages explicitly requesting t
 
 **Install Target**: `$HOME/.config/opencode/agent-default-guard.mjs`
 
+## live-config-guard.mjs
+
+Config-layer plugin that blocks write-intent operations against the live OpenCode/OMO config surface from sessions that do not belong to the config repo.
+
+**Why**: `~/.config/opencode/opencode.json` and `oh-my-openagent.json` are symlinks into `~/ez-omo-config`. Two incidents (2026-09-10, 2026-09-12 — benchmark-sandbox builders in other projects) wrote sandbox configs through these symlinks because their alt-root shell variable (`$A`/`$T`) expanded empty — every bash tool call is a fresh shell. The damage was uncommitted and masked by running servers until the next restart/reboot, leaving OMO silently dead. Policy: all OpenCode/OMO config changes come through sessions inside `~/ez-omo-config`.
+
+**Mechanics**: `tool.execute.before` interception. For bash/terminal/interactive_bash/tmux: if the command names a protected path (`.config/opencode/{opencode,oh-my-openagent}.json[c]` — substring match, which catches `$VAR`-prefixed paths whose variable expands empty) AND shows write intent (redirect target, `tee`, cp/mv/rsync/rm/chmod-family, `sed/perl -i`, python write signals), the call throws a BLOCK error. For write/edit tools: absolute/tilde paths resolving onto the live surface or the store's `configs/` tree are blocked. Sessions whose working directory (bash workdir or session directory) is inside `~/ez-omo-config` or one of its git worktrees (`--git-common-dir`) are exempt. Reads never blocked; internal errors fail open; deliberate blocks are the only thrown errors.
+
+**Detection companion**: `scripts/check-live-config-drift.sh` (second `ExecStart` of `opencode-patch-integrity-check.service`, 30-min cadence) fails the unit — firing `opencode-integrity-alert.service` — whenever `configs/` carries uncommitted changes, collapsing the restart-masked damage window.
+
+**Verification**: unit harness `tests/live-config-guard/harness.mjs` (23 checks: incident shapes, read passes, repo/worktree exemptions, file-tool blocks).
+
+**Log**: `~/.config/opencode/live-config-guard.log` (blocks + fail-open reasons).
+
+**Install Target**: `$HOME/.config/opencode/live-config-guard.mjs`
+
 
 **Signals (rules-only MVP)**:
 

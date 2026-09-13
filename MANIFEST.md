@@ -49,6 +49,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 4x | skill-nudger/state.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
 | 4y | skill-nudger/nudge.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Skill Nudger | Optional |
 | 4z | agent-default-guard.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Agent Default Guard (rewrites client-sent `build` agent to pinned `default_agent`; OC Beacon mitigation) | Required |
+| 4ab | live-config-guard.mjs | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Live Config Guard (blocks write-intent ops on the live OpenCode/OMO config surface from sessions outside the config repo — 2026-09-10/12 sandbox-leak incidents; harness `tests/live-config-guard/`) | Required |
 | 4aa | agent/document-writer.md | `~/.config/opencode/agent/` | `configs/opencode/agent/` | `$HOME/.config/opencode/agent/` | Opencode-native agent file for custom `document-writer` agent (frontmatter + body = system prompt; `agents.<name>.prompt` in oh-my-openagent.json is builtin-only/dead for custom names) | Required |
 | 5 | oh-my-openagent.json | `~/.config/opencode/` | `configs/oh-my-openagent/` | `$HOME/.config/opencode/` | OMO Config | Required |
 | 5b | supervisor.json | `~/.config/opencode-supervisor/` | `configs/opencode-supervisor/` | `$HOME/.config/opencode-supervisor/` | Project Supervisor P0 | Optional |
@@ -127,7 +128,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 54 | `watch-runtime-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | inotify watcher for runtime binary integrity (OpenCode bin + OMO fork dist, recursive; `*.pre-*`/`*.tmp*` dist writes log-only) | Required |
 | 54a | `integrity-alert.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | OnFailure alert writer (journal `INTEGRITY-ALERT` line + `~/.local/state/opencode/patch-integrity.alert` marker + guarded notify-send) for integrity-check failures | Optional |
 | 55 | `opencode-patch-watcher.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | systemd user service for watcher | Optional |
-| 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service | Optional |
+| 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service (verify-live-patches + check-live-config-drift) | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
 | 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 23 paired regression tests (46 files total) | Required |
@@ -142,6 +143,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 62d | `opencode-interactive.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OpenCode interactive attach daemon (127.0.0.1:3030, basic auth via serve-interactive.env; OC Beacon mobile client via tailscale serve TLS) | Optional |
 | 62e | `opencode-integrity-alert.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OnFailure alert unit — fired when `opencode-patch-integrity-check.service` fails; journal + marker + desktop notification | Optional |
 | 63a | `smoke-boot-check.sh` | (repo only) | `scripts/` | (repo only) | Fresh-boot smoke gate for cutovers: throws away an `opencode run --print-logs` boot, asserts 0 plugin-load errors, 0 agent-not-found, agent-attributed stream + loop-exit lines, rc=0, serve-set unchanged (patterns-in-file ≠ bootable, 2026-09-08 incident) | Required |
+| 63b | `check-live-config-drift.sh` | (repo only) | `scripts/` | (repo only) | Live-config drift check: fails when `configs/` has uncommitted changes; second `ExecStart` of `opencode-patch-integrity-check.service` (30-min cadence → `opencode-integrity-alert.service`). Collapses the restart-masked damage window from the 2026-09-10/12 incidents to ≤30 min | Required |
 
 ## Directory Structure
 

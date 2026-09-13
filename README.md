@@ -76,6 +76,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Skill Nudger** — ephemeral skill suggestions when tool signals match the catalog
 - **Safe update pipeline** — guided OpenCode/OMO updates with approval gate, patch preservation, rollback, evidence-state discipline
 - **Patch-preservation infrastructure** — regression corpus (25 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
+- **Live-config guard** — plugin blocking writes to the live OpenCode/OMO config surface from sessions outside this repo (2026-09-10/12 sandbox-leak incidents) + 30-min config-drift detection
 - **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
 - **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
 
@@ -86,13 +87,13 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | Category | Count | Contents |
 |---|---|---|
 | **Commands** | 10 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate) |
-| **Configs** | 43 files | OpenCode + OMO + Supervisor configs; retry registry; Aspect Dynamics, Output Shaper, Skill Nudger modules |
+| **Configs** | 46 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 24 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
-| **Scripts** | 39 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher, smoke-boot gate, operator tools |
+| **Scripts** | 40 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check, smoke-boot gate, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
 | **Systemd** | 7 units | patch watcher, integrity check service + timer, integrity-failure alert, supervisor, interactive attach daemon, parked FLARE-4B server |
-| **Tests** | 109 files | config/plugin/update/computer-use contracts + 25-pair regression corpus (50 files) |
+| **Tests** | 111 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + 25-pair regression corpus (50 files) |
 | **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
@@ -162,9 +163,9 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 
 | Agent | Primary | Variant | Fallbacks |
 |-------|---------|---------|-----------|
-| atlas | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro → k3 |
+| atlas | `zai-coding-plan/glm-5.3-flash` | default | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro → k3 |
 | prometheus | `kimi-for-coding-oauth/k3` | high | glm-5.3 → gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
-| sisyphus | `zai-coding-plan/glm-5.3` | high | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
+| sisyphus | `zai-coding-plan/glm-5.3-flash` | high | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
 | sisyphus-junior | `zai-coding-plan/glm-5.3` | default | gpt-5.6-sol → ollama dsv4-pro → opencode-go dsv4-pro |
 | librarian | `zai-coding-plan/glm-5.3-flash` | default | glm-5.3 → ollama m3 → opencode-go m3 → gpt-5.6-terra |
 | explore | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-luna |

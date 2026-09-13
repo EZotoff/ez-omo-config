@@ -18,6 +18,7 @@
     "./output-shaper.mjs",
     "./skill-nudger.mjs",
     "./agent-default-guard.mjs",
+    "./live-config-guard.mjs",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
@@ -801,7 +802,7 @@
             "field": "reasoning"
           },
           "limit": {
-            "context": 524288,
+            "context": 512000,
             "input": 393216,
             "output": 131072
           },
