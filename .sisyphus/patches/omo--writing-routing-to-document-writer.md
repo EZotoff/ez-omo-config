@@ -25,11 +25,11 @@ Edit 1 repoints the line 104 row to the `document-writer` subagent via `task(sub
 ## Verification
 
 ```bash
-# Source: new row present at line 104; old row and fallback enumeration absent.
-grep -n 'document-writer` subagent via `task(subagent_type="document-writer")' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/sisyphus/gpt-5-5.ts
-grep -n 'technical writing → `writing`' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/sisyphus/gpt-5-5.ts
-grep -n '`quick`, `writing`' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/sisyphus/gpt-5-5.ts
-grep -rn 'technical writing' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/hephaestus/delegation-table-contract.test.ts
+# Source (post-repair, escaped backticks): routing row at line 104 targets document-writer; no writing row remains.
+grep -n 'Documentation, prose, technical writing' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/sisyphus/gpt-5-5.ts   # 1 hit, line 104, contains document-writer
+grep -c 'subagent_type="document-writer"' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/sisyphus/gpt-5-5.ts   # 1
+sed -n '166p' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/sisyphus/gpt-5-5.ts | grep -c writing   # 0
+grep -rn 'technical writing' /home/ezotoff/oh-my-openagent-v4.19.2/packages/omo-opencode/src/agents/hephaestus/delegation-table-contract.test.ts   # no output (no test locks the old row)
 
 # Rebuilt bundle after bun run build.
 grep -c 'subagent_type="document-writer"' /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js  # 1
