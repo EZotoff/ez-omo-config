@@ -8,7 +8,7 @@ applied_date: "2026-09-13"
 dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "subagent_type=\"document-writer\""
-runtime_effective: false
+runtime_effective: true
 note: "Source patch (fork commit 87bae6856 + syntax repair 8c0f9963f, branch fix/custom-patches-v4.19.2) + config-layer description override on categories.writing (this repo, configs/oh-my-openagent/oh-my-openagent.json). Soft-deprecation: writing category stays defined-but-unrouted; docs route to the document-writer subagent. Evidence: ez-omo-bench ledger L034 (event EV016, 2026-09-12)."
 ---
 
@@ -36,9 +36,14 @@ grep -c 'subagent_type="document-writer"' /home/ezotoff/oh-my-openagent-v4.19.2/
 bash /home/ezotoff/ez-omo-config/scripts/verify-live-patches.sh  # exit 0: 23 total | 22 applied | 1 acknowledged-drift pre-existing
 ```
 
-## Runtime Verification
+## Runtime Status
 
-Pending Task 6 probe, a docs-task routing probe on live sisyphus. On PASS, flip `runtime_effective: true` and add `## Runtime Status` with the observation timestamp and probe session ID.
+Observed 2026-09-13T08:51:59Z UTC using fresh headless `opencode run` processes in `/tmp/opencode/writing-deprecation-probe`.
+
+- Check 1 PASS: parent session `ses_f66117daaffe1p30F0Hto8xZYp` made one `task` call with `subagent_type="document-writer"`; child session `ses_f66110cf0ffea6njEJBSu4qQRu` ran as `document-writer` on `openai/gpt-5.6-terra`.
+- Check 2 PASS: the exported parent transcript contains zero `task` calls with `category="writing"`.
+- Check 3 PASS: evidence session `ses_f660b71a4ffeibvzASi7JWWIsi` quoted the live Sisyphus category row verbatim with `writing` adjacent to `DEPRECATED 2026-09-12`. The original session-store search was structurally inapplicable: neither the export nor `session_read` contains any category-list marker (`visual-engineering`, `ultrabrain`, `AvailableCategory`, or `Documentation, prose`). An offline deterministic render through `buildCategorySkillsDelegationGuide` using the real config independently reproduced the same row.
+- Check 4 PASS: `grep -c 'subagent_type="document-writer"' /home/ezotoff/oh-my-openagent-v4.19.2/dist/index.js` returned `1`.
 
 ## Reapply Instructions
 

@@ -46,7 +46,7 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 | `omo--boulder-worktree-authoritative-state` | superseded | — | [entry](../.sisyphus/patches/omo--boulder-worktree-authoritative-state.md) |
 | `omo--remove-activity-stagnation-bypass` | upstreamed | — | [entry](../.sisyphus/patches/omo--remove-activity-stagnation-bypass.md) |
 | `omo--parent-wake-sync-mode-for-tui-render` | rolled_back | — | [entry](../.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md) |
-| `omo--writing-routing-to-document-writer` — sisyphus docs routing → document-writer subagent; writing category dormant (fork commit 87bae6856 + config description override) | active | false | [entry](../.sisyphus/patches/omo--writing-routing-to-document-writer.md) |
+| `omo--writing-routing-to-document-writer` — sisyphus docs routing → document-writer subagent; writing category dormant (fork commit 87bae6856 + config description override) | active | true | [entry](../.sisyphus/patches/omo--writing-routing-to-document-writer.md) |
 
 ## Retired DCP patches (DCP removed 2026-06-23)
 
