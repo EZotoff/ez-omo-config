@@ -196,6 +196,7 @@
       ]
     },
     "writing": {
+      "description": "DEPRECATED 2026-09-12 — dormant, unrouted. Documentation/prose/technical-writing tasks go to task(subagent_type=\"document-writer\") instead. NEVER delete this entry: it pins the model override that suppresses the OMO builtin writing category (kimi-k3 resurrection trap). See docs/omo-config-reference.md §4.5.",
       "model": "openai/gpt-5.6-terra",
       "fallback_models": [
         "zai-coding-plan/glm-5.3"

@@ -115,7 +115,7 @@
 >
 > Fields that DO work at runtime for custom names (consumed by name-keyed lookups elsewhere: model resolution, variant, runtime-fallback chains, ultrawork override): `model`, `variant`, `fallback_models` — which is exactly what makes the trap confusing: routing works, the prompt doesn't. (`description` is likewise redundant for custom names — the agent .md frontmatter owns it.)
 >
-> **Custom agent system prompts go in opencode-native agent files**: `configs/opencode/agent/<name>.md` — frontmatter (`description`, `mode`, `model`) + body = system prompt. OMO loads them via `loadAgentSources` (`agent-source-loader.ts`); `install.sh` symlinks them into `~/.config/opencode/agent/`. Working example: [`configs/opencode/agent/document-writer.md`](../configs/opencode/agent/document-writer.md). Never put a custom agent's prompt in `agents.<name>.prompt`.
+> **Custom agent system prompts go in opencode-native agent files**: `configs/opencode/agent/<name>.md` — frontmatter (`description`, `mode`, `model`) + body = system prompt. OMO loads them via `loadAgentSources` (`agent-source-loader.ts`); `install.sh` symlinks them into `~/.config/opencode/agent/`. Working example: [`configs/opencode/agent/document-writer.md`](../configs/opencode/agent/document-writer.md). Never put a custom agent's prompt in `agents.<name>.prompt`. Since 2026-09-12 document-writer is the single routed door for documentation/prose work — the `writing` category is deprecated-unrouted (see §4.5).
 
 
 ### 3.3 Agent override fields
@@ -251,6 +251,14 @@
 4. User `fallback_models`
 5. Provider fallback chain (built-in)
 6. System default (OpenCode)
+
+### 4.5 ⚠️ LOCAL WARNING — `categories.writing` is deprecated-unrouted (2026-09-12)
+
+> Documentation/prose/technical-writing delegation routes to the `document-writer` SUBAGENT (`task(subagent_type="document-writer")`; agent file [`configs/opencode/agent/document-writer.md`](../configs/opencode/agent/document-writer.md)), not to the `writing` category. The category is a **dormant rollback snapshot**: defined (builtin in OMO `kimi-categories.ts` + this repo's model pin `openai/gpt-5.6-terra`) but unrouted — its `description` override carries this deprecation notice into every orchestrator prompt's category list.
+>
+> **NEVER delete the `categories.writing` entry.** It exists to override the builtin's model (`kimi-for-coding/kimi-k3`). Deleting it resurrects the builtin and silently routes any surviving writing-category delegation to kimi-k3 (same trap class as wisdom `20260831-231121-vvdb`). To roll back the deprecation instead, see patch `omo--writing-routing-to-document-writer` in [patches.md](patches.md).
+>
+> The sisyphus GPT-family routing row was repointed by fork patch `omo--writing-routing-to-document-writer`; the live GLM-family prompt has no hardcoded row and is governed by this description override (dynamic category row via `builtin-agents.ts` `AvailableCategory.description`).
 
 ---
 
