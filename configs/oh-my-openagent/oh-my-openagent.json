@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-openagent.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "zai-coding-plan/glm-5.3",
+      "model": "zai-coding-plan/glm-5.3-flash",
       "fallback_models": [
         "openai/gpt-5.6-sol",
         "ollama-cloud/deepseek-v4-pro:0813",
@@ -98,7 +98,7 @@
       "prompt_append": "## External-system premise review\nWhen reviewing a plan, identify any premise that depends on an external system's behavior (provider API, library guarantee, service contract). Require such premises to be backed by documentation or research — not a runtime probe and not a theoretical guarantee (\"constrained decoding guarantees validity\"). A probe samples; it does not characterize. Flag any load-bearing external-system premise presented as settled fact as a REVIEW BLOCKER until it is researched or marked as an unverified risk with a fallback."
     },
     "atlas": {
-      "model": "zai-coding-plan/glm-5.3",
+      "model": "zai-coding-plan/glm-5.3-flash",
       "fallback_models": [
         "openai/gpt-5.6-sol",
         "ollama-cloud/deepseek-v4-pro:0813",
