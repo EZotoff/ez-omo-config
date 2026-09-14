@@ -85,4 +85,8 @@ An upstream `runtime_fallback` policy knob (e.g. `fallback_on: ["quota_exceeded"
 
 ## Runtime Status
 
-**Not yet observed live (as of 2026-09-14 deployment).** Source tests, typecheck, and bundle embedding are verified; the behavior claim awaits a real Z.AI concurrency throttle after the `opencode.service` restart. Flip `runtime_effective: true` only when step 2 of Runtime Verification is observed and record the timestamp + log lines here.
+**Deployed 2026-09-14 08:23:33Z; runtime effectiveness NOT yet observed.** Source tests (257/257), typecheck (exit 0), bundle embedding (`grep -c 'session.error.same-model' dist/index.js` = 1), and the regression corpus (26 pass / 26 kill-tests proved, including `023-quota-only-fallback`) are verified. `systemctl --user restart opencode.service` replaced the systemd server PID (port 3021: 328750 → 2405252, start 08:23:33Z) and the durable OMO log received fresh entries at 08:23:47Z, confirming the rebuilt dist is loaded.
+
+**Known gap:** two non-systemd `opencode serve` processes remain on the pre-patch module in memory — PID 328751 (`--hostname 127.0.0.1 --port 3030`, since 00:37:44 local) and PID 2251581 (`--port 46946`, since 07:44:47Z). Bare-`opencode` TUI processes load OMO themselves, so sessions served by those PIDs keep the old fallback behaviour until those processes are restarted. New sessions on the systemd server are patched.
+
+The behavior claim still awaits a real Z.AI concurrency throttle: no `Rate limit reached` stream error has occurred since the restart (checked 08:23:56Z). Flip `runtime_effective: true` only when step 2 of Runtime Verification is observed and record the timestamp + log lines here.
