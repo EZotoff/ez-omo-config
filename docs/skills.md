@@ -383,3 +383,7 @@ Besides the installed (user-scoped) skills above, the repo carries skills that l
 - [Wisdom Documentation](wisdom.md) — wisdom scripts and usage
 - [MANIFEST.md](../MANIFEST.md) — Complete artifact inventory
 - `skills/README.md` — Quick reference
+
+### typography stack (external)
+
+`/fresh-explain` is hand-managed (no `install.sh` ITEMS row — the live file at `~/.config/opencode/command/fresh-explain.md` is edited directly, not vendored), and carries the prose-mechanics hook: when deliverable-bound prose quality matters, it loads `typographic-writing` while keeping the command's own method and ground rules authoritative over the skill's stylistic defaults.
