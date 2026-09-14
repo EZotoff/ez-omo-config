@@ -3,7 +3,7 @@ Description=Probe OpenCode interactive daemon every 2 minutes
 
 [Timer]
 OnBootSec=1min
-OnUnitActiveSec=2min
+OnUnitActiveSec=1min
 AccuracySec=15s
 
 [Install]
