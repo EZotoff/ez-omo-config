@@ -8,7 +8,9 @@ EnvironmentFile=/home/ezotoff/.config/opencode/serve-interactive.env
 ExecStart=/home/ezotoff/.opencode/bin/opencode serve --hostname 127.0.0.1 --port 3030
 Environment=PATH=/home/ezotoff/.local/bin:/home/ezotoff/bin:/home/ezotoff/.bun/bin:/home/ezotoff/.opencode/bin:/home/ezotoff/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/home/ezotoff/.dotnet/tools
 Environment=SSH_AUTH_SOCK=/run/user/1000/keyring/ssh
-Restart=on-failure
+# Restart=always covers crash/self-exit; explicit `systemctl stop` is still honored
+# (that failure class is covered by opencode-interactive-keeper.timer instead).
+Restart=always
 RestartSec=5
 
 [Install]

@@ -142,8 +142,11 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 62c | `test_supervisor_config.sh` | (repo only) | `tests/` | (repo only) | Project Supervisor static contract | Required |
 | 62d | `opencode-interactive.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OpenCode interactive attach daemon (127.0.0.1:3030, basic auth via serve-interactive.env; OC Beacon mobile client via tailscale serve TLS) | Optional |
 | 62e | `opencode-integrity-alert.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OnFailure alert unit — fired when `opencode-patch-integrity-check.service` fails; journal + marker + desktop notification | Optional |
+| 62f | `opencode-interactive-keeper.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Oneshot keeper — auto-starts/restarts `opencode-interactive.service` when 127.0.0.1:3030 is unreachable (two-probe guard vs load-spike false positives; covers the explicit-stop failure class that `Restart=` cannot) | Optional |
+| 62g | `opencode-interactive-keeper.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 2-minute keeper probe cadence (OnBootSec=1min) | Optional |
 | 63a | `smoke-boot-check.sh` | (repo only) | `scripts/` | (repo only) | Fresh-boot smoke gate for cutovers: throws away an `opencode run --print-logs` boot, asserts 0 plugin-load errors, 0 agent-not-found, agent-attributed stream + loop-exit lines, rc=0, serve-set unchanged (patterns-in-file ≠ bootable, 2026-09-08 incident) | Required |
 | 63b | `check-live-config-drift.sh` | (repo only) | `scripts/` | (repo only) | Live-config drift check: fails when `configs/` has uncommitted changes; second `ExecStart` of `opencode-patch-integrity-check.service` (30-min cadence → `opencode-integrity-alert.service`). Collapses the restart-masked damage window from the 2026-09-10/12 incidents to ≤30 min | Required |
+| 63c | `opencode-daemon-keeper.sh` | (repo only) | `scripts/` | (repo only) | Probe + recover script for the interactive daemon; `ExecStart` of `opencode-interactive-keeper.service` (2-min cadence). Recovers the agent-killed-daemon failure mode (2026-09-13/14 incidents) within ≤2 min | Required |
 
 ## Directory Structure
 
@@ -190,7 +193,7 @@ ez-omo-config/
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
 │   ├── verify-live-patches.sh # Runtime-resolved tracked-patch verifier
 │   └── watch-runtime-patches.sh # Runtime binary + OMO dist inotify watcher
-├── systemd/user/           # Patch integrity units and Project Supervisor user service
+├── systemd/user/           # Patch integrity units, Project Supervisor, interactive-daemon keeper
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Active documentation (configs, plugins, skills, wisdom, patches, verification, observability, compatibility debt, worktree state, OMO reference)
 │   ├── patches.md            # Patch index over .sisyphus/patches/

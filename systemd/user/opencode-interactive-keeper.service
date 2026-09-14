@@ -1,0 +1,10 @@
+[Unit]
+Description=OpenCode Interactive Daemon Keeper — auto-start opencode-interactive.service when :3030 is unreachable
+# Recovers the daemon after agent-run update procedures stop it and die before
+# the restart step (2026-09-13/14 incidents). systemd Restart= never fires on
+# explicit stops, so a probe timer is the only coverage for this failure class.
+After=opencode-interactive.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/ez-omo-config/scripts/opencode-daemon-keeper.sh
