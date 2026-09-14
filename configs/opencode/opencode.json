@@ -10,7 +10,8 @@
     "uni-lux",
     "ollama-local",
     "ollama-cloud",
-    "qwen-tunnel"
+    "qwen-tunnel",
+    "gsq-rco"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -836,6 +837,38 @@
           "limit": {
             "context": 65536,
             "output": 16384
+          },
+          "attachment": false
+        }
+      }
+    },
+    "gsq-rco": {
+      "name": "GSQ-RCO Qwen3.8-27B (local llama.cpp)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:18211/v1",
+        "apiKey": "gsq-rco",
+        "chunkTimeout": 600000,
+        "headerTimeout": 600000
+      },
+      "models": {
+        "qwen3.8-27b": {
+          "name": "Qwen3.8-27B GSQ-RCO IQ2_S+MTP (local 128k)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           },
           "attachment": false
         }
