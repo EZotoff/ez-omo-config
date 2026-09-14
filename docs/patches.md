@@ -25,6 +25,7 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 
 | Patch | Status | runtime_effective | Entry |
 |---|---|---|---|
+| `omo--quota-only-fallback-same-model-retry` — only quota errors advance fallback; rate-limit keeps same model with 1s→120s exponential backoff (fork commits 754cec4ee..e6bb8b059) | active | false | [entry](../.sisyphus/patches/omo--quota-only-fallback-same-model-retry.md) |
 | `omo--retries-before-fallback` — `runtime_fallback.retries_before_fallback` knob (fork commit 49f6728) | active | true | [entry](../.sisyphus/patches/omo--retries-before-fallback.md) |
 | `omo--resume-skip-keep-running` — busy-session resume keeps background task running (fork commit 8b883adab) | active | false | [entry](../.sisyphus/patches/omo--resume-skip-keep-running.md) |
 | `omo--model-less-spawn-fallback` — background spawn model default | active | true | [entry](../.sisyphus/patches/omo--model-less-spawn-fallback.md) |
