@@ -357,3 +357,13 @@ The test: a fresh reader should never encounter a term they cannot resolve from 
 **Repetition:**
 - ✗ Two paragraphs both stating "retention is the priority" with different wording.
 - ✓ One paragraph stating it once, with the supporting number.
+
+## Layer hooks (typography stack)
+
+1. When the deliverable is a rendered HTML report and copy changes: load `skill(name='web-typography')` and apply its engineering floors beneath this skill's house style
+2. When a section explains a concept from scratch: apply the fresh-explain method via `skill(name='fresh-explain')`
+3. When motion or interaction is in scope: load `skill(name='dynamic-typography')` for mechanics; this skill's one-earned-moment budget and timing bands are PINS overriding its ranges
+4. When delegating writing to a subagent: pass `load_skills=['typographic-writing']` or the genre-appropriate stack - parent loading does not propagate to children
+
+- Measure 62-68ch, one earned moment, timing bands are pinned values, never averaged with layer ranges.
+- The chat-summary genre loads no typography layer.
