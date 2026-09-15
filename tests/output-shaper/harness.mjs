@@ -313,9 +313,11 @@ async function runOptionVocabulary() {
   }
 }
 
-// ollama-cloud carries a model allowlist: minimax-m3 must NOT be clamped
-// (live A/B 2026-09-15: reasoning_effort increased its reasoning).
-async function runOllamaM3NotClamped() {
+// minimax-m3 must NOT be clamped on either gateway that serves it —
+// the model reacts erratically/adversely to reasoning_effort (live A/B on
+// ollama.com 2026-09-15: reasoning INCREASED); the exclusion follows the
+// model, not the gateway. opencode-go is also allowlist-gated.
+async function runM3NotClamped(providerID, caseName) {
   await setTestConfig({ enabled: true, logLevel: "silent" });
   try {
     const mod = await import(PLUGIN_PATH);
@@ -323,11 +325,11 @@ async function runOllamaM3NotClamped() {
     const ctx = makeFakeCtx({ messages: resumeMessages() });
     const hooks = await plugin(ctx);
     const output = makeParamsOutput();
-    await hooks["chat.params"](makeParamsInput("ollama-cloud", "minimax-m3"), output);
+    await hooks["chat.params"](makeParamsInput(providerID, "minimax-m3"), output);
     if (Object.keys(output.options).length !== 0) {
-      fail(`ollama-m3-not-clamped: expected options untouched, got ${JSON.stringify(output.options)}`);
+      fail(`${caseName}: expected options untouched, got ${JSON.stringify(output.options)}`);
     }
-    pass("ollama-m3-not-clamped — ollama-cloud model outside allowlist left options untouched");
+    pass(`${caseName} — ${providerID}/minimax-m3 outside allowlist left options untouched`);
   } finally {
     await clearTestConfig();
   }
@@ -423,7 +425,7 @@ async function main() {
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
     console.error(
-      "Cases: terseness-injected, terseness-static, glm-resume-clamped, kimi-resume-clamped, gpt-resume-clamped, gemini-resume-clamped, ollama-dsv4-clamped, ollama-m3-not-clamped, deepseek-clamped, opencode-go-clamped, claude-resume-not-clamped, copilot-resume-not-clamped, new-question-not-clamped, option-vocabulary, fail-closed-no-config, disabled-config"
+      "Cases: terseness-injected, terseness-static, glm-resume-clamped, kimi-resume-clamped, gpt-resume-clamped, gemini-resume-clamped, ollama-dsv4-clamped, ollama-m3-not-clamped, ocg-m3-not-clamped, deepseek-clamped, opencode-go-clamped, claude-resume-not-clamped, copilot-resume-not-clamped, new-question-not-clamped, option-vocabulary, fail-closed-no-config, disabled-config"
     );
     process.exit(1);
   }
@@ -453,7 +455,10 @@ async function main() {
       await runClampCase("ollama-dsv4-clamped", "ollama-cloud", "deepseek-v4-pro:0813", "reasoningEffort", "low");
       break;
     case "ollama-m3-not-clamped":
-      await runOllamaM3NotClamped();
+      await runM3NotClamped("ollama-cloud", "ollama-m3-not-clamped");
+      break;
+    case "ocg-m3-not-clamped":
+      await runM3NotClamped("opencode-go", "ocg-m3-not-clamped");
       break;
     case "deepseek-clamped":
       await runClampCase("deepseek-clamped", "deepseek", "deepseek-flash", "reasoningEffort", "low");

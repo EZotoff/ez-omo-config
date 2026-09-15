@@ -42,7 +42,15 @@ const CLAMP_TABLE = {
   "kimi-for-coding-oauth": { field: "reasoningEffort", values: { low: "low", medium: "medium", high: "high", max: "max" } },
   "openai":                { field: "reasoningEffort", values: { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" } },
   "deepseek":              { field: "reasoningEffort", values: { low: "low", medium: "medium", high: "high", max: "max" } },
-  "opencode-go":           { field: "reasoningEffort", values: { low: "low", medium: "medium", high: "high", max: "max" } },
+  "opencode-go": {
+    field: "reasoningEffort",
+    values: { low: "low", medium: "medium", high: "high", max: "max" },
+    // minimax-m3 excluded: the model reacts erratically/adversely to
+    // reasoning_effort (verified on ollama.com's gateway 2026-09-15; the
+    // exclusion follows the model, not the gateway). Allowlist keeps future
+    // opencode-go models fail-closed until verified.
+    models: ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-flash-vision-exp", "kimi-k2.6", "qwen3.8-flash"],
+  },
   "ollama-cloud": {
     field: "reasoningEffort",
     values: { low: "low", medium: "medium", high: "high", max: "max" },
