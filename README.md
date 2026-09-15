@@ -75,7 +75,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Output Shaper** — terseness injection + reasoning-effort dialing on resume turns
 - **Skill Nudger** — ephemeral skill suggestions when tool signals match the catalog
 - **Safe update pipeline** — guided OpenCode/OMO updates with approval gate, patch preservation, rollback, evidence-state discipline
-- **Patch-preservation infrastructure** — regression corpus (25 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
+- **Patch-preservation infrastructure** — regression corpus (28 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
 - **Live-config guard** — plugin blocking writes to the live OpenCode/OMO config surface from sessions outside this repo (2026-09-10/12 sandbox-leak incidents) + 30-min config-drift detection
 - **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
 - **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
@@ -93,7 +93,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Scripts** | 40 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check, smoke-boot gate, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
 | **Systemd** | 9 units | patch watcher, integrity check service + timer, integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), parked FLARE-4B server |
-| **Tests** | 111 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + 25-pair regression corpus (50 files) |
+| **Tests** | 111 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + 28-pair regression corpus (56 files) |
 | **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
@@ -262,7 +262,7 @@ Backups are retained indefinitely — clean old ones periodically (`rm -rf ~/.ez
 | Worktree state schema | [docs/worktree-state-schema.md](docs/worktree-state-schema.md) |
 | OMO v4.x config reference (vendored) | [docs/omo-config-reference.md](docs/omo-config-reference.md) |
 
-History (dated snapshots): [incidents & experiments](docs/history/incidents.md) · [DCP byte-budget (retired)](docs/history/dcp-byte-budget.md) · [update migration v1.14.28](docs/history/update-migration-v1.14.28.md) · [patch-management architecture review](docs/history/architecture-review-patch-management-2026-06-28.md)
+History (dated snapshots): [incidents & experiments](docs/history/incidents.md) · [DCP byte-budget (retired)](docs/history/dcp-byte-budget.md) · [update migration v1.14.28](docs/history/update-migration-v1.14.28.md) · [patch-management architecture review](docs/history/architecture-review-patch-management-2026-06-28.md) · [performance review of patch-preservation stack](docs/history/perf-review-patch-preservation-2026-09-15.md)
 
 ---
 
