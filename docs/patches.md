@@ -18,6 +18,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 | `opencode--sse-directory-filter-removal` — needs reimplementation for rewritten `event.ts` | active | false | [entry](../.sisyphus/patches/opencode--sse-directory-filter-removal.md) |
 | `opencode--tui-pinned-session-race` — v2 compiled in; awaiting live pin+prune verification | active | false | [entry](../.sisyphus/patches/opencode--tui-pinned-session-race.md) |
 | `opencode--tui-session-directory-scope` — session list + event store scoped to attach directory on the shared daemon; kills cross-dir session leakage (other `oa` terminals, /tmp global-project dirs); live A/B verified 2026-09-12 | active | true | [entry](../.sisyphus/patches/opencode--tui-session-directory-scope.md) |
+| `opencode--tui-pinned-session-window` — session dialog fetches pins by ID; Pinned section survives newest-100/30-day window pressure (2026-09-14 veran spam incident); live TUI verified 2026-09-15 | active | true | [entry](../.sisyphus/patches/opencode--tui-pinned-session-window.md) |
 
 ## OMO fork patches (fork base v4.19.2 at `~/oh-my-openagent-v4.19.2`)
 
