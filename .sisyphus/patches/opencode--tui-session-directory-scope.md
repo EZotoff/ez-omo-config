@@ -157,3 +157,7 @@ Upstream: make the TUI's `sessionListQuery` directory-scoped on shared daemons a
 filter global-event store inserts by event directory (or give the global /event
 endpoint a directory filter opt-in). Both changes are small and generally useful
 for the multi-TUI/single-daemon deployment model; not yet filed.
+
+## Related Patches
+
+`opencode--tui-pinned-session-window` (2026-09-14) opened a `session.get`-by-ID path that bypassed this patch's invariant (foreign pins re-leaked into the dialog); closed by `opencode--tui-pin-directory-guard` (2026-09-15) with the owner's strict policy: foreign-directory pins are hidden everywhere and remain visible only in the TUI of their own directory.
