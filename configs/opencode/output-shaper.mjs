@@ -26,9 +26,9 @@ export default async function outputShaperPlugin(ctx) {
     "chat.params": async (input, output) => {
       const providerID = input.model?.providerID;
       const modelID = input.model?.id;
-      // Skip excluded providers (anthropic, github-copilot) and any provider
-      // not in CLAMP_TABLE (unknown providers)
-      if (!isTargetModel(providerID)) return;
+      // Skip excluded providers (anthropic, github-copilot), providers not in
+      // CLAMP_TABLE, and models outside a provider's allowlist
+      if (!isTargetModel(providerID, modelID)) return;
       const sessionID = input.sessionID;
       if (!sessionID) return;
       // Only dial thinking on resume-after-tool-result turns; new-question
@@ -38,7 +38,8 @@ export default async function outputShaperPlugin(ctx) {
       const clamp = getClampOptions(providerID, config.resumeThinkingLevel);
       if (!clamp) return;
       output.options[clamp.field] = clamp.value;
-      logInfo(`Clamped ${providerID}/${modelID} resume turn: ${clamp.field}=${clamp.value}`);
+      const valueStr = typeof clamp.value === "string" ? clamp.value : JSON.stringify(clamp.value);
+      logInfo(`Clamped ${providerID}/${modelID} resume turn: ${clamp.field}=${valueStr}`);
     },
     // Push static terseness instruction into output.system (all providers)
     "experimental.chat.system.transform": async (input, output) => {

@@ -120,6 +120,8 @@ async function clearTestConfig() {
 
 // Shared clamp runner: resume turn on a target provider must set the
 // provider-specific option to the expected value via the real chat.params hook.
+// `expectedValue` may be an object (e.g. google thinkingConfig) — compared
+// by JSON to tolerate key order.
 async function runClampCase(caseName, providerID, modelID, expectedField, expectedValue) {
   await setTestConfig({ enabled: true, logLevel: "silent" });
   try {
@@ -129,12 +131,17 @@ async function runClampCase(caseName, providerID, modelID, expectedField, expect
     const hooks = await plugin(ctx);
     const output = makeParamsOutput();
     await hooks["chat.params"](makeParamsInput(providerID, modelID), output);
-    if (output.options[expectedField] !== expectedValue) {
+    const got = output.options[expectedField];
+    const ok =
+      typeof expectedValue === "object"
+        ? JSON.stringify(got) === JSON.stringify(expectedValue)
+        : got === expectedValue;
+    if (!ok) {
       fail(
         `${caseName}: expected ${expectedField}=${JSON.stringify(expectedValue)}, got ${JSON.stringify(output.options)}`
       );
     }
-    pass(`${caseName} — ${providerID} resume turn clamped ${expectedField}=${JSON.stringify(expectedValue)}`);
+    pass(`${caseName} — ${providerID}/${modelID} resume turn clamped ${expectedField}=${JSON.stringify(expectedValue)}`);
   } finally {
     await clearTestConfig();
   }
@@ -256,39 +263,71 @@ async function runNewQuestionNotClamped() {
   }
 }
 
-async function runCasingSnakeVsCamel() {
+// Regression guard for the 2026-08/09 silent no-op bug: the plugin must use
+// the OpenCode providerOptions vocabulary (AI SDK option names), never raw
+// HTTP body parameter names. A snake_case `reasoning_effort` option is
+// dropped by the @ai-sdk/openai-compatible Zod schema and never reaches the
+// provider; a top-level `thinkingLevel` string is dropped for google the
+// same way. Every clampable provider must set exactly its vocabulary key.
+async function runOptionVocabulary() {
   await setTestConfig({ enabled: true, logLevel: "silent" });
   try {
     const mod = await import(PLUGIN_PATH);
     const plugin = mod.default;
     const cases = [
-      { providerID: "zai-coding-plan", modelID: "glm-5.3", field: "reasoning_effort", value: "low" },
-      { providerID: "kimi-for-coding-oauth", modelID: "kimi-for-coding", field: "reasoning_effort", value: "low" },
-      { providerID: "deepseek", modelID: "deepseek-v4-flash", field: "reasoning_effort", value: "low" },
+      { providerID: "zai-coding-plan", modelID: "glm-5.3", field: "reasoningEffort", value: "low" },
+      { providerID: "kimi-for-coding-oauth", modelID: "kimi-for-coding", field: "reasoningEffort", value: "low" },
+      { providerID: "kimi-for-coding-oauth", modelID: "k3", field: "reasoningEffort", value: "low" },
+      { providerID: "deepseek", modelID: "deepseek-flash", field: "reasoningEffort", value: "low" },
+      { providerID: "opencode-go", modelID: "deepseek-v4-flash", field: "reasoningEffort", value: "low" },
+      { providerID: "ollama-cloud", modelID: "deepseek-v4-pro:0813", field: "reasoningEffort", value: "low" },
       { providerID: "openai", modelID: "gpt-5.6-sol", field: "reasoningEffort", value: "low" },
-      { providerID: "google", modelID: "gemini-3.1-pro-preview", field: "thinkingLevel", value: "low" },
+      { providerID: "google", modelID: "gemini-3.1-pro-preview", field: "thinkingConfig", value: { thinkingLevel: "low" } },
     ];
-    const snakeKeys = ["thinking_budget", "reasoning_effort"];
-    const camelKeys = ["reasoningEffort", "thinkingLevel"];
+    const droppedKeys = ["reasoning_effort", "thinking_budget", "thinkingLevel"];
 
     for (const c of cases) {
       const ctx = makeFakeCtx({ messages: resumeMessages() });
       const hooks = await plugin(ctx);
       const output = makeParamsOutput();
       await hooks["chat.params"](makeParamsInput(c.providerID, c.modelID), output);
-      if (output.options[c.field] !== c.value) {
+      const got = output.options[c.field];
+      const ok =
+        typeof c.value === "object"
+          ? JSON.stringify(got) === JSON.stringify(c.value)
+          : got === c.value;
+      if (!ok) {
         fail(
-          `casing-snake-vs-camel: ${c.providerID} expected ${c.field}=${JSON.stringify(c.value)}, got ${JSON.stringify(output.options)}`
+          `option-vocabulary: ${c.providerID}/${c.modelID} expected ${c.field}=${JSON.stringify(c.value)}, got ${JSON.stringify(output.options)}`
         );
       }
-      const foreignKeys = snakeKeys.includes(c.field) ? camelKeys : snakeKeys;
-      for (const k of foreignKeys) {
+      for (const k of droppedKeys) {
         if (k in output.options) {
-          fail(`casing-snake-vs-camel: ${c.providerID} set wrong-casing key ${k}`);
+          fail(`option-vocabulary: ${c.providerID}/${c.modelID} set non-vocabulary key ${k}`);
         }
       }
     }
-    pass("casing-snake-vs-camel — openai-compatible providers use snake_case, native providers use camelCase");
+    pass("option-vocabulary — every clampable provider sets only AI-SDK-vocabulary option keys (no snake_case body params)");
+  } finally {
+    await clearTestConfig();
+  }
+}
+
+// ollama-cloud carries a model allowlist: minimax-m3 must NOT be clamped
+// (live A/B 2026-09-15: reasoning_effort increased its reasoning).
+async function runOllamaM3NotClamped() {
+  await setTestConfig({ enabled: true, logLevel: "silent" });
+  try {
+    const mod = await import(PLUGIN_PATH);
+    const plugin = mod.default;
+    const ctx = makeFakeCtx({ messages: resumeMessages() });
+    const hooks = await plugin(ctx);
+    const output = makeParamsOutput();
+    await hooks["chat.params"](makeParamsInput("ollama-cloud", "minimax-m3"), output);
+    if (Object.keys(output.options).length !== 0) {
+      fail(`ollama-m3-not-clamped: expected options untouched, got ${JSON.stringify(output.options)}`);
+    }
+    pass("ollama-m3-not-clamped — ollama-cloud model outside allowlist left options untouched");
   } finally {
     await clearTestConfig();
   }
@@ -384,7 +423,7 @@ async function main() {
   if (!testCase) {
     console.error("Usage: node harness.mjs --case <case-name>");
     console.error(
-      "Cases: terseness-injected, terseness-static, glm-resume-clamped, kimi-resume-clamped, gpt-resume-clamped, gemini-resume-clamped, claude-resume-not-clamped, copilot-resume-not-clamped, new-question-not-clamped, casing-snake-vs-camel, fail-closed-no-config, disabled-config"
+      "Cases: terseness-injected, terseness-static, glm-resume-clamped, kimi-resume-clamped, gpt-resume-clamped, gemini-resume-clamped, ollama-dsv4-clamped, ollama-m3-not-clamped, deepseek-clamped, opencode-go-clamped, claude-resume-not-clamped, copilot-resume-not-clamped, new-question-not-clamped, option-vocabulary, fail-closed-no-config, disabled-config"
     );
     process.exit(1);
   }
@@ -397,16 +436,30 @@ async function main() {
       await runTersenessStatic();
       break;
     case "glm-resume-clamped":
-      await runClampCase("glm-resume-clamped", "zai-coding-plan", "glm-5.3", "reasoning_effort", "low");
+      await runClampCase("glm-resume-clamped", "zai-coding-plan", "glm-5.3", "reasoningEffort", "low");
       break;
     case "kimi-resume-clamped":
-      await runClampCase("kimi-resume-clamped", "kimi-for-coding-oauth", "kimi-for-coding", "reasoning_effort", "low");
+      await runClampCase("kimi-resume-clamped", "kimi-for-coding-oauth", "kimi-for-coding", "reasoningEffort", "low");
       break;
     case "gpt-resume-clamped":
       await runClampCase("gpt-resume-clamped", "openai", "gpt-5.6-sol", "reasoningEffort", "low");
       break;
     case "gemini-resume-clamped":
-      await runClampCase("gemini-resume-clamped", "google", "gemini-3.1-pro-preview", "thinkingLevel", "low");
+      await runClampCase(
+        "gemini-resume-clamped", "google", "gemini-3.1-pro-preview", "thinkingConfig", { thinkingLevel: "low" }
+      );
+      break;
+    case "ollama-dsv4-clamped":
+      await runClampCase("ollama-dsv4-clamped", "ollama-cloud", "deepseek-v4-pro:0813", "reasoningEffort", "low");
+      break;
+    case "ollama-m3-not-clamped":
+      await runOllamaM3NotClamped();
+      break;
+    case "deepseek-clamped":
+      await runClampCase("deepseek-clamped", "deepseek", "deepseek-flash", "reasoningEffort", "low");
+      break;
+    case "opencode-go-clamped":
+      await runClampCase("opencode-go-clamped", "opencode-go", "deepseek-v4-flash", "reasoningEffort", "low");
       break;
     case "claude-resume-not-clamped":
       await runClaudeResumeNotClamped();
@@ -417,8 +470,8 @@ async function main() {
     case "new-question-not-clamped":
       await runNewQuestionNotClamped();
       break;
-    case "casing-snake-vs-camel":
-      await runCasingSnakeVsCamel();
+    case "option-vocabulary":
+      await runOptionVocabulary();
       break;
     case "fail-closed-no-config":
       await runFailClosedNoConfig();

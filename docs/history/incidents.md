@@ -68,3 +68,14 @@ Network egress was degraded to about 130 kbps. The background models.dev refresh
 Four defenses now cover this incident class: watcher coverage for OMO `dist/` writes (`7f7f20b`), integrity-check `OnFailure` alerting (`ea67550`), a fresh-boot smoke gate (`f099af7`), and an exact md-table-formatter plugin pin (`ea67550`). The watcher treats verified rebuild and patch-reapply flows as expected dist writes, while other writes are suspect. The smoke gate proves a fresh boot, plugin loading, agent resolution, and a completed model loop rather than relying on file-pattern checks alone.
 
 Root-cause claims now require fix-then-reproduce verification before handoff. A localized error is not proof of causality, especially when the runtime catches and continues after reporting it.
+
+
+## Output-shaper clamp silent no-op (2026-09-15, present since 2026-08-07)
+
+The output-shaper's reasoning-effort dialing produced zero token savings on most providers for ~5 weeks. Measurement (before/after averages on resume turns, input-size-matched, ~122k messages from `opencode.db` + 60k clamp events from `output-shaper.log`) showed −60% reasoning tokens for `openai/gpt-5.6-*` but nothing for zai/opencode-go/kimi/google — despite 73% of clamp volume targeting zai.
+
+Root cause: the plugin wrote snake_case `reasoning_effort` (and top-level `thinkingLevel` for google) into `chat.params` `output.options`, but that object flows into AI SDK `providerOptions`, whose `@ai-sdk/openai-compatible` Zod schema accepts ONLY camelCase `reasoningEffort` (mapped to body `reasoning_effort`). Snake_case keys were silently dropped — the clamp never reached the wire. ollama-cloud DeepSeek models were additionally missing from CLAMP_TABLE entirely. The one working row (`openai`) worked because it already used the correct `reasoningEffort` spelling; kimi-for-coding (K2.7) partially worked because the `opencode-kimi-full` plugin reads both casings.
+
+Fix: CLAMP_TABLE now uses OpenCode providerOptions vocabulary (`reasoningEffort` everywhere, `thinkingConfig: { thinkingLevel }` for google), adds ollama-cloud with a DeepSeek-only model allowlist (live A/B showed `reasoning_effort` INCREASES minimax-m3 reasoning erratically), and `isTargetModel()` takes a model id for allowlist gating. Live endpoint A/B (`/tmp/opencode/ab_test_reasoning.py`, 2026-09-15): zai glm-5.3/flash `reasoning_effort:"low"` cuts reasoning 106–172 tok → 0; ollama.com/v1 deepseek-v4-pro:0813 ≈ halves reasoning; regression guard is the `option-vocabulary` harness case.
+
+Lesson: plugins writing `chat.params` options must use the AI SDK option vocabulary (see `provider/transform.ts` `reasoningEffort()` for the per-provider shapes), never raw HTTP body parameter names — and the old `casing-snake-vs-camel` harness case had enshrined the exact inverse assumption.
