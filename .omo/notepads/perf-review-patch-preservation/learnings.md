@@ -70,3 +70,9 @@ _Auto-scaffolded by /start-work. Append new entries below - never overwrite._
 - Watcher 105,902 B/day = 105.9 KB/day lands just inside the DEGRADED band (100–500); RSS and suspect-class sub-verdicts are WORKS (burst fully mapped to 2026-09-14/15 reapply events).
 - Consistency check: recompute.py re-derives all 8 rows from raw JSON/TSV evidence → 8/8 AGREE, 100%, rc=0 (task-7/consistency-check.log).
 - Evidence: .sisyphus/evidence/perf-review-patch-preservation/{analysis/verdict-matrix.md, task-7/{consistency-check.log, gaps-section.md, recompute.py}}
+
+## Task 8 — decision-framework report authored (2026-09-16)
+- Report: docs/history/perf-review-patch-preservation-2026-09-15.md (2664 words, 6 sections, all acceptance assertions PASS — see task-8/report-validation.log).
+- Primary recommendations: verify-pipeline tune (worktree-artifact suppression) · timer-cadence BLOCKED on host-awake denominator (no defaulted verb, per task-7/gaps-section.md) · watcher keep (105.9 KB/day is 6% over line, RSS+err-class WORKS) · corpus consolidate (11 ORPHAN retire/reclassify pass + README 25→28 fix) · registry instrument-more (--schema-all for non-active entries; 3 doc mismatches) · alert-delivery keep (channel sound; volume owned by signal tune) · alert-signal tune (autoclear-on-green first, then near-commit suppression) · fork/binary tune (park oc tree on v1.18.5 tag, resolve sse-directory-filter-removal dep_version).
+- AGENTS.md corpus mention (lines 217/229) recorded as instruction-file scope, excluded from doc-mismatch census; count drift lives in README.md:78.
+- Validation: 6 '## ' sections; 7 verb components from allowed set; 0 missing evidence paths; 2664 words.
