@@ -1,0 +1,29 @@
+=== fresh-run timing: verify-live-patches.sh x3 ===
+0
+run 1 rc=1 time=Command exited with non-zero status 1
+13.54
+0
+0
+run 2 rc=1 time=Command exited with non-zero status 1
+13.64
+0
+0
+run 3 rc=1 time=Command exited with non-zero status 1
+13.38
+0
+=== fresh-run timing: tests/test_patch_entries.sh x3 ===
+0
+run 1 rc=0 time=0.35
+0
+0
+run 2 rc=0 time=0.33
+0
+0
+run 3 rc=0 time=0.32
+0
+=== error-path scenario ===
+rc=1
+9
+/tmp/opencode/task-t1/err.out:0
+/tmp/opencode/task-t1/err.rc:0
+alert mtime before=1789513015 after=1789513015 identical=yes
