@@ -22,6 +22,7 @@ STATE_DIR="${XDG_STATE_DIR:-$HOME/.local/share/opencode}/restart-continuations"
 DEFAULT_PROMPT="The OpenCode server was restarted for maintenance and your previous turn was interrupted. Continue exactly where you left off."
 
 SERVICE_UNIT="${SERVICE_UNIT:-opencode.service}"
+MAX_AGE_SECONDS="${MAX_AGE_SECONDS:-86400}"
 RESTART=false
 RESUME_ONLY=false
 PROMPT="$DEFAULT_PROMPT"
@@ -74,32 +75,53 @@ log() { printf '[restart-continuation] %s\n' "$*"; }
 
 # --- Snapshot -------------------------------------------------------------
 snapshot() {
-  local sessions out dirs tmpstatus tmpsessions
-  sessions="$(api GET "/session?limit=200")"
-  # /session/status is instance-scoped: query it once per distinct session directory.
-  dirs="$(printf '%s' "$sessions" | python3 -c 'import json,sys; print("\n".join(sorted({s.get("directory","") for s in json.load(sys.stdin)})))')"
+  local out dirs d tmpstatus tmpdir
+  # /session and /session/status are INSTANCE-SCOPED on the HTTP API: the global list
+  # only covers the server's root directory, so directory discovery comes straight from
+  # the shared session DB (read-only). Only RECENTLY updated dirs are queried — a
+  # busy/retry session is by definition recently updated, and sweeping stale bench/tmp
+  # dirs is slow enough to race the very turns being snapshotted (2026-09-16 failure).
+  dirs="$(MAX_AGE="$MAX_AGE_SECONDS" python3 - <<'PYEOF'
+import os, sqlite3, time
+db = os.path.expanduser("~/.local/share/opencode/opencode.db")
+con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+cutoff = (time.time() - float(os.environ["MAX_AGE"])) * 1000
+rows = con.execute(
+    "select distinct directory from session "
+    "where time_updated >= ? and time_archived is null and directory != ''", (cutoff,))
+print("\n".join(sorted(r[0] for r in rows)))
+PYEOF
+)"
+  [[ -n "$dirs" ]] || { echo "ERROR: no recently-active session directories found in DB" >&2; return 1; }
   mkdir -p "$STATE_DIR"
   out="${STATE_FILE:-$STATE_DIR/snapshot-$(date +%Y%m%d-%H%M%S).json}"
-  tmpstatus="$(mktemp)" tmpsessions="$(mktemp)"
-  printf '%s' "$sessions" > "$tmpsessions"
+  tmpstatus="$(mktemp)" tmpdir="$(mktemp -d)"
   : > "$tmpstatus"
-  local d
+  local i=0 st
   while IFS= read -r d; do
     [[ -n "$d" ]] || continue
-    local st
-    st="$(api GET "/session/status?directory=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "$d")" || true)"
-    [[ -n "$st" ]] && printf '%s' "$st" >> "$tmpstatus" && echo >> "$tmpstatus"
+    i=$((i + 1))
+    local enc="$d"
+    enc="$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "$d")"
+    st="$(api GET "/session/status?directory=$enc" || true)"
+    [[ -n "$st" ]] && printf '%s\n' "$st" >> "$tmpstatus"
+    api GET "/session?directory=$enc&limit=100" > "$tmpdir/sessions-$i.json" 2>/dev/null || true
   done <<< "$dirs"
-  STATUS_FILE="$tmpstatus" SESSIONS_FILE="$tmpsessions" OUT="$out" python3 - <<'PYEOF'
-import json, os, time
+  STATUS_FILE="$tmpstatus" SESSIONS_DIR="$tmpdir" OUT="$out" python3 - <<'PYEOF'
+import glob, json, os, time
 merged = {}
 for line in open(os.environ["STATUS_FILE"]):
     line = line.strip()
-    if not line:
-        continue
-    merged.update(json.loads(line))
+    if line:
+        merged.update(json.loads(line))
 status = merged
-sessions = json.load(open(os.environ["SESSIONS_FILE"]))
+sessions = []
+for f in glob.glob(os.path.join(os.environ["SESSIONS_DIR"], "sessions-*.json")):
+    try:
+        data = json.load(open(f))
+        sessions.extend(data if isinstance(data, list) else [])
+    except (ValueError, OSError):
+        pass
 active_types = {"busy", "retry"}
 busy_ids = {sid for sid, st in status.items() if st.get("type") in active_types}
 by_id = {s["id"]: s for s in sessions}
@@ -191,7 +213,7 @@ if [[ "$RESTART" != true ]]; then
   exit 0
 fi
 
-log "restarting opencode.service"
+log "restarting $SERVICE_UNIT"
 systemctl --user restart "$SERVICE_UNIT"
 wait_ready
 resume "$(ls -t "$STATE_DIR"/snapshot-*.json 2>/dev/null | head -1 || echo "$STATE_FILE")"
