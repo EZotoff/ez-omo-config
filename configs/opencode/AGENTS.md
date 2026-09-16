@@ -81,6 +81,33 @@ If a tool, plugin, skill, or proposal requires `--bare` or `ANTHROPIC_API_KEY`, 
 
 Reference: wisdom entry `20260729-<id>` (search wisdom with `~/.sisyphus/scripts/wisdom-search.sh "claude subscription bare"`).
 
+## Session-safe OpenCode server restarts (2026-09-16)
+
+Two `opencode serve` instances run as systemd user services. Restarting either kills in-flight turns. **Never bare-restart when sessions may be active** — use the continuation script so active top-level sessions are snapshotted and resumed with a continuation prompt:
+
+| Service | URL | Auth env file |
+|---------|-----|---------------|
+| `opencode.service` (headless) | `http://127.0.0.1:3021` | `~/.config/opencode/serve.env` |
+| `opencode-interactive.service` (desktop TUI attach / OC Beacon) | `http://127.0.0.1:3030` | `~/.config/opencode/serve-interactive.env` |
+
+```bash
+# Default flags target opencode.service (dry-run: snapshot only, no restart):
+~/ez-omo-config/scripts/restart-with-continuation.sh
+
+# Full restart + resume, interactive server:
+PW=$(grep ^OPENCODE_SERVER_PASSWORD= ~/.config/opencode/serve-interactive.env | cut -d= -f2-)
+systemd-run --user --unit=restart-cont-$(date +%s) bash -c \
+  '~/ez-omo-config/scripts/restart-with-continuation.sh --restart \\
+     --service opencode-interactive.service --url http://127.0.0.1:3030 \\
+     --password "$PW" >> ~/.local/share/opencode/restart-continuations/restart.log 2>&1'
+```
+
+- **Plain invocation is a dry-run** (snapshot only). Add `--restart` to actually restart and resume; `--resume-only --state-file <snapshot.json>` re-injects from a saved snapshot.
+- **Detached launch is mandatory when the calling session rides the target server**: the bash tool subprocess is a child of the server process, and the systemd cgroup kill during restart terminates it mid-run (leaving the server stopped). `systemd-run --user` puts the script in its own cgroup.
+- Snapshot mechanics: `/session` and `/session/status` are **instance-scoped** (the global list misses other directories; status needs `?directory=`), so the script discovers recently-active directories from the shared session DB (read-only sqlite) and queries each. `busy` and `retry` sessions are captured; `retry` is deliberate — a restart wipes in-memory retry schedules, so those sessions need the kick. Injection is `POST /session/:id/prompt_async`.
+- Snapshots and logs: `~/.local/share/opencode/restart-continuations/`. Never echo the server passwords.
+- After any restart, verify: `ps -eo pid,lstart,args | grep 'opencode serve'` shows a fresh start time.
+
 ## Platform support
 
 This config installs on **Linux (native)**, **macOS (native, Homebrew Bash 4.3+ required — stock `/bin/bash` is 3.2 and cannot run the wisdom scripts)**, and **Windows (via WSL only)**. OpenCode resolves config paths against `os.homedir()` on every OS, so install targets (`~/.config/opencode/`, `~/.opencode/`, `~/.local/share/opencode/`, `~/.sisyphus/`) never need platform-specific remapping. On macOS run `brew install bash bun jq python` first. On Windows run the installer **inside WSL** — Git Bash, Cygwin, and native PowerShell are not supported and `install.sh` will exit with a WSL setup link.
