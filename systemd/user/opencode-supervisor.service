@@ -6,7 +6,7 @@ Wants=opencode.service
 
 [Service]
 Type=simple
-EnvironmentFile=%h/.config/openchamber/openchamber.env
+EnvironmentFile=%h/.config/opencode/serve.env
 ExecStart=%h/.bun/bin/bun run %h/ez-omo-config/supervisor/src/main.ts
 Restart=on-failure
 RestartSec=5

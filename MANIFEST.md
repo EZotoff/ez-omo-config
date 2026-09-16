@@ -289,6 +289,7 @@ These Python helpers and config files support stack health, drift detection, and
 | `scripts/patch-guard.py` | Guard active patch install targets against forbidden stack zones |
 | `scripts/path-classifier.py` | Classify canonical stack paths against `configs/stack-locations.json` |
 | `scripts/secrets-path-audit.py` | Fail closed when tracked paths look like secrets or auth material |
+| `scripts/restart-with-continuation.sh` | Snapshot active top-level sessions (per-directory `GET /session/status`), restart `opencode.service`, then re-inject a continuation prompt via `POST /session/:id/prompt_async`. Auth: `~/.config/opencode/serve.env` |
 | `scripts/source-identity-check.py` | Report package and git identity for a source checkout |
 | `scripts/legacy-name-classifier.py` | Classify legacy OpenCode/OMO naming occurrences in the config repo |
 
