@@ -1,0 +1,29 @@
+{
+  "runs_paired": 427,
+  "p50_s": 6.33,
+  "p95_s": 9.3,
+  "max_s": 18.83,
+  "mean_s": 6.89,
+  "cadence_median_min": 30.05,
+  "fail_total": 118,
+  "fail_verify_stale": 96,
+  "fail_drift": 22,
+  "fail_both": 0,
+  "fail_transient_share": 0.161,
+  "fresh_run_median_s": 13.54,
+  "schema_only_median_s": 0.33,
+  "journal_coverage": {
+    "window_days": 14,
+    "disk_usage": "4.0G",
+    "first_retained_line_utc": "2026-09-03T12:55:57.738418",
+    "note": "full 14d retention available; runs_paired=427 within 250..672 acceptance band"
+  },
+  "notes": {
+    "attribution_method": "content-based (Summary line + LIVE-CONFIG DRIFT + VERSION-DRIFT rows); syslog script prefixes absent from journal MESSAGE field",
+    "reconciliation": "fail_verify_stale + fail_drift - fail_both = 118 vs fail_total 118 (delta 0)",
+    "fail_other": 0,
+    "planning_baseline_vs_live": "planning said 101/301 fails, ~57 stale ~15 drift; live journal shows 118/427, 96 verify-stale(incl missing-target), 22 drift",
+    "fresh_run_rc": "fresh verify-live-patches rc=1 in worktree (1 stale + 1 missing-target in worktree checkout) \u2014 expected, timings still valid",
+    "concurrent_agents": "configs/ dirty-count stayed 0 before/after every timing run; no concurrent interference observed"
+  }
+}

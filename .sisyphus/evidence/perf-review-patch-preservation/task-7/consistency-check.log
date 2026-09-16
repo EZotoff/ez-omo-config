@@ -1,0 +1,13 @@
+Task 7 consistency check — recompute from raw evidence vs verdict-matrix.md
+evidence root: /home/ezotoff/.local/share/opencode/worktree/0b1af5b8f6ef97a33ba5e5479cde1a1c29c16dc7/plan/perf-review-patch-preservation/.sisyphus/evidence/perf-review-patch-preservation
+row 1 [verify-pipeline]: recomputed=BROKEN matrix=BROKEN AGREE  (p95=9.3->WORKS, fail_rate=0.2319(23.19%)->BROKEN)
+row 2 [timer-cadence]: recomputed=UNKNOWN matrix=UNKNOWN AGREE  (dur_share=0.0038(<0.25:True), naive_cov=0.6365, host-awake denominator MISSING)
+row 3 [watcher]: recomputed=DEGRADED matrix=DEGRADED AGREE  (kb/day=105.9->DEGRADED, rss_ok=True->WORKS, unexplained=0->WORKS)
+row 4 [corpus]: recomputed=DEGRADED matrix=DEGRADED AGREE  (wall=9.45s->WORKS, orphans=11, non_active=0->DEGRADED)
+row 5 [registry]: recomputed=WORKS matrix=WORKS AGREE  (unjustified>30d=0, stale_claims=0)
+row 6 [alert-delivery]: recomputed=BROKEN matrix=BROKEN AGREE  (fires/day observed=11.06, naive=5.286 -> BROKEN / BROKEN (both >1/day))
+row 7 [alert-signal]: recomputed=DEGRADED matrix=DEGRADED AGREE  (fp_share=0.2703)
+row 8 [fork-binary]: recomputed=DEGRADED matrix=DEGRADED AGREE  (oc_branch=fix/tui-pin-directory-guard-v1.18.5 (release tag: False), misalignment=1)
+
+rows=8 agree=8 agreement=100%
+RESULT: PASS
