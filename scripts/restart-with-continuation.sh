@@ -21,6 +21,7 @@ set -euo pipefail
 STATE_DIR="${XDG_STATE_DIR:-$HOME/.local/share/opencode}/restart-continuations"
 DEFAULT_PROMPT="The OpenCode server was restarted for maintenance and your previous turn was interrupted. Continue exactly where you left off."
 
+SERVICE_UNIT="${SERVICE_UNIT:-opencode.service}"
 RESTART=false
 RESUME_ONLY=false
 PROMPT="$DEFAULT_PROMPT"
@@ -33,6 +34,7 @@ while [[ $# -gt 0 ]]; do
     --prompt) PROMPT="$2"; shift ;;
     --state-file) STATE_FILE="$2"; shift ;;
     --url) OPENCODE_URL="$2"; shift ;;
+    --service) SERVICE_UNIT="$2"; shift ;;
     --password) CLI_PASSWORD="$2"; shift ;;
     --username) OPENCODE_SERVER_USERNAME="$2"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -190,6 +192,6 @@ if [[ "$RESTART" != true ]]; then
 fi
 
 log "restarting opencode.service"
-systemctl --user restart opencode.service
+systemctl --user restart "$SERVICE_UNIT"
 wait_ready
 resume "$(ls -t "$STATE_DIR"/snapshot-*.json 2>/dev/null | head -1 || echo "$STATE_FILE")"
