@@ -28,7 +28,7 @@
       "paths": [
         "~/ez-omo-config/.omo"
       ],
-      "notes": "Repository-root .omo is forbidden and must never be created or treated as valid state."
+      "notes": "Repository-root .omo is forbidden and must never be created or treated as valid state. See known_exceptions for the documented live-state acknowledgment."
     },
     "planning_state": {
       "writable": true,
@@ -51,6 +51,20 @@
       ],
       "notes": "Oh-My-OpenAgent source checkout."
     },
+    "runtime_fork": {
+      "writable": true,
+      "paths": [
+        "~/oh-my-openagent-v4.19.2"
+      ],
+      "notes": "Published OMO runtime fork (upstream v4.19.2 + tracked patches); canonical runtime loaded by opencode.json."
+    },
+    "opencode_source_plane": {
+      "writable": true,
+      "paths": [
+        "~/src/opencode"
+      ],
+      "notes": "OpenCode source checkout used to build the patched live binary from release tags."
+    },
     "runtime_plane": {
       "writable": true,
       "paths": [
@@ -67,5 +81,15 @@
       ],
       "notes": "Live config/plugin targets managed by install.sh; direct writes are denied by default."
     }
-  }
+  },
+  "known_exceptions": [
+    {
+      "path": "~/ez-omo-config/.omo",
+      "plane": "forbidden_zone",
+      "status": "acknowledged_drift",
+      "recorded": "2026-09-15",
+      "recorded_by": "perf-review-wisdom-operator-tools plan, Task 18",
+      "reason": "Declared forbidden but exists as live OMO planning/execution state (49 plans / 95 evidence / 22 notepads; gitignored via .gitignore, so the never-commit intent is enforced by git, not by this classification). Kept in forbidden_zone because tests/test_stack_path_classifier.sh pins .omo to forbidden_zone / writable=false / --strict failure; reclassification to a writable repo_runtime_state plane is blocked until that test contract changes. Consequence: stack-doctor.py repo_root_omo blocking finding REMAINS by design (documented here, not silently wrong)."
+    }
+  ]
 }
