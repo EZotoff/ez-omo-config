@@ -252,3 +252,13 @@ Three-layer defense against patch drift (Track B v2):
 5. Structural fixes are mandatory for new bash/python tooling: `set -euo pipefail` for bash, `subprocess.run([...])` list-form for Python, no string interpolation into Python source.
 6. Cutover commits must not delete `surfaces`, `runtime_effective`, or collapse `target_file` from specific source files to a generic value. The schema validator (layer 5) enforces this structurally — `bash tests/test_patch_entries.sh` must pass before merge. This was added after commit `7b7bb19` destructively edited `opencode--turn-summary-timestamp.md` (deleted `surfaces`, collapsed 7-file `target_file` to `"opencode"`) and the damage went undetected until a manual audit.
 7. After any opencode binary upgrade, ALL active patches must be reconciled in the SAME commit/PR. The drift gate (`tests/test_patch_versions.sh`) fails on unresolved VERSION-DRIFT — patches whose `dep_version` doesn't match the live binary AND have no `runtime_effective: false` flag. For each drifted patch: EITHER bump `dep_version` + set `runtime_effective: true` (verified effective), OR set `runtime_effective: false` with a justification (becomes ACKNOWLEDGED-DRIFT, exempt from the gate). This closed loop was added after the v1.17.9→v1.18.5 cutover left 4 patches at `dep_version: 1.17.9-local` for 10+ days with nobody noticing.
+
+
+## Shell hygiene for bash tool calls
+
+The bash tool owns each command's process group and kills the WHOLE group (nohup included) on timeout or abort — by design. Follow these rules:
+
+1. **No polling inside tool calls.** No `sleep`-loops, `tail -f`, or wait-for-future-state commands. Use one fast, sub-second probe per turn (or per continuation nudge) and check again next turn.
+2. **Long-running work must NOT rely on `nohup ... &` or bare `&`.** The owned group is killed with the call — `nohup` does not escape this. Use the `opencode durable-run` subcommand (once available) or a `systemd-run --user` transient service for jobs that must outlive a tool call. `setsid cmd </dev/null >log 2>&1 &` is best-effort only: it escapes the group-kill but is unowned and unsupervised.
+3. **Launch and verify in separate short tool calls.** Start the job in one call; confirm it (status, PID, log) in the next. Raise the tool timeout only for bounded foreground work.
+4. **Enforcement note.** The patched binary enforces group cleanup on timeout/abort; these rules are guidance, not the cleanup authority. Rationale: the 2026-09-15/17 orphaned-sleep/rsync incidents — full analysis in `.sisyphus/debates/bash-lifecycle-orphan-wedge/`.
