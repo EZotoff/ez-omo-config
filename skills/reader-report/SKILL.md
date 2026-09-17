@@ -161,11 +161,20 @@ Desktop is the primary reading surface; mobile (~700px and below) is the collaps
 
 | Lane | Content | Default container |
 |---|---|---|
-| Prose | Continuous reading text, executive core | 62–68ch centred |
+| Prose | Continuous reading text, executive core | measure column (62–68ch) with active margins — composed per the prose-composition rule |
 | Evidence | Tables, charts, code, finding+evidence pairs | up to ~1280px |
 | Wide | Dashboards, comparison matrices, timelines, wide data tables | up to ~1600px |
 
 **Decision rule — narrowest sufficient lane, content-typed by default.** Assign each section its lane by content type (table/chart/code → Evidence; matrix/dashboard/timeline → Wide; everything else → Prose). Depart from the typed default only when the content is legible in a narrower lane without truncation, compressed type, or avoidable horizontal scrolling — or needs a wider one for the same reason — and record the lane with a one-line reason in the design-system comment block next to the lane. Two hard rules: prose never stretches to match the page shell, and the widest section does not force narrower sections wide — the page shell is exactly as wide as the widest lane the report actually contains.
+
+**Prose composition on widescreen.** The Prose lane pins the *text block* at 62–68ch — that is reading physiology, not a page shape. What widescreen changes is what the margins do. An empty margin is a defect: a lone 64ch column floating in a 1600px viewport is not minimalism, it is an uncomposed page. Choose the composition by what the content carries:
+
+- **Marginalia** — main column at measure; the outer margin (~240–320px) carries sidenotes, pull-quotes, footnote pointers, and small figures next to the passage they annotate. Default for argumentative prose (decision docs, post-mortems, essays) that has asides, references, or numbers worth keeping in view. Margin notes fold inline below their anchor on narrow viewports.
+- **Companion rail** — a persistent adjacent column with orientation furniture: answer-card recap, key numbers, section nav, severity or epistemic-status legend. Default when the reader must hold context while reading long sections (decision reviews, findings reports). Folds above the body or into the header on narrow viewports.
+- **Modulated flow** — prose at measure punctuated by full-container bands: pull-quotes, charts, tables, code. The width rhythm is the composition; the page shell is sized by the widest band. Default for mixed prose+evidence reports.
+- **Wide reading** — measure extended toward the 75ch ceiling with a one-step type-size increase, centred with proportioned margins. Only for dense linear prose (specifications, legal, reference) where lateral eye travel is the cost and margins would otherwise sit empty. If no composition earns the margins, shrink the shell to the composed width instead.
+
+Rejected: CSS multi-column prose. Vertical scrolling breaks column reading order on screen; columns are a paper device. They may return only in paginated print stylesheets, never in the scrolled layout.
 
 **Mobile collapse (≤~700px):** single column; sidebar → compact header → drawer; wide tables become cards or scroll horizontally with intent; touch targets ≥44px; no hover-only functionality.
 
