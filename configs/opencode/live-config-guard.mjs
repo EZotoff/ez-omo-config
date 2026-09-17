@@ -199,8 +199,14 @@ const LiveConfigGuardPlugin = async (input) => {
 
   return {
     "tool.execute.before": async (toolInput, output) => {
+      const start = performance.now();
       let blockReason = null;
       let command = null;
+      // False-positive accounting (perf-review task 11): command_class=write
+      // means a block fired; read = bash-like pass that named a protected
+      // path (bashWriteIntent returned null); benign = file-tool pass. The
+      // block/(block+read) ratio derivable from these lines is the FP rate.
+      let guardMetric = null;
       try {
         const tool = toolInput?.tool;
         const args = output?.args ?? {};
@@ -208,24 +214,37 @@ const LiveConfigGuardPlugin = async (input) => {
 
         if (tool === "bash" || tool === "terminal") {
           command = args.command;
-          if (typeof command !== "string" || !command) return;
-          if (!hasProtectedSubstring(command)) return;
-          if (isRepoSession(candidateDirs)) return;
-          blockReason = bashWriteIntent(command);
+          if (typeof command === "string" && command &&
+              hasProtectedSubstring(command) && !isRepoSession(candidateDirs)) {
+            blockReason = bashWriteIntent(command);
+            if (!blockReason) guardMetric = "command_class=read";
+          }
         } else if (tool === "interactive_bash" || tool === "tmux") {
           command = args.tmux_command;
-          if (typeof command !== "string" || !command) return;
-          if (!hasProtectedSubstring(command)) return;
-          if (isRepoSession(candidateDirs)) return;
-          blockReason = bashWriteIntent(command);
+          if (typeof command === "string" && command &&
+              hasProtectedSubstring(command) && !isRepoSession(candidateDirs)) {
+            blockReason = bashWriteIntent(command);
+            if (!blockReason) guardMetric = "command_class=read";
+          }
         } else if (tool === "write" || tool === "edit") {
           const filePath = args.filePath;
-          if (typeof filePath !== "string" || !filePath) return;
-          if (isRepoSession(candidateDirs)) return;
-          blockReason = fileToolViolation(filePath);
-        } else {
-          return;
+          if (typeof filePath === "string" && filePath &&
+              !isRepoSession(candidateDirs)) {
+            blockReason = fileToolViolation(filePath);
+            if (!blockReason) guardMetric = "command_class=benign";
+          }
         }
+
+        if (blockReason) guardMetric = `block=${blockReason} command_class=write`;
+
+        // Instrumentation: emitted on every hook call, BEFORE any blocking
+        // throw propagates. dur_ms covers the classifier body only. log()
+        // never throws, so timing is fail-open.
+        log(
+          "info",
+          `hook=tool.execute.before dur_ms=${(performance.now() - start).toFixed(3)} tool=${toolInput?.tool} verdict=${blockReason ? "block" : "pass"}`,
+        );
+        if (guardMetric) log("info", `guard_metric ${guardMetric}`);
 
         if (blockReason) {
           log("warn", `BLOCKING (${blockReason}): ${String(command).slice(0, 300)}`);
