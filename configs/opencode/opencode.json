@@ -654,6 +654,9 @@
     },
     "inception": {
       "name": "Inception Labs",
+      "whitelist": [
+        "mercury-2.5"
+      ],
       "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "https://api.inceptionlabs.ai/v1",
