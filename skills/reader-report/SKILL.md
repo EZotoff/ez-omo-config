@@ -176,6 +176,8 @@ Desktop is the primary reading surface; mobile (~700px and below) is the collaps
 
 Rejected: CSS multi-column prose. Vertical scrolling breaks column reading order on screen; columns are a paper device. They may return only in paginated print stylesheets, never in the scrolled layout.
 
+**Table sizing — width fits content, not container.** `width: 100%` is not a table default. A text-dominant table caps its longest cell lines near the prose measure (~60ch): stretch a three-column text table across 1200px and the prose column reads at 90+ characters per line — a legibility failure the lane rule exists to prevent. Full-container width belongs to numeric matrices, dense multi-column grids, and tables that would truncate or scroll narrower. A fitted table is left-aligned; the ragged right edge shows the margin is deliberate, and generous cell padding (~14–18px horizontal) reads as padding only when the table is not stretched.
+
 **Mobile collapse (≤~700px):** single column; sidebar → compact header → drawer; wide tables become cards or scroll horizontally with intent; touch targets ≥44px; no hover-only functionality.
 
 **QA order for rendered reports:** primary desktop width → widest realistic content → 200% zoom → 360px/320px reflow → PDF export. Desktop-first changes design order, not the acceptance floor. Render-dependent steps run when a render/QA pipeline is available (the conditional QA tier caveat applies); the order never changes. Source-checkable without a pipeline: the lane-and-reason entry in the design-system comment.
