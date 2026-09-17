@@ -33,6 +33,26 @@ function rotateLogIfNeeded() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const retryMetrics = { matched: 0, dispatched: 0, fallback: 0, skipped: 0 };
+
+function startTiming() {
+  try { return process.hrtime.bigint(); } catch { return undefined; }
+}
+
+function logTiming(type, startedAt, ruleID) {
+  try {
+    if (startedAt === undefined) return;
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    log("info", `hook=event.${type} dur_ms=${durationMs.toFixed(3)} rule=${ruleID ?? "none"}`);
+  } catch {}
+}
+
+function logRetryMetrics() {
+  try {
+    log("info", `retry_metric matched=${retryMetrics.matched} dispatched=${retryMetrics.dispatched} fallback=${retryMetrics.fallback} skipped=${retryMetrics.skipped}`);
+  } catch {}
+}
+
 function log(level, msg) {
   const ts = new Date().toISOString();
   const line = `[${ts}] [${level}] ${msg}\n`;
@@ -464,7 +484,7 @@ async function dispatchCompactionFallback(ctx, input) {
       variant: "warning",
       duration: 10000,
     });
-    return;
+    return false;
   }
 
   const eligible = chain.filter((entry) => {
@@ -480,7 +500,7 @@ async function dispatchCompactionFallback(ctx, input) {
       variant: "error",
       duration: 10000,
     });
-    return;
+    return false;
   }
 
   const pick = eligible[0];
@@ -508,6 +528,7 @@ async function dispatchCompactionFallback(ctx, input) {
       auto: autoFlag !== false,
     },
   });
+  return true;
 }
 
 function isEmptyAssistantMessage(message) {
@@ -842,10 +863,20 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
 
       const error = getEventError(event);
       const errorMessage = getErrorMessage(error);
-      const registry = loadRegistry();
-      const matchedRule = findMatchingRule(errorMessage, registry);
+      const registryStartedAt = startTiming();
+      let matchedRule;
+      try {
+        const registry = loadRegistry();
+        matchedRule = findMatchingRule(errorMessage, registry);
+      } finally {
+        logTiming("registry_match", registryStartedAt, matchedRule?.id);
+      }
       if (!matchedRule) return;
-      log("info", `Error matched rule "${matchedRule.id}": ${errorMessage.substring(0, 100)}`);
+      retryMetrics.matched += 1;
+      let handledErrorDispatched = false;
+      let handledErrorFallback = false;
+      try {
+        log("info", `Error matched rule "${matchedRule.id}": ${errorMessage.substring(0, 100)}`);
       if (inFlightSessions.has(sessionID)) return;
       const originalAttemptState = attemptsBySession.get(sessionID);
       inFlightSessions.add(sessionID);
@@ -894,7 +925,13 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           return;
         }
 
-        const agentFallback = resolveAgentFallback(agent, model);
+        const fallbackStartedAt = startTiming();
+        let agentFallback;
+        try {
+          agentFallback = resolveAgentFallback(agent, model);
+        } finally {
+          logTiming("fallback_resolution", fallbackStartedAt, matchedRule.id);
+        }
 
         const failedAssistantMessageID = getFailedAssistantMessageID(event, messages);
         if (!failedAssistantMessageID) {
@@ -917,12 +954,13 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           const failedInfo = failedAssistant?.info ?? failedAssistant;
           if (failedInfo?.mode === "compaction" || failedInfo?.agent === "compaction") {
             handledErrorsBySession.set(sessionID, failedAssistantMessageID);
-            await dispatchCompactionFallback(ctx, {
+            handledErrorFallback = await dispatchCompactionFallback(ctx, {
               sessionID,
               failingModel: model,
               autoFlag: getCompactionAutoFlag(messages),
               compactionFallbackBySession,
             });
+            handledErrorDispatched = handledErrorFallback;
             return;
           }
           return;
@@ -981,6 +1019,8 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
                 parts: fallbackParts,
               },
             });
+            handledErrorDispatched = true;
+            handledErrorFallback = true;
           } else {
             const failingProviderID = model?.providerID ?? "unknown";
             log("warn", `Exhausted retries for "${matchedRule.id}" (${matchedRule.max_retries}/${matchedRule.max_retries}) — no fallback in agent "${agent ?? "unknown"}" chain for provider "${failingProviderID}"`);
@@ -1013,19 +1053,25 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
           log("info", `Sending nudge prompt (attempt ${nextAttempt}): "${nudgeParts[0].text.substring(0, 60)}..."`);
         }
 
-        await ctx.client.session.promptAsync({
-          path: { id: sessionID },
-          ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
-          body: {
-            ...(!useNudge && retryMessageID ? { messageID: retryMessageID } : {}),
-            ...(agent ? { agent } : {}),
-            ...(model ? { model } : {}),
-            ...(system ? { system } : {}),
-            ...(tools ? { tools } : {}),
-            ...(variant ? { variant } : {}),
-            parts: dispatchParts,
-          },
-        });
+        const dispatchStartedAt = startTiming();
+        try {
+          await ctx.client.session.promptAsync({
+            path: { id: sessionID },
+            ...(ctx.directory ? { query: { directory: ctx.directory } } : {}),
+            body: {
+              ...(!useNudge && retryMessageID ? { messageID: retryMessageID } : {}),
+              ...(agent ? { agent } : {}),
+              ...(model ? { model } : {}),
+              ...(system ? { system } : {}),
+              ...(tools ? { tools } : {}),
+              ...(variant ? { variant } : {}),
+              parts: dispatchParts,
+            },
+          });
+          handledErrorDispatched = true;
+        } finally {
+          logTiming("retry_dispatch", dispatchStartedAt, matchedRule.id);
+        }
         attemptsBySession.set(sessionID, buildAttemptState({
           tracked: current,
           fingerprint,
@@ -1052,6 +1098,12 @@ export const ProviderConnectRetryPlugin = async (ctx) => {
         });
       } finally {
         inFlightSessions.delete(sessionID);
+      }
+      } finally {
+        if (handledErrorDispatched) retryMetrics.dispatched += 1;
+        if (handledErrorFallback) retryMetrics.fallback += 1;
+        if (!handledErrorDispatched) retryMetrics.skipped += 1;
+        logRetryMetrics();
       }
     },
   };
