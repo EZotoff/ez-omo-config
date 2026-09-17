@@ -13,7 +13,9 @@ const patterns = [];
 for (const entry of registry.errors ?? []) {
   try {
     patterns.push(new RegExp(entry.pattern, "i"));
-  } catch {}
+  } catch {
+    process.stderr.write(`skipped malformed pattern: ${entry.pattern}\n`);
+  }
 }
 
 const representativeError = "Monthly usage limit reached while contacting the provider gateway";

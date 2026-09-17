@@ -11,10 +11,10 @@
 //     blocked from non-repo sessions; repo sessions exempt.
 //   - Internal errors fail open; only deliberate blocks throw.
 
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
 
 const PLUGIN_PATH = new URL("../../configs/opencode/live-config-guard.mjs", import.meta.url).pathname;
 
@@ -41,9 +41,25 @@ mkdirSync(OTHER_PROJECT);
 execFileSync("git", ["-C", OTHER_PROJECT, "init", "-q"]);
 
 // A worktree of the config repo must be exempt.
-const REPO_ROOT = new URL("../../", import.meta.url).pathname.replace(/\/$/, "");
+const REPO_CHECKOUT = new URL("../../", import.meta.url).pathname.replace(/\/$/, "");
+const REPO_COMMON_DIR = execFileSync(
+  "git",
+  ["-C", REPO_CHECKOUT, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+  { encoding: "utf8" },
+).trim();
+const REPO_ROOT = basename(REPO_COMMON_DIR) === ".git" ? dirname(REPO_COMMON_DIR) : REPO_COMMON_DIR;
 const WT = join(FIXTURES, "cfg-worktree");
-execFileSync("git", ["-C", REPO_ROOT, "worktree", "add", "-q", "--detach", WT, "HEAD"]);
+execFileSync("git", ["-C", REPO_CHECKOUT, "worktree", "add", "-q", "--detach", WT, "HEAD"]);
+const WT_TOPLEVEL = execFileSync("git", ["-C", WT, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+const WT_COMMON_DIR = execFileSync(
+  "git",
+  ["-C", WT, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+  { encoding: "utf8" },
+).trim();
+const WT_MAIN_ROOT = basename(WT_COMMON_DIR) === ".git" ? dirname(WT_COMMON_DIR) : WT_COMMON_DIR;
+if (WT_TOPLEVEL !== WT || WT_MAIN_ROOT !== REPO_ROOT) {
+  throw new Error("linked-worktree fixture does not share the configured repository identity");
+}
 // The plugin under test may be uncommitted; the worktree only needs to resolve
 // its toplevel, which does not depend on tracked state.
 
@@ -196,7 +212,7 @@ await expectPass(plugin, "read", { filePath: `${HOME}/.config/opencode/opencode.
 await expectPass(plugin, "bash", {}, "bash with no command passes");
 
 rmSync(FIXTURES, { recursive: true, force: true });
-execFileSync("git", ["-C", REPO_ROOT, "worktree", "remove", "--force", WT]);
+execFileSync("git", ["-C", REPO_CHECKOUT, "worktree", "remove", "--force", WT]);
 
 console.log(`\nlive-config-guard: ${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

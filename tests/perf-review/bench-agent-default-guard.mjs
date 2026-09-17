@@ -1,14 +1,12 @@
 // tests/perf-review/bench-agent-default-guard.mjs
-// Benchmarks the per-rewrite cost of agent-default-guard's readDefaultAgent():
-// readFileSync + JSON.parse of a synthetic opencode.json-shaped config.
-// readDefaultAgent is module-private, so this benches the identical operation
-// (fs read + JSON.parse + default_agent extraction) against a synthetic config
-// file sized like the real one. Picked up automatically by tests/perf-review/run.sh.
+// Benchmarks the REAL agent-default-guard chat.message hook: config read +
+// registry lookup + rewrite, against a synthetic opencode.json and a fake
+// agent registry. Picked up automatically by tests/perf-review/run.sh.
 
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bench } from "./lib.mjs";
+import { asyncBench } from "./lib.mjs";
 
 // Synthetic config object shaped like the live opencode.json: providers with
 // model lists, plugin array, agent settings — enough bulk to be representative.
@@ -52,22 +50,34 @@ const syntheticConfig = {
 
 const FIXTURES = mkdtempSync(join(tmpdir(), "bench-agent-default-guard-"));
 const CONFIG = join(FIXTURES, "opencode.json");
+const LOG = join(FIXTURES, "agent-default-guard.log");
 writeFileSync(CONFIG, JSON.stringify(syntheticConfig));
 
-function readDefaultAgent(configPath) {
-  try {
-    const cfg = JSON.parse(readFileSync(configPath, "utf8"));
-    const agent = cfg.default_agent;
-    return typeof agent === "string" && agent.trim().length > 0 ? agent.trim() : undefined;
-  } catch {
-    return undefined;
-  }
-}
+// Route the plugin's config read and log write away from live machine state.
+globalThis.__agentDefaultGuardTestPaths = { config: CONFIG, log: LOG };
 
-const result = bench("agent-default-guard-readDefaultAgent", () => readDefaultAgent(CONFIG), {
-  iterations: 10_000,
-  warmup: 1_000,
-});
+const PLUGIN_PATH = new URL("../../configs/opencode/agent-default-guard.mjs", import.meta.url).pathname;
+const { default: buildPlugin } = await import(PLUGIN_PATH);
+
+// Fake registry: build is a hidden subagent (OMO applied) and Sisyphus is the
+// visible primary default, so the hook takes the rewrite path.
+const agents = [
+  { name: "build", mode: "subagent", hidden: true },
+  { name: "Sisyphus", mode: "primary", hidden: false },
+];
+const ctx = { client: { app: { async agents() { return { data: agents }; } } } };
+const hooks = await buildPlugin(ctx);
+const hook = hooks["chat.message"];
+
+const result = await asyncBench(
+  "agent-default-guard.chat.message",
+  () =>
+    hook(
+      { sessionID: "bench-session", agent: "build" },
+      { message: { id: "msg-1", agent: "build" }, parts: [] },
+    ),
+  { iterations: 10_000, warmup: 1_000 },
+);
 
 rmSync(FIXTURES, { recursive: true, force: true });
 console.log(JSON.stringify(result));

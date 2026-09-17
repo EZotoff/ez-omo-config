@@ -6,6 +6,10 @@
 # registered in the repository's aggregate test suite (the top-level script
 # that chains every test), because latency numbers are machine-dependent and
 # must not gate merges. Only completion (no throw) is required for exit 0.
+#
+# Each benchmark may print one JSON object per line, or one JSON array of
+# objects on a line; both shapes are rendered. Non-JSON lines (e.g. stderr
+# diagnostics) are skipped.
 
 set -euo pipefail
 
@@ -31,21 +35,36 @@ for bench_file in "${BENCHES[@]}"; do
         FAILED=$((FAILED + 1))
         continue
     fi
-    # Each benchmark prints one JSON object per bench() call.
+    # Render each line: a JSON object, or a JSON array of objects. Anything
+    # else (blank lines, stderr diagnostics) is skipped.
     while IFS= read -r line; do
-        [[ -z "$line" ]] && continue
-        row="$(node -e '
-            const r = JSON.parse(process.argv[1]);
-            console.log(
-              r.name.padEnd(40),
-              r.p50.toFixed(4).padStart(12),
-              r.p95.toFixed(4).padStart(12),
-              r.p99.toFixed(4).padStart(12),
-              r.mean.toFixed(4).padStart(12),
-              String(r.iterations).padStart(10)
-            );
-        ' "$line")"
-        printf '%s\n' "$row"
+        if [[ -z "$line" ]]; then
+            continue
+        fi
+        row="$(printf '%s' "$line" | node -e '
+            let raw = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", (chunk) => { raw += chunk; });
+            process.stdin.on("end", () => {
+              let parsed;
+              try { parsed = JSON.parse(raw); } catch { return; }
+              const items = Array.isArray(parsed) ? parsed : [parsed];
+              for (const r of items) {
+                if (!r || typeof r !== "object" || typeof r.name !== "string" || typeof r.p50 !== "number") continue;
+                console.log(
+                  r.name.padEnd(40),
+                  Number(r.p50).toFixed(4).padStart(12),
+                  Number(r.p95).toFixed(4).padStart(12),
+                  Number(r.p99).toFixed(4).padStart(12),
+                  Number(r.mean).toFixed(4).padStart(12),
+                  String(r.iterations).padStart(10)
+                );
+              }
+            });
+        ')"
+        if [[ -n "$row" ]]; then
+            printf '%s\n' "$row"
+        fi
     done <<< "$out"
 done
 

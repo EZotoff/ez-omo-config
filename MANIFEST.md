@@ -147,6 +147,8 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 63a | `smoke-boot-check.sh` | (repo only) | `scripts/` | (repo only) | Fresh-boot smoke gate for cutovers: throws away an `opencode run --print-logs` boot, asserts 0 plugin-load errors, 0 agent-not-found, agent-attributed stream + loop-exit lines, rc=0, serve-set unchanged (patterns-in-file ≠ bootable, 2026-09-08 incident) | Required |
 | 63b | `check-live-config-drift.sh` | (repo only) | `scripts/` | (repo only) | Live-config drift check: fails when `configs/` has uncommitted changes; second `ExecStart` of `opencode-patch-integrity-check.service` (30-min cadence → `opencode-integrity-alert.service`). Collapses the restart-masked damage window from the 2026-09-10/12 incidents to ≤30 min | Required |
 | 63c | `opencode-daemon-keeper.sh` | (repo only) | `scripts/` | (repo only) | Probe + recover script for the interactive daemon; `ExecStart` of `opencode-interactive-keeper.service` (1-min cadence). Recovers the agent-killed-daemon failure mode (2026-09-13/14 incidents) within ≤1 min | Required |
+| 63d | `perf-review/` | (repo only) | `scripts/perf-review/` | (repo only) | Server-plugin performance metrics and log-census tooling | Required |
+| 63e | `perf-review/` | (repo only) | `tests/perf-review/` | (repo only) | Server-plugin performance benchmark harnesses | Required |
 
 ## Directory Structure
 

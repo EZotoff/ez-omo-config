@@ -89,7 +89,7 @@ if not any('opencode-openai-codex-auth' in str(p) for p in plugins):
 print('PASS: opencode-openai-codex-auth plugin entry exists')
 
 expected_agent_models = {
-    'sisyphus': 'zai-coding-plan/glm-5.3',
+    'sisyphus': 'zai-coding-plan/glm-5.3-flash',
     'hephaestus': 'openai/gpt-5.6-sol',
     'oracle': 'openai/gpt-5.6-sol',
     'prometheus': 'kimi-for-coding-oauth/k3',
@@ -126,11 +126,11 @@ if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
 print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
-    'sisyphus': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
-    'oracle': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3', 'google/gemini-3.1-pro-preview'],
-    'prometheus': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
+    'sisyphus': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'oracle': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3', 'google/gemini-3.1-pro-preview'],
+    'prometheus': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
     'metis': ['google/gemini-3.1-pro-preview'],
-    'momus': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'google/gemini-3.1-pro-preview'],
+    'momus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'google/gemini-3.1-pro-preview'],
     'explore': ['ollama-cloud/minimax-m3', 'openai/gpt-5.6-luna'],
 }
 
@@ -146,12 +146,12 @@ for name, expected in expected_agent_models.items():
             sys.exit(1)
 
 expected_category_fallbacks = {
-    'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
-    'deep': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
+    'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'deep': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
     'quick': ['opencode-go/deepseek-v4-flash-vision-exp', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4-flash'],
     'unspecified-low': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
-    'unspecified-high': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro'],
-    'mephistopheles': ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
+    'unspecified-high': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'mephistopheles': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
     'visual-engineering': ['zai-coding-plan/glm-5.3', 'google/gemini-3.8-flash'],
 }
 
@@ -199,7 +199,7 @@ for (scope, name), expected in expected_opencode_go_routes.items():
 print('PASS: OpenCode Go routes use current Minimax and Kimi models')
 
 unspecified_high = categories.get('unspecified-high', {})
-if unspecified_high.get('fallback_models') != ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro']:
+if unspecified_high.get('fallback_models') != ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash']:
     print(f'FAIL: categories.unspecified-high.fallback_models has unexpected order: {unspecified_high.get("fallback_models")!r}')
     sys.exit(1)
 
@@ -207,7 +207,7 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if meph.get('fallback_models') != ['ollama-cloud/deepseek-v4-pro:0813', 'opencode-go/deepseek-v4-pro', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding']:
+if meph.get('fallback_models') != ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding']:
     print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')

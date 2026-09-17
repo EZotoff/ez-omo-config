@@ -2,6 +2,10 @@
 // Minimal benchmark harness for server-plugin perf reviews.
 // No dependencies beyond node:perf_hooks. The caller passes a deterministic
 // synthetic-input workload (fn); warmup iterations are excluded from stats.
+//
+// `bench` times synchronous workloads. `asyncBench` times workloads that
+// return a promise, awaiting it inside the timed region so the measured cost
+// includes the full async work (not just promise creation).
 
 import { performance } from "node:perf_hooks";
 
@@ -10,8 +14,20 @@ function percentile(sorted, p) {
   return sorted[idx];
 }
 
+function summarize(name, samples, total, iterations) {
+  samples.sort((a, b) => a - b);
+  return {
+    name,
+    p50: percentile(samples, 50),
+    p95: percentile(samples, 95),
+    p99: percentile(samples, 99),
+    mean: total / iterations,
+    iterations,
+  };
+}
+
 /**
- * Benchmark `fn` and return latency percentiles in milliseconds.
+ * Benchmark a synchronous `fn` and return latency percentiles in milliseconds.
  * @param {string} name - benchmark label
  * @param {(i: number) => unknown} fn - deterministic workload; receives the iteration index
  * @param {{ iterations?: number, warmup?: number }} [opts]
@@ -32,13 +48,30 @@ export function bench(name, fn, { iterations = 10000, warmup = 1000 } = {}) {
     total += dt;
   }
 
-  samples.sort((a, b) => a - b);
-  return {
-    name,
-    p50: percentile(samples, 50),
-    p95: percentile(samples, 95),
-    p99: percentile(samples, 99),
-    mean: total / iterations,
-    iterations,
-  };
+  return summarize(name, samples, total, iterations);
+}
+
+/**
+ * Benchmark an async `fn`, awaiting each call inside the timed region.
+ * @param {string} name - benchmark label
+ * @param {(i: number) => Promise<unknown>} fn - deterministic async workload
+ * @param {{ iterations?: number, warmup?: number }} [opts]
+ * @returns {Promise<{ name: string, p50: number, p95: number, p99: number, mean: number, iterations: number }>}
+ */
+export async function asyncBench(name, fn, { iterations = 10000, warmup = 1000 } = {}) {
+  for (let i = 0; i < warmup; i++) {
+    await fn(i);
+  }
+
+  const samples = new Array(iterations);
+  let total = 0;
+  for (let i = 0; i < iterations; i++) {
+    const t0 = performance.now();
+    await fn(i);
+    const dt = performance.now() - t0;
+    samples[i] = dt;
+    total += dt;
+  }
+
+  return summarize(name, samples, total, iterations);
 }

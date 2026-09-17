@@ -103,7 +103,7 @@ function rotateLogIfNeeded() {
     if (stat.size > LOG_MAX_BYTES) {
       const backup = `${LOG_PATH}.1`;
       try { unlinkSync(backup); } catch {}
-      try { renameSync(LOG_PATH, backup); } catch { try { unlinkSync(LOG_PATH); } catch {} }
+      try { renameSync(LOG_PATH, backup); } catch { /* failed rotation must never delete diagnostic evidence — the log keeps growing until the next attempt */ }
     }
   } catch {
     // file doesn't exist yet — nothing to rotate
