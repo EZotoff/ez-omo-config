@@ -217,6 +217,8 @@ The plugin reads `~/.config/opencode/retry-errors.json` fresh on every event. Ch
 
 **Status**: Required
 
+**Performance instrumentation**: The plugin emits retry counters and hook timing to its diagnostic log. The log rotates at 2 MB with one `.1` backup; review it with `scripts/perf-review/metrics.sh` and the benchmarks in `tests/perf-review/`.
+
 **Error Display**:
 
 User-facing output goes through `ctx.client.tui.showToast({body: {title?, message, variant, duration?}})`, which publishes a `tui.toast.show` event the TUI renders as a real toast popup. The plugin reserves toasts for terminal conditions only:
@@ -413,11 +415,25 @@ These fields are inert by default. They are logged only when `logLevel` is set t
 
 **Status**: Optional
 
+**Performance instrumentation**: Per-stage `session.idle` timing is emitted through `aspect-dynamics/logging.mjs`. Its log rotates at 2 MB with one `.1` backup; `scripts/perf-review/metrics.sh` and `tests/perf-review/` collect the review metrics.
+
 ---
 
 ## skill-nudger.mjs
 
 Config-layer plugin that watches completed tool calls (`tool.execute.after`) for deterministic behavioral signals and queues ephemeral skill-suggestion nudges, delivered on the session's next LLM round-trip via `experimental.chat.messages.transform`.
+
+**Performance instrumentation**: The module logger emits hook timing and retains a 2 MB log plus one `.1` backup. `scripts/perf-review/metrics.sh` summarizes events, while `tests/perf-review/` contains the benchmark harnesses.
+
+---
+
+## output-shaper.mjs
+
+Config-layer plugin that injects terseness guidance and applies reasoning-effort options to supported resume turns.
+
+**Performance instrumentation**: `output-shaper/logging.mjs` emits timing for system-transform and chat-parameter hooks and rotates the log at 2 MB with one `.1` backup. Use `scripts/perf-review/metrics.sh` and `tests/perf-review/` for the associated metrics and benchmarks.
+
+---
 
 ## agent-default-guard.mjs
 
@@ -432,6 +448,8 @@ Config-layer plugin that rewrites incoming chat messages explicitly requesting t
 **Verification**: unit harness `tests/agent-default-guard/harness.mjs` (9 checks); live probe 2026-09-06 — `POST /session/:id/message` with `agent: "build"` persisted `agent: "Sisyphus"` and the assistant turn ran as Sisyphus.
 
 **Log**: `~/.config/opencode/agent-default-guard.log` (rewrite + fail-open reasons).
+
+**Performance instrumentation**: The plugin emits `chat.message` timing and cache metrics. Its log rotates at 2 MB with one `.1` backup; `scripts/perf-review/metrics.sh` and `tests/perf-review/` provide the review tooling.
 
 **Install Target**: `$HOME/.config/opencode/agent-default-guard.mjs`
 
@@ -448,6 +466,8 @@ Config-layer plugin that blocks write-intent operations against the live OpenCod
 **Verification**: unit harness `tests/live-config-guard/harness.mjs` (23 checks: incident shapes, read passes, repo/worktree exemptions, file-tool blocks).
 
 **Log**: `~/.config/opencode/live-config-guard.log` (blocks + fail-open reasons).
+
+**Performance instrumentation**: The plugin emits interception timing and `guard_metric` counters. Its log rotates at 2 MB with one `.1` backup; `scripts/perf-review/metrics.sh` and `tests/perf-review/` provide the review tooling.
 
 **Install Target**: `$HOME/.config/opencode/live-config-guard.mjs`
 
