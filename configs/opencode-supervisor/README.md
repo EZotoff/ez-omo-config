@@ -24,3 +24,7 @@ The bundled `supervisor.json` installs to `$HOME/.config/opencode-supervisor/sup
 Runtime state is under `$HOME/.local/state/opencode-supervisor/`: `status.json` and `ledger.jsonl`. The API key is read from `$HOME/.local/share/opencode/auth.json` and is never written to status, ledger, or logs.
 
 Evidence state: `repo_implemented`. Not verified live: `live_file_installed`, `active_config_registered`, `runtime_loaded`, `real_project_behavior_proven`.
+
+## Consumers
+
+`voice-bridge` (Vox) reads this ledger read-side to surface escalations to the voice agent — it tails `ledger.jsonl` and triggers on `TICK_DECIDED` with `action=ESCALATE` and `confidence ≥ 0.7`. It never writes to the ledger or the supervisor. See `docs/voice-bridge.md`.

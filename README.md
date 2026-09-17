@@ -79,6 +79,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Live-config guard** — plugin blocking writes to the live OpenCode/OMO config surface from sessions outside this repo (2026-09-10/12 sandbox-leak incidents) + 30-min config-drift detection
 - **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
 - **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
+- **Voice bridge (Vox)** *(machine-local)* — phone push-to-talk voice agent over Gemini Live that supervises the OpenCode fleet via the supervisor ledger; sibling Bun service on `127.0.0.1:18220`
 
 ---
 

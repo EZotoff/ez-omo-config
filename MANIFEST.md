@@ -235,6 +235,7 @@ ez-omo-config/
 | E5 | `oh-my-openagent-v4.19.2` | `$HOME/oh-my-openagent-v4.19.2` (published fork of upstream **v4.19.2**: [EZotoff/oh-my-openagent](https://github.com/EZotoff/oh-my-openagent), tag `v4.19.2-patches.1`) | Canonical OMO runtime source carrying tracked local patches (index: `docs/patches.md`); replaces mutable npm `@latest` resolution | `git clone -b v4.19.2-patches.1 https://github.com/EZotoff/oh-my-openagent.git ~/oh-my-openagent-v4.19.2` + build; referenced config-relatively as `../../oh-my-openagent-v4.19.2` in `opencode.json` — see README "The OMO runtime fork" |
 | E6 | Docker | external (optional) | Container runtime for worktree isolation | [docker.com](https://docker.com) |
 | E7 | `browser-lifecycle-plugin` | external (optional) | Agent-browser session cleanup on idle. Not in default config — add manually to `opencode.json#plugin` if needed. | Clone from source and add `file://` path |
+| E8 | `voice-bridge` (Vox) | `~/AI_projects/voice-bridge/` (external project) | Phone push-to-talk voice agent over Gemini Live that supervises the OpenCode fleet via the supervisor ledger; sibling Bun service on `127.0.0.1:18220`. Evidence: `live_file_installed` + `runtime_loaded` + `real_project_behavior_proven` (text-loopback e2e); real-voice dogfood not verified | `cd ~/AI_projects/voice-bridge && ./deploy/install.sh` |
 
 ## Patch Registry
 
