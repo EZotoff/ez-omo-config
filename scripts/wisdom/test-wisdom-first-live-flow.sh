@@ -78,7 +78,7 @@ test_snapshot_without_manifests() {
     local snapshot_output
     snapshot_output=$("${SCRIPT_DIR}/wisdom-search.sh" --scope all --limit 1000 2>&1)
     [[ -n "$snapshot_output" ]] || { echo "Snapshot produced no output"; return 1; }
-    echo "$snapshot_output" | grep -q "Wisdom" || { echo "Snapshot missing Wisdom section"; return 1; }
+    echo "$snapshot_output" | grep -q "${TEST_TAG}" || { echo "Snapshot missing seeded entries (tag ${TEST_TAG})"; return 1; }
     return 0
 }
 
@@ -127,8 +127,8 @@ test_runtime_without_manifests() {
     snapshot_output=$("${SCRIPT_DIR}/wisdom-search.sh" --scope all --limit 1000 2>&1)
 
     local lookup_ok=false snapshot_ok=false
-    echo "$lookup_output" | grep -q "live flow" && lookup_ok=true
-    echo "$snapshot_output" | grep -q "Wisdom" && snapshot_ok=true
+    echo "$lookup_output" | grep -q "${TEST_TAG}" && lookup_ok=true
+    echo "$snapshot_output" | grep -q "${TEST_TAG}" && snapshot_ok=true
 
     mv "${MANIFEST_BACKUP}/system" "${manifest_dir}/system" 2>/dev/null || true
     mv "${MANIFEST_BACKUP}/workspace" "${manifest_dir}/workspace" 2>/dev/null || true

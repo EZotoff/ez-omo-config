@@ -245,7 +245,7 @@ test_capture_write_events() {
 }
 
 # ---------------------------------------------------------------------------
-# 8. Query/shim events — wisdom.search, wisdom.lookup, wisdom.snapshot
+# 8. Query events — wisdom.search emitted; removed-shim events (wisdom.lookup, wisdom.snapshot) absent
 # ---------------------------------------------------------------------------
 test_query_shim_events() {
     : > "$WISDOM_EVENTS_PATH"
@@ -260,8 +260,8 @@ test_query_shim_events() {
     lookup_events=$(events_for_event_type "wisdom.lookup" | jq 'length')
     snapshot_events=$(events_for_event_type "wisdom.snapshot" | jq 'length')
     [[ "$search_events" -ge 1 ]] || { echo "no wisdom.search events"; return 1; }
-    [[ "$lookup_events" -ge 1 ]] || { echo "no wisdom.lookup events"; return 1; }
-    [[ "$snapshot_events" -ge 1 ]] || { echo "no wisdom.snapshot events"; return 1; }
+    [[ "$lookup_events" -eq 0 ]] || { echo "wisdom.lookup events emitted (shims removed, no emitter expected)"; return 1; }
+    [[ "$snapshot_events" -eq 0 ]] || { echo "wisdom.snapshot events emitted (shims removed, no emitter expected)"; return 1; }
     return 0
 }
 
