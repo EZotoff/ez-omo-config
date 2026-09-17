@@ -39,6 +39,31 @@ for test_script in "$SCRIPT_DIR"/test_*.sh; do
     echo ""
 done
 
+# Wisdom test scripts (scripts/wisdom/test-*.sh) — run each under a fresh
+# temp HOME so they NEVER touch the live wisdom store (~/.sisyphus/wisdom/).
+# All store paths resolve from $HOME via knowledge-constants.sh/wisdom-common.sh.
+echo "Running wisdom tests..."
+echo "----------------------------------------"
+for test_script in "$SCRIPT_DIR"/../scripts/wisdom/test-*.sh; do
+    # Skip if no matching files (glob returns the pattern itself)
+    if [[ ! -f "$test_script" ]]; then
+        continue
+    fi
+
+    tests_found=$((tests_found + 1))
+    test_name=$(basename "$test_script")
+
+    echo "Running: $test_name (isolated temp HOME)"
+    wisdom_tmp_home="$(mktemp -d)"
+    # Unset store-path overrides so isolation cannot be bypassed via env
+    if env -u WISDOM_ROOT -u WISDOM_EVENTS_PATH -u WISDOM_BASE_DIR -u WISDOM_SYSTEM_DIR HOME="$wisdom_tmp_home" bash "$test_script"; then
+        TOTAL_PASSED=$((TOTAL_PASSED + 1))
+    else
+        TOTAL_FAILED=$((TOTAL_FAILED + 1))
+    fi
+    echo ""
+done
+
 # Print summary
 echo "=========================================="
 if [[ $tests_found -eq 0 ]]; then
