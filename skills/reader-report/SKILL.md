@@ -73,7 +73,7 @@ These make the writing better but admit judgment. Do not trade a contract rule f
 
 - **Strongest point first within each section.** Open with the insight, not a soft lead-in.
 - **Plain, direct language.** No AI-speak. If a phrase could only have come from an LLM, rewrite it. See the anti-slop list below.
-- **Concise.** Cut repetition between sentences, sections, and cards on the same page. If two paragraphs say the same thing, keep one.
+- **Concise — subtraction first.** Cut repetition between sentences, sections, and cards on the same page. If two paragraphs say the same thing, keep one. Every section is as short as the material allows: detail unnecessary to understand, trust, or act on the result moves down the disclosure ladder (rendered reports) or out. If a section can be a table or three bullets, it is not four paragraphs.
 - **Same noun for the same concept.** Once a report names a concept, every reference uses that exact name. Do not vary words for literary effect.
 - **Active voice where natural.** Passive is fine when the actor is irrelevant ("the build was deployed"); never use it to dodge accountability ("mistakes were made").
 - **Qualitative in summaries, quantitative in details.** A summary states the shape of the conclusion; the supporting numbers live in the chart or detail section. Do not strip numbers that materially justify a conclusion — but do not flood a summary with figures that belong in the data view.
@@ -111,7 +111,7 @@ The message the orchestrator sends to the user after work completes. Constraints
 
 A standalone artifact a human opens to read. Constraints:
 
-- **Front-load an executive summary** — 3–6 sentences, no jargon, before any background. The reader who reads only this must have the outcome.
+- **Open with the executive core** — verdict/top finding, a one-sentence plain-language distillation, and the next action as the opening lead, followed by the 3–6 sentence executive summary, no jargon, before any background. The reader who reads only the opening region must have the outcome (see *The opening region and disclosure ladder* in the craft section).
 - **Self-contained: define every domain term, name, and label on first use.** No "see the underlying doc". (In dense domains a glossary section is acceptable; otherwise define inline.)
 - **Open each section with its strongest point.**
 - **Styling and dynamism follow the rendered-report craft section below** — the floor there is the minimum; the full section makes the report better.
@@ -133,7 +133,7 @@ These lines alone produce a correct, plain report. The rest of this section expa
 
 - **Warm near-black paper** (`#1B1814` / `#211E18`), **tinted near-white ink** (`#EDE9DF` / `#E2DDD0`). Never pure black or pure white — that is the dated "app terminal" look.
 - **One restrained accent — pick one of amber `#D9A441` or teal `#4DAFB6` per report** — for focus, links, key callouts. Rarity is what makes it work: more than a handful of accent uses per screen and there is no hierarchy. Never carry meaning by colour alone — a tinted finding is also labelled.
-- **Three-family type:** a distinctive serif or sans for display, a clean sans for body, a mono for metadata and labels. Body measure ~62–68 characters.
+- **Three-family type:** a serif or distinctive sans for display, a clean sans for body, a mono for metadata and labels. Body prose measure ~62–68 characters (prose only — width follows the viewport doctrine below).
 - **Contrast floor:** body text ≥4.5:1; large text, controls, icons, and focus indicators ≥3:1. Secondary text is tinted from the ink hue, never neutral grey. On dark paper, compensate on three axes: slightly more line-height, a touch more letter-spacing, one weight step up where text reads thin.
 - **Keyboard and data surfaces:** DOM order equals visual order (keyboard and screen-reader parity); style `:focus-visible` states; use `tabular-nums` on numeric tables.
 - **PDF is a third surface.** Nobody prints paper; everyone exports PDF — and the PDF renderer runs the print stylesheet. The light-register values (`#C8901E` / `#006A71`) are the designed PDF palette — a register of its own, not an inversion. Source-level check: the stylesheet exists, nav and interactive chrome are stripped, `<details>` render open, sections/callouts/charts carry `break-inside: avoid`, and page breaks fall at section boundaries.
@@ -146,12 +146,40 @@ These patterns are validated across the user's approved reports. Default to them
 - **Tinted near-white ink**, not pure `#FFF` (`#EDE9DF` / `#E2DDD0` family). Pure white on warm dark is glaring.
 - **One restrained accent colour** (pick one: amber `#D9A441` or teal `#4DAFB6`), lifted from its light-theme value (`#C8901E` / `#006A71`) to hold contrast on dark — the dark palette is designed, not inverted. Used sparingly — for focus, links, key callouts. Never as decoration.
 - **Three-family type system:** a serif or distinctive sans for display headings, a clean sans for body, a mono for metadata/labels/captions. Pairings that have worked: Gloock + Inter + DM Mono; Crimson Pro + DM Sans + SF Mono. Avoid Inter-as-the-only-font. Four roles, purpose-named: display / body / meta / data.
-- **Comfortable measure:** body prose capped at ~62–68 characters wide. Long line lengths measurably hurt reading.
+- **Prose measure:** continuous reading text capped at ~62–68 characters wide — the skill's only hard width pin. It scopes to prose, never to tables, charts, or the page shell; long line lengths measurably hurt reading, and stretched prose is the widescreen failure mode.
 - **Generous vertical rhythm:** a spacing scale (4/8/12/16/20/24/32/40/48/64/80/96px); more space above a heading than below it; tight groups, generous separation. Prefer `gap` over child margins for sibling rhythm.
 - **Sticky nav / sidebar** for multi-section reports. The reader should always know where they are.
 - **Callout boxes** for the doctrinal line, the key insight, the anchor scenario — visually distinct (a panel lifted or recessed relative to the paper, with a tinted left border in the accent colour). Use sparingly; a page of callouts is a page of nothing. *Decision procedure:* before adding a callout, ask whether spacing plus heading structure achieves the grouping — a container is the answer only when proximity is not.
 - **Pull-quotes** in editorial italic for the one line that captures the thesis.
-- **Pagination over single long sheet** for reports longer than ~3 screens — with a fixed nav footer (prev / next / page count).
+- **Pagination over single long sheet** for reports longer than ~3 screens — with a fixed nav footer (prev / next / page count). The opening region opens page 1; it never gets a page of its own.
+
+### Viewport doctrine: desktop-first, content-chosen width
+
+Desktop is the primary reading surface; mobile (~700px and below) is the collapse case. Width is not a preference — each section's width is chosen by the content itself.
+
+**Lane table** (container widths are defaults, not pins; the 62–68ch prose measure is the only hard width pin):
+
+| Lane | Content | Default container |
+|---|---|---|
+| Prose | Continuous reading text, executive core | 62–68ch centred |
+| Evidence | Tables, charts, code, finding+evidence pairs | up to ~1280px |
+| Wide | Dashboards, comparison matrices, timelines, wide data tables | up to ~1600px |
+
+**Decision rule — narrowest sufficient lane, content-typed by default.** Assign each section its lane by content type (table/chart/code → Evidence; matrix/dashboard/timeline → Wide; everything else → Prose). Depart from the typed default only when the content is legible in a narrower lane without truncation, compressed type, or avoidable horizontal scrolling — or needs a wider one for the same reason — and record the lane with a one-line reason in the design-system comment block next to the lane. Two hard rules: prose never stretches to match the page shell, and the widest section does not force narrower sections wide — the page shell is exactly as wide as the widest lane the report actually contains.
+
+**Mobile collapse (≤~700px):** single column; sidebar → compact header → drawer; wide tables become cards or scroll horizontally with intent; touch targets ≥44px; no hover-only functionality.
+
+**QA order for rendered reports:** primary desktop width → widest realistic content → 200% zoom → 360px/320px reflow → PDF export. Desktop-first changes design order, not the acceptance floor. Render-dependent steps run when a render/QA pipeline is available (the conditional QA tier caveat applies); the order never changes. Source-checkable without a pipeline: the lane-and-reason entry in the design-system comment.
+
+### The opening region and disclosure ladder
+
+**The executive core.** The report opens with one component — the executive core: the verdict/decision/top finding, a one-sentence plain-language distillation (a "one-line version" that only makes sense because the report beneath backs it), and the next action (or "no action required"). At the report's declared desktop QA viewport and 100% zoom, all three appear within the initial viewport below persistent navigation, without scrolling or reduced body-text size; at every other size they are the first content in DOM order. The executive core is the opening lead of the executive summary — one component, not a synopsis in front of a synopsis. The closing action section may repeat the action only when enriched with owner, timing, or dependencies. When the material carries real uncertainty, state plainly in the opening region what is settled and what remains fog.
+
+**The ladder:**
+
+1. **Executive core + executive summary** — the opening region described above; 3–6 sentences, no jargon.
+2. **Body sections** — strongest point first, prose at measure, each section in its lane.
+3. **Layer 3, supplementary receipts** — raw data, methodology, full transcripts, per-item audit detail — in `<details>`, an appendix, or later pages. Hide only what is supplementary: evidence necessary to trust the verdict stays visible, and collapsing must never remove the document's evidentiary chain. Mark Layer-3 material as such; the PDF export shows everything.
 
 ### Anti-slop visual tells (avoid these)
 
@@ -185,7 +213,7 @@ Reports are Read mode: motion serves feedback, state, and continuity. Three cate
 
 **1. Wayfinding and continuity furniture (always allowed, never counted).** Scrollspy nav highlighting and a reading-progress indicator — they serve the house "reader always knows where they are" rule continuously. Pagination transitions — 300–500ms, exit faster than entrance. Mechanical, quiet, no per-report design cost. Not counted against the moment budget.
 
-**2. Reader-controlled affordances (always allowed, never counted).** Expandable evidence trails (`<details>`): the executive summary stays lean; the receipts are one click down — rendered open in the PDF export by default. Epistemic-status filter/highlight on findings (fact / inference / recommendation) — the report-native use of interactivity. Rules: default state shows all content (nothing hidden behind a toggle the reader must find), the PDF export shows everything, reduced-motion safe, keyboard reachable.
+2. **Reader-controlled affordances (always allowed, never counted).** Expandable evidence trails (`<details>`): the executive summary stays lean; the receipts are one click down — rendered open in the PDF export by default. Epistemic-status filter/highlight on findings (fact / inference / recommendation) — the report-native use of interactivity. Rules: default state shows all content (nothing load-bearing hidden behind a toggle the reader must find; material marked as Layer-3 supplementary receipts under the disclosure ladder is the sole exception), the PDF export shows everything, reduced-motion safe, keyboard reachable.
 
 **3. The one earned dynamic moment (budget: exactly one).** One authored emphasis beat **derived from this report's thesis** — the key chart settling into place on arrival, the adopted recommendation's callout receiving the emphasis. Test: *specific enough that a neighbouring product could not use it unchanged.* Generic whimsy is worse than neutral clarity. **Default-visible:** the fully-rendered document is the state of record; animation may enhance what is already visible, never gate it — reports get PDF'd, archived, emailed; a scroll-reveal without JS is a blank export. Never delays or blocks reading; skippable; tolerates re-reading; the report stays fast and obvious without it. `prefers-reduced-motion` means fewer and gentler effects, not none (nav highlighting stays; spatial movement goes). Data updates animate state (bars settle), never construct from zero, and never sit between the reader and the data.
 
@@ -274,7 +302,7 @@ Instantiate one concrete reader — name the role ("a maintainer joining next mo
 6. *Skeleton and squint:* strip the prose — do headings, emphasis, and callout placement alone carry the arc? Blur the render — are the primary element, secondary element, and major groups still identifiable in order?
 7. *Removal test:* would removing any animation lose meaning or authored character — not merely decoration?
 8. Does any heading say the same thing as its opening paragraph?
-9. *Time-to-value:* can the reader act from the first screen?
+9. *Opening region:* at the declared desktop QA viewport and 100% zoom, do the verdict, one-sentence distillation, and next action appear without scrolling — and lead the DOM order at every other size? Is each section in its narrowest sufficient lane, with the lane choice and reason recorded in the design-system comment?
 
 **Protocol:**
 
@@ -299,7 +327,7 @@ Produce a reader-first report from source material (debate artifacts, data, a de
 3. **State the settings inline:** density (standard / comprehensive), lane (brand / product), medium (chat / HTML), emphasis (quiet / confident). A later "make it denser" is a dial turn on these, not a regeneration.
 4. **The specificity test (this skill's named central test):** *what does this material know that a generic template wouldn't?* If the answer is nothing, the report is a summary of summaries — say so instead of disguising it.
 5. **Openings, when stakes justify it** (a requester is present AND the opening carries the argument): offer **three openings on three different axes** — e.g. verdict-first vs risk-first vs opportunity-first, or summary-then-evidence vs evidence-woven vs context-first — each labelled with one line. All three obey the **identity lock**: same verdict, same evidence base, same stated uncertainty; a variant that strengthens the verdict has crossed into fabrication. If two labels read alike, the variants are not different — redo. The plain standard opening is always one of the three, played straight. Otherwise, draft the standard opening directly.
-6. Draft the executive summary / opening verdict first — before any other section.
+6. Draft the executive core (verdict, one-sentence distillation, next action) and the executive summary first — before any other section.
 7. Build the body around the result, each section opening with its strongest point. Define every term on first use.
 8. Run lint, then independent review. Fix findings.
 9. **Completion checklist:** contract questions pass; all surfaces agree (chat ↔ artifact ↔ PDF); no draft fragments remain (unused variants, placeholder sections, orphaned labels).
@@ -354,6 +382,10 @@ The test: a fresh reader should never encounter a term they cannot resolve from 
 - ✗ *…findings section ends, document ends.*
 - ✓ *"No action required this cycle; re-run the audit after the v2 migration (owner: platform team)."*
 
+**Verbose burial:**
+- ✗ Four paragraphs of background and methodology before the recommendation appears on screen 2.
+- ✓ Verdict, one-line distillation, and next action in the opening viewport; methodology one click down in Layer 3.
+
 **Repetition:**
 - ✗ Two paragraphs both stating "retention is the priority" with different wording.
 - ✓ One paragraph stating it once, with the supporting number.
@@ -365,5 +397,5 @@ The test: a fresh reader should never encounter a term they cannot resolve from 
 3. When motion or interaction is in scope: load `skill(name='dynamic-typography')` for mechanics; this skill's one-earned-moment budget and timing bands are PINS overriding its ranges
 4. When delegating writing to a subagent: pass `load_skills=['typographic-writing']` or the genre-appropriate stack - parent loading does not propagate to children
 
-- Measure 62-68ch, one earned moment, timing bands are pinned values, never averaged with layer ranges.
+- Measure 62-68ch (prose only; section widths follow the viewport doctrine's lane table), one earned moment, timing bands are pinned values, never averaged with layer ranges.
 - The chat-summary genre loads no typography layer.
