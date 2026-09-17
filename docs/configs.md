@@ -29,7 +29,7 @@ Auth is basic (`OPENCODE_SERVER_USERNAME`/`OPENCODE_SERVER_PASSWORD`) loaded fro
 
 **What it Configures**:
 
-- **Providers**: 12 provider configurations for different AI services
+- **Providers**: 14 provider configurations (7 enabled; 7 parked with their `enabled_providers` entry removed — `deepseek`, `uni-lux`, `ollama-local`, `qwen-tunnel`, `gsq-rco`, `openrouter`, `anthropic`). Registry-backed enabled providers carry a `whitelist` so the TUI/OC Beacon model picker shows only OMO-role models plus select extras; without it the full models.dev catalog merges in (e.g. OpenRouter = 369 models).
 - **Plugins**: local plugin registrations and their settings
 - **Model Settings**: Provider model catalogs, default models, limits, and timeouts
 - **Runtime Defaults**: Agent behavior, output preferences
@@ -536,7 +536,7 @@ Plugin files such as `$HOME/.opencode/plugin/*.ts` are copied or symlinked by `i
 | File | What it Controls | Install Target | Status |
 |------|------------------|----------------|--------|
 | `AGENTS.md` (global) | User-level agent instructions loaded on top of any project-level `AGENTS.md`. Currently mandates the `/deployment` skill before binding ports or launching dev/test servers. Atomic-install tag: `skills+configs`. | `$HOME/.config/opencode/AGENTS.md` | Required |
-| `opencode.json` | Main config: 10 enabled providers, 16 plugins, models, limits, OpenCode compaction, defaults | `$HOME/.config/opencode/opencode.json` | Required |
+| `opencode.json` | Main config: 7 enabled providers (7 more parked), 16 plugins, whitelisted model catalogs, limits, OpenCode compaction, defaults | `$HOME/.config/opencode/opencode.json` | Required |
 | `opencode.jsonc` | Bash permission restrictions for destructive commands | `$HOME/.opencode/opencode.jsonc` | Required |
 | `magic-context.jsonc` | Disabled Magic Context reference config (`enabled=false`; plugin not registered) | `$HOME/.config/opencode/magic-context.jsonc` | Optional |
 | `provider-connect-retry.mjs` | Error-triggered retries, empty-response detection, nudge prompts, and fallback handling | `$HOME/.config/opencode/provider-connect-retry.mjs` | Required |

@@ -230,7 +230,7 @@ ez-omo-config/
 
 | # | Artifact | Path | Purpose | Install Command |
 |---|----------|------|---------|-----------------|
-| E1 | `auth.json.example` | `auth.json.example` | Template for `~/.local/share/opencode/auth.json`: 9 provider entries (7 API-key + 2 OAuth) covering the 11 enabled providers | `cp auth.json.example ~/.local/share/opencode/auth.json` |
+| E1 | `auth.json.example` | `auth.json.example` | Template for `~/.local/share/opencode/auth.json`: 9 provider entries (7 API-key + 2 OAuth) covering the enabled providers (parked provider blocks reuse the same keys) | `cp auth.json.example ~/.local/share/opencode/auth.json` |
 | E2 | `check-prerequisites.sh` | `scripts/check-prerequisites.sh` | Verifies OpenCode CLI, bun, OMO npm cache, config files, local plugins, API keys, skills, Docker (optional), and patch docs | `./scripts/check-prerequisites.sh` |
 | E3 | OpenCode CLI | external | Core AI coding assistant runtime | [opencode.ai](https://opencode.ai) |
 | E4 | bun | external | JavaScript runtime for TypeScript plugin loading | [bun.sh](https://bun.sh) |

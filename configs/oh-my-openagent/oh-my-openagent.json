@@ -268,11 +268,11 @@
     "contextWindowTurns": 10,
     "scoringModel": {
       "providerID": "inception",
-      "modelID": "mercury-2"
+      "modelID": "mercury-2.5"
     },
     "polishingModel": {
       "providerID": "inception",
-      "modelID": "mercury-2"
+      "modelID": "mercury-2.5"
     },
     "dreamAgent": {
       "enabled": false,

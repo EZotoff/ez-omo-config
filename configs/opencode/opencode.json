@@ -5,14 +5,8 @@
     "opencode-go",
     "kimi-for-coding-oauth",
     "zai-coding-plan",
-    "deepseek",
     "inception",
-    "uni-lux",
-    "ollama-local",
-    "ollama-cloud",
-    "qwen-tunnel",
-    "gsq-rco",
-    "openrouter"
+    "ollama-cloud"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -52,6 +46,10 @@
   "provider": {
     "google": {
       "name": "Google",
+      "whitelist": [
+        "gemini-3.8-flash",
+        "gemini-3.1-pro-preview"
+      ],
       "options": {
         "chunkTimeout": 300000,
         "headerTimeout": 300000
@@ -491,6 +489,10 @@
     },
     "zai-coding-plan": {
       "name": "Z.AI Coding Plan",
+      "whitelist": [
+        "glm-5.3",
+        "glm-5.3-flash"
+      ],
       "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "https://api.z.ai/api/coding/paas/v4",
@@ -605,6 +607,12 @@
       }
     },
     "opencode-go": {
+      "whitelist": [
+        "minimax-m3",
+        "deepseek-v4-flash",
+        "deepseek-v4-flash-vision-exp",
+        "deepseek-v4.1-flash"
+      ],
       "options": {
         "chunkTimeout": 30000
       },
@@ -653,11 +661,12 @@
         "headerTimeout": 300000
       },
       "models": {
-        "mercury-2": {
-          "name": "Mercury 2",
+        "mercury-2.5": {
+          "name": "Mercury 2.5",
           "limit": {
-            "context": 131072,
-            "output": 50000
+            "context": 260000,
+            "input": 194560,
+            "output": 65536
           },
           "modalities": {
             "input": [
@@ -751,6 +760,10 @@
     },
     "ollama-cloud": {
       "name": "Ollama Cloud",
+      "whitelist": [
+        "deepseek-v4.1-flash",
+        "minimax-m3"
+      ],
       "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "https://ollama.com/v1",

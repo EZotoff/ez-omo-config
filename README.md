@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Personal, **locally patched** OpenCode + Oh-My-OpenAgent configuration: 11 enabled providers, 13 specialized agents, git-safety and worktree plugins, one-command install with automatic backups.
+> Personal, **locally patched** OpenCode + Oh-My-OpenAgent configuration: 7 enabled providers, 13 specialized agents, git-safety and worktree plugins, one-command install with automatic backups.
 
 This is a working production setup you can fork and adapt — not a turnkey universal distribution. Some capabilities depend on local runtime patches (see [The OMO runtime fork](#the-omo-runtime-fork-primary-machine) and [docs/patches.md](docs/patches.md)). The repo contains reusable presets, plugins, skills, and scripts; the full artifact inventory with install targets lives in [MANIFEST.md](MANIFEST.md) (the single source of truth — this README carries only the category summary).
 
@@ -140,23 +140,19 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 
 ## Configuration Highlights
 
-### 11 Enabled Providers
+### 7 Enabled Providers
 
-8 public cloud, 1 personal endpoint, 2 machine-local (tagged).
+Pruned to the models used by OMO role assignments plus select extras via per-provider `whitelist` (registry-backed providers otherwise merge their full models.dev catalog into the TUI/OC Beacon model picker). 7 further provider blocks (`deepseek`, `uni-lux`, `ollama-local`, `qwen-tunnel`, `gsq-rco`, `openrouter`, `anthropic`) remain in the config parked — removed from `enabled_providers`, one line to re-enable.
 
 | Provider | Models | Notes |
 |----------|--------|-------|
-| **google** | Gemini 3.8 Flash, Gemini 3.1 Pro Preview, Antigravity-hosted Gemini/Claude | |
-| **openai** (Codex OAuth) | GPT 5.6 Sol / Terra / Luna | OAuth: `opencode auth login openai` |
-| **opencode-go** | Minimax M3, Kimi K2.6, DeepSeek V4 Flash, Qwen 3.8 Flash | explicit Qwen entry: 1M ctx / 131k out |
+| **google** | Gemini 3.8 Flash, Gemini 3.1 Pro Preview | whitelisted; Antigravity entries remain declared but hidden |
+| **openai** (Codex OAuth) | GPT 5.6 Sol / Terra / Luna | OAuth: `opencode auth login openai`; whitelisted |
+| **opencode-go** | MiniMax M3, DeepSeek V4 Flash, V4 Flash Vision Exp, V4.1 Flash | whitelisted to OMO fallback-chain models |
 | **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
-| **zai-coding-plan** | GLM 5.3 | Coding Plan API |
-| **deepseek** | V4.1 Flash (`deepseek-flash`, native vision), V4 Pro | V4.1 replaces the temporary `deepseek-v4-flash` alias (retiring); Pro kept serving after the planned 14 Sep reroute was cancelled |
-| **inception** | Mercury 2 | |
-| **ollama-cloud** | DeepSeek V4.1 Flash, V4 Pro (pinned tag), MiniMax M3 | ollama.com OpenAI-compatible API; V4 Flash tag removed 12 Sep 2026 as redundant |
-| **uni-lux** *(personal endpoint)* | DeepSeek V4 Flash, Kimi K3, GLM 5.2 | university LiteLLM proxy — bring your own endpoint/key |
-| **ollama-local** *(machine-local)* | local models | `127.0.0.1:18210` |
-| **qwen-tunnel** *(machine-local)* | Qwen | LAN `10.71.71.3:18061` |
+| **zai-coding-plan** | GLM 5.3, GLM 5.3 Flash | Coding Plan API; whitelisted |
+| **inception** | Mercury 2.5 (260k ctx) | replaces Mercury 2 (Sep 2026); also OMO Aspect Dynamics scoring/polishing model |
+| **ollama-cloud** | DeepSeek V4.1 Flash, MiniMax M3 | ollama.com OpenAI-compatible API; whitelisted (catalog has 24 models) |
 
 `auth.json.example` carries 9 provider entries (7 API keys + 2 OAuth). Model-limit details, reasoning-effort variants, and per-model caveats: [docs/configs.md](docs/configs.md).
 
