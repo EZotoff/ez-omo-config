@@ -4,7 +4,7 @@
 import { loadConfig } from "./aspect-dynamics/config.mjs";
 import { extractContext, getEventSessionID, hasRecursionGuard, prefilterContext } from "./aspect-dynamics/context.mjs";
 import { rankAspects, scoreAspects, shouldNudge } from "./aspect-dynamics/heuristics.mjs";
-import { emitProof, logEvent, logInfo, logWarn, setLogLevel } from "./aspect-dynamics/logging.mjs";
+import { emitProof, logEvent, logInfo, logTiming, logWarn, nowMs, setLogLevel } from "./aspect-dynamics/logging.mjs";
 import { buildNudge } from "./aspect-dynamics/nudge.mjs";
 import {
   canProcess,
@@ -104,7 +104,15 @@ export default async function aspectDynamicsPlugin(ctx) {
           markInFlight(sessionID, true);
 
           try {
+            // Stable timing labels consumed by the perf-review log census:
+            // hook=idle.extractContext
+            // hook=idle.prefilterContext
+            // hook=idle.scoreAspects
+            // hook=idle.buildNudge
+            // hook=idle.dispatch
+            const extractStartedAt = nowMs();
             const context = await extractContext(ctx, sessionID, config);
+            logTiming("idle.extractContext", extractStartedAt);
             if (!context) {
               logWarn(`No context for session ${sessionID}`);
               recordFailure(sessionID);
@@ -119,7 +127,10 @@ export default async function aspectDynamicsPlugin(ctx) {
             }
 
             // Prefilter: skip scoring if no heuristic phrases match
-            if (!prefilterContext(context, sets, config)) {
+            const prefilterStartedAt = nowMs();
+            const shouldScore = prefilterContext(context, sets, config);
+            logTiming("idle.prefilterContext", prefilterStartedAt);
+            if (!shouldScore) {
               logEvent("session.idle", sessionID, "prefilter=skip");
               emitProof("skip", { session_id: sessionID, reason: "prefilter" });
               recordSuccess(sessionID);
@@ -134,7 +145,9 @@ export default async function aspectDynamicsPlugin(ctx) {
               return;
             }
 
+            const scoringStartedAt = nowMs();
             const scoring = scoreAspects(context, sets);
+            logTiming("idle.scoreAspects", scoringStartedAt);
             const ranked = rankAspects(scoring.allScores);
 
             if (scoring.topScore >= 0) {
@@ -147,15 +160,19 @@ export default async function aspectDynamicsPlugin(ctx) {
 
               if (shouldNudge(scoring.topScore, threshold)) {
                 const topEntry = scoring.allScores.get(scoring.topAspectId);
+                const buildNudgeStartedAt = nowMs();
                 const nudge = buildNudge(ranked, topEntry);
+                logTiming("idle.buildNudge", buildNudgeStartedAt);
                 if (nudge && ctx?.client?.session?.promptAsync) {
                   if (latestAssistantId) {
                     setLastHandledAssistantMessageId(sessionID, latestAssistantId);
                   }
+                  const dispatchStartedAt = nowMs();
                   await ctx.client.session.promptAsync({
                     path: { id: sessionID },
                     body: nudge,
                   });
+                  logTiming("idle.dispatch", dispatchStartedAt);
                   logEvent("nudge", sessionID, `aspect=${topEntry.aspectId}, score=${scoring.topScore.toFixed(2)}`);
                   emitProof("nudge_sent", { session_id: sessionID, aspect: topEntry.aspectId, score: scoring.topScore });
                 }
