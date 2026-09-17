@@ -263,6 +263,7 @@
     "activeSets": [
       "emotions-v1"
     ],
+    "logLevel": "info",
     "heuristicPreFilter": true,
     "contextWindowTurns": 10,
     "scoringModel": {

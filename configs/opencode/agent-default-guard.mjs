@@ -81,16 +81,25 @@ async function fetchRegistry(ctx) {
 const AgentDefaultGuardPlugin = async (ctx) => {
   let cache = { at: 0, agents: null };
 
-  const registry = async () => {
+  // `trace` is a per-invocation out-param: registry() records whether the
+  // agents fetch was served from the TTL cache (hit) or refetched (miss),
+  // so the chat.message timing line can attribute hook cost correctly.
+  const registry = async (trace) => {
     const now = Date.now();
-    if (cache.agents !== null && now - cache.at < REGISTRY_TTL_MS) return cache.agents;
+    if (cache.agents !== null && now - cache.at < REGISTRY_TTL_MS) {
+      trace.cache = "hit";
+      return cache.agents;
+    }
     const agents = await fetchRegistry(ctx);
     cache = { at: now, agents };
+    trace.cache = "miss";
     return agents;
   };
 
   return {
     "chat.message": async (input, output) => {
+      const startedAt = Date.now();
+      const trace = { cache: null, rewrite: "no" };
       try {
         if (input?.agent !== "build") return;
         if (!output?.message) return;
@@ -103,8 +112,10 @@ const AgentDefaultGuardPlugin = async (ctx) => {
 
         let agents;
         try {
-          agents = await registry();
+          agents = await registry(trace);
         } catch (error) {
+          // A failed refetch still counts as a miss: the fetch was attempted.
+          trace.cache = "miss";
           log("warn", `agent registry fetch failed (${error?.message ?? error}) — leaving build untouched`);
           return;
         }
@@ -126,12 +137,23 @@ const AgentDefaultGuardPlugin = async (ctx) => {
 
         const from = output.message.agent;
         output.message.agent = target;
+        trace.rewrite = "yes";
         log(
           "info",
           `rewrote message agent "${from ?? input.agent}" -> "${target}" (session ${input.sessionID ?? "?"}, message ${output.message.id ?? "?"})`,
         );
       } catch (error) {
         log("warn", `chat.message guard failed open: ${error?.message ?? error}`);
+      } finally {
+        // Emitted only once the registry was consulted, so cache= is always
+        // hit|miss. Guards that return before the registry (non-build agent,
+        // missing message, missing default_agent) log nothing here.
+        if (trace.cache !== null) {
+          log(
+            "info",
+            `hook=chat.message dur_ms=${Date.now() - startedAt} cache=${trace.cache} rewrite=${trace.rewrite}`,
+          );
+        }
       }
     },
   };

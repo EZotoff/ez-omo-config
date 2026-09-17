@@ -12,9 +12,10 @@
 // same session; the synthetic message is NOT persisted to the transcript
 // (verified live 2026-08-15). Fires for both root and subagent sessions.
 
-import { loadConfig } from "./skill-nudger/config.mjs";
 import { loadCatalog } from "./skill-nudger/catalog.mjs";
-import { emitProof, logInfo, logWarn, setLogLevel } from "./skill-nudger/logging.mjs";
+import { loadConfig } from "./skill-nudger/config.mjs";
+import { emitProof, logInfo, logTiming, logWarn, nowMs, setLogLevel } from "./skill-nudger/logging.mjs";
+import { RULES, agentAllowed, buildNudge, buildSyntheticMessage, ruleForSignal } from "./skill-nudger/nudge.mjs";
 import { createSignalTracker } from "./skill-nudger/signals.mjs";
 import {
   canNudge,
@@ -23,7 +24,6 @@ import {
   recordNudge,
   recordSuccess,
 } from "./skill-nudger/state.mjs";
-import { agentAllowed, buildNudge, buildSyntheticMessage, ruleForSignal, RULES } from "./skill-nudger/nudge.mjs";
 
 const RULES_BY_ID = new Map(RULES.map((r) => [r.id, r]));
 
@@ -39,7 +39,7 @@ function sessionContextFromMessages(messages) {
   return { sessionID, agents: [...agents] };
 }
 
-export default async function skillNudgerPlugin(ctx) {
+export default async function skillNudgerPlugin(_ctx) {
   const config = await loadConfig();
   if (!config) {
     logWarn("No skillNudger config loaded; plugin running in no-op mode");
@@ -57,15 +57,32 @@ export default async function skillNudgerPlugin(ctx) {
   const tracker = createSignalTracker(config);
   // sessionID -> { ruleId, part, ts, agentsAtQueue }
   const pending = new Map();
+  const pendingAcceptance = new Map();
+  const assistantTurns = new Map();
 
   logInfo("Plugin loaded");
   emitProof("plugin_loaded", { version: "1.0.0", catalog_size: catalog.size });
 
   return {
     "tool.execute.after": async (input, output) => {
+      const startedAt = nowMs();
+      let signalCount = 0;
       try {
         const { sessionID, tool, args } = input ?? {};
         if (!sessionID) return;
+
+        const acceptance = pendingAcceptance.get(sessionID);
+        if (acceptance) {
+          const loadedSkill = tool === "skill" ? args?.name ?? args?.skill ?? args?.skillName : null;
+          const elapsedTurns = (assistantTurns.get(sessionID) ?? acceptance.deliveredAtTurn) - acceptance.deliveredAtTurn;
+          if (loadedSkill === acceptance.skill && elapsedTurns <= 3) {
+            emitProof("nudge_accepted", { session_id: sessionID, rule: acceptance.ruleId, skill: acceptance.skill });
+            pendingAcceptance.delete(sessionID);
+          } else if (elapsedTurns >= 3) {
+            emitProof("nudge_ignored", { session_id: sessionID, rule: acceptance.ruleId });
+            pendingAcceptance.delete(sessionID);
+          }
+        }
 
         const signals = tracker.observe({
           sessionID,
@@ -73,6 +90,7 @@ export default async function skillNudgerPlugin(ctx) {
           args,
           outputText: typeof output?.output === "string" ? output.output : "",
         });
+        signalCount = signals.length;
         if (signals.length === 0) return;
 
         for (const signal of signals) {
@@ -105,16 +123,22 @@ export default async function skillNudgerPlugin(ctx) {
         logWarn(`tool.execute.after error for ${sid}: ${err?.message ?? err}`);
         recordFailure(sid);
         emitProof("failure", { session_id: sid, hook: "tool.execute.after", error: String(err?.message ?? err) });
+      } finally {
+        // Stable metric: hook=tool.execute.after dur_ms=<n> signals=<n>
+        logTiming("tool.execute.after", startedAt, `signals=${signalCount}`);
       }
     },
 
-    "experimental.chat.messages.transform": async (input, output) => {
+    "experimental.chat.messages.transform": async (_input, output) => {
+      const startedAt = nowMs();
       try {
         const messages = output?.messages;
         if (!Array.isArray(messages) || messages.length === 0) return;
 
         const { sessionID, agents } = sessionContextFromMessages(messages);
         if (!sessionID) return;
+        const assistantTurn = messages.filter((message) => message?.info?.role === "assistant").length;
+        assistantTurns.set(sessionID, assistantTurn);
 
         const queued = pending.get(sessionID);
         if (!queued) return;
@@ -136,12 +160,18 @@ export default async function skillNudgerPlugin(ctx) {
 
         messages.push(buildSyntheticMessage(sessionID, queued.part));
         emitProof("nudge_delivered", { session_id: sessionID, rule: queued.ruleId, agents });
+        if (rule?.skill) {
+          pendingAcceptance.set(sessionID, { ruleId: queued.ruleId, skill: rule.skill, deliveredAtTurn: assistantTurn });
+        }
         logInfo(`Delivered ${queued.ruleId} nudge to session ${sessionID} (agents: ${agents.join(",") || "?"})`);
       } catch (err) {
         const { sessionID } = sessionContextFromMessages(output?.messages ?? []);
         logWarn(`messages.transform error${sessionID ? ` for ${sessionID}` : ""}: ${err?.message ?? err}`);
         if (sessionID) recordFailure(sessionID);
         emitProof("failure", { session_id: sessionID ?? "unknown", hook: "messages.transform", error: String(err?.message ?? err) });
+      } finally {
+        // Stable metric: hook=messages.transform dur_ms=<n>
+        logTiming("messages.transform", startedAt);
       }
     },
 
@@ -153,6 +183,8 @@ export default async function skillNudgerPlugin(ctx) {
       tracker.deleteSession(sessionID);
       deleteSessionState(sessionID);
       pending.delete(sessionID);
+      pendingAcceptance.delete(sessionID);
+      assistantTurns.delete(sessionID);
       emitProof("session_cleanup", { session_id: sessionID });
     },
   };

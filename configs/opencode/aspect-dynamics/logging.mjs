@@ -1,7 +1,7 @@
 // configs/opencode/aspect-dynamics/logging.mjs
 // Logging helpers for aspect-dynamics plugin
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -115,6 +115,7 @@ export function resetProofEvents() {
 // streams (AGENTS.md plugin rule; root cause of the 2026-09-06 stdout spam).
 const LOG_DIR = join(homedir(), ".config", "opencode");
 const LOG_PATH = join(LOG_DIR, "aspect-dynamics.log");
+const LOG_MAX_BYTES = 2 * 1024 * 1024;
 
 // Test override — allows harness to intercept diagnostic logs without file I/O
 export const __testLogOverride = { value: null };
@@ -130,6 +131,21 @@ function ensureLogDir() {
   }
 }
 
+// Size-based rotation mirroring provider-connect-retry.mjs:21-32. Fail-open:
+// a missing log file or a failed rename must never break the plugin.
+function rotateLogIfNeeded() {
+  try {
+    const stat = statSync(LOG_PATH);
+    if (stat.size > LOG_MAX_BYTES) {
+      const backup = `${LOG_PATH}.1`;
+      try { unlinkSync(backup); } catch {}
+      try { renameSync(LOG_PATH, backup); } catch { try { unlinkSync(LOG_PATH); } catch {} }
+    }
+  } catch {
+    // file doesn't exist yet — nothing to rotate
+  }
+}
+
 function emitLog(level, msg) {
   if (!shouldLog(level)) return;
   const line = `[${new Date().toISOString()}] ${PLUGIN_PREFIX} [${level}] ${msg}`;
@@ -139,6 +155,7 @@ function emitLog(level, msg) {
   }
   try {
     if (!ensureLogDir()) return;
+    rotateLogIfNeeded();
     appendFileSync(LOG_PATH, `${line}\n`, "utf8");
   } catch {
     // File write failures are silently dropped — logging must never break the plugin
@@ -159,4 +176,18 @@ export function logError(msg) {
 
 export function logEvent(eventType, sessionID, extra = "") {
   emitLog("info", `[${eventType}] session=${sessionID} ${extra}`.trim());
+}
+
+// Fail-open timing instrumentation. nowMs() is a monotonic millisecond clock;
+// logTiming() emits at info level so existing level filtering still applies.
+export function nowMs() {
+  return Number(process.hrtime.bigint()) / 1e6;
+}
+
+export function logTiming(hook, startedAt, extra = "") {
+  try {
+    emitLog("info", `hook=${hook} dur_ms=${(nowMs() - startedAt).toFixed(2)} ${extra}`.trim());
+  } catch {
+    // Timing instrumentation must never break the plugin
+  }
 }
