@@ -35,6 +35,27 @@ Live configs are symlinks pointing into this repo:
 5. **Validate JSON after editing.** Run `python3 -c "import json; json.load(open('path'))"` on changed files.
 6. **Server vs TUI restart.** Closing/reopening the TUI does NOT restart the `opencode serve` server process. Plugins, OMO runtime, and in-memory session state are initialized once at server startup. Config changes (plugin array, agent settings) require a server restart to take full effect (the former `omo-tg.service` unit is masked/retired). **Never bare-restart** — running sessions lose their in-flight turns; use `scripts/restart-with-continuation.sh` (see "Session-safe OpenCode server restarts" in the global AGENTS.md) so active sessions are snapshotted and auto-continued. Always verify with `ps -eo pid,lstart,etime,args | grep 'opencode serve'` that the server start time actually changed before assuming a restart worked.
 
+## Durable Workspaces — no productive work in /tmp
+
+Incident (2026-09-17): a repo clone and all work on it — the user's unpushed WIP commit, three agent fix commits, and the built deliverable APK — lived only in `/tmp/opencode/…`. A wipe of `/tmp` destroyed all of it; the user's unpushed WIP was permanently lost. Standing policy from this incident:
+
+`/tmp` (and any tmpfs/ephemeral path) is appropriate **only** for:
+- Read-only inspection clones you intend to throw away (reading code, diffs, archaeology).
+- Throwaway artifacts: scratch test files, decompilation dumps, caches, temp fixtures.
+
+`/tmp` must **never** be the sole home of:
+- Commits (yours or inherited WIP) — unpushed commits are irreplaceable.
+- Deliverable builds/artifacts the user will consume (APKs, reports, archives).
+- Anything not reproducible from a remote in one step.
+
+Required practice:
+1. Checkouts you intend to **work on** go in a persistent workspace (`~/src/<repo>` or the project's own directory).
+2. **Inherited locations count.** When you start working in an existing `/tmp` clone, either re-clone to a persistent path first, or push a WIP branch (a personal branch is fine) before committing or building on it.
+3. Copy deliverable artifacts to a persistent location **immediately** after building — a build output directory is not storage.
+4. Heuristic: *if losing it would cost real work, it must not live only in `/tmp`.*
+
+Reference: wisdom entry `20260917-085729-282h` (`~/.sisyphus/scripts/wisdom-search.sh "ephemeral-storage"`).
+
 ## Live Deployment Claim Discipline
 
 When reporting what has been done, agents must distinguish between six evidence states. Each state permits and forbids specific claim language.
