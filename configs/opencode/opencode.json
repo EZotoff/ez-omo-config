@@ -831,13 +831,13 @@
       },
       "models": {
         "qwen3.8-27b": {
-          "name": "Qwen3.8 27B IQ3_XXS+MTP (uni-pc 4060 Ti)",
+          "name": "Qwen3.8 27B GSQ-RCO IQ2_S+MTP (uni-pc 128k)",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
           },
           "limit": {
-            "context": 65536,
+            "context": 131072,
             "output": 16384
           },
           "attachment": false
