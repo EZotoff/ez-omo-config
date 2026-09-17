@@ -10,7 +10,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bench } from "./lib.mjs";
+import { asyncBench } from "./lib.mjs";
 
 const PLUGIN_PATH =
   new URL("../../configs/opencode/live-config-guard.mjs", import.meta.url).pathname;
@@ -27,10 +27,15 @@ const { default: buildPlugin } = await import(PLUGIN_PATH);
 const plugin = await buildPlugin({ directory: NON_REPO_DIR });
 const hook = plugin["tool.execute.before"];
 
-// The hook body is fully synchronous (no awaits), so calling it performs all
-// classification work immediately; rejected block-throws are caught here.
-const runHook = (tool, args) => {
-  hook({ tool }, { args }).catch(() => {});
+// The hook is async; await it inside the timed region so the measured cost
+// includes the full classifier + logging work. Deliberate block-throws are
+// the expected verdict on the block classes and are caught here.
+const runHook = async (tool, args) => {
+  try {
+    await hook({ tool }, { args });
+  } catch {
+    // expected block verdict
+  }
 };
 
 // Sanity: the block path must actually throw the guard error.
@@ -45,8 +50,8 @@ if (!sawBlock) {
 const READ_CMD = "cat /tmp/notes.txt && jq '.plugins | length' /tmp/notes.txt";
 const WRITE_CMD = "echo '{\"plugin\":[]}' > ~/.config/opencode/opencode.json";
 
-console.log(JSON.stringify(bench("benign-read-command", () => runHook("bash", { command: READ_CMD }))));
-console.log(JSON.stringify(bench("genuine-write-command", () => runHook("bash", { command: WRITE_CMD }))));
-console.log(JSON.stringify(bench("write-edit-tool-call", () => runHook("write", { filePath: "~/.config/opencode/opencode.json" }))));
+console.log(JSON.stringify(await asyncBench("benign-read-command", () => runHook("bash", { command: READ_CMD }))));
+console.log(JSON.stringify(await asyncBench("genuine-write-command", () => runHook("bash", { command: WRITE_CMD }))));
+console.log(JSON.stringify(await asyncBench("write-edit-tool-call", () => runHook("write", { filePath: "~/.config/opencode/opencode.json" }))));
 
 rmSync(SANDBOX, { recursive: true, force: true });
