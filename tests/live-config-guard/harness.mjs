@@ -11,10 +11,10 @@
 //     blocked from non-repo sessions; repo sessions exempt.
 //   - Internal errors fail open; only deliberate blocks throw.
 
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { execFileSync } from "node:child_process";
 
 const PLUGIN_PATH = new URL("../../configs/opencode/live-config-guard.mjs", import.meta.url).pathname;
 
