@@ -20,6 +20,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 | `opencode--tui-session-directory-scope` — session list + event store scoped to attach directory on the shared daemon; kills cross-dir session leakage (other `oa` terminals, /tmp global-project dirs); live A/B verified 2026-09-12 | active | true | [entry](../.sisyphus/patches/opencode--tui-session-directory-scope.md) |
 | `opencode--tui-pinned-session-window` — session dialog fetches pins by ID; Pinned section survives newest-100/30-day window pressure (2026-09-14 veran spam incident); live TUI verified 2026-09-15 | active | true | [entry](../.sisyphus/patches/opencode--tui-pinned-session-window.md) |
 | `opencode--tui-pin-directory-guard` — session dialog drops foreign-directory pinned sessions from the Pinned/`extra` rescue path while the directory filter is on; closes the `session.get`-by-ID leak the pin-window patch opened against the directory-scope invariant; strict policy (no foreign pins visible); live A/B verified 2026-09-15 | active | true | [entry](../.sisyphus/patches/opencode--tui-pin-directory-guard.md) |
+| `opencode--tui-subagent-spinner` — Sessions dialog shows the spinner on a parent row while any of its (hidden) sub-agent child sessions is busy/retry; children aggregated from the unfiltered sync list (browse/search are `roots:true`); live A/B verified 2026-09-17 | active | true | [entry](../.sisyphus/patches/opencode--tui-subagent-spinner.md) |
 
 ## OMO fork patches (fork base v4.19.2 at `~/oh-my-openagent-v4.19.2`)
 
