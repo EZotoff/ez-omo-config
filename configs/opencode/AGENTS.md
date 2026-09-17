@@ -103,10 +103,12 @@ systemd-run --user --unit=restart-cont-$(date +%s) bash -c \
 ```
 
 - **Plain invocation is a dry-run** (snapshot only). Add `--restart` to actually restart and resume; `--resume-only --state-file <snapshot.json>` re-injects from a saved snapshot.
+- **Continuation is the DEFAULT for all restarts**: both units carry systemd drop-ins (`systemd/user/*.service.d/continuation.conf`) — `ExecStop=` snapshots busy sessions on every stop/restart (keeper restarts included) and `ExecStartPost=` resumes snapshots younger than 1h, then marks them consumed. A plain `systemctl --user restart` is therefore session-safe with no extra flags.
+- **Opt-out is explicit**: `restart-with-continuation.sh --bare-restart [--service <unit> --url <url>]` sets a bypass flag the hooks respect, restarting without snapshot/resume. Use only when continuation is genuinely unwanted.
 - **Detached launch is mandatory when the calling session rides the target server**: the bash tool subprocess is a child of the server process, and the systemd cgroup kill during restart terminates it mid-run (leaving the server stopped). `systemd-run --user` puts the script in its own cgroup.
 - Snapshot mechanics: `/session` and `/session/status` are **instance-scoped** (the global list misses other directories; status needs `?directory=`), so the script discovers recently-active directories from the shared session DB (read-only sqlite) and queries each. `busy` and `retry` sessions are captured; `retry` is deliberate — a restart wipes in-memory retry schedules, so those sessions need the kick. Injection is `POST /session/:id/prompt_async`.
 - Snapshots and logs: `~/.local/share/opencode/restart-continuations/`. Never echo the server passwords.
-- After any restart, verify: `ps -eo pid,lstart,args | grep 'opencode serve'` shows a fresh start time.
+- Hook activity log: `~/.local/share/opencode/restart-continuations/hooks.log`. After any restart, verify: `ps -eo pid,lstart,args | grep 'opencode serve'` shows a fresh start time.
 
 ## Platform support
 

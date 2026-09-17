@@ -2,15 +2,22 @@
 # restart-with-continuation.sh — snapshot active top-level OpenCode sessions,
 # restart opencode.service, then inject a "continue" prompt into each.
 #
+# ALSO the engine behind the systemd continuation hooks (see the continuation.conf
+# drop-ins): ExecStop= snapshots busy sessions on EVERY stop/restart of the
+# managed units and ExecStartPost= resumes them — so plain `systemctl restart` continues sessions by default.
+#
 # Usage:
 #   restart-with-continuation.sh                 # dry-run: snapshot only, no restart, no resume
 #   restart-with-continuation.sh --restart       # snapshot -> systemctl --user restart -> resume
 #   restart-with-continuation.sh --restart --prompt "Pick up where you left off."
+#   restart-with-continuation.sh --bare-restart  # restart WITHOUT continuation (explicit opt-out)
 #   restart-with-continuation.sh --resume-only --state-file <file.json>   # re-inject from a saved snapshot
+#   restart-with-continuation.sh hook-snapshot <unit> <url> <auth-env-file>   # ExecStop hook
+#   restart-with-continuation.sh hook-resume <unit> <url> <auth-env-file>     # ExecStartPost hook
 #
 # Env (defaults auto-detected):
 #   OPENCODE_URL      base URL of the serve instance (default http://127.0.0.1:3021)
-#   OPENCODE_SERVER_PASSWORD   server Basic-auth password (auto-read from openchamber.env)
+#   OPENCODE_SERVER_PASSWORD   server Basic-auth password (auto-read from serve.env)
 #   OPENCODE_SERVER_USERNAME   server Basic-auth username (default: opencode)
 #
 # Evidence states: snapshot = live API read; resume = POST /session/:id/prompt_async
@@ -23,42 +30,66 @@ DEFAULT_PROMPT="The OpenCode server was restarted for maintenance and your previ
 
 SERVICE_UNIT="${SERVICE_UNIT:-opencode.service}"
 MAX_AGE_SECONDS="${MAX_AGE_SECONDS:-86400}"
+RESUME_TTL_SECONDS="${RESUME_TTL_SECONDS:-3600}"
 RESTART=false
+BARE_RESTART=false
 RESUME_ONLY=false
+HOOK_MODE=""
 PROMPT="$DEFAULT_PROMPT"
 STATE_FILE=""
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --restart) RESTART=true ;;
-    --resume-only) RESUME_ONLY=true ;;
-    --prompt) PROMPT="$2"; shift ;;
-    --state-file) STATE_FILE="$2"; shift ;;
-    --url) OPENCODE_URL="$2"; shift ;;
-    --service) SERVICE_UNIT="$2"; shift ;;
-    --password) CLI_PASSWORD="$2"; shift ;;
-    --username) OPENCODE_SERVER_USERNAME="$2"; shift ;;
-    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "unknown arg: $1" >&2; exit 2 ;;
-  esac
-  shift
-done
+case "${1:-}" in
+  hook-snapshot|hook-resume) HOOK_MODE="$1" ;;
+esac
 
-OPENCODE_URL="${OPENCODE_URL:-http://127.0.0.1:3021}"
+log() { printf '[restart-continuation] %s\n' "$*"; }
+
+if [[ -n "$HOOK_MODE" ]];
+  then
+  SERVICE_UNIT="${2:-}"; OPENCODE_URL="${3:-}"; AUTH_ENV="${4:-}"
+else
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --restart) RESTART=true ;;
+      --bare-restart) BARE_RESTART=true; RESTART=true ;;
+      --resume-only) RESUME_ONLY=true ;;
+      --prompt) PROMPT="$2"; shift ;;
+      --state-file) STATE_FILE="$2"; shift ;;
+      --url) OPENCODE_URL="$2"; shift ;;
+      --service) SERVICE_UNIT="$2"; shift ;;
+      --password) CLI_PASSWORD="$2"; shift ;;
+      --username) OPENCODE_SERVER_USERNAME="$2"; shift ;;
+      -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+      *) echo "unknown arg: $1" >&2; exit 2 ;;
+    esac
+    shift
+  done
+fi
+
 OPENCODE_SERVER_USERNAME="${OPENCODE_SERVER_USERNAME:-opencode}"
-ENV_FILE="$HOME/.config/opencode/serve.env"
-if [[ -n "${CLI_PASSWORD:-}" ]]; then
-  OPENCODE_SERVER_PASSWORD="$CLI_PASSWORD"
-elif [[ -r "$ENV_FILE" ]] && grep -q '^OPENCODE_SERVER_PASSWORD=' "$ENV_FILE"; then
-  # The service's own env file is authoritative for the systemd-managed server;
-  # an inherited OPENCODE_SERVER_PASSWORD may belong to a different instance.
-  OPENCODE_SERVER_PASSWORD="$(grep '^OPENCODE_SERVER_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)"
+if [[ -n "$HOOK_MODE" ]]; then
+  if [[ -n "$AUTH_ENV" && -r "$AUTH_ENV" ]]; then
+    OPENCODE_SERVER_PASSWORD="$(grep '^OPENCODE_SERVER_PASSWORD=' "$AUTH_ENV" | cut -d= -f2-)"
+  fi
+  if [[ -z "${OPENCODE_SERVER_PASSWORD:-}" ]]; then
+    log "no password via $AUTH_ENV; hook no-op"
+    exit 0
+  fi
+else
+  OPENCODE_URL="${OPENCODE_URL:-http://127.0.0.1:3021}"
+  ENV_FILE="$HOME/.config/opencode/serve.env"
+  if [[ -n "${CLI_PASSWORD:-}" ]]; then
+    OPENCODE_SERVER_PASSWORD="$CLI_PASSWORD"
+  elif [[ -r "$ENV_FILE" ]] && grep -q '^OPENCODE_SERVER_PASSWORD=' "$ENV_FILE"; then
+    # The service's own env file is authoritative for the systemd-managed server;
+    # an inherited OPENCODE_SERVER_PASSWORD may belong to a different instance.
+    OPENCODE_SERVER_PASSWORD="$(grep '^OPENCODE_SERVER_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)"
+  fi
+  if [[ -z "${OPENCODE_SERVER_PASSWORD:-}" ]]; then
+    echo "ERROR: no password: use --password, $ENV_FILE, or OPENCODE_SERVER_PASSWORD" >&2
+    exit 1
+  fi
 fi
-if [[ -z "${OPENCODE_SERVER_PASSWORD:-}" ]]; then
-  echo "ERROR: no password: use --password, $ENV_FILE, or OPENCODE_SERVER_PASSWORD" >&2
-  exit 1
-fi
-
 api() { # api <method> <path> [json-body]
   local method="$1" path="$2" body="${3:-}"
   if [[ -n "$body" ]]; then
@@ -155,7 +186,8 @@ PYEOF
 
 # --- Wait for server readiness --------------------------------------------
 wait_ready() {
-  local deadline=$((SECONDS + 90))
+  local timeout="${1:-90}"
+  local deadline=$((SECONDS + timeout))
   while (( SECONDS < deadline )); do
     if api GET /session/status >/dev/null 2>&1; then
       log "server is up"
@@ -199,11 +231,72 @@ sys.exit(1 if fail else 0)
 PYEOF
 }
 
-# --- Main ------------------------------------------------------------------
+# --- Bypass flag (keeps systemd hooks out of script-driven restarts) --------
+bypass_flag() { echo "$STATE_DIR/.bypass-$SERVICE_UNIT"; }
+set_bypass() { mkdir -p "$STATE_DIR"; touch "$(bypass_flag)"; }
+clear_bypass() { rm -f "$(bypass_flag)"; }
+# Returns 0 when hooks should SKIP (flag present and fresh); consumes stale flags.
+mtime_of() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || date +%s; }
+bypass_active() {
+  local f; f="$(bypass_flag)"
+  [[ -e "$f" ]] || return 1
+  age=$(( $(date +%s) - $(mtime_of "$f") ))
+  if (( age > 600 )); then clear_bypass; log "stale bypass flag (${age}s) ignored"; return 1; fi
+  return 0
+}
+
+# --- Hook modes (invoked by systemd ExecStop / ExecStartPost) ---------------
+HOOKS_LOG="$STATE_DIR/hooks.log"
+hook_log() { mkdir -p "$STATE_DIR"; printf '%s [hook:%s] %s\n' "$(date +%H:%M:%S)" "$HOOK_MODE" "$*" >> "$HOOKS_LOG"; }
+
+if [[ -n "$HOOK_MODE" ]]; then
+  # Hooks must NEVER block or fail the unit operation.
+  trap 'exit 0' EXIT
+  if [[ "$HOOK_MODE" == hook-snapshot ]]; then
+    if bypass_active; then hook_log "bypass flag set for $SERVICE_UNIT; snapshot skipped"; exit 0; fi
+    if ! api GET /session/status >/dev/null 2>&1; then
+      hook_log "server $OPENCODE_URL unreachable at stop; nothing to snapshot"
+      exit 0
+    fi
+    STATE_FILE="$STATE_DIR/snapshot-$SERVICE_UNIT-$(date +%Y%m%d-%H%M%S).json" snapshot || hook_log "snapshot failed (non-fatal)"
+    hook_log "snapshot done for $SERVICE_UNIT"
+    exit 0
+  fi
+  # hook-resume
+  if bypass_active; then clear_bypass; hook_log "bypass flag set for $SERVICE_UNIT; resume skipped, flag cleared"; exit 0; fi
+latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1 || true)"
+  if [[ -z "$latest" ]]; then hook_log "no snapshot for $SERVICE_UNIT; nothing to resume"; exit 0; fi
+  age=$(( $(date +%s) - $(mtime_of "$latest") ))
+  if (( age > RESUME_TTL_SECONDS )); then
+    hook_log "snapshot ${age}s old (> ${RESUME_TTL_SECONDS}s TTL); resume skipped"
+    mv "$latest" "$STATE_DIR/consumed-$(basename "$latest")"
+    exit 0
+  fi
+  SECONDS=0
+  wait_ready 45 || { hook_log "server not ready in time; resume skipped"; exit 0; }
+  hook_log "resuming from $(basename "$latest")"
+  resume "$latest" >> "$HOOKS_LOG" 2>&1 || true
+  mv "$latest" "$STATE_DIR/consumed-$(basename "$latest")" 2>/dev/null || true
+  exit 0
+fi
+
+# --- Main (standalone) ------------------------------------------------------
 if [[ "$RESUME_ONLY" == true ]]; then
   [[ -n "$STATE_FILE" && -r "$STATE_FILE" ]] || { echo "--resume-only needs --state-file" >&2; exit 2; }
   resume "$STATE_FILE"
   exit $?
+fi
+
+if [[ "$BARE_RESTART" == true ]]; then
+  # Explicit opt-out: no snapshot, no resume. The bypass flag keeps the systemd
+  # hooks (ExecStop/ExecStartPost) out of this restart.
+  log "bare restart of $SERVICE_UNIT (continuation bypassed by request)"
+  set_bypass
+  trap clear_bypass EXIT
+  systemctl --user restart "$SERVICE_UNIT"
+  clear_bypass
+  trap - EXIT
+  exit 0
 fi
 
 snapshot
@@ -213,7 +306,13 @@ if [[ "$RESTART" != true ]]; then
   exit 0
 fi
 
+# Script-driven restart: bypass the hooks (they would double-resume); this path
+# snapshots above and resumes below itself.
 log "restarting $SERVICE_UNIT"
+set_bypass
+trap clear_bypass EXIT
 systemctl --user restart "$SERVICE_UNIT"
 wait_ready
 resume "$(ls -t "$STATE_DIR"/snapshot-*.json 2>/dev/null | head -1 || echo "$STATE_FILE")"
+clear_bypass
+trap - EXIT
