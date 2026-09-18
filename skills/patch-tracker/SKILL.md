@@ -64,6 +64,9 @@ Per `.sisyphus/patches/TEMPLATE.md`, the entry body must include:
 - `## Reapply Instructions` — Step-by-step instructions to reapply this patch if lost after an update. MUST start with "identify the ACTIVE rendering hook point in the TARGET version first" for monkey-patches.
 - `## Durable Alternative` — What would make this patch unnecessary (plugin, hook, config, upstream fix). Include status: `{pursued \| not-yet-pursued \| blocked-by-upstream \| not-applicable}`
 
+**Push discipline (source patches carried as fork commits) — 2026-09-18 incident:**
+When a source patch is implemented as commits on a fork/dependency branch (e.g. `fix/custom-patches-v4.19.2` on `EZotoff/oh-my-openagent`), those commits MUST be pushed to the fork's remote BEFORE the entry is marked `status: active`. A local-only commit is one disk-cleanup accident away from being unrecoverable. Verification: every commit hash cited in the entry (`target_file`/`note`/`Reapply Instructions`) must exist on the remote (`git branch -r --contains <hash>` non-empty, or `git ls-remote` + fetch check).
+
 **Step 3: Validate fields:**
 - `patch_id` must match pattern: `^[a-z0-9]+--[a-z0-9-]+$`
 - `verification_pattern` must be valid grep-compatible regex (test with `grep -E`)
