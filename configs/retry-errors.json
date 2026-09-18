@@ -3,8 +3,8 @@
   "version": 1,
   "description": "Registry of retryable error patterns for provider-connect-retry plugin. Fallback on exhaustion is resolved from the failing session's agent fallback_models chain in oh-my-openagent.json (unified fallback); rules no longer carry a per-rule fallback_model. Compaction-mode failures use the dedicated top-level compaction_fallback_models chain and re-dispatch via POST /session/{id}/summarize.",
   "compaction_fallback_models": [
-    "opencode-go/deepseek-v4.1-flash",
     "ollama-cloud/deepseek-v4.1-flash",
+    "opencode-go/deepseek-v4.1-flash",
     "zai-coding-plan/glm-5.3",
     "openai/gpt-5.6-sol"
   ],
