@@ -210,7 +210,9 @@ base = os.environ["OPENCODE_URL"]
 auth = [os.environ["OPENCODE_SERVER_USERNAME"], os.environ["OPENCODE_SERVER_PASSWORD"]]
 ok = fail = 0
 for s in snap.get("sessions", []):
-    body = json.dumps({"parts": [{"type": "text", "text": os.environ["PROMPT"]}]})
+    # synthetic:true marks the part machine-injected (OC Beacon suppresses the
+# "response ready" push for such turns; matches OMO plugin injection shape).
+body = json.dumps({"parts": [{"type": "text", "text": os.environ["PROMPT"], "synthetic": True}]})
     q = ""
     if s.get("directory"):
         from urllib.parse import quote
