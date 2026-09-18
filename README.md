@@ -165,7 +165,7 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 | sisyphus | `zai-coding-plan/glm-5.3-flash` | high | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-5.6-sol |
 | sisyphus-junior | `zai-coding-plan/glm-5.3` | default | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-5.6-sol |
 | librarian | `zai-coding-plan/glm-5.3-flash` | high | glm-5.3 → ollama m3 → opencode-go m3 → gpt-5.6-terra |
-| explore | `opencode-go/minimax-m3` | default | ollama m3 → gpt-5.6-luna |
+| explore | `ollama-cloud/minimax-m3` | default | opencode-go m3 → gpt-5.6-luna |
 | frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-5.6-sol |
 | document-writer | `openai/gpt-5.6-terra` | default | glm-5.3 |
 | multimodal-looker | `zai-coding-plan/glm-5.3-flash` | high | gpt-5.6-terra → gemini-3.8-flash |
