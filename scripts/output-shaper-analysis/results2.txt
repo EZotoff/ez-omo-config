@@ -1,0 +1,98 @@
+loaded 108443 msgs, parts scan 8s
+cohort=96469  same-ms adjacent ties=0
+
+model               arm     per turn    nmsg nses     reasoning_med [95%CI]        output_med [95%CI]
+glm-5.2             treated pre res    25456  320              100 [70,137]             159 [144,175]
+glm-5.2             treated pre new     3455  431              128 [89,170]             131 [111,152]
+glm-5.2             treated postres     5108   91              138 [79,213]             171 [141,203]
+glm-5.2             treated postnew      657   95             376 [238,499]             200 [162,244]
+glm-5.2             >>> DiD rea: point=-210  95%CI [-367,-34]  (neg = clamp-direction)
+glm-5.2             >>> DiD out: point=-57  95%CI [-105,-4]  (neg = clamp-direction)
+glm-5.3             treated postres    20999  587                70 [58,85]             146 [137,156]
+glm-5.3             treated postnew     2063  633             325 [230,443]             144 [126,162]
+gpt-5.6-sol         treated pre res     7348  457                86 [77,97]             200 [186,214]
+gpt-5.6-sol         treated pre new     1069  558               68 [30,103]               90 [73,103]
+gpt-5.6-sol         treated postres     2671  159                31 [25,40]             165 [142,194]
+gpt-5.6-sol         treated postnew      469  265                  8 [0,76]                 51 [0,80]
+gpt-5.6-sol         >>> DiD rea: point=+5  95%CI [-68,+45]  (neg = clamp-direction)
+gpt-5.6-sol         >>> DiD out: point=+4  95%CI [-44,+66]  (neg = clamp-direction)
+gpt-5.6-terra       treated pre res      217   20                67 [52,89]             279 [194,343]
+gpt-5.6-terra       treated pre new      368  243                47 [0,100]                70 [0,119]
+gpt-5.6-terra       treated postres      328   39                34 [22,50]             136 [102,190]
+gpt-5.6-terra       treated postnew      368  336                  9 [0,41]                67 [52,88]
+gpt-5.6-terra       >>> DiD rea: point=+6  95%CI [-60,+74]  (neg = clamp-direction)
+gpt-5.6-terra       >>> DiD out: point=-140  95%CI [-216,-39]  (neg = clamp-direction)
+gpt-5.6-luna        treated pre res      340   68              106 [90,128]             364 [337,392]
+gpt-5.6-luna        treated pre new       89   82                83 [69,94]             389 [355,402]
+gpt-5.6-luna        treated postres       56   13                48 [26,63]             310 [267,376]
+gpt-5.6-luna        treated postnew       40   39                  0 [0,30]                  0 [0,98]
+kimi-for-coding     treated pre res     2596   63                  -                    199 [174,232]
+kimi-for-coding     treated pre new      105   67                  -                    393 [301,521]
+kimi-for-coding     treated postres     1246   35                48 [37,69]                75 [64,92]
+kimi-for-coding     treated postnew      130   54               65 [41,122]                50 [18,96]
+kimi-for-coding     >>> DiD out: point=+220  95%CI [+106,+331]  (neg = clamp-direction)
+k3                  treated pre res     1548   95                68 [42,96]             192 [175,223]
+k3                  treated pre new      408  138                  0 [0,35]                 0 [0,206]
+k3                  treated postres      222    9                  1 [0,41]             134 [126,194]
+k3                  treated postnew       15    9                  83 [n/r]                 180 [n/r]
+gemini-3.6-flash    treated pre res      200    4               50 [40,219]               59 [50,209]
+gemini-3.6-flash    treated pre new        5    4                 334 [n/r]                 159 [n/r]
+gemini-3.6-flash    treated postres       84    2                61 [60,65]              107 [93,114]
+gemini-3.6-flash    treated postnew       3    2                 260 [n/r]                 215 [n/r]
+gemini-3.7-flash    treated postres      790   57                47 [38,58]                55 [50,68]
+gemini-3.7-flash    treated postnew      131  126             638 [543,733]             212 [187,261]
+gemini-3.1-pro-previewtreated pre res      346   23                44 [26,75]                50 [45,63]
+gemini-3.1-pro-previewtreated pre new      161   60                 0 [0,463]                  0 [0,49]
+gemini-3.1-pro-previewtreated postres       13    5                  -                        191 [n/r]
+gemini-3.1-pro-previewtreated postnew       11    9                  -                         66 [n/r]
+deepseek-v4-flash   placebo pre res     1935  131               83 [65,102]             173 [156,193]
+deepseek-v4-flash   placebo pre new      246  210               90 [69,102]             209 [176,243]
+deepseek-v4-flash   placebo postres     1749   87                 35 [0,63]             195 [185,207]
+deepseek-v4-flash   placebo postnew      235  142              161 [62,313]             202 [146,312]
+deepseek-v4-flash   >>> DiD rea: point=-119  95%CI [-279,-10]  (neg = clamp-direction)
+deepseek-v4-flash   >>> DiD out: point=+29  95%CI [-94,+98]  (neg = clamp-direction)
+deepseek-v4-pro     placebo pre res     1482   32                44 [38,55]             142 [139,151]
+deepseek-v4-pro     placebo pre new       63   47                58 [30,81]             180 [102,235]
+deepseek-v4-pro     placebo postres     1654   57             175 [133,254]             189 [171,211]
+deepseek-v4-pro     placebo postnew      153   87                  0 [0,50]                 0 [0,126]
+minimax-m3          placebo pre res     3579  312                  -                    379 [349,413]
+minimax-m3          placebo pre new      491  455                  -                    535 [498,582]
+minimax-m3          placebo postres     2471  222                  -                    290 [239,347]
+minimax-m3          placebo postnew      319  295                  -                    359 [324,403]
+minimax-m3          >>> DiD out: point=+87  95%CI [+16,+168]  (neg = clamp-direction)
+
+=== event study: 7d before vs after clamp start (Aug 7), reasoning medians ===
+glm-5.2             treated  7d-pre: res   162(5440 ) new   153(655  ) | 7d-post: res   138(5056 ) new   376(651  ) | Dres=-24 Dnew=+223
+glm-5.3             treated  insufficient paired 7d data (pre days=0, post days=7)
+gpt-5.6-sol         treated  7d-pre: res    97(1935 ) new    57(199  ) | 7d-post: res    20(776  ) new   144(88   ) | Dres=-76 Dnew=+86
+gpt-5.6-terra       treated  7d-pre: res    15(27   ) new     0(186  ) | 7d-post: res    45(13   ) new     0(139  ) | Dres=+30 Dnew=+0
+gpt-5.6-luna        treated  7d-pre: res   115(34   ) new   109(13   ) | 7d-post: res    48(56   ) new     0(40   ) | Dres=-68 Dnew=-109
+kimi-for-coding     treated  insufficient paired 7d data (pre days=0, post days=7)
+k3                  treated  7d-pre: res    94(933  ) new    52(85   ) | 7d-post: res    1(222  ) new    83(15   ) | Dres=-93 Dnew=+31
+gemini-3.6-flash    treated  7d-pre: res    50(200  ) new   334(5    ) | 7d-post: res    61(84   ) new   260(3    ) | Dres=+12 Dnew=-74
+gemini-3.7-flash    treated  insufficient paired 7d data (pre days=0, post days=7)
+gemini-3.1-pro-previewtreated  insufficient paired 7d data (pre days=7, post days=0)
+deepseek-v4-flash   placebo  7d-pre: res   135(781  ) new   110(69   ) | 7d-post: res   102(617  ) new   406(108  ) | Dres=-33 Dnew=+296
+deepseek-v4-pro     placebo  7d-pre: res    44(1482 ) new    58(63   ) | 7d-post: res   175(1654 ) new     0(153  ) | Dres=+131 Dnew=-58
+minimax-m3          placebo  insufficient paired 7d data (pre days=0, post days=0)
+
+=== variant mix (period|variant|resume -> counts, top) ===
+glm-5.2              {('pre', 'high', True): 20923, ('post', 'high', True): 3960, ('pre', None, True): 3281, ('pre', 'high', False): 2698, ('pre', 'low', True): 1252, ('post', 'low', True): 778}
+glm-5.3              {('post', 'high', True): 18408, ('post', None', True): 2026, ('post', 'high', False): 1780, ('post', 'max', True): 565, ('post', None', False): 204, ('post', 'max', False): 79}
+gpt-5.6-sol          {('pre', None, True): 3422, ('pre', 'high', True): 2461, ('post', 'high', True): 1653, ('post', None, True): 956, ('pre', 'xhigh', True): 741, ('pre', 'low', True): 724}
+gpt-5.6-terra        {('pre', None, False): 368, ('post', None, False): 321, ('post', None, True): 219, ('pre', None, True): 217, ('post', 'high', True): 109, ('post', 'high', False): 47}
+gpt-5.6-luna         {('pre', None, True): 340, ('pre', None, False): 89, ('post', None, True): 56, ('post', None, False): 40}
+kimi-for-coding      {('pre', None, True): 2589, ('post', None, True): 1131, ('post', 'high', True): 115, ('post', None, False): 111, ('pre', None, False): 104, ('post', 'high', False): 19}
+k3                   {('pre', None, True): 759, ('pre', 'xhigh', True): 497, ('pre', None, False): 294, ('pre', 'high', True): 292, ('post', None, True): 153, ('post', 'high', True): 69}
+gemini-3.6-flash     {('pre', 'high', True): 200, ('post', 'high', True): 84, ('pre', 'high', False): 5, ('post', 'high', False): 3}
+gemini-3.7-flash     {('post', 'high', True): 786, ('post', None, False): 73, ('post', 'high', False): 58, ('post', None, True): 4}
+gemini-3.1-pro-preview {('pre', 'high', True): 297, ('pre', 'high', False): 146, ('pre', None, True): 37, ('pre', 'xhigh', True): 12, ('pre', 'xhigh', False): 10, ('post', None, True): 7}
+deepseek-v4-flash    {('pre', None, True): 1492, ('post', None, True): 1108, ('post', 'xhigh', True): 641, ('pre', 'xhigh', True): 443, ('pre', None, False): 196, ('post', None, False): 157}
+deepseek-v4-pro      {('post', None, True): 1629, ('pre', 'max', True): 1439, ('post', None, False): 142, ('pre', 'max', False): 61, ('pre', None, True): 43, ('post', 'high', True): 22}
+minimax-m3           {('pre', None, True): 3579, ('post', None, True): 2471, ('pre', None, False): 491, ('post', None, False): 319}
+
+# NOTE (2026-09-15 discovery, post-run): the "treated" arm was mislabeled —
+# snake_case reasoning_effort was silently dropped by the AI SDK layer, so
+# zai/kimi/deepseek/opencode-go models were NOT treated at the wire during
+# this window. Only openai models (gpt-5.6-*) were actually treated. See
+# README.md finding 1.
