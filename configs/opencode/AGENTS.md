@@ -45,6 +45,20 @@ When a fix doesn't work, your model of the system is the suspect — not just
 the fix. Before trying a second approach, re-read the source that governs
 the behavior you're trying to change.
 
+## Long-running job monitoring (2026-09-18 lesson)
+
+Never launch a long-running batch (benchmarks, migrations, training, bulk
+operations) and walk away. The launching agent monitors it actively: first
+probe ~2 minutes in (catches crash-at-the-end bugs while only one unit of work
+is lost), then probes with exponential backoff (30s → 60s → 120s → 240s, cap
+~8 min), one fast probe per tool call — never sleep >60s inside a call. Any
+failure (non-zero exit, missing output artifact, repeated empty replies) is
+diagnosed and fixed immediately, not at the next status ping. Batches must
+abort on repeated identical failures (circuit breaker); the agent's monitoring
+is what makes the diagnosis arrive in minutes. This rule was added after an
+operator had to request it three times while ~$2 of compute and ~6 hours were
+invalidated by failures that ran to completion unobserved.
+
 ## Context discipline for small-context models (2026-09-05 lesson)
 
 A sub-agent on the local Qwen rig died mid-task from ONE tool output: unscoped `git status` in a repo with ~4,000 untracked files emitted more tokens than the model's whole 64k window. Rules for any session that may run on a context-limited model:
