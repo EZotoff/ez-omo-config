@@ -9,7 +9,7 @@ dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "reasoningEfforts: \[\"low\", \"medium\", \"high\", \"max\"\]"
 runtime_effective: true
-note: "Ported to source tree packages/model-core/src/model-capability-heuristics.ts 2026-09-16 (glm/deepseek/kimi ladders now present in both dist/index.js and source). verification_pattern corrected from double-escaped (never matched — root cause of the STALE integrity-check failures). runtime_effective: true since 2026-09-15 14:04:57Z — wire capture showed reasoning_effort:low on a clamped zai glm-5.3-flash resume turn (proxy capture, /tmp/opencode test rig)."
+note: "Source port EXISTS: fork commit ba8fc048e on origin/fix/custom-patches-v4.19.2 (packages/model-core/src/model-capability-heuristics.ts, glm/deepseek/kimi ladders; restored 2026-09-18 after the runtime-dir loss - the 2026-09-16 port it replaced was destroyed in that loss). Also in dist/index.js. verification_pattern corrected from double-escaped (never matched - root cause of the STALE integrity-check failures). runtime_effective: true since 2026-09-15 14:04:57Z - wire capture showed reasoning_effort:low on a clamped zai glm-5.3-flash resume turn (proxy capture, /tmp/opencode test rig)."
 ---
 
 # Model-Family Reasoning-Effort Tables (glm / deepseek / kimi)
