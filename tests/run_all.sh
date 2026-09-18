@@ -2,6 +2,9 @@
 
 # Test harness — discover and run all test_*.sh scripts
 # Usage: bash tests/run_all.sh
+#
+# Auto-discovery covers the patch gates: test_patch_entries.sh (schema)
+# and test_patch_lockfile.sh (bijection/ancestry/remote presence).
 
 set -o errexit
 

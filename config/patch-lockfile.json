@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "dependency": "opencode",
+  "upstream_version": "1.18.5",
+  "upstream_base": "e5cc278dec9294a627a7b05f47ce6a564408c1a2",
+  "generation": "opencode-1.18.5-patches.1",
+  "canonical_ref": "refs/remotes/fork/fix/all-patches-v1.18.5",
+  "patches": [
+    {
+      "patch_id": "opencode--turn-summary-timestamp",
+      "required": true,
+      "implementation_commits": [
+        "23020f01c8fdc08130f65a5c351a70572b46bed7",
+        "60eecf932ae540909dc550153023da8f7e746bed"
+      ]
+    },
+    {
+      "patch_id": "opencode--tui-subagent-spinner",
+      "required": true,
+      "implementation_commits": [
+        "2691f3ad4200b2e4394c6e27a8237795b7086b71",
+        "643c8e36634c8dc3c1e7ff398ec8f101793c5f0e"
+      ],
+      "commit_resolution_note": "Aggregate-branch cherry-picks of per-patch-branch originals 8ed46955979803e0fcebe1a1c79804cc4e39e986 and 8257e338ca9df34e27c43564392f8ed2331b8e58 (which are NOT ancestors of canonical_ref)."
+    },
+    {
+      "patch_id": "opencode--tui-pin-directory-guard",
+      "required": true,
+      "implementation_commits": [
+        "5b7c2fa464cc49568968aa061736a1a73a975bd4"
+      ],
+      "commit_resolution_note": "Aggregate-branch cherry-pick of per-patch-branch original ed579472de269d63f419c5e07964bf46c01096e2 (not an ancestor of canonical_ref)."
+    },
+    {
+      "patch_id": "opencode--tui-pinned-session-window",
+      "required": true,
+      "implementation_commits": [
+        "f4ffd600c6bd3ccd160f234030bdbab764d7302e"
+      ],
+      "commit_resolution_note": "Aggregate-branch cherry-pick of per-patch-branch original e5e7152701d2c0b4082b42664cd7956832b8c926 (not an ancestor of canonical_ref)."
+    },
+    {
+      "patch_id": "opencode--tui-pinned-session-race",
+      "required": true,
+      "implementation_commits": [
+        "d87ed1a19d7b6d9fe330325f80c89e1fd967f33f",
+        "1e4ff0a3d323e9e92573a1111912335144f6e9e2"
+      ],
+      "commit_resolution_note": "Aggregate-branch cherry-picks of per-patch-branch originals e7f5981eaf21b2d5d9ed11fd42982cf900535867 and e31c20ca39d5bf7e1b2a31a6869a3c1f011a49ee (not ancestors of canonical_ref)."
+    },
+    {
+      "patch_id": "opencode--link-click-wrapped-osc8",
+      "required": true,
+      "implementation_commits": [
+        "887e86ac4a91451f1378f750b417247bd2d8e9ed",
+        "2c21fc1721b00602505c0bb42571434def23ef6b"
+      ]
+    },
+    {
+      "patch_id": "opencode--command-hook-cancellation",
+      "required": true,
+      "implementation_commits": [
+        "e1ee51118aee66d13d0e51a23e16de5f13babeb1"
+      ]
+    },
+    {
+      "patch_id": "opencode--commit-policy-unblock",
+      "required": true,
+      "implementation_commits": [
+        "b2fdb28002f6a47a3a709d59063adeddcd497ea2"
+      ]
+    },
+    {
+      "patch_id": "opencode--tui-session-directory-scope",
+      "required": true,
+      "implementation_commits": [
+        "65c33b819274c3689ba968a57f653b84986030c5"
+      ]
+    },
+    {
+      "patch_id": "opencode--bash-lifecycle-group-cleanup",
+      "required": true,
+      "implementation_commits": [
+        "83fec4b8e046b9c1f358712ecd7b533d1a94bbcc"
+      ],
+      "commit_resolution_note": "83fec4b8e is 'fix(bash): supervised process-group lifecycle with bounded drain' — the commit that introduced packages/core/src/process-group.ts and the sole bash-lifecycle implementation commit carried on fix/all-patches-v1.18.5. fix/bash-lifecycle-group-cleanup's tip 65c33b819 is the (later) tui-session-directory-scope commit, so the patch commit is its ancestor, not descendant."
+    },
+    {
+      "patch_id": "opencode--sse-directory-filter-removal",
+      "required": false,
+      "implementation_kind": "acknowledged-drift",
+      "superseded_commits": [
+        "74ffcd4d5f319167f6c530626d7156f28aed4a9a"
+      ]
+    }
+  ]
+}
