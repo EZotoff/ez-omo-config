@@ -52,6 +52,24 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 | `omo--parent-wake-sync-mode-for-tui-render` | rolled_back | — | [entry](../.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md) |
 | `omo--writing-routing-to-document-writer` — sisyphus docs routing → document-writer subagent; writing category dormant (fork commit 87bae6856 + config description override) | active | true | [entry](../.sisyphus/patches/omo--writing-routing-to-document-writer.md) |
 
+## Provenance gates (2026-09-18 patch-loss incidents)
+
+After the 2026-09-18 silent binary-rebuild and OMO-runtime-deletion incidents, every live runtime artifact carries verifiable provenance:
+
+
+
+- **Lockfiles** — `config/patch-lockfile.json` (generation `opencode-1.18.5-patches.1`) and `config/omo-lockfile.json` (generation `omo-4.19.2-patches.1`) are the machine-authoritative source of implementation-commit SHAs per patch; `tests/test_patch_lockfile.sh` validates bijection, ancestry, and remote presence.
+
+- **Build receipts** — `scripts/build-and-install-opencode.sh` / `scripts/build-and-install-omo.sh` write per-artifact receipts (`~/.local/share/opencode/builds/<sha256>.json`) binding binary/dist sha256 → generation → source_head. Swapping a live artifact without a receipted, generation-matched build is refused; recovery installs write a persistent red marker. Shared helpers: `scripts/lib-patchset.sh`.
+
+- **3-state verifier** — `scripts/verify-live-patches.sh` emits PROVENANCE-VERIFIED / RUNTIME-VERIFIED / WEAK-MARKER; weak markers never produce a green summary.
+
+- **Smoke matrix** — `tests/smoke/` runs 2 deterministic smokes (turn-summary timestamp, bash lifecycle) and records per-binary-sha results under `~/.local/share/opencode/smoke-results/`.
+
+- **Timer audit** — `scripts/check-provenance.sh` (4th `ExecStart` of `opencode-patch-integrity-check.service`) re-checks receipts, generation match, fork-remote reachability of `source_head`, smoke freshness (missing = amber "runtime pending"), and recovery/emergency-bypass markers on every 30-min cycle. Exit 0 acceptable / 1 provenance failure / 2 infrastructure error.
+
+
+
 ## Retired DCP patches (DCP removed 2026-06-23)
 
 `opencode-dcp--bounded-range-archive-mode`, `opencode-dcp--byte-budget`, `opencode-dcp--compress-tool-prompt-contract` — all retired. Reference: [docs/history/dcp-byte-budget.md](history/dcp-byte-budget.md).
