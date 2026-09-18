@@ -874,7 +874,9 @@
         "ternary-bonsai-2-27b-pq2": {
           "name": "Bonsai-2 27B PQ2_0",
           "reasoning": true,
-          "interleaved": { "field": "reasoning_content" },
+          "interleaved": {
+            "field": "reasoning_content"
+          },
           "limit": {
             "context": 262144,
             "output": 16384
@@ -884,7 +886,9 @@
         "ternary-bonsai-2-27b-ptq1": {
           "name": "Bonsai-2 27B PTQ1_0",
           "reasoning": true,
-          "interleaved": { "field": "reasoning_content" },
+          "interleaved": {
+            "field": "reasoning_content"
+          },
           "limit": {
             "context": 262144,
             "output": 16384
@@ -951,6 +955,30 @@
               "text"
             ]
           }
+        }
+      }
+    },
+    "bonsai-lb": {
+      "name": "Bonsai-2 via LiteLLM LB (uni-pc :18213)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://100.86.113.119:18213/v1",
+        "apiKey": "sk-bonsai-lb-phase0-2026",
+        "chunkTimeout": 600000,
+        "headerTimeout": 600000
+      },
+      "models": {
+        "bonsai": {
+          "name": "Bonsai-2 LB (auto 128k/262k pool)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 262144,
+            "output": 16384
+          },
+          "attachment": false
         }
       }
     }
