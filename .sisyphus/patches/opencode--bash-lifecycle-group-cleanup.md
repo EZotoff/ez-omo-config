@@ -77,7 +77,13 @@ authority for effectiveness because the marker is a preserved string literal.
 ## Reapply Instructions
 
 1. Check out the exact release tag matching the live OpenCode version; never
-   build this patch from `dev`.
+   build this patch from `dev`. Then cherry-pick this patch onto a branch
+   that ALREADY carries every other active binary patch — base on the
+   aggregate branch `fix/all-patches-v1.18.5` (fork `EZotoff/opencode`), or
+   cherry-pick all of its commits. Rebuilding from a patch-less base silently
+   drops every other patch (2026-09-18 11:32 incident: this patch's rebuild
+   dropped turn-summary-timestamp + 5 TUI patches; caught by the operator
+   hours later; restored via `fix/all-patches-v1.18.5`).
 2. Reapply the process-group supervisor and `/proc` field-5 identity logic in
    `packages/core/src/process-group.ts` and
    `packages/core/src/cross-spawn-spawner.ts`.

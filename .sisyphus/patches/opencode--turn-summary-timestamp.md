@@ -17,6 +17,8 @@ runtime_effective_note: "Verified effective on v1.18.5 binary (2026-08-06): 'tod
 
 ## Regression History
 
+- **2026-09-18 11:32 CEST** — Patch silently lost AGAIN, same failure mode as 2026-07-22. A bash-lifecycle session rebuilt the binary from branch `fix/bash-lifecycle-group-cleanup`, which did NOT carry this patch (nor 5 other TUI patches). Detected by the operator after timestamps vanished from the interactive TUI. Restored 2026-09-18 19:17 by creating branch `fix/all-patches-v1.18.5` (cherry-picks 23020f01c + 0ba2467295 + 5 TUI patch commits), rebuilding, and runtime-verifying `▣ … · 5.1s · 7:19 PM` on the TUI surface. Pushed to fork `EZotoff/opencode`.
+- **2026-09-18 (audit finding)** — The TUI surface is implemented by a SEPARATE commit `0ba2467295` ("fix(tui): add turn-completion timestamp to interactive TUI") that earlier reapply instructions did not include; the `verification_pattern` (todayTimeOrDateTime) also matches upstream code, so the verifier reported APPLIED while the patch was absent.
 - **2026-07-22 22:41 CEST** — Patch silently lost. Another agent (opencode log `run=73012e84`) ran `OPENCODE_VERSION=1.17.9 bun run script/build.ts --single --skip-install --skip-embed-web-ui` from a non-patched branch (likely `feat/turn-summary-completion-time` or `origin/dev`), then swapped the resulting unpatched binary into `~/.opencode/bin/opencode`. Detected by user after system reboot when timestamps disappeared from TUI.
 - **2026-07-23 09:31 CEST** — Restored from backup `opencode.backup-1.17.9-turn-summary-v3-20260720-094806`.
 
@@ -79,14 +81,14 @@ bun test test/cli/run/turn-summary.test.ts test/cli/run/scrollback.surface.test.
 
 ## Reapply Instructions
 
-This patch is layered on top of branch `fix/sse-directory-filter-v1.17.9` (which itself contains two prior tracked patches: SSE directory filter removal + link-click OSC 8 workaround). To reapply after an OpenCode update:
+This patch has TWO surface commits: `23020f01c` (cli-run, 6 files under `packages/opencode/src/cli/cmd/run/`) and `0ba2467295` (tui-interactive, `packages/tui/src/routes/session/index.tsx`, 3 insertions). BOTH are required; the TUI commit was historically missed (2026-09-18 audit). To reapply after an OpenCode update:
 
 1. Identify the new live version: `~/.opencode/bin/opencode --version`.
-2. In `$HOME/src/opencode`, checkout the release tag matching that version: `git checkout v<X.Y.Z> -b fix/turn-summary-timestamp-v<X.Y.Z>`. If prior patches (SSE dir filter, link click) still apply, branch from the branch that carries them instead, so the rebuild carries all tracked patches.
-3. Re-apply the six-file diff shown in `git log fix/turn-summary-timestamp-v1.17.9 ^v1.17.9 -- packages/opencode/src/cli/cmd/run/`. The change is mechanical: add `time?: string` to four type signatures, append ` · ${time}` to the summary text, populate `time` from `Locale.todayTimeOrDateTime(<ms>)` in both `runtime.queue.ts` (live turns) and `turn-summary.ts` (`messageTurnSummaryCommit` for replay).
+2. In `$HOME/src/opencode`, branch from `fix/all-patches-v1.18.5` (the aggregate branch carrying ALL tracked binary patches, pushed to fork `EZotoff/opencode`). For a new upstream version: cherry-pick ALL patch commits from `fix/all-patches-v1.18.5` onto a fresh branch off the release tag. Ancestry is the completeness check, not pattern greps.
+3. Apply both commits (cherry-pick `23020f01c` and `0ba2467295`, resolve context drift). The cli-run change is mechanical: add `time?: string` to four type signatures, append ` · ${time}` to the summary text, populate `time` from `Locale.todayTimeOrDateTime(<ms>)` in both `runtime.queue.ts` (live turns) and `turn-summary.ts` (`messageTurnSummaryCommit` for replay).
 4. Port the three test files (or re-run them as-is if the upstream code hasn't diverged).
 5. Build: `cd packages/opencode && OPENCODE_VERSION=<X.Y.Z> bun run script/build.ts --single --skip-install --skip-embed-web-ui`.
-6. Verify built binary `--version` matches live, and `grep -c todayTimeOrDateTime dist/opencode-linux-x64/bin/opencode` returns ≥3.
+6. Verify built binary `--version` matches live. The `todayTimeOrDateTime` grep is NOT sufficient (matches upstream code — this let the 2026-09-18 loss pass verification). The ONLY sufficient check: render a turn in the interactive TUI and confirm the summary line ends with ` · <time>`.
 7. Stop services: `systemctl --user stop omo-tg.service opencode.service`.
 8. Swap binary. If interactive TUI clients hold the file busy, use the Linux `mv` + `cp` pattern: `mv ~/.opencode/bin/opencode ~/.opencode/bin/opencode.old-<v>-pre-turn-summary-timestamp && cp dist/opencode-linux-x64/bin/opencode ~/.opencode/bin/opencode && chmod +x ~/.opencode/bin/opencode`. Running TUI clients keep the old inode; new invocations get the new binary.
 9. Restart services: `systemctl --user start opencode.service omo-tg.service`.
