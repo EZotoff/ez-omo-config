@@ -1,0 +1,10 @@
+[Unit]
+Description=OpenCode Patch Integrity Triage — auto-remediate before alerting the operator
+After=default.target
+
+[Service]
+Type=oneshot
+# Full triage may include a headless agent turn — allow up to 30 min.
+TimeoutStartSec=1800
+ExecStart=%h/ez-omo-config/scripts/integrity-triage.sh %n
+Environment=EZ_OMO_CONFIG_REPO=%h/ez-omo-config

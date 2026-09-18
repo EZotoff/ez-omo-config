@@ -1,6 +1,6 @@
 [Unit]
 Description=OpenCode Patch Integrity Check — periodic verify-live-patches run + live-config drift check
-OnFailure=opencode-integrity-alert.service
+OnFailure=opencode-integrity-triage.service
 After=default.target
 
 [Service]
