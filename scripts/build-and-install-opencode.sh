@@ -283,7 +283,7 @@ PYEOF
         exit 1
     fi
     source_head_rt="$(receipt_read "$bin_sha" source_head)"
-    if [[ "$recovery_receipt" != "true" && -n "$source_head_rt" ]]; then
+    if [[ "${recovery_receipt,,}" != "true" && -n "$source_head_rt" ]]; then
         if ! gh_api_ok; then
             echo "verify: UNVERIFIABLE — GitHub API unreachable, cannot check $source_head_rt" >&2
             exit 2
