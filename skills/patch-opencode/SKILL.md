@@ -38,6 +38,17 @@ ps -ef | grep 'opencode serve' | grep -v grep
 6. **ALWAYS** test the fix on the real surface after installing
 7. **NEVER** redirect command output into a live runtime artifact (`~/oh-my-openagent-v4.19.2/dist/*`, `~/.opencode/bin/*`, `~/.opencode/plugin/*`, `~/.config/opencode/*` live configs). Diagnostic reads (`git show`, `cat`, `curl`) write to `.sisyphus/drafts/` or a mktemp path ONLY. Live-file writes go through the documented patch flows (timestamped `.pre-*` backup + verify). 2026-09-08: `git show <ref>:dist/index.js > dist/index.js` captured its own fatal error into the live bundle and killed every fresh session for 4+ hours.
 
+## Live Patch Guard contract
+
+The `live-patch-guard` plugin blocks direct binary swaps (`cp`/`mv`/`install`/`dd` targeting `~/.opencode/bin/opencode`). The supported path is the transactional installer wrapper:
+
+```bash
+scripts/build-and-install-opencode.sh build
+scripts/build-and-install-opencode.sh install <binary>
+```
+
+It validates patch ancestry, writes a build receipt, and gates the swap on generation match. There is **no silent env bypass**. For a genuine emergency only, set `OPENCODE_PATCH_GUARD_EMERGENCY_BYPASS=1` together with a non-empty `EMERGENCY_REASON`; the plugin then appends a persistent marker to `~/.local/state/opencode/patch-guard-emergency.alert` that the provenance audit reports until cleared.
+
 ## Procedure
 
 ### Step 1: Check out the release source

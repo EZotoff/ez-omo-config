@@ -1,5 +1,7 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin"
+import { appendFileSync, mkdirSync } from "node:fs"
+import { dirname } from "node:path"
 
 // =============================================================================
 // live-patch-guard.ts
@@ -12,10 +14,13 @@ import { tool } from "@opencode-ai/plugin"
 //
 // Behavior:
 //   - Binary swaps and OMO install/upgrade commands are blocked by default.
-//   - The structured patch-opencode / update-to-latest workflows may bypass
-//     after their own backup, patch review, and verification phases.
-//   - Bypass: set OPENCODE_PATCH_GUARD=off env var. The patch-opencode and
-//     update-to-latest skills should set this when intentionally running.
+//   - The supported path is the transactional installer wrappers
+//     scripts/build-and-install-opencode.sh and scripts/build-and-install-omo.sh,
+//     which self-gate (ancestry + receipt + generation checks) before swapping.
+//   - Emergency bypass: set OPENCODE_PATCH_GUARD_EMERGENCY_BYPASS=1 AND a
+//     non-empty EMERGENCY_REASON. This is loud — the plugin appends a persistent
+//     marker to ~/.local/state/opencode/patch-guard-emergency.alert that the
+//     provenance audit reports until cleared. There is no silent bypass.
 //
 // Motivation: the 2026-07-13 OMO silent bump (4.12.1 → 4.17.1 via @latest),
 // the 2026-07-22 binary rebuild incident, and the 2026-09-18 deletion of
@@ -26,7 +31,13 @@ import { tool } from "@opencode-ai/plugin"
 //   - AGENTS.md "Patching OpenCode Binary" → NEVER #4 and #5
 // =============================================================================
 
-const GUARD_BYPASS_ENV = "OPENCODE_PATCH_GUARD"
+const GUARD_EMERGENCY_BYPASS_ENV = "OPENCODE_PATCH_GUARD_EMERGENCY_BYPASS"
+const EMERGENCY_REASON_ENV = "EMERGENCY_REASON"
+const EMERGENCY_MARKER_PATH = `${process.env.HOME ?? ""}/.local/state/opencode/patch-guard-emergency.alert`
+const INSTALLER_ALLOWLIST: ReadonlyArray<RegExp> = [
+	/scripts\/build-and-install-opencode\.sh/,
+	/scripts\/build-and-install-omo\.sh/,
+]
 const VERIFY_SCRIPT = `${process.env.HOME ?? ""}/.sisyphus/scripts/verify-live-patches.sh`
 
 // Commands that swap the live binary
@@ -58,15 +69,29 @@ const PLUGIN_INSTALL_PATTERNS: ReadonlyArray<{ pattern: RegExp; description: str
 interface DetectionResult {
 	readonly kind: "binary-swap" | "plugin-install" | "runtime-delete" | "none"
 	readonly description: string
+	readonly emergencyReason?: string
 }
 
 function detectDanger(command: string): DetectionResult {
-	// Accept either a server-process bypass or a command-local prefix. The latter
-	// is what the audited skills use so the bypass never leaks to later commands.
-	if (process.env[GUARD_BYPASS_ENV] === "off" || /\bOPENCODE_PATCH_GUARD=off\b/.test(command)) {
-		return { kind: "none", description: "" }
+	// Bypass rule (a): the transactional installer wrappers self-gate
+	// (ancestry + receipt + generation checks) before any swap, so invoking
+	// them is the supported path.
+	for (const pattern of INSTALLER_ALLOWLIST) {
+		if (pattern.test(command)) {
+			return { kind: "none", description: "" }
+		}
 	}
 
+	// Bypass rule (b): loud emergency bypass. Requires BOTH the bypass env
+	// and a non-empty reason; the caller appends a persistent marker.
+	if (process.env[GUARD_EMERGENCY_BYPASS_ENV] === "1") {
+		const reason = process.env[EMERGENCY_REASON_ENV]
+		if (reason && reason.trim().length > 0) {
+			return { kind: "none", description: "", emergencyReason: reason }
+		}
+	}
+
+	// Bypass rule (c): classify as before — no silent bypass remains.
 	// Layer 1: binary swap
 	for (const { pattern, description } of BINARY_SWAP_PATTERNS) {
 		if (pattern.test(command)) {
@@ -89,6 +114,18 @@ function detectDanger(command: string): DetectionResult {
 	}
 
 	return { kind: "none", description: "" }
+}
+
+function appendEmergencyMarker(command: string, reason: string): void {
+	try {
+		mkdirSync(dirname(EMERGENCY_MARKER_PATH), { recursive: true })
+		appendFileSync(
+			EMERGENCY_MARKER_PATH,
+			`${JSON.stringify({ timestamp: new Date().toISOString(), command, reason })}\n`,
+		)
+	} catch {
+		// Marker write failure must not silently swallow the bypass; the caller logs it.
+	}
 }
 
 async function runVerifyScript(
@@ -186,17 +223,27 @@ export const LivePatchGuardPlugin: Plugin = async (ctx) => {
 			if (!command || typeof command !== "string") return
 
 			const detection = detectDanger(command)
+			if (detection.emergencyReason) {
+				appendEmergencyMarker(command, detection.emergencyReason)
+				log.warn(
+					`EMERGENCY bypass used — marker appended to ${EMERGENCY_MARKER_PATH} (reason: ${detection.emergencyReason})`
+				)
+				return
+			}
 			if (detection.kind === "none") return
 
-			// BINARY SWAP: only the structured patch workflows may bypass.
+			// BINARY SWAP: the installer wrappers are the supported path.
 			if (detection.kind === "binary-swap") {
 				log.error(`BLOCKING binary swap — tracked patches at risk`)
 				throw new Error(
 					`[LIVE-PATCH-GUARD] BLOCKED: ${detection.description}\n\n` +
 						`Command: ${command}\n\n` +
-						`Invoke the patch-opencode or update-to-latest skill. Those workflows create a backup, ` +
-						`review every active registry entry, run verify-live-patches.sh, and may then set ` +
-						`OPENCODE_PATCH_GUARD=off for the audited swap. Do not bypass this guard ad hoc.`,
+						`Use the transactional installer: scripts/build-and-install-opencode.sh ` +
+						`(or scripts/build-and-install-omo.sh for OMO). It validates patch ancestry, ` +
+						`writes a build receipt, and gates the swap on generation match. For a genuine ` +
+						`emergency, set OPENCODE_PATCH_GUARD_EMERGENCY_BYPASS=1 and a non-empty ` +
+						`EMERGENCY_REASON — that path is loud and leaves a persistent marker. ` +
+						`Do not bypass this guard ad hoc.`,
 				)
 			}
 
@@ -213,15 +260,17 @@ export const LivePatchGuardPlugin: Plugin = async (ctx) => {
 				)
 			}
 
-			// OMO PLUGIN INSTALL/UPGRADE: only update-to-latest may bypass.
+			// OMO PLUGIN INSTALL/UPGRADE: update-to-latest or the OMO installer.
 			if (detection.kind === "plugin-install") {
 				log.error(`BLOCKING plugin install/upgrade: ${detection.description}`)
 				throw new Error(
 					`[LIVE-PATCH-GUARD] BLOCKED: ${detection.description}\n\n` +
 						`Command: ${command}\n\n` +
-						`OMO has tracked local patches. Version advances must use the update-to-latest skill's ` +
-						`13-phase backup, patch-review, reapply, and regression pipeline. That workflow may set ` +
-						`OPENCODE_PATCH_GUARD=off only for the audited command.`,
+						`OMO has tracked local patches. Version advances must use the update-to-latest ` +
+						`skill's 13-phase backup, patch-review, reapply, and regression pipeline, or the ` +
+						`transactional installer scripts/build-and-install-omo.sh. For a genuine emergency, ` +
+						`set OPENCODE_PATCH_GUARD_EMERGENCY_BYPASS=1 and a non-empty EMERGENCY_REASON — ` +
+						`that path is loud and leaves a persistent marker.`,
 				)
 			}
 		},

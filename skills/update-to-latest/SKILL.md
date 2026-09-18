@@ -201,6 +201,8 @@ Only run this phase after receiving the exact approval phrase from Phase 8. Exec
 
 Log every command and its output into the evidence directory.
 
+**Live Patch Guard contract**: the `live-patch-guard` plugin blocks direct binary swaps (`cp`/`mv`/`install`/`dd` targeting `~/.opencode/bin/opencode`) and OMO plugin installs/upgrades. The supported path is the transactional installer wrapper (`scripts/build-and-install-opencode.sh` / `scripts/build-and-install-omo.sh`), which validates patch ancestry, writes a build receipt, and gates the swap on generation match. There is **no silent env bypass**. For a genuine emergency only, set `OPENCODE_PATCH_GUARD_EMERGENCY_BYPASS=1` together with a non-empty `EMERGENCY_REASON`; the plugin then appends a persistent marker to `~/.local/state/opencode/patch-guard-emergency.alert` that the provenance audit reports until cleared.
+
 ### Phase 10: Patch Reapply / Deprecation Decisions
 
 For each patch flagged in Phase 4, classify its post-update state:
