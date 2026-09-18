@@ -66,6 +66,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 11c | session-id.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session ID Clipboard | Required |
 | 11d | session-info.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Session Info Clipboard | Required |
 | 11h | clickable-links.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Clickable File Links (TUI) | Required |
+| 11i | live-patch-guard.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Live Patch Guard (blocks binary swaps, OMO plugin installs/advances, and rm/mv of tracked runtime dirs — 2026-09-18 runtime-deletion incident; bypass: `OPENCODE_PATCH_GUARD=off`) | Required |
 | 12 | wisdom/ | `~/.config/opencode/skills/wisdom/` | `skills/wisdom/` | `$HOME/.config/opencode/skills/` | Wisdom System | Required |
 | 12b | patch-tracker/ | `~/.config/opencode/skills/patch-tracker/` | `skills/patch-tracker/` | `$HOME/.config/opencode/skills/` | Patch Registry | Optional |
 | 12c | register-retry-error/ | `~/.config/opencode/skills/register-retry-error/` | `skills/register-retry-error/` | `$HOME/.config/opencode/skills/` | Retry Error Registry | Optional |
