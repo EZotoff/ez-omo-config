@@ -31,6 +31,14 @@
     {
       "path": "/home/ezotoff/AI_projects/kraken",
       "mode": "observe"
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/voice-bridge",
+      "mode": "observe"
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/ez-omo-dash",
+      "mode": "observe"
     }
   ]
 }

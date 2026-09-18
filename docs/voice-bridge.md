@@ -4,6 +4,8 @@ Vox is a voice agent for the OpenCode/OMO stack: phone push-to-talk → Gemini L
 
 The project lives in its own repository at `~/AI_projects/voice-bridge/` (Bun + strict TypeScript). This document is the ez-omo-config-side summary; the project README is the operational source of truth.
 
+> **Prototype context**: Vox is the voice layer of the cross-project Portable Supervisor prototype (visual surface: omo-pulse). Component split, seam contracts, and session-run discipline: [portable-supervisor-contract.md](portable-supervisor-contract.md).
+
 ## Design summary
 
 - **Topology**: phone browser (push-to-talk, foreground, wake-lock) → WSS → `voice-bridge` (Bun, `127.0.0.1:18220`) → Gemini Live API + `opencode serve :3021` + supervisor ledger file.
