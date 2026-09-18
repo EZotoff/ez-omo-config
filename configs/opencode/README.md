@@ -77,3 +77,5 @@ Several files in this directory are symlinked from `~/.config/opencode/` into th
 | `retry-errors.json` | `~/.config/opencode/retry-errors.json` | Error pattern registry |
 
 Plugin files such as `$HOME/.opencode/plugin/*.ts` are not symlinked by this config table. They are installed by `install.sh` and require a separate install step after editing.
+
+Integrity failure alerting: check failures fire `opencode-integrity-triage.service`, which auto-remediates (smoke matrix, agent commit-or-hold on drift) before escalating to the operator with fingerprint dedupe — see `scripts/integrity-triage.sh`.
