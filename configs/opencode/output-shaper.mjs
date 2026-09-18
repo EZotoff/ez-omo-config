@@ -1,5 +1,11 @@
 // configs/opencode/output-shaper.mjs
 // Output Shaper config-layer plugin surface — terseness injection + reasoning-effort dialing
+//
+// Log schema (v3 analysis contract, ~/.config/opencode/output-shaper.log):
+//   Clamped <provider>/<model> resume turn: <field>=<value> sid=<sessionID> agent=<agent>
+//   Pass new-question <provider>/<model> sid=<sessionID> agent=<agent>
+//   Terseness injected: <provider>/<model> sid=<sessionID>
+// sid/agent enable per-message treatment joins against session storage
 
 import { loadConfig } from "./output-shaper/config.mjs";
 import { logInfo, logTiming, logWarn, nowMs, setLogLevel } from "./output-shaper/logging.mjs";
@@ -36,7 +42,10 @@ export default async function outputShaperPlugin(ctx) {
       const resumeStartedAt = nowMs();
       const isResume = await isResumeAfterToolResult(ctx, sessionID);
       logTiming("chat.params.resume", resumeStartedAt); // emits hook=chat.params.resume
-      if (!isResume) return;
+      if (!isResume) {
+        logInfo(`Pass new-question ${providerID}/${modelID} sid=${sessionID} agent=${input.agent ?? "?"}`);
+        return;
+      }
       const clampStartedAt = nowMs();
       const clamp = getClampOptions(providerID, config.resumeThinkingLevel);
       if (!clamp) {
@@ -46,14 +55,14 @@ export default async function outputShaperPlugin(ctx) {
       output.options[clamp.field] = clamp.value;
       logTiming("chat.params.clamp", clampStartedAt);
       const valueStr = typeof clamp.value === "string" ? clamp.value : JSON.stringify(clamp.value);
-      logInfo(`Clamped ${providerID}/${modelID} resume turn: ${clamp.field}=${valueStr}`);
+      logInfo(`Clamped ${providerID}/${modelID} resume turn: ${clamp.field}=${valueStr} sid=${sessionID} agent=${input.agent ?? "?"}`);
     },
     // Push static terseness instruction into output.system (all providers)
     "experimental.chat.system.transform": async (input, output) => {
       const startedAt = nowMs();
       if (Array.isArray(output.system)) {
         output.system.push(config.tersenessInstruction);
-        logInfo(`Terseness injected: ${input.model?.providerID ?? "?"}/${input.model?.id ?? "?"}`);
+        logInfo(`Terseness injected: ${input.model?.providerID ?? "?"}/${input.model?.id ?? "?"} sid=${input.sessionID ?? "?"}`);
       }
       logTiming("system.transform", startedAt);
     },
