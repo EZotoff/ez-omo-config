@@ -10,7 +10,7 @@ runtime_effective: false
 upstream_issue: "none"
 verification_pattern: "SameModelRetry"
 surfaces: [server-api]
-note: "Source patch (fork commits 754cec4ee..e6bb8b059 on branch fix/custom-patches-v4.19.2). All listed target_file paths contain the SameModelRetry marker; session-status-handler.ts is ALSO changed (quota gate after the retry-key dedupe) but does not carry the marker, so it is documented here rather than in target_file. A 2026-09-14 `bun run build` embedded the patch in dist/index.js alongside the re-applied dist-level patches. runtime_effective is false until a real non-quota rate-limit event is observed staying on the current model (see Runtime Verification)."
+note: "Source patch — carried by fork commit 3d507e2de on branch fix/custom-patches-v4.19.2 (restored 2026-09-18 from the implementation session transcript; the original implementation commits were destroyed with the runtime directory and never pushed — see Reapply Instructions). All listed target_file paths contain the SameModelRetry marker; session-status-handler.ts is ALSO changed (quota gate after the retry-key dedupe) but does not carry the marker, so it is documented here rather than in target_file. A 2026-09-14 `bun run build` embedded the patch in dist/index.js alongside the re-applied dist-level patches. runtime_effective is false until a real non-quota rate-limit event is observed staying on the current model (see Runtime Verification)."
 ---
 
 # Quota-only model fallback + same-model exponential retry
@@ -63,12 +63,13 @@ bun run --cwd packages/omo-opencode typecheck               # exit 0
 
 ## Reapply Instructions
 
-Source patch — reapply from fork commits `754cec4ee` + `ea6656610` + `0cd9bde32` + `453c6894a` + `e6bb8b059` (branch `fix/custom-patches-v4.19.2`):
+Source patch — reapply from fork commit `3d507e2de` (branch `fix/custom-patches-v4.19.2`; the full implementation in one commit).
+Historical note: the original implementation commits (`754cec4ee`, `ea6656610`, `0cd9bde32`, `453c6894a`, `e6bb8b059`) were never pushed and are unrecoverable — do NOT cite them as reapply sources:
 
 ```bash
 cd /home/ezotoff/oh-my-openagent-v4.19.2
-git show 754cec4ee --stat            # same-model-retry.ts + types/state wiring
-git cherry-pick 754cec4ee ea6656610 0cd9bde32 453c6894a e6bb8b059
+git show 3d507e2de --stat            # same-model-retry.ts + types/state wiring + handler gates + tests
+git cherry-pick 3d507e2de
 bun run build                        # rebuild dist/index.js
 # then re-apply the four dist-level patches (omo--durable-log-path,
 # omo--fallback-toast-origin, omo--lookat-fallback-patience,
