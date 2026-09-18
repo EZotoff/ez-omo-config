@@ -6,7 +6,8 @@
     "kimi-for-coding-oauth",
     "zai-coding-plan",
     "inception",
-    "ollama-cloud"
+    "ollama-cloud",
+    "bonsai2"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -854,6 +855,38 @@
           },
           "limit": {
             "context": 131072,
+            "output": 16384
+          },
+          "attachment": false
+        }
+      }
+    },
+    "bonsai2": {
+      "name": "Ternary-Bonsai-2-27B (local overnight bench)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:18101/v1",
+        "apiKey": "bonsai2",
+        "chunkTimeout": 600000,
+        "headerTimeout": 600000
+      },
+      "models": {
+        "ternary-bonsai-2-27b-pq2": {
+          "name": "Bonsai-2 27B PQ2_0",
+          "reasoning": true,
+          "interleaved": { "field": "reasoning_content" },
+          "limit": {
+            "context": 262144,
+            "output": 16384
+          },
+          "attachment": false
+        },
+        "ternary-bonsai-2-27b-ptq1": {
+          "name": "Bonsai-2 27B PTQ1_0",
+          "reasoning": true,
+          "interleaved": { "field": "reasoning_content" },
+          "limit": {
+            "context": 262144,
             "output": 16384
           },
           "attachment": false
