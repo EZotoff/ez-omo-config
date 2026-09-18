@@ -110,6 +110,22 @@ systemd-run --user --unit=restart-cont-$(date +%s) bash -c \
 - Snapshots and logs: `~/.local/share/opencode/restart-continuations/`. Never echo the server passwords.
 - Hook activity log: `~/.local/share/opencode/restart-continuations/hooks.log`. After any restart, verify: `ps -eo pid,lstart,args | grep 'opencode serve'` shows a fresh start time.
 
+
+## Protected runtime directories (2026-09-18 incident)
+
+MANIFEST-tracked runtime installs in `$HOME` are **live infrastructure, never cleanup candidates** — regardless of how "stale" a versioned-looking directory name appears. Notably:
+
+- `~/oh-my-openagent-v4.19.2` — canonical OMO fork runtime, loaded by `opencode.json#plugin` via a `file://` entry. Deleting it silently disables the OMO plugin.
+- `~/.opencode/bin/` — the patched live OpenCode binary.
+
+Any session doing disk cleanup, deduplication, or "stale version" sweeps MUST:
+
+1. Treat every `file://` path in `opencode.json#plugin` and every MANIFEST External Artifact row as protected — exclude from deletion candidates.
+2. Report such directories to the operator as review candidates instead of deleting them.
+3. Never delete a directory whose removal would break a live config reference. If storage is the goal, propose the deletion and wait for explicit operator approval.
+
+Incident reference: 2026-09-18, a benchmark-disk-cleanup session deleted `~/oh-my-openagent-v4.19.2`, silently unloading the OMO plugin and destroying unpushed fork commits.
+
 ## Platform support
 
 This config installs on **Linux (native)**, **macOS (native, Homebrew Bash 4.3+ required — stock `/bin/bash` is 3.2 and cannot run the wisdom scripts)**, and **Windows (via WSL only)**. OpenCode resolves config paths against `os.homedir()` on every OS, so install targets (`~/.config/opencode/`, `~/.opencode/`, `~/.local/share/opencode/`, `~/.sisyphus/`) never need platform-specific remapping. On macOS run `brew install bash bun jq python` first. On Windows run the installer **inside WSL** — Git Bash, Cygwin, and native PowerShell are not supported and `install.sh` will exit with a WSL setup link.
