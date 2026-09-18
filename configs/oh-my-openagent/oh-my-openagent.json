@@ -181,11 +181,10 @@
       ]
     },
     "unspecified-low": {
-      "model": "opencode-go/deepseek-v4-flash-vision-exp",
+      "model": "opencode-go/deepseek-v4.1-flash",
       "variant": "low",
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
-        "opencode-go/deepseek-v4-flash",
         "zai-coding-plan/glm-5.3"
       ]
     },

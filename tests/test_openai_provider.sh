@@ -102,7 +102,7 @@ expected_category_models = {
     'ultrabrain': 'zai-coding-plan/glm-5.3',
     'deep': 'openai/gpt-5.6-sol',
     'quick': 'zai-coding-plan/glm-5.3-flash',
-    'unspecified-low': 'opencode-go/deepseek-v4-flash-vision-exp',
+    'unspecified-low': 'opencode-go/deepseek-v4.1-flash',
     'unspecified-high': 'zai-coding-plan/glm-5.3',
     'mephistopheles': 'openai/gpt-5.6-terra',
     'visual-engineering': 'zai-coding-plan/glm-5.3-flash',
@@ -126,9 +126,9 @@ if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
 print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
-    'sisyphus': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'sisyphus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-5.6-sol'],
     'oracle': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3', 'google/gemini-3.1-pro-preview'],
-    'prometheus': ['zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'prometheus': ['zai-coding-plan/glm-5.3', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-5.6-sol'],
     'metis': ['google/gemini-3.1-pro-preview'],
     'momus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'google/gemini-3.1-pro-preview'],
     'explore': ['ollama-cloud/minimax-m3', 'openai/gpt-5.6-luna'],
@@ -148,10 +148,10 @@ for name, expected in expected_agent_models.items():
 expected_category_fallbacks = {
     'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
     'deep': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
-    'quick': ['opencode-go/deepseek-v4-flash-vision-exp', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4-flash'],
-    'unspecified-low': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
-    'unspecified-high': ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
-    'mephistopheles': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding'],
+    'quick': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'unspecified-low': ['ollama-cloud/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3'],
+    'unspecified-high': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-5.6-sol'],
+    'mephistopheles': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
     'visual-engineering': ['zai-coding-plan/glm-5.3', 'google/gemini-3.8-flash'],
 }
 
@@ -167,12 +167,12 @@ for name, expected in expected_category_models.items():
 print('PASS: OMO GPT-heavy routes use openai without retired-provider fallbacks')
 
 expected_flash_fallbacks = {
-    'quick': ['opencode-go/deepseek-v4-flash-vision-exp', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4-flash'],
-    'unspecified-low': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4-flash', 'zai-coding-plan/glm-5.3'],
+    'quick': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'unspecified-low': ['ollama-cloud/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3'],
 }
 for name, expected in expected_flash_fallbacks.items():
     route = categories.get(name, {})
-    expected_variant = 'low' if name == 'unspecified-low' else None
+    expected_variant = {'quick': 'high', 'unspecified-low': 'low'}[name]
     if route.get('variant') != expected_variant:
         print(f'FAIL: categories.{name}.variant expected {expected_variant!r}, got {route.get(\"variant\")!r}')
         sys.exit(1)
@@ -199,7 +199,7 @@ for (scope, name), expected in expected_opencode_go_routes.items():
 print('PASS: OpenCode Go routes use current Minimax and Kimi models')
 
 unspecified_high = categories.get('unspecified-high', {})
-if unspecified_high.get('fallback_models') != ['openai/gpt-5.6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash']:
+if unspecified_high.get('fallback_models') != ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-5.6-sol']:
     print(f'FAIL: categories.unspecified-high.fallback_models has unexpected order: {unspecified_high.get("fallback_models")!r}')
     sys.exit(1)
 
@@ -207,7 +207,7 @@ meph = categories.get('mephistopheles', {})
 if meph.get('variant') != 'high':
     print(f'FAIL: categories.mephistopheles.variant expected \'high\', got {meph.get("variant")!r}')
     sys.exit(1)
-if meph.get('fallback_models') != ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/kimi-for-coding']:
+if meph.get('fallback_models') != ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3']:
     print(f'FAIL: categories.mephistopheles.fallback_models has unexpected value: {meph.get("fallback_models")!r}')
     sys.exit(1)
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')
@@ -220,7 +220,7 @@ print('PASS: aspectDynamics dream agent GPT route prefers openai')
 
 with open('$REPO_ROOT/configs/retry-errors.json') as f:
     retry_cfg = json.load(f)
-expected_chain = ['opencode-go/deepseek-v4-flash-vision-exp', 'opencode-go/deepseek-v4-flash', 'ollama-cloud/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol']
+expected_chain = ['opencode-go/deepseek-v4.1-flash', 'ollama-cloud/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'openai/gpt-5.6-sol']
 if retry_cfg.get('compaction_fallback_models') != expected_chain:
     print(f'FAIL: compaction_fallback_models expected {expected_chain!r}, got {retry_cfg.get("compaction_fallback_models")!r}')
     sys.exit(1)
