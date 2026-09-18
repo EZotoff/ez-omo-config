@@ -14,9 +14,13 @@
       "pattern": "SSE read timed out",
       "match_type": "regex",
       "max_retries": 3,
-      "backoff_ms": [1000, 6000, 36000],
+      "backoff_ms": [
+        1000,
+        6000,
+        36000
+      ],
       "retry_after_tool_execution": false,
-      "description": "LLM SSE stream read timeout — transient network/provider issue",
+      "description": "LLM SSE stream read timeout \u2014 transient network/provider issue",
       "added_by": "seed",
       "added_at": "2026-03-16"
     },
@@ -25,9 +29,13 @@
       "pattern": "unable to connect\\..*access the url",
       "match_type": "regex",
       "max_retries": 3,
-      "backoff_ms": [2000, 4000, 8000],
+      "backoff_ms": [
+        2000,
+        4000,
+        8000
+      ],
       "retry_after_tool_execution": false,
-      "description": "Provider connection failure — original hardcoded error from provider-connect-retry.mjs",
+      "description": "Provider connection failure \u2014 original hardcoded error from provider-connect-retry.mjs",
       "added_by": "seed",
       "added_at": "2026-03-16"
     },
@@ -36,9 +44,13 @@
       "pattern": "no model endpoints available",
       "match_type": "regex",
       "max_retries": 3,
-      "backoff_ms": [5000, 15000, 45000],
+      "backoff_ms": [
+        5000,
+        15000,
+        45000
+      ],
       "retry_after_tool_execution": false,
-      "description": "Provider backend rate throttle — transient capacity issue, not a Google API error",
+      "description": "Provider backend rate throttle \u2014 transient capacity issue, not a Google API error",
       "added_by": "sisyphus",
       "added_at": "2026-04-08"
     },
@@ -47,9 +59,15 @@
       "pattern": "invalid api parameter",
       "match_type": "regex",
       "max_retries": 5,
-      "backoff_ms": [5000, 10000, 20000, 40000, 60000],
+      "backoff_ms": [
+        5000,
+        10000,
+        20000,
+        40000,
+        60000
+      ],
       "retry_after_tool_execution": false,
-      "description": "GLM API parameter validation error — transient Z.AI API issue, retry before falling back via the agent's fallback chain",
+      "description": "GLM API parameter validation error \u2014 transient Z.AI API issue, retry before falling back via the agent's fallback chain",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
     },
@@ -58,9 +76,15 @@
       "pattern": "^(?!.*messages parameter is illegal).*please check the documentation",
       "match_type": "regex",
       "max_retries": 5,
-      "backoff_ms": [5000, 10000, 20000, 40000, 60000],
+      "backoff_ms": [
+        5000,
+        10000,
+        20000,
+        40000,
+        60000
+      ],
       "retry_after_tool_execution": false,
-      "description": "GLM documentation-check error variant — retries generic doc-check failures but explicitly excludes deterministic 'messages parameter is illegal' request errors",
+      "description": "GLM documentation-check error variant \u2014 retries generic doc-check failures but explicitly excludes deterministic 'messages parameter is illegal' request errors",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
     },
@@ -69,9 +93,15 @@
       "pattern": "(?:internal.?server.?error|bad.?gateway|service.?(?:temporarily.?)?unavailable|gateway.?timeout)(?!.*(?:anthropic|openai|claude))",
       "match_type": "regex",
       "max_retries": 5,
-      "backoff_ms": [5000, 10000, 20000, 40000, 60000],
+      "backoff_ms": [
+        5000,
+        10000,
+        20000,
+        40000,
+        60000
+      ],
       "retry_after_tool_execution": false,
-      "description": "Generic server errors from any provider — retry with backoff before falling back via the agent's fallback chain",
+      "description": "Generic server errors from any provider \u2014 retry with backoff before falling back via the agent's fallback chain",
       "added_by": "sisyphus",
       "added_at": "2026-04-09"
     },
@@ -80,7 +110,13 @@
       "pattern": "(?:reason.*other|finish.*other|zai-coding|glm).*(?:zero.*token|0.*token|no.*response|api.*reject)|unknownerror.*(?:glm|zai-coding)",
       "match_type": "regex",
       "max_retries": 5,
-      "backoff_ms": [2000, 4000, 8000, 15000, 30000],
+      "backoff_ms": [
+        2000,
+        4000,
+        8000,
+        15000,
+        30000
+      ],
       "retry_after_tool_execution": true,
       "detect_empty_response": true,
       "min_output_tokens": 5,
@@ -88,7 +124,7 @@
         "sisyphus": [
           "Proceed with the execution of the plan NOW. Give me response.",
           "Continue working on the current task. Follow your todos and produce output.",
-          "You were in the middle of work. Resume immediately — check your todo list and act on the next item.",
+          "You were in the middle of work. Resume immediately \u2014 check your todo list and act on the next item.",
           "RESPOND NOW. Review the conversation above, find where you left off, and continue from there.",
           "This is your final retry. Execute the next step of your plan immediately. Do not output an empty response."
         ],
@@ -97,17 +133,17 @@
           "Proceed with your work. Check what was done so far and move to the next step.",
           "Resume the task. Look at the todos, find the next incomplete item, and execute it now.",
           "You must respond with actual content. Review the plan and continue working on the next pending task.",
-          "FINAL ATTEMPT — respond immediately. Check your todos and plans, then execute the next action step."
+          "FINAL ATTEMPT \u2014 respond immediately. Check your todos and plans, then execute the next action step."
         ],
         "default": [
           "Continue. Produce your response now.",
           "Proceed now. Use the current context and respond directly.",
           "Resume working. Check what needs to be done next and do it.",
           "You need to respond with content. Review the context above and continue.",
-          "FINAL RETRY — you must produce a response now. Review everything and act."
+          "FINAL RETRY \u2014 you must produce a response now. Review everything and act."
         ]
       },
-      "description": "Empty response / zero tokens / finish reason 'other' — sends escalating nudge prompts to break the model out of stall before falling back. Near-empty completions (1..min_output_tokens output tokens) on child sessions are also retried; set min_output_tokens to 0 to disable the near-empty branch.",
+      "description": "Empty response / zero tokens / finish reason 'other' \u2014 sends escalating nudge prompts to break the model out of stall before falling back. Near-empty completions (1..min_output_tokens output tokens) on child sessions are also retried; set min_output_tokens to 0 to disable the near-empty branch.",
       "added_by": "sisyphus",
       "added_at": "2026-04-17"
     },
@@ -116,9 +152,13 @@
       "pattern": "headers timed out after \\d+ms",
       "match_type": "regex",
       "max_retries": 3,
-      "backoff_ms": [2000, 10000, 30000],
+      "backoff_ms": [
+        2000,
+        10000,
+        30000
+      ],
       "retry_after_tool_execution": false,
-      "description": "Provider response headers timeout — provider did not send initial response headers within configured headerTimeout window. Fired by OpenCode's custom fetch wrapper (provider.ts timeoutController).",
+      "description": "Provider response headers timeout \u2014 provider did not send initial response headers within configured headerTimeout window. Fired by OpenCode's custom fetch wrapper (provider.ts timeoutController).",
       "added_by": "sisyphus",
       "added_at": "2026-06-23"
     },
@@ -127,9 +167,11 @@
       "pattern": "(?:exceeded model token limit|request exceeded model token limit|tokens in request more than max)",
       "match_type": "regex",
       "max_retries": 0,
-      "backoff_ms": [1000],
+      "backoff_ms": [
+        1000
+      ],
       "retry_after_tool_execution": false,
-      "description": "Request size exceeds the current model's context window (e.g. 262144 limit on kimi-for-coding / Kimi K2.7 Code, the default coding-plan model id; the k3 model id reaches 1048576 on Allegretto+ tiers). Immediately falls back via the agent's fallback chain — operators should ensure a large-context model (e.g., openai/gpt-5.6-sol at 1.05M) is reachable in each agent's chain so the session can continue while OpenCode/OMO context management compacts or prunes history.",
+      "description": "Request size exceeds the current model's context window (e.g. 262144 limit on kimi-for-coding / Kimi K2.7 Code, the default coding-plan model id; the k3 model id reaches 1048576 on Allegretto+ tiers). Immediately falls back via the agent's fallback chain \u2014 operators should ensure a large-context model (e.g., openai/gpt-5.6-sol at 1.05M) is reachable in each agent's chain so the session can continue while OpenCode/OMO context management compacts or prunes history.",
       "added_by": "sisyphus",
       "added_at": "2026-06-24"
     },
@@ -138,9 +180,11 @@
       "pattern": "usage limit",
       "match_type": "regex",
       "max_retries": 0,
-      "backoff_ms": [1000],
+      "backoff_ms": [
+        1000
+      ],
       "retry_after_tool_execution": false,
-      "description": "Provider monthly/quota usage limit exhausted (opencode-go gateway, Codex OAuth, or Kimi OAuth). Non-transient — retrying the same provider is pointless, so fall back immediately via the failing agent's fallback_models chain (the resolver skips the failing provider, so self-fallback is impossible). Matches 'The usage limit has been reached' (openai), 'Monthly usage limit reached' (opencode-go gateway), and Kimi quota-exhaustion messages. provider-connect-retry.mjs handles child sessions by calling session.abort() then session.promptAsync() directly.",
+      "description": "Provider monthly/quota usage limit exhausted (opencode-go gateway, Codex OAuth, or Kimi OAuth). Non-transient \u2014 retrying the same provider is pointless, so fall back immediately via the failing agent's fallback_models chain (the resolver skips the failing provider, so self-fallback is impossible). Matches 'The usage limit has been reached' (openai), 'Monthly usage limit reached' (opencode-go gateway), and Kimi quota-exhaustion messages. provider-connect-retry.mjs handles child sessions by calling session.abort() then session.promptAsync() directly.",
       "added_by": "sisyphus",
       "added_at": "2026-07-15"
     }
