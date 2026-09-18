@@ -254,6 +254,9 @@ Three-layer defense against patch drift (Track B v2):
 7. After any opencode binary upgrade, ALL active patches must be reconciled in the SAME commit/PR. The drift gate (`tests/test_patch_versions.sh`) fails on unresolved VERSION-DRIFT — patches whose `dep_version` doesn't match the live binary AND have no `runtime_effective: false` flag. For each drifted patch: EITHER bump `dep_version` + set `runtime_effective: true` (verified effective), OR set `runtime_effective: false` with a justification (becomes ACKNOWLEDGED-DRIFT, exempt from the gate). This closed loop was added after the v1.17.9→v1.18.5 cutover left 4 patches at `dep_version: 1.17.9-local` for 10+ days with nobody noticing.
 
 
+8. Source patches carried as fork commits (e.g. OMO patch branches on `EZotoff/oh-my-openagent`) MUST be pushed to the fork remote before the patch entry is marked `status: active`, and re-pushed as part of every reconcile/update pass that touches them. Local-only fork commits are unrecoverable if the runtime directory is lost (2026-09-18 incident: the quota-only-fallback patch survived only because its implementation session transcript could be mined). Verify with `git branch -r --contains <hash>` on the fork clone before declaring done.
+
+
 ## Shell hygiene for bash tool calls
 
 The bash tool owns each command's process group and kills the WHOLE group (nohup included) on timeout or abort — by design. Follow these rules:

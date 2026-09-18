@@ -236,6 +236,7 @@ For every patch whose classification changed in Phase 10, update the correspondi
 3. Update `verification_pattern` if the surrounding code changed.
 4. Update `## Reapply Instructions` if the reapplication steps are different.
 5. Update `## Durable Alternative` if a new alternative became available.
+6. **Push fork patch branches.** For every source patch carried as commits on a fork/dependency branch (e.g. `fix/custom-patches-v4.19.2` on `EZotoff/oh-my-openagent`), `git push` the branch to the fork remote after reapply/reconcile, and verify each commit hash cited in the touched entries exists on the remote (`git branch -r --contains <hash>`). Local-only fork commits are destroyed along with the runtime directory and are unrecoverable (2026-09-18 incident).
 
 ### Phase 12: Regression Verification
 
