@@ -84,3 +84,55 @@ receipt_read() {
         cat "$receipt"
     fi
 }
+
+# ---- Task 3 additions (.omo/plans/patch-provenance.md, OMO dist parity) ----
+# Used by scripts/build-and-install-omo.sh; keep naming patchset_* to avoid
+# collisions when more callers adopt this lib.
+
+patchset_sha256_file() {
+    # patchset_sha256_file <file> — prints the sha256 hex digest
+    local file="$1"
+    [[ -f "$file" ]] || { echo "patchset_sha256_file: not a file: $file" >&2; return 2; }
+    sha256sum "$file" | awk '{print $1}'
+}
+
+patchset_frontmatter_value() {
+    # patchset_frontmatter_value <entry.md> <key> — same parsing rules as
+    # yaml_frontmatter_value in verify-live-patches.sh (quoted values unquoted).
+    local file="$1" key="$2"
+    awk -v wanted="$key" '
+        NR == 1 && $0 == "---" { in_frontmatter = 1; next }
+        in_frontmatter && $0 == "---" { exit }
+        in_frontmatter && index($0, wanted ":") == 1 {
+            value = substr($0, length(wanted) + 2)
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            if (value ~ /^".*"$/ || value ~ /^\047.*\047$/) {
+                value = substr(value, 2, length(value) - 2)
+            }
+            print value
+            exit
+        }
+    ' "$file"
+}
+
+patchset_pattern_present() {
+    # patchset_pattern_present <regex> <file> — regex search over raw bytes,
+    # same semantics as verify-live-patches.sh pattern_matches (python re).
+    VERIFY_PATTERN="$1" VERIFY_PATH="$2" python3 -c '
+import os
+import re
+import sys
+
+pattern = os.environ["VERIFY_PATTERN"]
+path = os.environ["VERIFY_PATH"]
+with open(path, "rb") as handle:
+    data = handle.read()
+try:
+    found = re.search(pattern.encode("utf-8"), data) is not None
+except re.error as exc:
+    print(f"invalid verification pattern: {exc}", file=sys.stderr)
+    sys.exit(2)
+sys.exit(0 if found else 1)
+'
+}

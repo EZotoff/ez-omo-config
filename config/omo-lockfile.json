@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "generation": "omo-4.19.2-patches.1",
+  "dependency": "oh-my-openagent",
+  "upstream_version": "4.19.2",
+  "source_repo": "~/oh-my-openagent-v4.19.2",
+  "canonical_ref": "refs/remotes/origin/fix/custom-patches-v4.19.2",
+  "patches": [
+    {
+      "patch_id": "omo--writing-routing-to-document-writer",
+      "implementation_commits": [
+        "87bae68565b7d1d935f6ff4602b670197828238b",
+        "8c0f9963fbca4101cb930872df1b02c38c3a1999"
+      ],
+      "required": true
+    },
+    {
+      "patch_id": "omo--ultrawork-subagent-guard",
+      "implementation_commits": [
+        "52a175587c614720761aca5f5a1456933a4c10fc",
+        "7536026834719c0231d99c3b4a15732768918988"
+      ],
+      "required": true
+    },
+    {
+      "patch_id": "omo--retries-before-fallback",
+      "implementation_commits": [
+        "49f67288a4026bfe0bf6a9027a110dcc436db9d6"
+      ],
+      "required": true
+    },
+    {
+      "patch_id": "omo--resume-skip-keep-running",
+      "implementation_commits": [
+        "8b883adabb2ffc9a7b308a19d28e39b3c0228441"
+      ],
+      "required": true
+    },
+    {
+      "patch_id": "omo--model-less-spawn-fallback",
+      "implementation_commits": [
+        "4e1ef437273645cb5eae02291408fd84c3b69ebc"
+      ],
+      "required": true
+    },
+    {
+      "patch_id": "omo--start-work-worktree-teardown",
+      "implementation_commits": [
+        "08b79a849ae156da9078759b67b31341c0a6e74a"
+      ],
+      "required": true,
+      "note": "Carried as fork commit; no separate .sisyphus/patches entry (behavior covered by start-work skill docs)."
+    },
+    {
+      "patch_id": "omo--quota-only-fallback-same-model-retry",
+      "implementation_commits": [
+        "3d507e2de826b53ceae5668d5f220101ef03b3a2"
+      ],
+      "required": true
+    },
+    {
+      "patch_id": "omo--family-reasoning-efforts",
+      "implementation_commits": [
+        "ba8fc048ec13a270939675b312797bfbedd5ff12"
+      ],
+      "required": true
+    }
+  ],
+  "dist_patches": [
+    {
+      "patch_id": "omo--auto-slash-command-duplicate-user-args",
+      "implementation_kind": "dist-reapply",
+      "required": true
+    },
+    {
+      "patch_id": "omo--durable-log-path",
+      "implementation_kind": "dist-reapply",
+      "required": true
+    },
+    {
+      "patch_id": "omo--fallback-toast-origin",
+      "implementation_kind": "dist-reapply",
+      "required": true
+    },
+    {
+      "patch_id": "omo--lookat-fallback-patience",
+      "implementation_kind": "dist-reapply",
+      "required": true
+    }
+  ]
+}
