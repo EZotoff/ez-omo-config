@@ -48,6 +48,8 @@ info() { log info "$1"; }
 warn() { log warning "$1"; }
 
 mkdir -p "$STATE_DIR"
+AGENT_OUT_FILE="$(mktemp "$STATE_DIR/triage-agent-output.XXXXXX")"
+trap 'rm -f "$AGENT_OUT_FILE"' EXIT
 
 # --- single-flight lock ------------------------------------------------------
 exec 9>"$STATE_DIR/integrity-triage.lock"
@@ -106,20 +108,22 @@ escalate() { # $1 = reason line for the operator
     return 0
 }
 
-agent_run() { # $1 = prompt; echoes agent output; returns agent exit code
+agent_run() { # $1 = prompt; writes agent output to $AGENT_OUT_FILE; returns agent exit code.
+# Must be called in the CURRENT shell (no $() capture) — the budget counter
+# must persist; the drift test proved $() capture loses st_an to the subshell.
     if (( st_an >= AGENT_BUDGET_PER_DAY )); then
         warn "TRIAGE: agent budget exhausted ($st_an/$AGENT_BUDGET_PER_DAY today) — skipping agent remediation"
         return 99
     fi
     info "TRIAGE: dispatching headless triage agent (run $((st_an + 1))/$AGENT_BUDGET_PER_DAY today)"
-    local out rc
-    out="$(printf '%s' "$1" | timeout "$AGENT_TIMEOUT_SECS" opencode run 2>&1)" && rc=0 || rc=$?
+    local rc
+    printf '%s' "$1" | timeout "$AGENT_TIMEOUT_SECS" opencode run >"$AGENT_OUT_FILE" 2>&1 && rc=0 || rc=$?
     if (( rc == 124 )); then
         warn "TRIAGE: agent timed out after ${AGENT_TIMEOUT_SECS}s"
     fi
     st_an=$((st_an + 1))
-    state_write "$st_fp" "$st_esc" "$today" "$st_an"
-    printf '%s' "$out"
+    st_ad="$today"
+    state_write "$st_fp" "$st_esc" "$st_ad" "$st_an"
     return "$rc"
 }
 
@@ -176,37 +180,37 @@ fi
 # --- 4. agent remediation for judgment-call failures --------------------------
 if [[ " $FAILING " == *" drift "* ]]; then
     diff_summary="$(git -C "$REPO" status --porcelain -- configs/ 2>/dev/null | head -10)"
-    a_out="$(agent_run "You are the patch-integrity triage agent for the ez-omo-config repo at $REPO.
+    a_rc=0
+    agent_run "You are the patch-integrity triage agent for the ez-omo-config repo at $REPO.
 
 The live-config drift check is failing because these paths under configs/ are uncommitted:
 $diff_summary
 
 Decide whether this is deliberate in-progress work or damage:
 1. Inspect the actual diff (git -C $REPO diff -- configs/ and read enough of the changed files).
-2. If the changes look like coherent, deliberate work (config/doc edits with sensible content):
+   2. If the changes look like coherent, deliberate work (config/doc edits with sensible content):
    stage exactly those configs/ paths and create ONE conventional commit
    (type(scope): subject, e.g. 'docs(agent): note integrity triage behavior').
-3. If the changes look like damage, gutted config, sandbox leakage, or you are unsure:
+   3. If the changes look like damage, gutted config, sandbox leakage, or you are unsure:
    change NOTHING and reply with a line starting 'TRIAGE-BLOCKED:' plus the reason.
 Never touch files outside configs/, never revert, never force anything.
 
-Finish by printing either the commit hash you created or the TRIAGE-BLOCKED line.")" || a_rc=$?
-    a_rc="${a_rc:-0}"
-    info "TRIAGE: agent finished (rc=$a_rc): $(head -c 400 <<<"${a_out:-}" | tr '\n' ' ')"
+    Finish by printing either the commit hash you created or the TRIAGE-BLOCKED line." >"$AGENT_OUT_FILE" || a_rc=$?
+    info "TRIAGE: agent finished (rc=$a_rc): $(head -c 400 "$AGENT_OUT_FILE" | tr '\n' ' ')"
     run_checks
 fi
 
 if [[ " $FAILING " == *" remote "* ]]; then
-    a_out="$(agent_run "You are the patch-integrity triage agent. The check-remote-presence check for the
+    a_rc=0
+    agent_run "You are the patch-integrity triage agent. The check-remote-presence check for the
 ez-omo-config repo at $REPO is failing: an active patch entry cites fork commit(s) that are
 not reachable on the EZotoff/oh-my-openagent remote. Inspect the failing output in the journal
 (unit opencode-patch-integrity-check.service) and the patch entries under $REPO/.sisyphus/patches/.
 If the cited commits exist locally in the fork clone and are complete, push the corresponding
 branch to origin (this is the documented mandatory procedure, AGENTS.md Cooperation Contract
 item 8). If anything is incomplete or ambiguous, change NOTHING and reply 'TRIAGE-BLOCKED: reason'.
-Finish with either the pushed branch/commit info or a TRIAGE-BLOCKED line.")" || a_rc=$?
-    a_rc="${a_rc:-0}"
-    info "TRIAGE: agent finished (rc=$a_rc): $(head -c 400 <<<"${a_out:-}" | tr '\n' ' ')"
+    Finish with either the pushed branch/commit info or a TRIAGE-BLOCKED line." >"$AGENT_OUT_FILE" || a_rc=$?
+    info "TRIAGE: agent finished (rc=$a_rc): $(head -c 400 "$AGENT_OUT_FILE" | tr '\n' ' ')"
     run_checks
 fi
 
