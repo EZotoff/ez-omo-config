@@ -11,6 +11,8 @@ runtime_effective: true
 runtime_effective_note: "Observed on the real TUI surface 2026-09-15: veran session dialog renders the Jul 22 pin 'Reconciliation Workbench - UI fix' under the Pinned header via the by-ID fetch (verified by dialog search filter capture), plus 18 further window-external cross-project pins that the browse/sync windows never contained. Source commit e5e715270 on fix/tui-pinned-session-window-v1.18.5; installed binary sha256 a40da485."
 upstream_issue: "none"
 verification_pattern: "pinned"
+verification_strength: "weak"
+required_evidence: "provenance"
 verification_note: "Bun minification strips comments and renames locals; this patch adds no unique string literal or property key, so pattern-presence is a weak pre-filter only. Authority rests on the source commit (e5e715270), the regression test (tests/regressions/021-pinned-session-window-fetch.sh), and the runtime_effective flag with the TUI observation recorded in runtime_effective_note."
 surfaces: "tui-interactive"
 ---

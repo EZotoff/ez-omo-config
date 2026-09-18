@@ -11,6 +11,8 @@ runtime_effective: true
 runtime_effective_note: "Observed live 2026-09-17 ~13:55 on the shared daemon (:3030). A/B: scratch parent session dispatched a quick-category sub-agent in background and ended its turn; server /session/status confirmed parent=idle + child=busy at capture time; tmux-driven attach TUI Sessions dialog showed the braille spinner frame on the parent row (capture: /tmp/opencode/dialog-final.txt, line '⠏ spinner-ab-test'). Pre-fix captures showed no spinner on the same shape."
 upstream_issue: "none"
 verification_pattern: "parentID"
+verification_strength: "weak"
+required_evidence: "provenance"
 verification_note: "WEAK pre-filter only — 'parentID' is a pre-existing property key in this file (both in source and binary); presence proves nothing about THIS aggregation. Bun minification strips comments and renames locals, and the patch adds no unique string literal. Authority rests on the source commits (8ed469559 + 8257e338c on fix/tui-subagent-spinner-v1.18.5), the regression pair (tests/regressions/024-subagent-spinner.sh + .kill.sh), and the runtime_effective flag with the A/B observation recorded above."
 surfaces: "tui-interactive"
 ---

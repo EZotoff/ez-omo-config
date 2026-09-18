@@ -8,6 +8,8 @@ applied_date: "2026-07-19"
 dep_version: "1.18.5"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/37929"
 verification_pattern: "todayTimeOrDateTime"
+verification_strength: "weak"
+required_evidence: "runtime"
 surfaces: "cli-run, tui-interactive"
 runtime_effective: true
 runtime_effective_note: "Verified effective on v1.18.5 binary (2026-08-06): 'todayTimeOrDateTime' present (3 matches in binary). Source patch applied in turn-summary.ts:47, runtime.queue.ts:238. Rendering path intact on both surfaces: scrollback.writer.tsx:345 (cli-run: input.time rendering) and session/index.tsx:1430 (tui-interactive: Locale.todayTimeOrDateTime call). Unlike the link-click monkey-patch (bgj3 failure mode), this is compiled-in source code on the active render path — pattern-presence is sufficient."

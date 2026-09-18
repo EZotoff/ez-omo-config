@@ -10,6 +10,8 @@ dep_version: "1.18.5-local"
 runtime_effective: false
 upstream_issue: "none"
 verification_pattern: "escaped-observed"
+verification_strength: "discriminative"
+required_evidence: "runtime"
 surfaces: "server-api, cli-run, tui-interactive"
 ---
 

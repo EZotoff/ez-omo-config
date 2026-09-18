@@ -11,6 +11,8 @@ runtime_effective: true
 runtime_effective_note: "Observed live 2026-09-12 ~11:50 on the shared daemon (:3030). A/B at --dir /tmp/opencode (global project): OLD binary dialog listed foreign-directory sessions (verify-5 -> /tmp/opencode/verify-dc, verify-4, SMOKE-OK reply test -> /tmp/opencode/provider-check); PATCHED binary dialog listed only exact-/tmp/opencode sessions (scope-probe-114127 positive control) with zero foreign entries. Synthetic cross-dir session.updated (PATCH title on a /tmp session) never surfaced in the patched TUI. Captures: .sisyphus/evidence/opencode--tui-session-directory-scope/. Caveat: the old-TUI fallback-render path (store pollution visible mid-fetch) was not capturable via tmux timing; the insert guard itself is pinned by regression pair 020 and the probe-absent observation."
 upstream_issue: "none"
 verification_pattern: "Limit session list to current directory"
+verification_strength: "discriminative"
+required_evidence: "provenance"
 verification_note: "String literal from the retitled app.toggle.session_directory_filter command — survives minification and is unique to this patch, but presence alone cannot prove the query/event-store behavior. The regression test (tests/regressions/020-session-directory-scope.sh) pins the source structure; ## Runtime Verification pins the behavior."
 surfaces: "tui-interactive"
 ---

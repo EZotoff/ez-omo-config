@@ -10,6 +10,8 @@ dep_version: ""       # LAST VERSION WHERE RUNTIME EFFECTIVENESS WAS VERIFIED. D
 runtime_effective: true # REQUIRED for monkey-patches / ref-callback patches (overrides an internal method, attaches a ref, patches a renderable). Set true ONLY after observing the patched behaviour on the real surface. Set false when the patch string is present but the feature regressed.
 upstream_issue: ""    # URL to upstream issue/PR tracking the fix, or "none"
 verification_pattern: "" # grep-compatible regex. CAVEAT: Bun minification preserves JS property keys and string literals, so a property-key pattern reports a false-positive APPLIED even when the code is unreachable. Prefer a pattern that disappears if the code path is dead; otherwise require a ## Runtime Verification section.
+verification_strength: "" # REQUIRED for opencode binary patches listed required in config/patch-lockfile.json: "weak" (pattern also matches upstream code / proves nothing about this patch) or "discriminative" (pattern is unique to this patch). Weak patterns never yield a green provenance summary on their own.
+required_evidence: ""   # REQUIRED alongside verification_strength: "provenance" (build-receipt + lockfile ancestry suffices) or "runtime" (additionally requires a passing smoke in ~/.local/share/opencode/smoke-results/<binary-sha>.json, smoke id = patch_id minus the "opencode--" prefix or a hyphen-prefix of it).
 surfaces: []           # REQUIRED for rendering patches: list of cli-run | tui-interactive | server-api. Add this field when target_file is in a rendering directory (cli/cmd/run/, tui/src/routes/, etc.) or the patch overrides a renderable method.
 ---
 

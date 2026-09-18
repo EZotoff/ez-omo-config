@@ -8,6 +8,8 @@ applied_date: "2026-05-02"
 dep_version: "1.18.5"
 upstream_issue: "none"
 verification_pattern: "may create local commits freely"
+verification_strength: "discriminative"
+required_evidence: "provenance"
 runtime_effective: true
 runtime_effective_note: "Verified effective on v1.18.5 binary (2026-08-06): 'may create local commits freely' present (3 matches in binary), source patch applied in all 3 instruction files (shell/shell.txt, prompt/trinity.txt, prompt/default.txt). Text patch — pattern-presence IS effectiveness."
 ---

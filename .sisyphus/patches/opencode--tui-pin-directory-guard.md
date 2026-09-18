@@ -11,6 +11,8 @@ runtime_effective: true
 runtime_effective_note: "Observed live 2026-09-15 ~23:10 on the shared daemon (:3030), A/B via tmux-driven attach TUIs at --dir /home/ezotoff/AI_projects/veran. OLD binary (pre-guard, pin-window build): Pinned section listed 12+ foreign-directory pins with directory badges (rag_base, traveller, ez-omo-config, mysocial, llm-review). PATCHED binary: Pinned section listed ONLY exact-veran pins (14 entries, slots 1-7 intact), zero foreign entries. Captures: .sisyphus/evidence/opencode--tui-pin-directory-guard/ (dialog-old-binary.txt, dialog-new-binary.txt)."
 upstream_issue: "none"
 verification_pattern: "session_directory_filter_enabled"
+verification_strength: "weak"
+required_evidence: "provenance"
 verification_note: "NECESSARY, NOT SUFFICIENT — this kv key is shared with the opencode--tui-session-directory-scope patch (sync.tsx/app.tsx), so presence proves nothing about THIS guard. The structural pin is regression pair tests/regressions/022-pin-directory-guard.sh (+ .kill.sh) against the dialog source; runtime effectiveness is pinned by ## Runtime Verification and the A/B captures."
 surfaces: "tui-interactive"
 ---

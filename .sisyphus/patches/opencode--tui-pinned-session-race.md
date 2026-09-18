@@ -11,6 +11,8 @@ runtime_effective: false
 runtime_effective_note: "v1 (merge guard + prune RMW, commit e7f5981ea, live since 2026-08-15 12:25): 11 days of pin-watch.log surveillance show zero startup-read or prune-path wipes — all corruption events since v1 are the togglePin path. v2 (togglePin file-level RMW, commit e31c20ca3, live since 2026-08-26): awaiting first post-swap togglePin write in pin-watch.log that preserves ids unknown to the writing process. Flip to true after that observation."
 upstream_issue: "none"
 verification_pattern: "pinned"
+verification_strength: "weak"
+required_evidence: "provenance"
 verification_note: "Bun minification strips comments and renames locals; this patch contains no unique string literal or property key, so pattern-presence is a weak pre-filter only. Authority rests on the regression test (tests/regressions/012-pinned-session-race-fix.sh), source commit e7f5981ea, and the runtime_effective flag."
 surfaces: "tui-interactive"
 ---
