@@ -21,8 +21,7 @@ type RootRuntime = {
   readonly mode: "shadow" | "observe" | "full"
   manifest: ScanManifest
   queueDepth: number
-  lastTickAt: number
-  queue: Promise<void>
+  scheduler?: SessionScheduler
   readonly states: Map<string, SessionState>
 }
 
@@ -40,6 +39,45 @@ class ConcurrencyGate {
       this.active -= 1
       this.waiters.shift()?.()
     }
+  }
+}
+
+/**
+ * Per-session intervention intervals and per-session work chains.
+ *
+ * Interval throttle is per SESSION (sessionID → lastTickAt), not per root: one
+ * busy session must not mute the rest of the project. Work for the same
+ * session is serialized (grace periods never overlap for one session);
+ * different sessions dispatch concurrently — the global cap stays with
+ * ConcurrencyGate around runTick, not here.
+ */
+export class SessionScheduler {
+  private readonly lastTickAt = new Map<string, number>()
+  private readonly inFlight = new Map<string, Promise<void>>()
+  constructor(
+    private readonly minIntervalMs: number,
+    private readonly nowFn: () => number,
+    private readonly run: (sessionID: string) => Promise<void>,
+  ) {}
+
+  isThrottled(sessionID: string): boolean {
+    return this.nowFn() - (this.lastTickAt.get(sessionID) ?? 0) < this.minIntervalMs
+  }
+
+  markTicked(sessionID: string): void {
+    this.lastTickAt.set(sessionID, this.nowFn())
+  }
+
+  enqueue(sessionID: string): Promise<void> {
+    const previous = this.inFlight.get(sessionID) ?? Promise.resolve()
+    const next = previous.then(() => {
+      if (this.isThrottled(sessionID)) return
+      return this.run(sessionID)
+    })
+    // Chain state must never reject (a failed run would poison every later
+    // tick for the session); rejections are surfaced to the caller via `next`.
+    this.inFlight.set(sessionID, next.catch(() => undefined))
+    return next
   }
 }
 
@@ -90,8 +128,6 @@ export async function runService(signal: AbortSignal): Promise<void> {
       mode: (config.roots.find((r) => r.path === root)?.mode ?? "shadow") as "shadow" | "observe" | "full",
       manifest,
       queueDepth: 0,
-      lastTickAt: 0,
-      queue: Promise.resolve(),
       states: new Map<string, SessionState>(),
     }
     runtime.manifest = manifest
@@ -114,7 +150,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
 
   const processIdle = async (runtime: RootRuntime, sessionID: string): Promise<void> => {
     try {
-      if (Date.now() - runtime.lastTickAt < config.min_intervention_interval_s * 1000) return
+      // Interval throttle lives in SessionScheduler (per session, checked at dispatch).
       await Bun.sleep(config.grace_period_s * 1000)
       if (signal.aborted) return
       const graceResult = transition(runtime.states.get(sessionID) ?? initialState, { type: "grace_elapsed", at: Date.now() })
@@ -158,7 +194,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
           }
         }
         runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)
-        runtime.lastTickAt = Date.now()
+        runtime.scheduler?.markTicked(sessionID)
       }
     } finally {
       runtime.queueDepth = Math.max(0, runtime.queueDepth - 1)
@@ -168,10 +204,15 @@ export async function runService(signal: AbortSignal): Promise<void> {
   }
 
   const enqueueIdle = async (runtime: RootRuntime, sessionID: string): Promise<void> => {
+    runtime.scheduler ??= new SessionScheduler(
+      config.min_intervention_interval_s * 1000,
+      Date.now,
+      (sid) => processIdle(runtime, sid),
+    )
     runtime.queueDepth += 1
     status.queueDepths[runtime.root] = runtime.queueDepth
     await writeStatus(statusPath, status)
-    runtime.queue = runtime.queue.then(() => processIdle(runtime, sessionID)).catch(async (error) => {
+    void runtime.scheduler.enqueue(sessionID).catch(async (error) => {
       if (!(error instanceof Error)) throw error
       ledger = await ledger.append("ERROR", { root: runtime.root, sessionID, error: error.message })
     })
