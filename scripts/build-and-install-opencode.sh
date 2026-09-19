@@ -42,14 +42,14 @@ FORK_GH_REPO="${OPENCODE_FORK_GH:-EZotoff/opencode}"
 
 die() { printf 'build-and-install-opencode: %s\n' "$*" >&2; exit 1; }
 usage() {
-    cat >&2 <<'USAGE'
+cat >&2 <<'USAGE'
 usage:
-  build-and-install-opencode.sh build
-  build-and-install-opencode.sh install <binary> [--recovery-from <backup>]
-                                       [--reason "<text>"] [--dry-run]
-  build-and-install-opencode.sh verify [binary] [--bootstrap] [--source-head <sha>]
+  build-and-install-opencode.sh build [--dry-run]
+build-and-install-opencode.sh install <binary> [--recovery-from <backup>]
+[--reason "<text>"] [--dry-run]
+build-and-install-opencode.sh verify [binary] [--bootstrap] [--source-head <sha>]
 USAGE
-    exit 2
+exit 2
 }
 
 lf_field() {
@@ -93,6 +93,32 @@ PYEOF
 
 binary_sha() { sha256sum "$1" | awk '{print $1}'; }
 
+# require_pushed_head <sha> — refuse UNPUSHED source heads: resolve remote and
+# branch from the lockfile canonical_ref, ls-remote the tip, and require <sha>
+# to be an ancestor of the tip. ls-remote failure is an infrastructure error
+# (exit 2), mirroring scripts/lib-patchset.sh consumers (test_patch_lockfile).
+require_pushed_head() {
+    local sha="$1"
+    local canonical_ref remote_name remote branch tip
+    canonical_ref="$(lf_field canonical_ref)"
+    [[ -n "$canonical_ref" ]] || die "lockfile missing canonical_ref"
+    remote_name="${canonical_ref#refs/remotes/}"
+    remote="${remote_name%%/*}"
+    branch="${remote_name#*/}"
+    tip="$(git -C "$SRC_REPO" ls-remote "$remote" "refs/heads/$branch" 2>/dev/null | awk '{print $1}')"
+    if [[ -z "$tip" ]]; then
+        printf 'build-and-install-opencode: cannot reach remote %s to verify push status of %s (infrastructure)\n' "$remote" "$sha" >&2
+        exit 2
+    fi
+    [[ "$tip" == "$sha" ]] && return 0
+    if ! git -C "$SRC_REPO" cat-file -e "$tip^{commit}" 2>/dev/null; then
+        printf 'build-and-install-opencode: remote tip %s not present locally — git -C %s fetch %s and re-run\n' "$tip" "$SRC_REPO" "$remote" >&2
+        exit 2
+    fi
+    git -C "$SRC_REPO" merge-base --is-ancestor "$sha" "$tip" \
+        || die "refusing build: source HEAD $sha is UNPUSHED (not an ancestor of $remote/$branch tip $tip) — push first"
+}
+
 gh_commit_exists() {
     local sha="$1"
     if command -v gh >/dev/null 2>&1; then
@@ -104,7 +130,14 @@ gh_commit_exists() {
 
 # ---------------------------------------------------------------- build -----
 cmd_build() {
-    lockfile_values
+    local dry_run=0
+    while (( $# )); do
+        case "$1" in
+            --dry-run) dry_run=1; shift ;;
+            *) usage ;;
+        esac
+    done
+lockfile_values
     [[ -d "$SRC_REPO" ]] || die "source repo not found: $SRC_REPO"
     local dirty
     dirty="$(git -C "$SRC_REPO" status --porcelain --untracked-files=no)"
@@ -113,6 +146,13 @@ cmd_build() {
     head="$(git -C "$SRC_REPO" rev-parse 'HEAD^{commit}')" \
         || die "cannot resolve HEAD in $SRC_REPO"
     required_commits_ancestor_of_head "$head"
+    require_pushed_head "$head"
+
+    if (( dry_run )); then
+        echo "DRY-RUN: validation only (lockfile, clean tree, ancestry, pushed head) — all checks passed"
+        echo "  would build: $VERSION_STRING (generation $GENERATION) from HEAD ${head:0:12}"
+        return 0
+    fi
 
     local build_cmd="OPENCODE_VERSION=$VERSION_STRING bun run script/build.ts --single --skip-install --skip-embed-web-ui"
     echo "building opencode $VERSION_STRING (generation $GENERATION)"
@@ -175,6 +215,21 @@ cmd_install() {
             || die "receipt generation '$receipt_gen' != lockfile generation '$GENERATION' — refusing install (use --recovery-from + --reason for a deliberate rollback)"
         opencode_version_compatible "$UPSTREAM" "$runtime_ver" \
             || die "binary version '$runtime_ver' incompatible with lockfile upstream $UPSTREAM"
+        # Receipt fidelity: the receipt must describe THIS binary and the
+        # CURRENT lockfile generation content.
+        local receipt_bin_sha receipt_reg_digest lock_reg_digest
+        receipt_bin_sha="$(receipt_read "$bin_sha" binary_sha256)"
+        [[ "$receipt_bin_sha" == "$bin_sha" ]] \
+            || die "receipt binary_sha256 '$receipt_bin_sha' != actual binary sha256 '$bin_sha' — refusing install"
+        lock_reg_digest="$(sha256sum "$LOCKFILE" | awk '{print $1}')"
+        receipt_reg_digest="$(receipt_read "$bin_sha" registry_digest)"
+        [[ "$receipt_reg_digest" == "$lock_reg_digest" ]] \
+            || die "receipt registry_digest '$receipt_reg_digest' != current lockfile sha256 '$lock_reg_digest' — refusing install (lockfile changed since the receipt was written)"
+        # Unpushed source heads are refused on real installs; bootstrapped
+        # receipts (accepted current live binary) are exempt.
+        if [[ "$(receipt_read "$bin_sha" bootstrapped)" != "true" ]]; then
+            require_pushed_head "$(receipt_read "$bin_sha" source_head)"
+        fi
     fi
 
     if (( dry_run )); then

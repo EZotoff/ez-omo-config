@@ -69,7 +69,8 @@ echo "OK: upstream_base == v$UPSTREAM_VERSION commit ($UPSTREAM_BASE)"
 # Active patch_ids from opencode--*.md frontmatter (status: active).
 ACTIVE_IDS="$(mktemp)"
 LOCK_IDS="$(mktemp)"
-trap 'rm -f "$ACTIVE_IDS" "$LOCK_IDS"' EXIT
+COMMIT_LIST="$(mktemp)"
+trap 'rm -f "$ACTIVE_IDS" "$LOCK_IDS" "$COMMIT_LIST"' EXIT
 for entry in "$PATCH_DIR"/opencode--*.md; do
     [[ -f "$entry" ]] || continue
     pid="$(sed -n 's/^patch_id:[[:space:]]*"\?\([^"]*\)"\?$/\1/p' "$entry" | head -1)"
@@ -99,7 +100,9 @@ done < "$LOCK_IDS"
 echo "OK: bijection holds ($(wc -l < "$LOCK_IDS" | tr -d ' ') active opencode patches <-> lockfile entries)"
 
 # --- 4/6/7. Per-patch commit validation ---
-python3 - "$LOCKFILE" <<'PYEOF' > /tmp/opencode-lockfile-commits.txt
+
+
+python3 - "$LOCKFILE" <<'PYEOF' > "$COMMIT_LIST"
 import json, sys
 for p in json.load(open(sys.argv[1]))["patches"]:
     kind = p.get("implementation_kind", "source")
@@ -114,8 +117,8 @@ while IFS=$'\t' read -r pid sha; do
         || fail "$pid: commit does not resolve in $OPENCODE_SRC: $sha"
     commit_is_ancestor "$OPENCODE_SRC" "$sha" "$CANONICAL_HEAD" \
         || fail "$pid: commit is NOT an ancestor of $CANONICAL_REF ($CANONICAL_HEAD): $sha"
-done < /tmp/opencode-lockfile-commits.txt
-rm -f /tmp/opencode-lockfile-commits.txt
+done < "$COMMIT_LIST"
+
 N_COMMITS="$(python3 -c '
 import json,sys
 n=0

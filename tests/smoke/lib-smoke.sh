@@ -2,11 +2,11 @@
 # Shared helpers for the per-SHA smoke matrix (plan: patch-provenance T6).
 #
 # Result store: ~/.local/share/opencode/smoke-results/<binary-sha256>.json
-#   JSON array of {smoke_id, result, timestamp, note}
-#   result ∈ PASS | FAIL | SKIP
+#   JSON array of {smoke_id, result, timestamp, note, evidence}
+#   result ∈ PASS | FAIL | SKIP; evidence = path or short proof string
 #
 # Duplicate-PASS refusal: already-passing smokes are skipped on re-run
-# unless SMOKE_FORCE=1.
+# unless SMOKE_FORCE=1 or --force is passed to the smoke script.
 set -euo pipefail
 
 SMOKE_RESULTS_DIR="${SMOKE_RESULTS_DIR:-$HOME/.local/share/opencode/smoke-results}"
@@ -46,14 +46,14 @@ smoke_sha256() {
     sha256sum "$1" | cut -d' ' -f1
 }
 
-# smoke_record <binary-sha> <smoke-id> <PASS|FAIL|SKIP> <note>
+# smoke_record <binary-sha> <smoke-id> <PASS|FAIL|SKIP> <note> <evidence>
 smoke_record() {
-    local sha="$1" id="$2" result="$3" note="$4"
+    local sha="$1" id="$2" result="$3" note="$4" evidence="$5"
     local file="$SMOKE_RESULTS_DIR/$sha.json" ts entry
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     mkdir -p "$SMOKE_RESULTS_DIR"
-    entry="$(jq -cn --arg i "$id" --arg r "$result" --arg t "$ts" --arg n "$note" \
-        '{smoke_id: $i, result: $r, timestamp: $t, note: $n}')"
+    entry="$(jq -cn --arg i "$id" --arg r "$result" --arg t "$ts" --arg n "$note" --arg e "$evidence" \
+        '{smoke_id: $i, result: $r, timestamp: $t, note: $n, evidence: $e}')"
     if [[ -f "$file" ]]; then
         jq --argjson e "$entry" '. + [$e]' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
     else

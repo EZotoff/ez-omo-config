@@ -262,6 +262,18 @@ for patch in json.load(open(sys.argv[1])).get("patches", []):
         print(patch["patch_id"], *patch.get("implementation_commits", []), sep="\t")
 ' "$PATCH_LOCKFILE" 2>/dev/null || true)
 fi
+declare -A LOCK_EXEMPT=()
+if [[ -f "$PATCH_LOCKFILE" ]]; then
+    while IFS= read -r lock_pid; do
+        [[ -n "$lock_pid" ]] || continue
+        LOCK_EXEMPT["$lock_pid"]=1
+    done < <(python3 -c '
+import json, sys
+for patch in json.load(open(sys.argv[1])).get("patches", []):
+    if not patch.get("required"):
+        print(patch["patch_id"])
+' "$PATCH_LOCKFILE" 2>/dev/null || true)
+fi
 
 # ---- Provenance state: computed ONCE per run for live/binary modes ----
 PROV_MODE=0
@@ -319,7 +331,8 @@ if (( PROV_MODE )); then
         fi
     fi
     # Smoke results for this binary sha (Task 6 contract: JSON array of
-    # {"smoke"|"id": <smoke-id>, "result": "PASS"|"FAIL"|"SKIP", ...})
+    # {smoke_id, result, ...} entries) — read via the shared helper in
+    # lib-patchset.sh (patchset_smoke_results).
     if [[ -n "$PROV_BIN_SHA" && -f "$SMOKE_RESULTS_DIR/$PROV_BIN_SHA.json" ]]; then
         while IFS=$'\t' read -r smoke_id smoke_result; do
             [[ -n "$smoke_id" ]] || continue
@@ -328,22 +341,7 @@ if (( PROV_MODE )); then
             else
                 SMOKE_FAIL["$smoke_id"]=1
             fi
-        done < <(python3 -c '
-import json, sys
-try:
-    entries = json.load(open(sys.argv[1]))
-except Exception:
-    sys.exit(0)
-if not isinstance(entries, list):
-    sys.exit(0)
-for entry in entries:
-    if not isinstance(entry, dict):
-        continue
-    smoke_id = entry.get("smoke") or entry.get("id") or ""
-    result = entry.get("result", "")
-    if smoke_id and result:
-        print(smoke_id, result, sep="\t")
-' "$SMOKE_RESULTS_DIR/$PROV_BIN_SHA.json" 2>/dev/null || true)
+        done < <(patchset_smoke_results "$SMOKE_RESULTS_DIR/$PROV_BIN_SHA.json")
     fi
 fi
 
@@ -407,7 +405,12 @@ for entry in "${entries[@]}"; do
         # Rule 4 (patch-provenance plan T5): active opencode-- entries that the
         # lockfile marks required must declare evidence-typed verification
         # fields. Acknowledged-drift entries (lockfile required:false) exempt.
-        if [[ -z "$detail" && "$dependency" == "opencode" && "$patch_id" == opencode--* && -n "${LOCK_REQUIRED[$patch_id]:-}" ]]; then
+        # Rule 4 (patch-provenance plan T5): every active opencode-- entry
+        # must declare evidence-typed verification fields, EXCEPT entries the
+        # lockfile explicitly exempts (required:false, e.g. acknowledged-drift
+        # or rolled-back patches). Entries missing from the lockfile entirely
+        # are also enforced (bijection is validated by test_patch_lockfile.sh).
+        if [[ -z "$detail" && "$dependency" == "opencode" && "$patch_id" == opencode--* && -z "${LOCK_EXEMPT[$patch_id]:-}" ]]; then
             strength_val="$(yaml_frontmatter_value "$entry" verification_strength)"
             evidence_val="$(yaml_frontmatter_value "$entry" required_evidence)"
             if [[ "$strength_val" != "weak" && "$strength_val" != "discriminative" ]]; then

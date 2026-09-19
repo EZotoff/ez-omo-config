@@ -14,10 +14,10 @@ OPENCODE_SRC="${OPENCODE_SRC:-$HOME/src/opencode}"
 # artifact) per the patch-provenance plan (receipts must survive swaps).
 RECEIPT_DIR="${RECEIPT_DIR:-$HOME/.local/share/opencode/builds}"
 
-# lockfile_load <file> — parse and structurally sanity-check a patch-set
-# lockfile. Prints normalized patch lines: "<patch_id>\t<kind>\t<sha>..." is
-# NOT used; callers use jq/python on the file directly. Here we only assert
-# the file parses and has the required top-level fields.
+# lockfile_load <file> — assert the lockfile parses as JSON and carries the
+# required top-level fields (schema_version, dependency, upstream_version,
+# upstream_base, generation, canonical_ref, non-empty patches array).
+# Callers read patch data directly with jq/python.
 lockfile_load() {
     local file="$1"
     [[ -f "$file" ]] || { echo "lockfile_load: no such lockfile: $file" >&2; return 1; }
@@ -134,5 +134,33 @@ except re.error as exc:
     print(f"invalid verification pattern: {exc}", file=sys.stderr)
     sys.exit(2)
 sys.exit(0 if found else 1)
+'
+}
+
+patchset_smoke_results() {
+    # patchset_smoke_results <smoke-results.json> — print TAB-separated
+    # "<smoke_id>\t<result>" lines from the per-SHA smoke store written by
+    # tests/smoke/lib-smoke.sh (key: smoke_id). Never fails; bad input
+    # yields no lines. Single source of truth shared by
+    # scripts/verify-live-patches.sh and scripts/check-provenance.sh.
+    [[ -f "$1" ]] || return 0
+    SMOKE_FILE="$1" python3 -c '
+import json
+import os
+import sys
+
+try:
+    entries = json.load(open(os.environ["SMOKE_FILE"]))
+except Exception:
+    sys.exit(0)
+if not isinstance(entries, list):
+    sys.exit(0)
+for entry in entries:
+    if not isinstance(entry, dict):
+        continue
+    smoke_id = entry.get("smoke_id", "")
+    result = entry.get("result", "")
+    if smoke_id and result:
+        print(f"{smoke_id}\t{result}")
 '
 }

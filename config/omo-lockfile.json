@@ -83,9 +83,15 @@
       "required": true
     },
     {
-      "patch_id": "omo--lookat-fallback-patience",
-      "implementation_kind": "dist-reapply",
-      "required": true
+"patch_id": "omo--lookat-fallback-patience",
+"implementation_kind": "dist-reapply",
+"required": true
+    },
+    {
+      "patch_id": "omo--parent-wake-sync-mode-for-tui-render",
+      "implementation_kind": "rolled-back",
+      "required": false,
+      "note": "rolled_back 2026-06-25, do_not_reapply — excluded from dist gate"
     }
-  ]
+]
 }

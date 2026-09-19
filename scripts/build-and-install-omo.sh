@@ -63,7 +63,7 @@ omo_receipt_write() {
 
 # Dist patches are validated by verification_pattern grep (no ancestry possible
 # for bundle-level edits). Patterns come from the entries' frontmatter.
-dist_patch_ids() { printf '%s' "$lockfile_json" | jq -r '.dist_patches[].patch_id'; }
+dist_patch_ids() { printf '%s' "$lockfile_json" | jq -r '.dist_patches[] | select(.required != false) | .patch_id'; }
 source_patch_commits() { printf '%s' "$lockfile_json" | jq -r '.patches[] | .implementation_commits[]'; }
 
 frontmatter_value() { patchset_frontmatter_value "$@"; }
@@ -169,8 +169,12 @@ cmd_build() {
     fi
     local prev_branch; prev_branch="$(git -C "$OMO_REPO" rev-parse --abbrev-ref HEAD)"
     git -C "$OMO_REPO" checkout --detach "$head"
-    (cd "$OMO_REPO" && bun install && bun run build)
+    # If the build fails (set -e aborts mid-build), restore the previous
+    # branch instead of leaving the runtime repo on a detached HEAD.
+    trap 'git -C "$OMO_REPO" checkout "$prev_branch" >/dev/null 2>&1 || true' EXIT
+(cd "$OMO_REPO" && bun install && bun run build)
     git -C "$OMO_REPO" checkout "$prev_branch"
+    trap - EXIT
     # A fresh rebuild loses the dist-level patches; they must be reapplied per
     # their registry entries BEFORE a receipt can be written.
     if ! check_dist_patterns "$OMO_REPO/dist/index.js"; then

@@ -5,12 +5,20 @@
 # FORMAT of the rendered turn-summary line (no provider-content assertions):
 #   ▣ <agent> · <model> · <N(.N)?s> · <H>:<MM> <AM|PM>
 # Model-unreachable / provider error => SKIP (never FAIL).
-# Usage: smoke-turn-summary-timestamp.sh [binary] (default: live binary)
-# Duplicate PASS for the same sha is refused unless SMOKE_FORCE=1.
+# Usage: smoke-turn-summary-timestamp.sh [--force] [binary] (default: live binary)
+# Duplicate PASS for the same sha is refused unless SMOKE_FORCE=1 or --force.
 set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib-smoke.sh"
 
-BIN="${1:-$HOME/.opencode/bin/opencode}"
+FORCE=0
+POSIX_ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --force) FORCE=1 ;;
+        *) POSIX_ARGS+=("$arg") ;;
+    esac
+done
+BIN="${POSIX_ARGS[0]:-$HOME/.opencode/bin/opencode}"
 SMOKE_ID="turn-summary-timestamp"
 SESSION="smoke-tts-$$-$(date +%s)"
 PROMPT='reply with exactly: hi'
@@ -22,15 +30,16 @@ UNREACHABLE_RE='(quota|rate.?limit|unreachable|connection (refused|error|failed)
 
 if ! smoke_require_binary "$BIN"; then
     sha="$(smoke_sha256 "$BIN" 2>/dev/null || echo unknown)"
-    smoke_record "$sha" "$SMOKE_ID" "FAIL" "binary missing or not executable: $BIN"
+    smoke_record "$sha" "$SMOKE_ID" "FAIL" "binary missing or not executable: $BIN" "$BIN"
     echo "FAIL: binary missing or not executable: $BIN"
     exit 1
 fi
 
 BIN_SHA="$(smoke_sha256 "$BIN")"
 
-if [[ "${SMOKE_FORCE:-0}" != "1" ]] && smoke_already_passing "$BIN_SHA" "$SMOKE_ID"; then
-    echo "SKIP-RERUN: $SMOKE_ID already PASS for sha ${BIN_SHA:0:12} (set SMOKE_FORCE=1 to rerun)"
+if [[ "${SMOKE_FORCE:-0}" != "1" && $FORCE -ne 1 ]] && smoke_already_passing "$BIN_SHA" "$SMOKE_ID";
+    then
+    echo "SKIP-RERUN: $SMOKE_ID already PASS for sha ${BIN_SHA:0:12} (set SMOKE_FORCE=1 or pass --force to rerun)"
     exit 0
 fi
 
@@ -48,7 +57,7 @@ for _ in $(seq 1 60); do
 done
 
 if [[ $composer_ready -ne 1 ]]; then
-    smoke_record "$BIN_SHA" "$SMOKE_ID" "FAIL" "composer ('Ask anything') not visible within 30s"
+    smoke_record "$BIN_SHA" "$SMOKE_ID" "FAIL" "composer ('Ask anything') not visible within 30s" "tmux capture of session $SESSION"
     echo "FAIL: composer not visible within 30s"
     exit 1
 fi
@@ -65,8 +74,9 @@ while (( SECONDS < deadline )); do
         break
     fi
     if printf '%s' "$capture" | grep -Eqi "$UNREACHABLE_RE"; then
-        smoke_record "$BIN_SHA" "$SMOKE_ID" "SKIP" \
-            "model/provider unreachable while waiting for turn summary (binary ${BIN_SHA:0:12})"
+smoke_record "$BIN_SHA" "$SMOKE_ID" "SKIP" \
+            "model/provider unreachable while waiting for turn summary (binary ${BIN_SHA:0:12})" \
+            "provider-failure pattern in tmux capture"
         echo "SKIP: model unreachable / provider error"
         exit 0
     fi
@@ -74,13 +84,14 @@ while (( SECONDS < deadline )); do
 done
 
 if [[ -n "$matched" ]]; then
-    smoke_record "$BIN_SHA" "$SMOKE_ID" "PASS" "summary line matched: $matched"
+    smoke_record "$BIN_SHA" "$SMOKE_ID" "PASS" "summary line matched: $matched" "$matched"
     echo "PASS: turn-summary timestamp format verified"
     echo "  line: $matched"
     exit 0
 fi
 
 smoke_record "$BIN_SHA" "$SMOKE_ID" "FAIL" \
-    "no turn-summary line matching '$SUMMARY_RE' within 90s (binary ${BIN_SHA:0:12})"
+    "no turn-summary line matching '$SUMMARY_RE' within 90s (binary ${BIN_SHA:0:12})" \
+    "tmux capture of session $SESSION after 90s"
 echo "FAIL: no turn-summary line matching format within 90s"
 exit 1

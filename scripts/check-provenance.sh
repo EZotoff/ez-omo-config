@@ -15,9 +15,12 @@
 #
 # Exit codes: 0 acceptable (green or amber-pending); 1 hard provenance
 # failure; 2 infrastructure error (remote/git unreachable).
+
 set -euo pipefail
 
 REPO="${EZ_OMO_CONFIG_REPO:-$HOME/ez-omo-config}"
+# shellcheck source=lib-patchset.sh
+source "$REPO/scripts/lib-patchset.sh"
 BUILDS_DIR="$HOME/.local/share/opencode/builds"
 SMOKE_DIR="$HOME/.local/share/opencode/smoke-results"
 STATE_DIR="$HOME/.local/state/opencode"
@@ -90,8 +93,18 @@ audit_artifact() {
 		if [[ ! -f "$smoke_file" ]]; then
 			amber "smoke results missing for binary sha $sha — runtime pending"
 		else
+			local -A latest=()
+			while IFS=$'\t' read -r sid sres; do
+				[[ -n "$sid" ]] || continue
+				latest["$sid"]="$sres"
+			done < <(patchset_smoke_results "$smoke_file")
 			for id in turn-summary-timestamp bash-lifecycle; do
-				result="$(jq -r --arg id "$id" '[.[] | select((.smoke_id==$id) or (.smoke_id | startswith($id)))][-1].result // ""' "$smoke_file" 2>/dev/null)" || result=""
+				result=""
+				for sid in "${!latest[@]}"; do
+					if [[ "$sid" == "$id" || "$sid" == "$id"-* ]]; then
+						result="${latest[$sid]}"
+					fi
+				done
 				case "$result" in
 					PASS) note "smoke $id: PASS for this binary" ;;
 					FAIL) hard "smoke $id: FAIL recorded for binary sha $sha" ;;
@@ -109,8 +122,8 @@ audit_artifact() {
 
 echo "== markers =="
 if [[ -f "$RECOVERY_ALERT" ]]; then
-	amber "RECOVERY marker present: $RECOVERY_ALERT — provenance is red until a normal receipted install"
-	log warning "recovery marker present: $RECOVERY_ALERT"
+	hard "RECOVERY marker present: $RECOVERY_ALERT — provenance stays red (exit 1) until a normal receipted install clears it"
+	log err "recovery marker present: $RECOVERY_ALERT"
 else
 	note "no recovery marker"
 fi

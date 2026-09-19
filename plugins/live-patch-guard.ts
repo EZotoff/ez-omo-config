@@ -34,9 +34,12 @@ import { dirname } from "node:path"
 const GUARD_EMERGENCY_BYPASS_ENV = "OPENCODE_PATCH_GUARD_EMERGENCY_BYPASS"
 const EMERGENCY_REASON_ENV = "EMERGENCY_REASON"
 const EMERGENCY_MARKER_PATH = `${process.env.HOME ?? ""}/.local/state/opencode/patch-guard-emergency.alert`
+// Allow only when an installer wrapper appears as an INVOKED command, not as a
+// bare substring anywhere in the command (a trailing comment like
+// `cp evil ~/.opencode/bin/opencode # scripts/build-and-install-opencode.sh`
+// must NOT bypass).
 const INSTALLER_ALLOWLIST: ReadonlyArray<RegExp> = [
-	/scripts\/build-and-install-opencode\.sh/,
-	/scripts\/build-and-install-omo\.sh/,
+	/(^|[;&|\s])scripts\/build-and-install-(opencode|omo)\.sh\b/
 ]
 const VERIFY_SCRIPT = `${process.env.HOME ?? ""}/.sisyphus/scripts/verify-live-patches.sh`
 
@@ -72,19 +75,23 @@ interface DetectionResult {
 	readonly emergencyReason?: string
 }
 
-function detectDanger(command: string): DetectionResult {
+function detectDanger(command: string, allowEmergencyBypass: boolean): DetectionResult {
 	// Bypass rule (a): the transactional installer wrappers self-gate
 	// (ancestry + receipt + generation checks) before any swap, so invoking
-	// them is the supported path.
+	// them is the supported path. Shell comments are stripped first so an
+	// installer path mentioned inside a comment (e.g. a trailing
+	// `# scripts/build-and-install-opencode.sh`) does NOT count as invocation.
+	const commandSansComments = command.replace(/(^|\s)#.*$/gm, "")
 	for (const pattern of INSTALLER_ALLOWLIST) {
-		if (pattern.test(command)) {
+		if (pattern.test(commandSansComments)) {
 			return { kind: "none", description: "" }
 		}
-	}
+		}
 
 	// Bypass rule (b): loud emergency bypass. Requires BOTH the bypass env
-	// and a non-empty reason; the caller appends a persistent marker.
-	if (process.env[GUARD_EMERGENCY_BYPASS_ENV] === "1") {
+	// and a non-empty reason; the caller appends a persistent marker and may
+	// retry classification with this disabled if the marker write fails.
+	if (allowEmergencyBypass && process.env[GUARD_EMERGENCY_BYPASS_ENV] === "1") {
 		const reason = process.env[EMERGENCY_REASON_ENV]
 		if (reason && reason.trim().length > 0) {
 			return { kind: "none", description: "", emergencyReason: reason }
@@ -116,26 +123,28 @@ function detectDanger(command: string): DetectionResult {
 	return { kind: "none", description: "" }
 }
 
-function appendEmergencyMarker(command: string, reason: string): void {
+function appendEmergencyMarker(command: string, reason: string): boolean {
 	try {
 		mkdirSync(dirname(EMERGENCY_MARKER_PATH), { recursive: true })
 		appendFileSync(
 			EMERGENCY_MARKER_PATH,
 			`${JSON.stringify({ timestamp: new Date().toISOString(), command, reason })}\n`,
 		)
-	} catch {
-		// Marker write failure must not silently swallow the bypass; the caller logs it.
+		return true
+	} catch (error) {
+		// Fail-closed: if the marker cannot be written, the bypass is NOT
+		// granted — the command falls through to normal classification.
+		return false
 	}
 }
 
 async function runVerifyScript(
-	candidatePath: string,
 	directory: string,
 	onLog: (message: string) => void,
 ): Promise<{ passed: boolean; output: string }> {
 	try {
 		const args = ["bash", VERIFY_SCRIPT]
-		if (candidatePath) args.push(candidatePath)
+
 		const proc = Bun.spawn(args, {
 			cwd: directory,
 			stdout: "pipe",
@@ -204,7 +213,7 @@ export const LivePatchGuardPlugin: Plugin = async (ctx) => {
 					"Run scripts/verify-live-patches.sh to check that every tracked patch in .sisyphus/patches/ is applied to the live binary and plugin installs. Returns APPLIED/STALE/MISSING-TARGET/VERSION-DRIFT per patch.",
 				args: {},
 				async execute(_args, _toolCtx) {
-					const result = await runVerifyScript("", directory, log.info)
+				const result = await runVerifyScript(directory, log.info)
 					return result.output
 				},
 			}),
@@ -222,21 +231,30 @@ export const LivePatchGuardPlugin: Plugin = async (ctx) => {
 
 			if (!command || typeof command !== "string") return
 
-			const detection = detectDanger(command)
-			if (detection.emergencyReason) {
-				appendEmergencyMarker(command, detection.emergencyReason)
+		const detection = detectDanger(command, true)
+		if (detection.emergencyReason) {
+			const markerWritten = appendEmergencyMarker(command, detection.emergencyReason)
+			if (markerWritten) {
 				log.warn(
-					`EMERGENCY bypass used — marker appended to ${EMERGENCY_MARKER_PATH} (reason: ${detection.emergencyReason})`
+					`EMERGENCY bypass used — marker appended to ${EMERGENCY_MARKER_PATH} (reason: ${detection.emergencyReason})`,
 				)
 				return
 			}
-			if (detection.kind === "none") return
+			// Fail-closed: the marker could not be persisted, so the loud trail
+			// the bypass depends on does not exist. Fall through to normal
+			// classification (which will block dangerous commands).
+			log.error(
+				`EMERGENCY bypass REFUSED — could not append marker ${EMERGENCY_MARKER_PATH}; classifying command normally`,
+			)
+		}
+		const effective = detection.emergencyReason ? detectDanger(command, false) : detection
+		if (effective.kind === "none") return
 
 			// BINARY SWAP: the installer wrappers are the supported path.
-			if (detection.kind === "binary-swap") {
+			if (effective.kind === "binary-swap") {
 				log.error(`BLOCKING binary swap — tracked patches at risk`)
 				throw new Error(
-					`[LIVE-PATCH-GUARD] BLOCKED: ${detection.description}\n\n` +
+					`[LIVE-PATCH-GUARD] BLOCKED: ${effective.description}\n\n` +
 						`Command: ${command}\n\n` +
 						`Use the transactional installer: scripts/build-and-install-opencode.sh ` +
 						`(or scripts/build-and-install-omo.sh for OMO). It validates patch ancestry, ` +
@@ -249,10 +267,10 @@ export const LivePatchGuardPlugin: Plugin = async (ctx) => {
 
 			// RUNTIME DIR DELETE/MOVE: these dirs are live infrastructure
 			// (AGENTS.md "Protected runtime directories") — report, don't delete.
-			if (detection.kind === "runtime-delete") {
+			if (effective.kind === "runtime-delete") {
 				log.error(`BLOCKING runtime dir delete/move: ${detection.description}`)
 				throw new Error(
-					`[LIVE-PATCH-GUARD] BLOCKED: ${detection.description}\n\n` +
+					`[LIVE-PATCH-GUARD] BLOCKED: ${effective.description}\n\n` +
 						`Command: ${command}\n\n` +
 						`This directory is a MANIFEST-tracked live runtime install (see AGENTS.md ` +
 						`"Protected runtime directories"). Report it to the operator as a review ` +
@@ -261,10 +279,10 @@ export const LivePatchGuardPlugin: Plugin = async (ctx) => {
 			}
 
 			// OMO PLUGIN INSTALL/UPGRADE: update-to-latest or the OMO installer.
-			if (detection.kind === "plugin-install") {
+			if (effective.kind === "plugin-install") {
 				log.error(`BLOCKING plugin install/upgrade: ${detection.description}`)
 				throw new Error(
-					`[LIVE-PATCH-GUARD] BLOCKED: ${detection.description}\n\n` +
+					`[LIVE-PATCH-GUARD] BLOCKED: ${effective.description}\n\n` +
 						`Command: ${command}\n\n` +
 						`OMO has tracked local patches. Version advances must use the update-to-latest ` +
 						`skill's 13-phase backup, patch-review, reapply, and regression pipeline, or the ` +

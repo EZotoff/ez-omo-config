@@ -66,7 +66,7 @@ After the 2026-09-18 silent binary-rebuild and OMO-runtime-deletion incidents, e
 
 - **Smoke matrix** — `tests/smoke/` runs 2 deterministic smokes (turn-summary timestamp, bash lifecycle) and records per-binary-sha results under `~/.local/share/opencode/smoke-results/`.
 
-- **Timer audit** — `scripts/check-provenance.sh` (4th `ExecStart` of `opencode-patch-integrity-check.service`) re-checks receipts, generation match, fork-remote reachability of `source_head`, smoke freshness (missing = amber "runtime pending"), and recovery/emergency-bypass markers on every 30-min cycle. Exit 0 acceptable / 1 provenance failure / 2 infrastructure error.
+- **Timer audit** — `scripts/check-provenance.sh` (4th `ExecStart` of `opencode-patch-integrity-check.service`) re-checks receipts, generation match, fork-remote reachability of `source_head`, smoke freshness (missing = amber "runtime pending"), and recovery/emergency-bypass markers on every 30-min cycle (recovery marker is a hard failure: exit 1 until a receipted install clears it). Exit 0 acceptable / 1 provenance failure / 2 infrastructure error.
 
 
 
