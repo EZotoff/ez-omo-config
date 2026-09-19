@@ -865,7 +865,7 @@
       "name": "Ternary-Bonsai-2-27B (local overnight bench)",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "http://127.0.0.1:18101/v1",
+        "baseURL": "http://127.0.0.1:18210/v1",
         "apiKey": "bonsai2",
         "chunkTimeout": 600000,
         "headerTimeout": 600000
