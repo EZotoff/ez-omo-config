@@ -36,6 +36,7 @@ import {
 	type Database,
 	getPendingDelete,
 	getSession,
+	getSessionByBranch,
 	getWorktreePath,
 	initStateDb,
 	removeSession,
@@ -929,7 +930,7 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 
 			worktree_create: tool({
 				description:
-					"Create a new git worktree for isolated development and switch the TUI to a forked session with full conversation context, ready to continue work in the worktree. No GUI terminal is opened.",
+					"Create a new git worktree for isolated development and fork the current session with full conversation context, ready to continue work in the worktree. No GUI terminal is opened and the TUI is NOT switched automatically — the forked session appears in the TUI session picker; the user opens it when ready. Idempotent: if this session or branch already has a worktree session, it is reused, never re-forked.",
 				args: {
 					branch: tool.schema
 						.string()
@@ -953,12 +954,35 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 							return `❌ Invalid base branch name: ${baseResult.error.issues[0]?.message}`
 						}
 					}
-
-					// Create worktree
-					const result = await createWorktree(directory, args.branch, args.baseBranch)
-					if (!result.ok) {
-						return `Failed to create worktree: ${result.error}`
+				// Idempotency guard (2026-09-19 double-fork incident): a worktree session
+				// may already exist for this session or branch — reuse it, never fork again.
+				const currentBinding = getSession(database, toolCtx.sessionID)
+				if (currentBinding) {
+					return `This session is already bound to worktree branch ${currentBinding.branch} (${currentBinding.path}). Continue working here; call worktree_delete when the work is done. No new fork created.`
+				}
+				const existingBinding = getSessionByBranch(database, args.branch)
+				if (existingBinding) {
+					// Liveness check: only reuse a tracked session that still exists server-side.
+					let sessionAlive = false
+					try {
+						const check = await client.session.get({ path: { id: existingBinding.id } })
+						sessionAlive = Boolean(check.data?.id)
+					} catch {
+						sessionAlive = false
 					}
+					if (sessionAlive) {
+						return `A worktree session for branch ${args.branch} already exists: session ${existingBinding.id} at ${existingBinding.path}. Tell the user to open it from the TUI session picker. No new fork created.`
+					}
+					// Stale entry — the tracked session is gone; drop it and proceed.
+					log.warn(`[worktree] dropping stale session binding for branch ${args.branch}: ${existingBinding.id}`)
+					removeSession(database, args.branch)
+				}
+
+				// Create worktree
+				const result = await createWorktree(directory, args.branch, args.baseBranch)
+				if (!result.ok) {
+					return `Failed to create worktree: ${result.error}`
+				}
 
 					const worktreePath = result.value
 
@@ -1002,36 +1026,23 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 					log.debug(
 						`Forked session ${forkedSession.id}, plan: ${planCopied}, delegations: ${delegationsCopied}`,
 					)
+				log.debug(
+					`Forked session ${forkedSession.id}, plan: ${planCopied}, delegations: ${delegationsCopied}`,
+				)
 
-					// Autonomous handoff: switch the TUI to the forked session instead of
-					// opening a GUI terminal. The terminal flow silently failed on
-					// display-less systemd-launched servers (no DISPLAY) and was never
-					// the intent; the forked session lives in the main project directory,
-					// so it is visible and attachable from the running TUI.
-					await new Promise((resolve) => setTimeout(resolve, 500))
-					let handoffError = ""
-					try {
-						const innerClient = (client as unknown as Record<string, Record<string, unknown>>).session?._client as Record<string, unknown> | undefined
-						const post = innerClient?.post as ((opts: Record<string, unknown>) => Promise<unknown>) | undefined
-						if (!post) throw new Error("Could not access SDK transport")
-						await post({ url: "/tui/select-session", body: { sessionID: forkedSession.id } })
-					} catch (error) {
-						handoffError = error instanceof Error ? error.message : String(error)
-						log.warn(`[worktree] tui.selectSession failed: ${handoffError}`)
-					}
+				// No TUI switch (2026-09-19 incident): /tui/select-session is a workspace-broadcast
+				// event upstream — one call hijacked every attached TUI across all projects. The
+				// forked session is surfaced via the tool result; the user picks it in the picker.
 
-					// Record session for tracking (used by delete flow)
-					addSession(database, {
-						id: forkedSession.id,
-						branch: args.branch,
-						path: worktreePath,
-						createdAt: new Date().toISOString(),
-					})
+				// Record session for tracking (used by delete flow and the idempotency guard)
+				addSession(database, {
+					id: forkedSession.id,
+					branch: args.branch,
+					path: worktreePath,
+					createdAt: new Date().toISOString(),
+				})
 
-					const handoffNote = handoffError
-						? `TUI switch failed (${handoffError}). Resume the session manually: opencode --session ${forkedSession.id}`
-						: `The TUI has switched to the forked session — continue working there.`
-					return `Worktree created at ${worktreePath}\n\n${handoffNote}`
+				return `Worktree created at ${worktreePath}\n\nForked session ${forkedSession.id} carries the full conversation context. Tell the user to open it from the TUI session picker when ready to continue there — the TUI was not switched automatically. Do NOT call worktree_create again for this branch; it would be reused, not re-forked.`
 				},
 			}),
 

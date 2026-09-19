@@ -155,6 +155,12 @@ export function getSession(db: Database, sessionId: string): Session | null {
 	return state.sessions.find((session) => session.id === sessionId) ?? null
 }
 
+export function getSessionByBranch(db: Database, branch: string): Session | null {
+	if (!branch) return null
+	const state = readState(db)
+	return state.sessions.find((session) => session.branch === branch) ?? null
+}
+
 export function removeSession(db: Database, branch: string): void {
 	if (!branch) return
 	const state = readState(db)

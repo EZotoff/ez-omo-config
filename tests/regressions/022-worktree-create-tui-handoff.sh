@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Regression 022: worktree_create hands off via TUI session switch, not a GUI terminal.
+# Regression 022: worktree tools never hand off via a GUI terminal.
 #
 # Bug (2026-09-12): worktree_create forked a session with full context, then
 # handed off with openTerminal(worktreePath, "opencode --session <id>") — a GUI
 # terminal spawn that (a) silently failed on display-less systemd-launched
-# servers (no DISPLAY — see regression 020) and (b) was never the intent: the
-# user wants autonomous session handoff, mirroring worktree_start.
+# servers (no DISPLAY — see regression 020) and (b) was never the intent:
+# the user wants autonomous session handoff, mirroring worktree_start.
 #
-# Fix: worktree_create switches the TUI to the forked session via
-# POST /tui/select-session (same mechanism as worktree_start); on failure it
-# returns the manual resume command. openTerminal is gone from the plugin.
+# Fix: TUI-based handoff replaced the terminal spawn; openTerminal is gone.
+# UPDATE (2026-09-19): worktree_create no longer performs ANY TUI switch
+# (workspace-broadcast hijack — see regression 023). The select-session grep
+# below now guards worktree_start's switch only.
 set -o errexit
 source "$(cd "$(dirname "$0")/.." && pwd)/helpers.sh"
 
