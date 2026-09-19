@@ -109,8 +109,40 @@ codegraph, and tests are repo-scoped):
 
 | Item | Repo | Status |
 |---|---|---|
-| Escalation `confidence ≥ 0.7` filter in ledger-tailer | voice-bridge | pending (code) |
-| `prompt_supervisor` write-path guardrail formalization | this repo (design doc) | done — see final-design.md Amendment 3 |
+| Escalation `confidence ≥ 0.7` filter in ledger-tailer | voice-bridge | **done** — `ESCALATION_CONFIDENCE_THRESHOLD = 0.7` gate in [`src/pipeline/interrupts.ts:23`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/interrupts.ts) (TICK_DECIDED + ESCALATE + confidence ≥ 0.7, per final-design.md Amendment 2 §A) |
+| `prompt_supervisor` write-path guardrail | this repo (design doc) | **REQUIRED, not done** — current implementation ([`src/pipeline/tools/prompt-supervisor.ts:20-46`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/tools/prompt-supervisor.ts)) is UNGATED: it writes into a supervisor console session directly via `promptAsync` (creates the `[Supervisor]` console session if absent). Future gate: replies become correlated queue events routed by the reply-router (Seam 4), not free-form console writes |
 | Voice widget + context feed in remote UI | omo-pulse | not started |
 | Show-view renderer (Seam 2 frames) | omo-pulse | not started |
 | Real-voice dogfood → MANIFEST evidence upgrade | this repo | blocked on (row above) |
+
+## Seam 4 — Attention queue (Supervisor-owned)
+
+The supervisor service owns a durable `AttentionQueue` (spec: `~/.local/state/opencode-supervisor/grading/attention-queue-contract.md`, incl. Addendum A; responsibility split per `vox-supervisor-context-split.md`). **Queue schema version: 1** (`schemaVersion: 1`, queue-item ID `att_<id>`, tick ID `tick_<id>`, alias `Q<n>` per root). Channels only present and collect; ticks propose but never surface directly.
+
+### Ownership and lifecycle
+
+- Supervisor decides **what** objectively needs attention; Vox decides **how and when** to discuss it (context-split ruling).
+- Items enter via `propose` (deterministic `decisionKey` upsert, cross-tick dedupe), pass **premise revalidation at surfacing**, and again **after each reply** before any propagation to a worker session.
+- Resolutions: `propagated` (confirm-gated), `retired-by-evidence`, `superseded`, `expired`. Lifecycle is append-only ledger events (`QUEUE_*`).
+
+### Channel classes (Addendum A)
+
+| Class | Channels | Surfacing |
+|---|---|---|
+| **DEMANDING** | voice readout (Vox) | exclusive **global presentation lease** — at most one item surfaced anywhere at a time; serial operator attention |
+| **AMBIENT/VISUAL** | omo-pulse attention cards, glasses TLDR | non-exclusive **dwell carousel**; may coexist with a demanding surface. Pacing config: `min_dwell_s`, `max_queue_depth`, `batch_after_idle_s` (tuned from live telemetry, not fixed now) |
+
+Cross-channel rule: if an item is currently visible on an ambient channel, the demanding channel receives that fact in its surfacing context and goes **deictic** ("the card you see") instead of re-reading.
+
+### Vox as a consumer (never the queue owner)
+
+- `surface()` maps an item to a Seam 2 `show` frame + `contextTag`; `collectReply()` converts speech/choices/confirmations into **correlated reply events** (`ReplyEvent`, `reply_<id>`) — never direct writes into worker sessions.
+- **Vox defer-as-request**: Vox may defer while speaking, mid-dialog, or when the operator is away. Deferral releases the lease, sets `notBefore`, and records `CHANNEL_DEFERRED` — it is a **scheduling request, never a retire**; the item stays queued and keeps aging.
+- Code-affecting spoken answers still pass Vox's existing `propose_mutation` confirmation gate.
+
+### Dispositions
+
+- **SKIP** = next (snooze, `notBefore`); **HOLD** = freeze dwell on this channel; **DND** = global pause, aging continues, APPROVAL items never auto-resolve.
+- Ambiguous replies correlate to nothing: record `QUEUE_REPLY_AMBIGUOUS`, request `Q<n>:` or a numbered choice — no guessing, no mutation.
+
+Cross-repo impact: none for the console MVP (all inside the supervisor service); the omo-pulse attention view and the Vox queue-consumer transport are the future cross-repo pieces and land in this doc first when defined.
