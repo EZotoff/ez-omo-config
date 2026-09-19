@@ -205,6 +205,8 @@ export type TickRequest = {
   readonly confidenceFloor: number
   /** True when the target session is autonomous-origin (drive-to-completion policy). */
   readonly autonomous?: boolean
+  /** Called with the TICK_SKIPPED reason when an autonomous ESCALATE is suppressed. */
+  readonly onSuppressed?: (reason: string) => void
 }
 
 export const POLICY = `You are the Project Supervisor for this workspace — a read-only stand-in for the human operator. You see exactly what the operator would see: top-level user messages and assistant replies. Tool output and subagent internals are hidden from you.
@@ -255,7 +257,9 @@ export async function runTick(request: TickRequest): Promise<TickDecision> {
   ].join("\n\n")
   try {
     const decision = parseDecision(await request.adapter.complete(prompt), request.confidenceFloor)
-    return applyAutonomousOriginPolicy(decision, request.autonomous === true).decision
+    const result = applyAutonomousOriginPolicy(decision, request.autonomous === true)
+    if (result.suppressed !== undefined) request.onSuppressed?.(result.suppressed)
+    return result.decision
   } catch (error) {
     return abstain(adapterFailure(error))
   }
@@ -276,6 +280,8 @@ export type CollectForkRequest = {
   readonly onCollect?: (event: CollectEvent) => void
   /** True when the target session is autonomous-origin (drive-to-completion policy). */
   readonly autonomous?: boolean
+  /** Called with the TICK_SKIPPED reason when an autonomous ESCALATE is suppressed. */
+  readonly onSuppressed?: (reason: string) => void
 }
 
 /**
@@ -286,7 +292,9 @@ export type CollectForkRequest = {
  */
 export async function runTickWithCollect(request: CollectForkRequest): Promise<TickDecision> {
   const decision = await runCollectFork(request)
-  return applyAutonomousOriginPolicy(decision, request.autonomous === true).decision
+  const result = applyAutonomousOriginPolicy(decision, request.autonomous === true)
+  if (result.suppressed !== undefined) request.onSuppressed?.(result.suppressed)
+  return result.decision
 }
 
 async function runCollectFork(request: CollectForkRequest): Promise<TickDecision> {

@@ -2,9 +2,10 @@
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { ZaiAdapter } from "./adapter"
-import { assembleContext } from "./assembler"
+import { assembleContext, type SiblingView } from "./assembler"
+import { classifyAutonomousOrigin, type AutonomousOriginConfig } from "./origins"
 import { OpencodeClient, type ServerEvent } from "./client"
-import { loadApiKey, loadConfig, loadProviderBaseURL } from "./config"
+import { loadApiKey, loadConfig, loadProviderBaseURL, rootAutonomousOrigin } from "./config"
 import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
 import { pollRootOnce, ActivityGate } from "./poller"
@@ -17,7 +18,7 @@ import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
 import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
 import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
-import type { Action, AttentionQueueItem, Decision, OriginRegistry, Turn } from "./types"
+import type { Action, AttentionQueueItem, Decision, OriginRegistry, Session, Turn } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
 
@@ -28,6 +29,7 @@ type RootRuntime = {
   queueDepth: number
   scheduler?: SessionScheduler
   readonly states: Map<string, SessionState>
+  readonly origin: AutonomousOriginConfig
 }
 
 class ConcurrencyGate {
@@ -165,9 +167,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
       fetchConcurrency: config.fetch_concurrency,
     }, consoles.allSessionIDs())
     const previous = runtimes.get(root)
+    const rootConfig = config.roots.find((r) => r.path === root)
     const runtime = previous ?? {
       root,
-      mode: (config.roots.find((r) => r.path === root)?.mode ?? "shadow") as "shadow" | "observe" | "full",
+      mode: (rootConfig?.mode ?? "shadow") as "shadow" | "observe" | "full",
+      origin: rootConfig === undefined ? { pathGlobs: [], titlePrefixes: [] } : rootAutonomousOrigin(rootConfig),
       manifest,
       queueDepth: 0,
       states: new Map<string, SessionState>(),
@@ -248,18 +252,39 @@ export async function runService(signal: AbortSignal): Promise<void> {
           recentDecisions.push({ action: decided.action, rationale: decided.rationale, decidedAtMs: Date.parse(decided.decidedAt) })
           if (recentDecisions.length === 3) break
         }
+        const isAutonomous = (session: Session, kickoffText?: string): boolean =>
+          classifyAutonomousOrigin(
+            { directory: session.directory, ...(session.title === undefined ? {} : { title: session.title }), ...(kickoffText === undefined ? {} : { kickoffText }) },
+            runtime.origin,
+          )
+        const autonomousTarget = scan === undefined ? false : isAutonomous(scan.session, scan.turns[0]?.userText)
+        const siblings: SiblingView[] = runtime.manifest.sessions
+          .filter((entry) => entry.session.id !== sessionID)
+          .map((entry) => {
+            const previousWatermark = previousManifest.sessions.find((previous) => previous.session.id === entry.session.id)?.watermark
+            return {
+              sessionID: entry.session.id,
+              ...(entry.session.title === undefined ? {} : { title: entry.session.title }),
+              ...(entry.session.timeUpdatedMs === undefined ? {} : { lastActivityMs: entry.session.timeUpdatedMs }),
+              turns: changedTurnsSinceWatermark(previousWatermark, entry),
+              autonomous: isAutonomous(entry.session, entry.turns[0]?.userText),
+            }
+          })
         const context = assembleContext({
           target,
           targetHistory: scan?.turns ?? [],
-          siblingChanges: Object.fromEntries(runtime.manifest.sessions
-            .filter((entry) => entry.session.id !== sessionID)
-            .map((entry) => {
-              const previousWatermark = previousManifest.sessions.find((previous) => previous.session.id === entry.session.id)?.watermark
-              return [entry.session.id, changedTurnsSinceWatermark(previousWatermark, entry)]
-            })),
+          siblings,
           targetHistoryCapPairs: config.target_history_cap_pairs,
           siblingTurnWindow: config.sibling_turn_window,
           tokenBudget: config.token_budget,
+          tierBudgets: {
+            targetHistory: config.tier_budgets.target_history,
+            hot: config.tier_budgets.hot,
+            warm: config.tier_budgets.warm,
+            cool: config.tier_budgets.cool,
+            cold: config.tier_budgets.cold,
+          },
+          targetAutonomous: autonomousTarget,
           selfMemory: {
             decisions: recentDecisions,
             openItems: queue.items
@@ -277,6 +302,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
           openItems: () => queue.items,
           nowMs: Date.now,
         })
+        let suppressedReason: string | undefined = undefined
         const decision = await tickGate.run(() => runTickWithCollect({
           adapter,
           context,
@@ -294,8 +320,13 @@ export async function runService(signal: AbortSignal): Promise<void> {
           hasSiblings: runtime.manifest.sessions.some((entry) => entry.session.id !== sessionID),
           nowMs: Date.now,
           onCollect: recordCollect,
+          autonomous: autonomousTarget,
+          onSuppressed: (reason) => { suppressedReason = reason },
         }))
         await recordDecision(decision, target, runtime.root)
+        if (suppressedReason !== undefined) {
+          ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: suppressedReason })
+        }
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
           const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${c.quote.slice(0, 80)}`).join("; ")
           const proposed = await consoles.proposeEscalation({

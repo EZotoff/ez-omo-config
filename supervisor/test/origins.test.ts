@@ -226,4 +226,36 @@ describe("autonomous-origin policy hook", () => {
     const decision = await runTickWithCollect(request)
     expect(decision.action).toBe("CONTINUE")
   })
+
+  test("onSuppressed callback receives the TICK_SKIPPED reason", async () => {
+    const adapter: ReasoningAdapter = {
+      complete: async () =>
+        JSON.stringify({
+          action: "ESCALATE",
+          rationale: "ordinary scope decision",
+          citations: [{ session: D073.sessionID, messageID: "m1", quote: "q" }],
+          confidence: 0.9,
+          information_needs: [],
+        }),
+    }
+    const reasons: string[] = []
+    const request: CollectForkRequest = {
+      adapter,
+      context,
+      target,
+      confidenceFloor: 0.6,
+      root: D073.directory,
+      executor: { run: async () => ({ text: "", tokens: 0, lookups: 0, empty: true }) },
+      budget: { allow: () => true, record: () => {} },
+      isIdle: async () => true,
+      healthAmbiguous: false,
+      hasSiblings: false,
+      nowMs: () => 0,
+      autonomous: true,
+      onSuppressed: (reason) => { reasons.push(reason) },
+    }
+    const decision = await runTickWithCollect(request)
+    expect(decision.action).toBe("CONTINUE")
+    expect(reasons).toEqual(["autonomous-origin: ESCALATE suppressed (non-credential) — drive-to-completion"])
+  })
 })
