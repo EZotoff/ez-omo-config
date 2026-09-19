@@ -67,3 +67,35 @@ export async function pollRootOnce(
   for (const [key, state] of next) previous.set(key, state)
   return signals
 }
+
+/**
+ * CONTINUE quiescence gate. Consumes the `activity` poll signal (plus busy)
+ * to decide whether a session has been still long enough to be kick-started:
+ * no message growth and no timeUpdated movement for >= grace period. A session
+ * never observed is NOT quiescent — a kick-start requires evidence of stillness.
+ */
+export class ActivityGate {
+  private readonly lastUpdatedMs = new Map<string, number>()
+  private readonly movedAtMs = new Map<string, number>()
+
+  observe(signals: readonly PollSignal[], nowMs: number): void {
+    for (const signal of signals) {
+      if (signal.kind === "busy") {
+        // Message-count growth: movement is known no later than the poll that saw it.
+        this.movedAtMs.set(signal.sessionID, Math.max(this.movedAtMs.get(signal.sessionID) ?? 0, nowMs))
+      } else if (signal.kind === "activity") {
+        const prior = this.lastUpdatedMs.get(signal.sessionID)
+        if (prior !== signal.lastUpdatedMs) {
+          // timeUpdated movement: dated by the movement itself, not the poll.
+          this.movedAtMs.set(signal.sessionID, Math.max(this.movedAtMs.get(signal.sessionID) ?? 0, signal.lastUpdatedMs))
+        }
+        this.lastUpdatedMs.set(signal.sessionID, signal.lastUpdatedMs)
+      }
+    }
+  }
+
+  isQuiescent(sessionID: string, nowMs: number, graceMs: number): boolean {
+    const movedAt = this.movedAtMs.get(sessionID)
+    return movedAt !== undefined && nowMs - movedAt >= graceMs
+  }
+}

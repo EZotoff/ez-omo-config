@@ -23,6 +23,8 @@ export type Message = {
   readonly role: "user" | "assistant"
   readonly time: { readonly created: number; readonly completed?: number }
   readonly agent?: string
+  readonly error?: unknown
+  readonly finish?: string
   readonly parts: readonly Part[]
 }
 

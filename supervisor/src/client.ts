@@ -9,6 +9,8 @@ const infoSchema = z.object({
   id: z.string(), sessionID: z.string(), role: z.enum(["user", "assistant"]),
   time: z.object({ created: z.number(), completed: z.number().optional() }).passthrough(),
   agent: z.string().optional(),
+  error: z.unknown().optional(),
+  finish: z.string().optional(),
 }).passthrough()
 const messageEnvelopeSchema = z.object({ info: infoSchema, parts: z.array(partSchema) }).strict()
 const sessionSchema = z.object({
@@ -97,6 +99,9 @@ export class OpencodeClient {
       sessionID: info.sessionID,
       role: info.role,
       time: { created: info.time.created, ...(info.time.completed === undefined ? {} : { completed: info.time.completed }) },
+      ...(info.agent === undefined ? {} : { agent: info.agent }),
+      ...(info.error === undefined ? {} : { error: info.error }),
+      ...(info.finish === undefined ? {} : { finish: info.finish }),
       ...(info.agent === undefined ? {} : { agent: info.agent }),
       parts: parts.map((part) => ({
         id: part.id,

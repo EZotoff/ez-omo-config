@@ -1,3 +1,4 @@
+import { classifyRunHealth, assistantRunFor } from "./health"
 import type { Message, Turn } from "./types"
 
 /**
@@ -16,5 +17,7 @@ export function pickTarget(turns: readonly Turn[], messages: readonly Message[])
       (turn.origin === "human" || turn.origin === "unknown") &&
       turn.assistantMessageID === lastMessageID,
   )
-  return candidates.at(-1)
+  // Abort guard (D295): an operator-stopped turn is never an attention point.
+  // Errored/stalled runs stay eligible — they are the kick-start candidates.
+  return candidates.filter((turn) => classifyRunHealth(assistantRunFor(turn, messages)) !== "aborted").at(-1)
 }

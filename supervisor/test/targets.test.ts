@@ -6,8 +6,10 @@ const turn = (userMessageID: string, assistantMessageID: string | undefined, ori
   assistantMessageID === undefined
     ? { sessionID: "ses-a", userMessageID, origin, userText: "u", assistantText: "a", transcript: "t" }
     : { sessionID: "ses-a", userMessageID, assistantMessageID, origin, userText: "u", assistantText: "a", transcript: "t" }
-const message = (id: string, role: "user" | "assistant"): Message => ({
+const message = (id: string, role: "user" | "assistant", extra: { error?: unknown; finish?: string } = {}): Message => ({
   id, sessionID: "ses-a", role, time: { created: 1 }, parts: [],
+  ...(extra.error === undefined ? {} : { error: extra.error }),
+  ...(extra.finish === undefined ? {} : { finish: extra.finish }),
 })
 
 describe("pickTarget", () => {
@@ -27,5 +29,20 @@ describe("pickTarget", () => {
   test("stands down when the human turn has no completed reply", () => {
     const turns = [turn("u1", undefined, "human")]
     expect(pickTarget(turns, [message("u1", "user")])).toBeUndefined()
+  })
+  test("never selects an operator-aborted turn (D295 abort guard)", () => {
+    const turns = [turn("u1", "a1", "human")]
+    const messages = [message("u1", "user"), message("a1", "assistant", { finish: "aborted" })]
+    expect(pickTarget(turns, messages)).toBeUndefined()
+  })
+  test("keeps an errored turn selectable as kick-start candidate (D244)", () => {
+    const turns = [turn("u1", "a1", "human")]
+    const messages = [message("u1", "user"), message("a1", "assistant", { error: { name: "APIError", message: "model not found" } })]
+    expect(pickTarget(turns, messages)?.userMessageID).toBe("u1")
+  })
+  test("aborted guard applies to the last turn only when it is the reply (earlier aborted, later healthy wins)", () => {
+    const turns = [turn("u1", "a1", "human"), turn("u2", "a2", "human")]
+    const messages = [message("u1", "user"), message("a1", "assistant", { finish: "aborted" }), message("u2", "user"), message("a2", "assistant")]
+    expect(pickTarget(turns, messages)?.userMessageID).toBe("u2")
   })
 })
