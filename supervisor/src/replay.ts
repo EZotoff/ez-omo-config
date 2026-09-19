@@ -239,8 +239,9 @@ async function main(): Promise<void> {
   const directories = new Set(top.map((session) => session.directory))
   console.error(`topology: ${top.length} top-level across ${directories.size} project dirs (${childIDs.size} children derived)`)
 
+  const messagesBySession = new Map<string, Message[]>(sessions.map((session, index) => [session.id, all[index] ?? []]))
   const perSession = new Map<string, CompactTurn[]>()
-  for (let i = 0; i < top.length; i += 1) perSession.set(top[i]!.id, compactTurns(all[i] ?? [], top[i]!.id))
+  for (const session of top) perSession.set(session.id, compactTurns(messagesBySession.get(session.id) ?? [], session.id))
   const dirOf = new Map(top.map((session) => [session.id, session.directory]))
 
   type Case = { kind: "continue" | "control"; session: string; target: Turn; targetCreatedMs: number; history: Turn[] }
