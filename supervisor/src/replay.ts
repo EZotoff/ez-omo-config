@@ -4,7 +4,9 @@ import { ZaiAdapter } from "./adapter"
 import { assembleContext, type AssembledContext } from "./assembler"
 import { OpencodeClient } from "./client"
 import { loadApiKey, loadConfig, loadProviderBaseURL } from "./config"
-import { runTick } from "./tick"
+import { runTick, runTickWithCollect } from "./tick"
+import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
+import { Ledger } from "./ledger"
 import { deriveChildSessionIDs, topLevelSessions } from "./topology"
 import { contiguousAssistantRun, messageText, projectTurns } from "./projector"
 import type { Message, Turn } from "./types"
@@ -66,8 +68,142 @@ function compactTurns(messages: readonly Message[], sessionID: string): CompactT
     .filter((t) => t.turn.sessionID === sessionID)
 }
 
+type CorpusItem = {
+  readonly id: string
+  readonly action: string
+  readonly confidence: number
+  readonly root: string
+  readonly session: string
+  readonly title?: string
+  readonly user: string
+  readonly worker: string
+}
+
+/**
+ * Targeted corpus replay through the collect-vs-decide fork. Resolves each
+ * corpus id's live session, rebuilds the tick context, and runs the two-tick
+ * fork with the real primitives. Reports tick1 needs, gather outcome, and the
+ * tick2 action — never fabricates a result on provider failure.
+ */
+async function runCorpusFork(ids: readonly string[]): Promise<void> {
+  const repoRoot = resolve(import.meta.dir, "../..")
+  const config = await loadConfig(join(repoRoot, "configs", "opencode-supervisor", "supervisor.json"))
+  const client = new OpencodeClient(config.server_url, {
+    username: config.server_username,
+    password: process.env[config.server_password_env] ?? "",
+  })
+  const baseURL = await loadProviderBaseURL(join(repoRoot, "configs", "opencode", "opencode.json"), config.model.provider)
+  const apiKey = await loadApiKey(join(homedir(), ".local/share/opencode/auth.json"), config.model.provider)
+  const adapter = new ZaiAdapter(baseURL, config.model.id, apiKey)
+  const stateDir = join(homedir(), ".local", "state", "opencode-supervisor")
+  const { readFile, writeFile, mkdir } = await import("node:fs/promises")
+  const ledger = await Ledger.open(join(stateDir, "ledger.jsonl"))
+  const budget = new CollectBudget()
+
+  const repaired = JSON.parse(await readFile(join(stateDir, "grading", "repaired-items.json"), "utf8")) as CorpusItem[]
+  const batches: CorpusItem[] = []
+  for (let index = 1; index <= 15; index += 1) {
+    const name = `batch-${String(index).padStart(2, "0")}.json`
+    try {
+      const data = JSON.parse(await readFile(join(stateDir, "grading", name), "utf8")) as unknown
+      const list = Array.isArray(data) ? data : ((data as { items?: unknown[]; cases?: unknown[] }).items ?? (data as { cases?: unknown[] }).cases ?? [])
+      batches.push(...(list as CorpusItem[]))
+    } catch {
+      // batch file absent — skip
+    }
+  }
+  const byId = new Map<string, CorpusItem>()
+  // Repaired items win over batches: the batch copy of a repaired id carries a
+  // placeholder user field (D211: "(message not found)") that breaks target lookup.
+  for (const item of [...repaired, ...batches]) if (typeof item.id === "string" && !byId.has(item.id)) byId.set(item.id, item)
+
+  const allSessions = await client.listAllSessions()
+  const results: Record<string, unknown>[] = []
+  for (const id of ids) {
+    const item = byId.get(id)
+    if (item === undefined) {
+      console.error(`[${id}] not found in corpus`)
+      continue
+    }
+    const session = allSessions.find((entry) => entry.id === item.session) ?? allSessions.find((entry) => entry.id.startsWith(item.session.slice(0, 12)))
+    if (session === undefined) {
+      console.error(`[${id}] session ${item.session} not found`)
+      continue
+    }
+    const messages = await client.listMessages(session.id, session.directory)
+    const turns = projectTurns(messages, { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() })
+    const normalize = (value: string): string => value.replace(/\s+/g, " ").trim()
+    const normalizedUser = normalize(item.user)
+    const needle = normalizedUser === "" || normalizedUser.startsWith("(") ? "" : normalizedUser.slice(0, 40)
+    const matchedIndex = needle === "" ? -1 : turns.findIndex((turn) => normalize(turn.userText).startsWith(needle))
+    const targetIndex = matchedIndex === -1 ? turns.length - 1 : matchedIndex
+    const target = turns[targetIndex]
+    if (target === undefined) {
+      console.error(`[${id}] no target turn in ${session.id}`)
+      continue
+    }
+    const context = assembleContext({
+      target,
+      targetHistory: turns.slice(0, targetIndex + 1),
+      siblingChanges: {},
+      targetHistoryCapPairs: config.target_history_cap_pairs,
+      siblingTurnWindow: config.sibling_turn_window,
+      tokenBudget: config.token_budget,
+    })
+    const events: CollectEvent[] = []
+    const executor = new CollectExecutor({
+      client,
+      root: session.directory,
+      ledgerRecords: () => ledger.records,
+      openItems: () => [],
+      nowMs: Date.now,
+    })
+    const decision = await runTickWithCollect({
+      adapter,
+      context,
+      target,
+      confidenceFloor: config.confidence_floor,
+      root: session.directory,
+      executor,
+      budget,
+      isIdle: async () => true,
+      healthAmbiguous: false,
+      hasSiblings: false,
+      nowMs: Date.now,
+      onCollect: (event) => events.push(event),
+    })
+    const event = events[0]
+    const record = {
+      id,
+      corpusAction: item.action,
+      corpusConfidence: item.confidence,
+      session: session.id,
+      targetMessage: target.userMessageID,
+      targetUser: target.userText.slice(0, 140),
+      tick1Needs: event?.needs.map((entry) => ({ scope: entry.scope, target: entry.target, question: entry.question })) ?? [],
+      outcome: event?.outcome ?? "none",
+      gatheredTokens: event?.tokens ?? 0,
+      tick2Action: decision.action,
+      evidenceEffect: decision.evidence_effect ?? null,
+      changed: event?.changed ?? false,
+      rationale: decision.rationale.slice(0, 200),
+    }
+    console.error(`[${id}] corpus=${item.action} → tick2=${decision.action} outcome=${record.outcome} changed=${record.changed}`)
+    results.push(record)
+  }
+  const outPath = join(stateDir, `collect-fork-replay-${new Date().toISOString().replace(/[:.]/g, "-")}.json`)
+  await mkdir(stateDir, { recursive: true })
+  await writeFile(outPath, JSON.stringify({ ids, results }, null, 2))
+  console.log(JSON.stringify({ outPath, results }, null, 2))
+}
+
 async function main(): Promise<void> {
   const args = new Map(process.argv.slice(2).map((v, i, all) => (v.startsWith("--") ? [v.slice(2), all[i + 1] ?? ""] : [String(i), v])))
+  const idsArg = args.get("ids")
+  if (idsArg !== undefined && idsArg !== "") {
+    await runCorpusFork(idsArg.split(",").map((value) => value.trim()).filter((value) => value !== ""))
+    return
+  }
   const allProjects = args.has("all")
   const root = args.get("--root") ?? "/home/ezotoff/AI_projects/veran"
   const maxContinue = Number(args.get("--sample") ?? 30)
