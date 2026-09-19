@@ -11,8 +11,10 @@ import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTick } from "./tick"
 import { pickTarget } from "./targets"
-import { ConsoleManager } from "./console"
-import type { Action, Decision, OriginRegistry, Turn } from "./types"
+import { ConsoleChannel } from "./console"
+import { isAbortError } from "./health"
+import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
+import type { Action, AttentionQueueItem, Decision, OriginRegistry, Turn } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
 
@@ -109,12 +111,40 @@ export async function runService(signal: AbortSignal): Promise<void> {
   let ledger = await Ledger.open(ledgerPath)
   const status = emptyStatus()
   const runtimes = new Map<string, RootRuntime>()
-  const consoles = new ConsoleManager(
+  const queue = await AttentionQueue.open({
+    path: join(stateDirectory, "queue.json"),
+    append: async (type, payload) => { ledger = await ledger.append(type, payload) },
+  })
+  const buildSources = async (item: AttentionQueueItem): Promise<RevalidationSources> => {
+    const root = item.target.root
+    const sessions = await client.listSessions(root)
+    const exists = sessions.some((session) => session.id === item.target.sessionID)
+    const messages = exists ? await client.listMessages(item.target.sessionID, root) : []
+    const last = messages.at(-1)
+    const idle = last !== undefined && last.role === "assistant" && last.time.completed !== undefined
+    const aborted = last !== undefined && last.role === "assistant" && (last.finish === "aborted" || isAbortError(last.error))
+    return {
+      targetExists: () => exists,
+      targetIdle: () => idle,
+      latestMessageID: () => last?.id,
+      targetTurnAborted: () => aborted,
+      ticketOpen: () => queue.items.some((entry) => entry.id === item.id && itemState(entry) !== "resolved"),
+      blackboardFactActive: () => true,
+      canonicalItemFor: (key) => queue.items.find((entry) => entry.decisionKey === key && itemState(entry) !== "resolved")?.id,
+      answeredElsewhere: () => undefined,
+      approvalRequired: () => false,
+      modePermits: () => true,
+      citationsAdmissible: () => true,
+    }
+  }
+  const consoles = new ConsoleChannel({
     client,
-    join(stateDirectory, "consoles.json"),
-    () => ledger,
-    (next) => { ledger = next },
-  )
+    queue,
+    statePath: join(stateDirectory, "consoles.json"),
+    ledger: () => ledger,
+    setLedger: (next) => { ledger = next },
+    probe: buildSources,
+  })
   await consoles.load()
 
   const reconcile = async (root: string): Promise<RootRuntime> => {
@@ -188,9 +218,29 @@ export async function runService(signal: AbortSignal): Promise<void> {
         await recordDecision(decision, target)
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
           const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${c.quote.slice(0, 80)}`).join("; ")
-          const result = await consoles.openTicket(runtime.root, sessionID, scan?.session.title, decision.rationale, evidence || "no citations supplied")
-          if ("skipped" in result) {
-            ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `escalation suppressed: ${result.skipped}` })
+          const proposed = await consoles.proposeEscalation({
+            root: runtime.root,
+            sessionID,
+            question: decision.rationale,
+            rationale: evidence || "no citations supplied",
+            citations: decision.citations,
+            confidence: decision.confidence,
+            target: {
+              root: runtime.root,
+              sessionID,
+              userMessageID: target.userMessageID,
+              ...(target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID }),
+              ...(scan?.session.title === undefined ? {} : { sessionTitle: scan.session.title }),
+            },
+          })
+          if (proposed.kind === "deduped" || proposed.kind === "capped") {
+            const reason = proposed.kind === "deduped" ? "escalation deduped by decision key" : proposed.reason
+            ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason })
+          } else {
+            const surfaced = await consoles.surfaceNext(runtime.root, new Date().toISOString())
+            if (surfaced.kind === "resolved") {
+              ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `escalation ${surfaced.disposition}: ${surfaced.reason}` })
+            }
           }
         }
         runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)
@@ -263,6 +313,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
                 await enqueueIdle(runtime, sig.sessionID)
               }
             }
+          }
+          const replies = await consoles.pollReplies(root.path, new Date().toISOString())
+          for (const reply of replies) {
+            await consoles.handleReply(reply, new Date().toISOString())
           }
         } catch (error) {
           if (error instanceof Error) {
