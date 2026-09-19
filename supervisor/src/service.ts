@@ -1,3 +1,4 @@
+// allow: SIZE_OK — orchestrator (processIdle + poll loop + wiring); pre-existing growth, split deferred.
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { ZaiAdapter } from "./adapter"
@@ -9,12 +10,13 @@ import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./
 import { pollRootOnce, ActivityGate } from "./poller"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
-import { runTick } from "./tick"
+import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
 import { ConsoleChannel } from "./console"
 import { Blackboard, parseTickDecided } from "./blackboard"
-import { isAbortError } from "./health"
+import { isAbortError, turnHealth } from "./health"
 import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
+import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
 import type { Action, AttentionQueueItem, Decision, OriginRegistry, Turn } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
@@ -92,7 +94,7 @@ function eventSessionID(event: ServerEvent): string | undefined {
 }
 
 function emptyStatus(): SupervisorStatus {
-  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {} }
+  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {}, collect: { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 } }
 }
 
 export async function runService(signal: AbortSignal): Promise<void> {
@@ -111,6 +113,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const tickGate = new ConcurrencyGate(config.max_tick_concurrency)
   let ledger = await Ledger.open(ledgerPath)
   const status = emptyStatus()
+  const collectBudget = new CollectBudget()
   const runtimes = new Map<string, RootRuntime>()
   const queue = await AttentionQueue.open({
     path: join(stateDirectory, "queue.json"),
@@ -184,6 +187,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
     ledger = await ledger.append("TICK_DECIDED", { decision, sessionID: turn.sessionID, messageID: turn.userMessageID })
     const action: Action = decision.action
     status.ticksByAction[action] = (status.ticksByAction[action] ?? 0) + 1
+    if (status.collect !== undefined) {
+      const ticks = Object.values(status.ticksByAction).reduce((sum, count) => sum + count, 0)
+      status.collect.rate = ticks === 0 ? 0 : status.collect.performed / ticks
+      status.collect.changedRate = status.collect.performed === 0 ? 0 : status.collect.changed / status.collect.performed
+    }
     await blackboard.writeDecision({
       root,
       tickID: `tick_${ledger.records.at(-1)?.seq ?? 0}`,
@@ -193,6 +201,17 @@ export async function runService(signal: AbortSignal): Promise<void> {
       now: new Date().toISOString(),
     })
     await writeStatus(statusPath, status)
+  }
+
+  const recordCollect = (event: CollectEvent): void => {
+    const telemetry = status.collect ?? { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 }
+    telemetry.attempts += 1
+    if (event.outcome === "gathered") telemetry.performed += 1
+    if (event.outcome === "discarded") telemetry.discarded += 1
+    if (event.outcome === "budget-blocked") telemetry.budgetExhausted += 1
+    if (event.changed) telemetry.changed += 1
+    telemetry.tokens += event.tokens
+    status.collect = telemetry
   }
 
   const processIdle = async (runtime: RootRuntime, sessionID: string): Promise<void> => {
@@ -250,7 +269,32 @@ export async function runService(signal: AbortSignal): Promise<void> {
             nowMs: Date.now(),
           },
         })
-        const decision = await tickGate.run(() => runTick({ adapter, context, target, confidenceFloor: config.confidence_floor }))
+        const health = scan === undefined ? "healthy" : turnHealth(target, scan.messages)
+        const executor = new CollectExecutor({
+          client,
+          root: runtime.root,
+          ledgerRecords: () => ledger.records,
+          openItems: () => queue.items,
+          nowMs: Date.now,
+        })
+        const decision = await tickGate.run(() => runTickWithCollect({
+          adapter,
+          context,
+          target,
+          confidenceFloor: config.confidence_floor,
+          root: runtime.root,
+          executor,
+          budget: collectBudget,
+          isIdle: async () => {
+            const messages = await client.listMessages(sessionID, runtime.root)
+            const last = messages.at(-1)
+            return last !== undefined && last.id === target.assistantMessageID && last.time.completed !== undefined
+          },
+          healthAmbiguous: health !== "healthy" && health !== "aborted",
+          hasSiblings: runtime.manifest.sessions.some((entry) => entry.session.id !== sessionID),
+          nowMs: Date.now,
+          onCollect: recordCollect,
+        }))
         await recordDecision(decision, target, runtime.root)
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
           const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${c.quote.slice(0, 80)}`).join("; ")

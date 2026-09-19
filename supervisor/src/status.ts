@@ -2,6 +2,17 @@ import { mkdir, open, readFile, rename } from "node:fs/promises"
 import { dirname } from "node:path"
 import { z } from "zod"
 
+const collectTelemetrySchema = z.object({
+  attempts: z.number().int().nonnegative(),
+  performed: z.number().int().nonnegative(),
+  changed: z.number().int().nonnegative(),
+  discarded: z.number().int().nonnegative(),
+  budgetExhausted: z.number().int().nonnegative(),
+  tokens: z.number().int().nonnegative(),
+  rate: z.number().min(0).max(1),
+  changedRate: z.number().min(0).max(1),
+}).strict()
+
 export const statusSchema = z.object({
   lastReconcile: z.string().nullable(),
   queueDepths: z.record(z.string(), z.number().int().nonnegative()),
@@ -9,8 +20,10 @@ export const statusSchema = z.object({
   unknownOriginRate: z.number().min(0).max(1),
   modes: z.record(z.string(), z.string()).optional(),
   machineMarkedRate: z.number().min(0).max(1),
+  collect: collectTelemetrySchema.optional(),
 }).strict()
 export type SupervisorStatus = z.infer<typeof statusSchema>
+export type CollectTelemetry = z.infer<typeof collectTelemetrySchema>
 
 export async function writeStatus(path: string, status: SupervisorStatus): Promise<void> {
   await mkdir(dirname(path), { recursive: true })

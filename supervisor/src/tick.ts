@@ -1,27 +1,85 @@
+// allow: SIZE_OK — POLICY is a prompt (data, ~60 lines); the fork logic is ~200 LOC.
 import { z } from "zod"
 import type { Decision, Turn } from "./types"
 import type { ReasoningAdapter } from "./adapter"
 import type { AssembledContext } from "./assembler"
+import {
+  DEFAULT_COLLECT_BOUNDS,
+  collectEligible,
+  detectProxies,
+  type CollectBudgetGate,
+  type CollectEvent,
+  type CollectRunner,
+} from "./collect"
 
 const citationSchema = z.object({ session: z.string().min(1), messageID: z.string().min(1), quote: z.string().min(1) }).strict()
+
+/**
+ * Structured information need — the collect-vs-decide fork signal. The model
+ * names the exact missing evidence and how it would change the call; presence
+ * of a need (not the confidence scalar) opens the bounded gather round.
+ */
+const informationNeedSchema = z.object({
+  question: z.string().min(1),
+  scope: z.enum(["sessions", "ledger", "cards"]),
+  target: z.string().min(1),
+  why: z.string().min(1),
+  expected_effect: z.string().min(1),
+}).strict()
+export type InformationNeed = z.infer<typeof informationNeedSchema>
+
+const evidenceEffectSchema = z.enum(["confirmed", "disconfirmed", "inconclusive"])
+export type EvidenceEffect = z.infer<typeof evidenceEffectSchema>
+
 const decisionSchema = z.object({
   action: z.enum(["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"]),
   target: z.string().min(1).optional(),
   rationale: z.string().min(1),
   citations: z.array(citationSchema),
   confidence: z.number().min(0).max(1),
+  information_need: informationNeedSchema.nullable().optional(),
+  information_needs: z.array(informationNeedSchema).max(3).optional(),
+  evidence_effect: evidenceEffectSchema.optional(),
 }).strict()
 
-function abstain(reason: string): Decision {
-  return { action: "ABSTAIN", rationale: reason, citations: [], confidence: 0 }
+/** Decision plus the fork fields the tick loop carries (types.ts Decision stays the shared shape). */
+export type TickDecision = Decision & {
+  readonly information_needs: readonly InformationNeed[]
+  readonly evidence_effect?: EvidenceEffect
+}
+
+function abstain(reason: string): TickDecision {
+  return { action: "ABSTAIN", rationale: reason, citations: [], confidence: 0, information_needs: [] }
 }
 
 function extractJSON(raw: string): string {
-  const fenced = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/i)
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
   const candidate = fenced?.[1] ?? raw
   const start = candidate.indexOf("{")
   const end = candidate.lastIndexOf("}")
   return start >= 0 && end > start ? candidate.slice(start, end + 1) : candidate.trim()
+}
+
+const SCOPE_ALIASES: Readonly<Record<string, InformationNeed["scope"]>> = {
+  SESSIONS: "sessions", SESSION: "sessions", SESSION_HISTORY: "sessions", HISTORY: "sessions",
+  LEDGER: "ledger", LEDGER_LOOKUP: "ledger", TICKETS: "ledger", TICKET: "ledger",
+  CARDS: "cards", CARD: "cards", SESSION_CARDS: "cards",
+}
+
+function normalizeNeed(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return value
+  const input = value as Record<string, unknown>
+  const normalized: Record<string, unknown> = { ...input }
+  const scopeRaw = normalized["scope"]
+  if (typeof scopeRaw === "string") {
+    const mapped = SCOPE_ALIASES[scopeRaw.toUpperCase().replace(/[ -]/g, "_")]
+    if (mapped !== undefined) normalized["scope"] = mapped
+  }
+  if (normalized["expected_effect"] === undefined && typeof normalized["expectedEffect"] === "string") {
+    normalized["expected_effect"] = normalized["expectedEffect"]
+  }
+  delete normalized["expectedEffect"]
+  return normalized
 }
 
 function normalizeDecisionValue(value: unknown): unknown {
@@ -45,10 +103,34 @@ function normalizeDecisionValue(value: unknown): unknown {
   if ((action === "ACCEPT" || action === "ABSTAIN") && Array.isArray(citations) && citations.some((item) => typeof item !== "object" || item === null)) {
     normalized["citations"] = []
   }
+  // Fork fields: accept singular `information_need` or plural `information_needs`,
+  // canonicalize to the array (max 3). A malformed plural is left for the schema to reject.
+  const plural = normalized["information_needs"]
+  const single = normalized["information_need"]
+  if (plural === undefined || Array.isArray(plural)) {
+    const needs: unknown[] = Array.isArray(plural) ? [...plural] : []
+    if (single !== undefined && single !== null) needs.push(single)
+    if (needs.length > 0) normalized["information_needs"] = needs.slice(0, 3).map(normalizeNeed)
+    else delete normalized["information_needs"]
+    delete normalized["information_need"]
+  }
+  // evidence_effect is advisory (the confirmation-bias guard): tolerate free-form
+  // model values instead of letting an off-enum word reject the whole decision.
+  const evidenceRaw = normalized["evidence_effect"] ?? normalized["evidenceEffect"]
+  if (typeof evidenceRaw === "string") {
+    const lower = evidenceRaw.trim().toLowerCase()
+    if (lower.startsWith("disconfirm")) normalized["evidence_effect"] = "disconfirmed"
+    else if (lower.startsWith("confirm")) normalized["evidence_effect"] = "confirmed"
+    else if (/inconclusive|unclear|neutral|no change|unchanged|insufficient/.test(lower)) normalized["evidence_effect"] = "inconclusive"
+    else delete normalized["evidence_effect"]
+  } else if (evidenceRaw !== undefined) {
+    delete normalized["evidence_effect"]
+  }
+  delete normalized["evidenceEffect"]
   return normalized
 }
 
-export function parseDecision(raw: string, confidenceFloor: number): Decision {
+export function parseDecision(raw: string, confidenceFloor: number, options?: { readonly provisional?: boolean }): TickDecision {
   let value: unknown
   try {
     value = normalizeDecisionValue(JSON.parse(extractJSON(raw)))
@@ -58,17 +140,29 @@ export function parseDecision(raw: string, confidenceFloor: number): Decision {
   }
   const parsed = decisionSchema.safeParse(value)
   if (!parsed.success) return abstain(`decision schema validation failed: ${JSON.stringify(parsed.error.issues.slice(0, 3))} raw=${raw.slice(0, 160)}`)
-  if (parsed.data.confidence < confidenceFloor) return abstain("confidence below configured floor")
-  if (parsed.data.action !== "ACCEPT" && parsed.data.action !== "ABSTAIN" && parsed.data.citations.length === 0) {
-    return abstain("non-accept decision requires citations")
-  }
-  return {
+  const decision: TickDecision = {
     action: parsed.data.action,
     ...(parsed.data.target === undefined ? {} : { target: parsed.data.target }),
     rationale: parsed.data.rationale,
     citations: parsed.data.citations,
     confidence: parsed.data.confidence,
+    information_needs: parsed.data.information_needs ?? [],
+    ...(parsed.data.evidence_effect === undefined ? {} : { evidence_effect: parsed.data.evidence_effect }),
   }
+  // Tick 1 parses provisionally: the confidence floor and citation requirement
+  // apply to the FINAL decision only, so a low-confidence lean that names a need
+  // can still open the gather round.
+  if (options?.provisional === true) return decision
+  return applyFinalGates(decision, confidenceFloor)
+}
+
+/** Apply the confidence floor and the non-ACCEPT citation requirement to a final decision. */
+export function applyFinalGates(decision: TickDecision, confidenceFloor: number): TickDecision {
+  if (decision.confidence < confidenceFloor) return abstain("confidence below configured floor")
+  if (decision.action !== "ACCEPT" && decision.action !== "ABSTAIN" && decision.citations.length === 0) {
+    return abstain("non-accept decision requires citations")
+  }
+  return decision
 }
 
 export type TickRequest = {
@@ -102,10 +196,20 @@ Decision rules:
 9. Deployment, promote, prod-write, and credential decisions are ESCALATE by default. Exception: if the project's trust config marks deploys autonomous, treat them as ordinary work.
 10. L1 TARGET HISTORY contains this session's prior turns — it is your memory. Use it to resolve ambiguous references, detect contradictions, and honor decisions already made earlier in the session.
 11. Your recent decisions and open tickets for this session are provided. Do not repeat a decision on the same unresolved cause. If you CONTINUEd last turn and the worker still has not delivered, STEER with the specific correction.
+12. If — and only if — you can name a specific, retrievable piece of evidence that would change your call, emit information_needs (0-3) alongside your provisional action; the system gathers it and asks you again. Each need names: question (what is unknown), scope (sessions|ledger|cards), target (a sessionID, or "root"), why (why it would change the call), expected_effect (what answer would flip the action). Emit needs ONLY when you can name the exact evidence and how it would change your call; otherwise decide or ABSTAIN. Never use needs to avoid deciding. At most 3.
 
-Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0}`
+Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": []}`
 
-export async function runTick(request: TickRequest): Promise<Decision> {
+export const CONFIRMATION_INSTRUCTION = `CONFIRMATION CHECK: The GATHERED EVIDENCE above was retrieved because you named an information need. State in "evidence_effect" whether it CONFIRMED, DISCONFIRMED, or was INCONCLUSIVE for your provisional lean, and cite the gathered evidence in your citations.`
+
+function adapterFailure(error: unknown): string {
+  const status = typeof error === "object" && error !== null && "status" in error && typeof error.status === "number"
+    ? ` HTTP ${error.status}`
+    : ""
+  return `reasoning adapter failed${status}`
+}
+
+export async function runTick(request: TickRequest): Promise<TickDecision> {
   if (request.context.truncated) return abstain("context exceeded token budget")
   const prompt = [
     POLICY,
@@ -115,9 +219,94 @@ export async function runTick(request: TickRequest): Promise<Decision> {
   try {
     return parseDecision(await request.adapter.complete(prompt), request.confidenceFloor)
   } catch (error) {
-    const status = typeof error === "object" && error !== null && "status" in error && typeof error.status === "number"
-      ? ` HTTP ${error.status}`
-      : ""
-    return abstain(`reasoning adapter failed${status}`)
+    return abstain(adapterFailure(error))
   }
+}
+
+export type CollectForkRequest = {
+  readonly adapter: ReasoningAdapter
+  readonly context: AssembledContext
+  readonly target: Turn
+  readonly confidenceFloor: number
+  readonly root: string
+  readonly executor: CollectRunner
+  readonly budget: CollectBudgetGate
+  readonly isIdle: () => Promise<boolean>
+  readonly healthAmbiguous: boolean
+  readonly hasSiblings: boolean
+  readonly nowMs: () => number
+  readonly onCollect?: (event: CollectEvent) => void
+}
+
+/**
+ * The collect-vs-decide fork, run INSIDE one tick (the grace clock is never
+ * re-armed; the FSM sees a single TICK → DECIDED). One gather round, ≤3 lookups,
+ * ≤30s, ≤8k gathered tokens. If tick 2 still names a need it decides or ABSTAINs
+ * — there is no second round.
+ */
+export async function runTickWithCollect(request: CollectForkRequest): Promise<TickDecision> {
+  if (request.context.truncated) return abstain("context exceeded token budget")
+  const header = `TARGET SESSION ${request.target.sessionID} MESSAGE ${request.target.userMessageID}`
+  let raw1: string
+  try {
+    raw1 = await request.adapter.complete([POLICY, header, request.context.text].join("\n\n"))
+  } catch (error) {
+    return abstain(adapterFailure(error))
+  }
+  const d1 = parseDecision(raw1, request.confidenceFloor, { provisional: true })
+  if (d1.action === "ABSTAIN") return d1
+  const needs = d1.information_needs
+  if (needs.length === 0) return applyFinalGates(d1, request.confidenceFloor)
+
+  const now = request.nowMs()
+  const budgetAvailable = request.budget.allow(request.root, request.target.sessionID, now)
+  const proxies = detectProxies({ decision: d1, target: request.target, context: request.context, hasSiblings: request.hasSiblings })
+  const eligible = collectEligible({ action: d1.action, needs, healthAmbiguous: request.healthAmbiguous, proxyFired: proxies.fired, budgetAvailable })
+  if (!eligible) {
+    request.onCollect?.({ needs, outcome: budgetAvailable ? "ineligible" : "budget-blocked", tokens: 0, changed: false, evidenceEffect: "inconclusive" })
+    return applyFinalGates(d1, request.confidenceFloor)
+  }
+
+  if (!(await request.isIdle())) {
+    request.onCollect?.({ needs, outcome: "discarded", tokens: 0, changed: false, evidenceEffect: "inconclusive" })
+    return abstain("session resumed during collect")
+  }
+
+  const gathered = await request.executor.run(needs, DEFAULT_COLLECT_BOUNDS)
+  // Re-check idle after gathering: if the session moved while we collected, the
+  // moment has passed — discard rather than decide on stale evidence.
+  if (!(await request.isIdle())) {
+    request.onCollect?.({ needs, outcome: "discarded", tokens: gathered.tokens, changed: false, evidenceEffect: "inconclusive" })
+    return abstain("session resumed during collect")
+  }
+  if (gathered.empty) {
+    request.onCollect?.({ needs, outcome: "empty", tokens: 0, changed: false, evidenceEffect: "inconclusive" })
+    return applyFinalGates(d1, request.confidenceFloor)
+  }
+
+  const prompt2 = [
+    POLICY,
+    header,
+    request.context.text,
+    "GATHERED EVIDENCE",
+    gathered.text,
+    `YOUR PROVISIONAL LEAN: ${d1.action}`,
+    CONFIRMATION_INSTRUCTION,
+  ].join("\n\n")
+  let raw2: string
+  try {
+    raw2 = await request.adapter.complete(prompt2)
+  } catch (error) {
+    return abstain(adapterFailure(error))
+  }
+  const d2 = parseDecision(raw2, request.confidenceFloor)
+  request.budget.record(request.root, request.target.sessionID, gathered.tokens, now)
+  request.onCollect?.({
+    needs,
+    outcome: "gathered",
+    tokens: gathered.tokens,
+    changed: d2.action !== d1.action,
+    evidenceEffect: d2.evidence_effect ?? "inconclusive",
+  })
+  return d2
 }
