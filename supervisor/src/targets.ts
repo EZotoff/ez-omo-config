@@ -9,7 +9,9 @@ import type { Message, Turn } from "./types"
  * after the target reply, the moment has already been handled by whatever
  * pushed next — the supervisor stands down for that idle event.
  */
-export function pickTarget(turns: readonly Turn[], messages: readonly Message[]): Turn | undefined {
+export function pickTarget(turns: readonly Turn[], messages: readonly Message[], options: { readonly sessionProtected?: boolean } = {}): Turn | undefined {
+  // Protection overlay (D295): an operator-protected session is never a kick-start target.
+  if (options.sessionProtected === true) return undefined
   const lastMessageID = messages.at(-1)?.id
   if (lastMessageID === undefined) return undefined
   const candidates = turns.filter(

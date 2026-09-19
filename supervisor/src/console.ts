@@ -333,6 +333,7 @@ export class ConsoleChannel {
       ],
     }
     const result = await this.queue.propose(input)
+    if (result.kind === "blocked") return { kind: "capped", reason: result.reason }
     return result.kind === "deduped" ? { kind: "deduped", item: result.item } : { kind: "enqueued", item: result.item }
   }
 

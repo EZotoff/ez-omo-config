@@ -247,7 +247,7 @@ export type ProposeResult =
   | { readonly kind: "created"; readonly item: AttentionQueueItem }
   | { readonly kind: "merged"; readonly item: AttentionQueueItem }
   | { readonly kind: "deduped"; readonly item: AttentionQueueItem }
-
+  | { readonly kind: "blocked"; readonly reason: string }
 export type RevalidationResult = {
   readonly outcome: RevalidationOutcome
   readonly item: AttentionQueueItem
@@ -372,12 +372,12 @@ export class AttentionQueue {
     private readonly path: string,
     private readonly append: LedgerAppend,
     snapshot: QueueSnapshot,
+    private readonly protectedSession?: (sessionID: string) => boolean,
   ) {
     this.snapshot = snapshot
   }
-
-  static async open(options: { readonly path: string; readonly append: LedgerAppend; readonly now?: ISO8601 }): Promise<AttentionQueue> {
-    const queue = new AttentionQueue(options.path, options.append, await loadSnapshot(options.path))
+  static async open(options: { readonly path: string; readonly append: LedgerAppend; readonly now?: ISO8601; readonly protectedSession?: (sessionID: string) => boolean }): Promise<AttentionQueue> {
+    const queue = new AttentionQueue(options.path, options.append, await loadSnapshot(options.path), options.protectedSession)
     await queue.recover(options.now ?? new Date().toISOString())
     return queue
   }
@@ -425,6 +425,13 @@ export class AttentionQueue {
   }
 
   async propose(input: ProposeInput): Promise<ProposeResult> {
+    // Protection overlay: protected sessions are never CONTINUE (kick-start) proposals;
+    // ESCALATE still proposes — the operator can always be asked.
+    if (input.actionClass === "CONTINUE" && this.protectedSession?.(input.target.sessionID) === true) {
+      const reason = `session ${input.target.sessionID} is protected by the operator (no auto-continuation)`
+      await this.append("QUEUE_PROPOSAL_DEDUPED", { root: input.target.root, sessionID: input.target.sessionID, reason })
+      return { kind: "blocked", reason }
+    }
     const key = decisionKey({
       root: input.target.root,
       sessionID: input.target.sessionID,

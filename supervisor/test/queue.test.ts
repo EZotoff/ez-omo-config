@@ -10,6 +10,7 @@ import {
   revalidate,
   selectNext,
   type ProposeInput,
+  type ProposeResult,
   type RevalidationConfig,
   type RevalidationSources,
 } from "../src/queue"
@@ -87,6 +88,14 @@ function proposal(overrides: Partial<ProposeInput> = {}): ProposeInput {
   }
 }
 
+/** All proposals in this suite are ESCALATE-class; a protected-CONTINUE block is unexpected here. */
+async function proposeItem(queue: AttentionQueue, input: ProposeInput): Promise<Exclude<ProposeResult, { kind: "blocked" }>> {
+  const result = await queue.propose(input)
+  if (result.kind === "blocked") throw new Error(`unexpected blocked proposal: ${result.reason}`)
+  return result
+}
+
+
 async function openQueue(): Promise<{ queue: AttentionQueue; dir: string; events: string[] }> {
   const dir = await mkdtemp(join(tmpdir(), "supervisor-queue-"))
   const events: string[] = []
@@ -148,8 +157,8 @@ describe("revalidate §4 matrix", () => {
 describe("AttentionQueue dedupe", () => {
   test("merges concurrent identical escalations into one item", async () => {
     const { queue, dir, events } = await openQueue()
-    const first = await queue.propose(proposal({ origin: tick("tick_1"), premises: [premise("p1")] }))
-    const second = await queue.propose(proposal({ origin: tick("tick_2"), premises: [premise("p2")], priority: { stakes: 4, urgency: 4, confidence: 0.8, freshness: 1, createdAt: "2026-09-19T13:00:00.000Z" } }))
+    const first = await proposeItem(queue, proposal({ origin: tick("tick_1"), premises: [premise("p1")] }))
+    const second = await proposeItem(queue, proposal({ origin: tick("tick_2"), premises: [premise("p2")], priority: { stakes: 4, urgency: 4, confidence: 0.8, freshness: 1, createdAt: "2026-09-19T13:00:00.000Z" } }))
     expect(first.kind).toBe("created")
     expect(second.kind).toBe("merged")
     expect(queue.items).toHaveLength(1)
@@ -166,8 +175,8 @@ describe("AttentionQueue dedupe", () => {
 describe("AttentionQueue lease", () => {
   test("enforces a single global presentation lease", async () => {
     const { queue, dir } = await openQueue()
-    const first = await queue.propose(proposal({ question: "A?" }))
-    const second = await queue.propose(proposal({ question: "B?", target: { root: "/root", sessionID: "ses-b", userMessageID: "msg-u2" } }))
+    const first = await proposeItem(queue, proposal({ question: "A?" }))
+    const second = await proposeItem(queue, proposal({ question: "B?", target: { root: "/root", sessionID: "ses-b", userMessageID: "msg-u2" } }))
     const acquired = await queue.acquireLease(first.item.id, { channelID: "console", now: NOW })
     if (acquired.kind !== "acquired") throw new Error("expected first lease")
     const denied = await queue.acquireLease(second.item.id, { channelID: "console", now: NOW })
@@ -183,7 +192,7 @@ describe("AttentionQueue lease", () => {
 describe("AttentionQueue poison handling", () => {
   test("three failures mark poison-suspect, the fourth expires the item", async () => {
     const { queue, dir } = await openQueue()
-    const created = await queue.propose(proposal())
+    const created = await proposeItem(queue, proposal())
     const failing = makeSources({ latestMessageID: () => "msg-a2" })
     expect((await queue.revalidate(created.item.id, failing, CONFIG)).poison).toBe("none")
     expect((await queue.revalidate(created.item.id, failing, CONFIG)).poison).toBe("none")
@@ -203,7 +212,7 @@ describe("AttentionQueue persistence", () => {
     const dir = await mkdtemp(join(tmpdir(), "supervisor-queue-"))
     const path = join(dir, "queue.json")
     const queue = await AttentionQueue.open({ path, append: async () => {} })
-    const created = await queue.propose(proposal())
+    const created = await proposeItem(queue, proposal())
     const acquired = await queue.acquireLease(created.item.id, { channelID: "console", now: NOW, ttlMs: 1000 })
     if (acquired.kind !== "acquired") throw new Error("expected lease")
     const reloaded = await AttentionQueue.open({ path, append: async () => {}, now: "2026-09-19T12:00:02.000Z" })
