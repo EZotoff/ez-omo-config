@@ -1,12 +1,26 @@
 import { matchesMachineTemplate } from "./patterns"
 import type { Message, Origin, OriginRegistry, Turn } from "./types"
 
-function textOf(message: Message): string {
+export function messageText(message: Message): string {
   return message.parts
     .filter((part) => part.type === "text" && typeof part.text === "string")
     .map((part) => part.text ?? "")
     .join("\n")
     .trim()
+}
+
+/**
+ * The assistant run after a user message is ALL contiguous assistant messages
+ * (reasoning-only and tool-only messages included), not just messages[i+1].
+ * Taking only the immediate follower drops the text-bearing message whenever
+ * it is preceded by reasoning/tool-only messages (corpus bug class, 31/217 items).
+ */
+export function contiguousAssistantRun(messages: readonly Message[], userIndex: number): readonly Message[] {
+  const run: Message[] = []
+  for (let index = userIndex + 1; index < messages.length && messages[index]?.role === "assistant"; index += 1) {
+    run.push(messages[index]!)
+  }
+  return run
 }
 
 function classify(message: Message, text: string, registry: OriginRegistry): Origin {
@@ -22,11 +36,11 @@ export function projectTurns(messages: readonly Message[], registry: OriginRegis
   for (let index = 0; index < messages.length; index += 1) {
     const user = messages[index]
     if (user?.role !== "user") continue
-    const userText = textOf(user)
+    const userText = messageText(user)
     const origin = classify(user, userText, registry)
-    const next = messages[index + 1]
-    const assistant = next?.role === "assistant" ? next : undefined
-    const assistantText = assistant === undefined ? "" : textOf(assistant)
+    const assistantRun = contiguousAssistantRun(messages, index)
+    const assistantText = assistantRun.map(messageText).filter((text) => text !== "").join("\n")
+    const lastAssistant = assistantRun.at(-1)
     const machine = origin === "machine-synthetic" || origin === "machine-template" || origin === "supervisor"
     const label = origin === "unknown" ? " [origin: unknown]" : ""
     const transcript = machine
@@ -35,7 +49,7 @@ export function projectTurns(messages: readonly Message[], registry: OriginRegis
     turns.push({
       sessionID: user.sessionID,
       userMessageID: user.id,
-      ...(assistant === undefined ? {} : { assistantMessageID: assistant.id }),
+      ...(lastAssistant === undefined ? {} : { assistantMessageID: lastAssistant.id }),
       origin,
       userText,
       assistantText,

@@ -6,7 +6,7 @@ import { OpencodeClient } from "./client"
 import { loadApiKey, loadConfig, loadProviderBaseURL } from "./config"
 import { runTick } from "./tick"
 import { deriveChildSessionIDs, topLevelSessions } from "./topology"
-import { projectTurns } from "./projector"
+import { contiguousAssistantRun, messageText, projectTurns } from "./projector"
 import type { Message, Turn } from "./types"
 
 /**
@@ -23,6 +23,36 @@ const PUSH_MAX_CHARS = 120
 function isContinuePush(text: string): boolean {
   const trimmed = text.trim()
   return trimmed.length > 0 && trimmed.length <= PUSH_MAX_CHARS && CONTINUE_RE.test(trimmed)
+}
+
+export type ExtractedExchange = {
+  readonly sessionID: string
+  readonly userMessageID: string
+  readonly assistantMessageIDs: readonly string[]
+  readonly workerText: string
+}
+
+/**
+ * Corpus extraction contract: locate the target user message by ID, joining the
+ * FULL contiguous assistant run after it. When the messageID lookup fails
+ * (corpus ids drift from live message ids — D211 shape), fall back to an
+ * exact-text quote match. Session ids pass through verbatim — never truncated.
+ */
+export function extractExchange(messages: readonly Message[], userMessageID: string, userText: string): ExtractedExchange | undefined {
+  let userIndex = messages.findIndex((m) => m.id === userMessageID)
+  if (userIndex === -1) {
+    const needle = userText.trim()
+    userIndex = messages.findIndex((m) => m.role === "user" && messageText(m) === needle)
+  }
+  if (userIndex === -1) return undefined
+  const user = messages[userIndex]!
+  const run = contiguousAssistantRun(messages, userIndex)
+  return {
+    sessionID: user.sessionID,
+    userMessageID: user.id,
+    assistantMessageIDs: run.map((m) => m.id),
+    workerText: run.map(messageText).filter((text) => text !== "").join("\n"),
+  }
 }
 
 type CompactTurn = { turn: Turn; userCreatedMs: number }
@@ -157,4 +187,4 @@ async function main(): Promise<void> {
   console.log(JSON.stringify({ summary, outPath }, null, 2))
 }
 
-await main()
+if (import.meta.main) await main()
