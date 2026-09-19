@@ -165,6 +165,10 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 63c | `opencode-daemon-keeper.sh` | (repo only) | `scripts/` | (repo only) | Probe + recover script for the interactive daemon; `ExecStart` of `opencode-interactive-keeper.service` (1-min cadence). Recovers the agent-killed-daemon failure mode (2026-09-13/14 incidents) within ≤1 min | Required |
 | 63d | `perf-review/` | (repo only) | `scripts/perf-review/` | (repo only) | Server-plugin performance metrics and log-census tooling | Required |
 | 63e | `perf-review/` | (repo only) | `tests/perf-review/` | (repo only) | Server-plugin performance benchmark harnesses | Required |
+| 63n | `opencode_maintenance.py` | `~/.local/share/opencode/` | `scripts/` | `$HOME/.local/share/opencode/` | THE session archiver (versioned 2026-09-19; live target is an install.sh symlink). Subcommands archive/restore/maintenance/status; retention default 30 days on `time_updated` (raised from 5 per operator policy); monthly activity-bucket archives with append + schema-drift reconciliation, gzip for past months, busy/disk/integrity preflight. Semantics + CLI: `docs/session-archiving.md` | Required |
+| 62i | `opencode-session-archive.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Weekly session archive oneshot: `opencode_maintenance.py archive --days 30 --apply`; logs to `~/.local/share/opencode/session-archive.log`; exit 0 on nothing-to-do | Optional |
+| 62j | `opencode-session-archive.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Weekly timer (Mon 04:30 local, `Persistent=true`) for `opencode-session-archive.service` — replaces the dead manual-monthly habit (stall 2026-07-22 → 2026-09-19) | Optional |
+
 
 ## Directory Structure
 
@@ -235,8 +239,8 @@ ez-omo-config/
 - **Core Configs**: existing OpenCode/OMO configs plus the Project Supervisor P0 `supervisor.json`. DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
-- **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, and Python operator helpers.
-- **Systemd**: 7 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon, and the parked FLARE-4B server.
+- **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, the OpenCode session archiver, and Python operator helpers.
+- **Systemd**: 9 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon, weekly session-archive service + timer, and the parked FLARE-4B server.
 - **Tests**: active repo verification scripts (109 tracked files), the 25-pair regression corpus (50 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 

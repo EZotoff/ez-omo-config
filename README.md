@@ -91,11 +91,11 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Configs** | 46 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 24 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
-| **Scripts** | 56 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, operator tools |
+| **Scripts** | 57 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
-| **Systemd** | 12 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
+| **Systemd** | 14 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), weekly session-archive service + timer (30-day retention), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
 | **Tests** | 111 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + 28-pair regression corpus (56 files) |
-| **Docs** | 10 active | see [Documentation](#documentation); dated material in `docs/history/` |
+| **Docs** | 12 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
 Counts are tracked files per top-level directory (module directories count as one line in prose, files in tables). Per-artifact paths, install targets, and statuses: [MANIFEST.md](MANIFEST.md).
@@ -258,6 +258,8 @@ Backups are retained indefinitely — clean old ones periodically (`rm -rf ~/.ez
 | Compatibility debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
 | Worktree state schema | [docs/worktree-state-schema.md](docs/worktree-state-schema.md) |
 | OMO v4.x config reference (vendored) | [docs/omo-config-reference.md](docs/omo-config-reference.md) |
+| Session archiving (retention + CLI) | [docs/session-archiving.md](docs/session-archiving.md) |
+| Bench session-spam mitigation (proposal) | [docs/bench-session-spam-mitigation.md](docs/bench-session-spam-mitigation.md) |
 
 History (dated snapshots): [incidents & experiments](docs/history/incidents.md) · [DCP byte-budget (retired)](docs/history/dcp-byte-budget.md) · [update migration v1.14.28](docs/history/update-migration-v1.14.28.md) · [patch-management architecture review](docs/history/architecture-review-patch-management-2026-06-28.md) · [performance review of patch-preservation stack](docs/history/perf-review-patch-preservation-2026-09-15.md)
 

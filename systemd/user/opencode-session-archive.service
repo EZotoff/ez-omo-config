@@ -1,0 +1,10 @@
+[Unit]
+Description=OpenCode Session Archive — weekly 30-day retention prune via opencode_maintenance.py
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/ez-omo-config/scripts/opencode_maintenance.py archive --days 30 --apply
+StandardOutput=append:%h/.local/share/opencode/session-archive.log
+StandardError=inherit
+TimeoutStartSec=2h

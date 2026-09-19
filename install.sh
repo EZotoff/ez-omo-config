@@ -124,6 +124,10 @@ ITEMS=(
     "scripts|systemd/user/opencode-integrity-alert.service|$HOME/.config/systemd/user/opencode-integrity-alert.service"
     "scripts|systemd/user/opencode-interactive-keeper.service|$HOME/.config/systemd/user/opencode-interactive-keeper.service"
     "scripts|systemd/user/opencode-interactive-keeper.timer|$HOME/.config/systemd/user/opencode-interactive-keeper.timer"
+    "scripts|scripts/opencode_maintenance.py|$HOME/.local/share/opencode/opencode_maintenance.py"
+    "scripts|systemd/user/opencode-session-archive.service|$HOME/.config/systemd/user/opencode-session-archive.service"
+    "scripts|systemd/user/opencode-session-archive.timer|$HOME/.config/systemd/user/opencode-session-archive.timer"
+
 )
 
 usage() {
