@@ -335,6 +335,8 @@ run_campaign() {
   for ((phase_index=0; phase_index<phase_count; phase_index++)); do
     local phase_id
     phase_id="$(MANIFEST="$manifest" INDEX="$phase_index" python3 -c 'import json,os; print(json.load(open(os.environ["MANIFEST"]))["phases"][int(os.environ["INDEX"])]["id"])')"
+    phase_kind="$(MANIFEST="$manifest" INDEX="$phase_index" python3 -c 'import json,os; print(json.load(open(os.environ["MANIFEST"]))["phases"][int(os.environ["INDEX"])]["kind"])')"
+    phase_model="$(MANIFEST="$manifest" INDEX="$phase_index" python3 -c 'import json,os; print(json.load(open(os.environ["MANIFEST"]))["phases"][int(os.environ["INDEX"])]["model"])')"
     case_count="$(MANIFEST="$manifest" INDEX="$phase_index" python3 -c 'import json,os; print(len(json.load(open(os.environ["MANIFEST"]))["phases"][int(os.environ["INDEX"])]["expectedCases"]))')"
     for ((case_index=0; case_index<case_count; case_index++)); do
       local case_id stem stdout_log stderr_log free_kb threshold_kb exit_code
@@ -364,7 +366,21 @@ PY
         "${command[@]}" >"$stdout_log" 2>"$stderr_log"
         exit_code=$?
         set -e
-        chmod 600 "$stdout_log" "$stderr_log"
+        # Decision (f) wire half: a sut-phase runner must echo the model it
+        # actually resolved (BENCH_SUT_MODEL=<model>). A missing marker or a
+        # mismatch with the manifest model invalidates the case — the SUT is
+        # never silently substitutable.
+        if [[ "$phase_kind" == "sut" ]]; then
+          echoed="$(grep -m1 '^BENCH_SUT_MODEL=' "$stdout_log" | cut -d= -f2- || true)"
+          if [[ -z "$echoed" ]]; then
+            printf 'sut-model-echo-missing: no BENCH_SUT_MODEL marker in runner stdout; SUT identity unverifiable (operator decision f)\n' >>"$stderr_log"
+            exit_code=1
+          elif [[ "$echoed" != "$phase_model" ]]; then
+            printf 'sut-model-mismatch: runner echoed %s but manifest declares %s (operator decision f)\n' "$echoed" "$phase_model" >>"$stderr_log"
+            exit_code=1
+          fi
+          chmod 600 "$stderr_log"
+        fi
         (( exit_code == 0 )) || overall_exit=1
       fi
       RESULT_PHASE="$phase_id" RESULT_CASE="$case_id" RESULT_EXIT="$exit_code" python3 - <<'PY' >>"$results"

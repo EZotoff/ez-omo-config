@@ -18,6 +18,7 @@ RUN=t11counts
 M_OUT="$WS/$RUN.json" M_RUN="$RUN" M_REPO="$WS/repo" M_OUTDIR="$WS/out" python3 - <<'PY'
 import json, os
 def phase(pid, kind, cases, shell):
+    shell = ('printf "BENCH_SUT_MODEL=fixture-model\\n"; ' + shell) if kind == "sut" else shell
     return {"id": pid, "kind": kind, "processGroup": f"grp-{pid}",
             "endpointFamily": "family-a", "model": "fixture-model",
             "armIds": ["arm-1"], "credentialSources": ["repo-env-local"],

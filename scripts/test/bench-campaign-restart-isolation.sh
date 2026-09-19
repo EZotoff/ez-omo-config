@@ -18,7 +18,7 @@ trap suite_cleanup EXIT
 make_workspace isolation
 
 RUN=t11iso
-write_manifest "$WS/$RUN.json" "$RUN" 'sleep 8; printf isolated' \
+write_manifest "$WS/$RUN.json" "$RUN" 'printf "BENCH_SUT_MODEL=fixture-model\n"; sleep 8; printf isolated' \
   'sut:sut:family-a:fixture-model:case-1'
 
 launch_campaign "$RUN" "$WS/$RUN.json"

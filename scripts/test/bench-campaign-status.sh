@@ -13,7 +13,7 @@ trap suite_cleanup EXIT
 make_workspace status
 
 RUN=t11stat
-write_manifest "$WS/$RUN.json" "$RUN" 'sleep 2; printf s' \
+write_manifest "$WS/$RUN.json" "$RUN" 'printf "BENCH_SUT_MODEL=fixture-model\n"; sleep 2; printf s' \
   'sut:sut:family-a:fixture-model:case-1,case-2,case-3'
 
 launch_campaign "$RUN" "$WS/$RUN.json"

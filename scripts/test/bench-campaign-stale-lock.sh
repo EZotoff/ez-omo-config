@@ -16,7 +16,7 @@ trap 'flock -u 9 2>/dev/null || true; exec 9>&- 2>/dev/null || true; suite_clean
 make_workspace stalelock
 
 RUN=t11lock
-write_manifest "$WS/$RUN.json" "$RUN" 'printf locked-ok' \
+write_manifest "$WS/$RUN.json" "$RUN" 'printf "BENCH_SUT_MODEL=fixture-model\n"; printf locked-ok' \
   'sut:sut:family-a:fixture-model:case-1'
 
 # Build the run directory exactly as launch would (owned manifest, modes).

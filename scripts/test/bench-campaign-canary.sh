@@ -27,7 +27,7 @@ phases = [
     {"id": "sut", "kind": "sut", "processGroup": "grp-sut", "endpointFamily": "family-a",
      "model": "fixture-model", "armIds": ["arm-1"], "credentialSources": ["repo-env-local"],
      "expectedCases": ["case-1", "case-2"],
-     "runnerCommand": ["/bin/sh", "-c", "sleep 4; printf case-done"]},
+     "runnerCommand": ["/bin/sh", "-c", "printf \"BENCH_SUT_MODEL=fixture-model\n\"; sleep 4; printf case-done"]},
     {"id": "judge", "kind": "judge", "processGroup": "grp-judge", "endpointFamily": "family-b",
      "model": "fixture-model", "armIds": ["arm-1"], "credentialSources": ["opencode-auth"],
      "expectedCases": ["case-1"],

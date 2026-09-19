@@ -14,7 +14,7 @@ trap suite_cleanup EXIT
 make_workspace survival
 
 RUN=t11surv
-write_manifest "$WS/$RUN.json" "$RUN" 'sleep 3; printf survivor' \
+write_manifest "$WS/$RUN.json" "$RUN" 'printf "BENCH_SUT_MODEL=fixture-model\n"; sleep 3; printf survivor' \
   'sut:sut:family-a:fixture-model:case-1,case-2'
 
 launch_campaign "$RUN" "$WS/$RUN.json"
