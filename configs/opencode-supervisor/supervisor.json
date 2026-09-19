@@ -13,7 +13,14 @@
   "max_tick_concurrency": 4,
   "target_history_cap_pairs": 50,
   "sibling_turn_window": 3,
-  "token_budget": 20000,
+  "token_budget": 40000,
+  "tier_budgets": {
+    "target_history": 15000,
+    "hot": 8000,
+    "warm": 6000,
+    "cool": 4000,
+    "cold": 2000
+  },
   "confidence_floor": 0.6,
   "roots": [
     {

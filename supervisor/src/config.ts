@@ -5,6 +5,13 @@ import { join } from "node:path"
 import { z } from "zod"
 
 const rootSchema = z.object({ path: z.string().min(1), mode: z.enum(["off", "shadow", "observe", "full"]) }).strict()
+const tierBudgetsSchema = z.object({
+  target_history: z.number().int().positive(),
+  hot: z.number().int().positive(),
+  warm: z.number().int().positive(),
+  cool: z.number().int().positive(),
+  cold: z.number().int().positive(),
+}).strict()
 const configSchema = z.object({
   server_url: z.string().url(),
   server_username: z.string().min(1).default("opencode"),
@@ -18,6 +25,7 @@ const configSchema = z.object({
   target_history_cap_pairs: z.number().int().positive(),
   sibling_turn_window: z.number().int().positive(),
   token_budget: z.number().int().positive(),
+  tier_budgets: tierBudgetsSchema,
   confidence_floor: z.number().min(0).max(1),
   roots: z.array(rootSchema).min(1),
 }).strict()
