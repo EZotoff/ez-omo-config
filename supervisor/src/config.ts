@@ -4,7 +4,13 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { z } from "zod"
 
-const rootSchema = z.object({ path: z.string().min(1), mode: z.enum(["off", "shadow", "observe", "full"]) }).strict()
+const trustSchema = z.object({
+  autonomous_deploy: z.boolean().default(false),
+  autonomous_credentialed_actions: z.boolean().default(false),
+}).strict().default({ autonomous_deploy: false, autonomous_credentialed_actions: false })
+/** Per-root trust: machine-enforced capability flags (config, not ruling). Absent trust = untrusted. */
+export type RootTrust = z.infer<typeof trustSchema>
+const rootSchema = z.object({ path: z.string().min(1), mode: z.enum(["off", "shadow", "observe", "full"]), trust: trustSchema }).strict()
 const tierBudgetsSchema = z.object({
   target_history: z.number().int().positive(),
   hot: z.number().int().positive(),
@@ -30,6 +36,7 @@ const configSchema = z.object({
   roots: z.array(rootSchema).min(1),
 }).strict()
 
+export const supervisorConfigSchema = configSchema
 export type SupervisorConfig = z.infer<typeof configSchema>
 
 export class ConfigError extends Error {

@@ -1,3 +1,4 @@
+import type { RootTrust } from "./config"
 import type { Turn } from "./types"
 
 export type SiblingTier = "HOT" | "WARM" | "COOL" | "COLD"
@@ -36,6 +37,8 @@ export type AssembleInput = {
   readonly nowMs?: number
   /** L3 self-memory: supervisor's recent decisions on the target + open attention items on the root. */
   readonly selfMemory?: SelfMemory
+  /** Target root's trust flags (policy rule 9 hook). Absent = untrusted (fail-closed). */
+  readonly rootTrust?: RootTrust
 }
 
 export type SelfMemory = {
@@ -163,6 +166,9 @@ function renderSelfMemory(memory: SelfMemory): string {
   return `${kept.join("\n")}\n[SELF-MEMORY TRIMMED]`
 }
 
+const renderRootTrust = (trust: RootTrust | undefined): string =>
+  `ROOT TRUST: autonomous_deploy=${trust?.autonomous_deploy ?? false}; autonomous_credentialed_actions=${trust?.autonomous_credentialed_actions ?? false}`
+
 export function assembleContext(input: AssembleInput): AssembledContext {
   const nowMs = input.nowMs ?? Date.now()
   const budgets = input.tierBudgets ?? defaultTierBudgets(input.tokenBudget)
@@ -190,9 +196,10 @@ export function assembleContext(input: AssembleInput): AssembledContext {
   let flat = tiered ? undefined : renderLegacySiblings(input.siblingChanges ?? {}, input.siblingTurnWindow)
   let selfMemory = input.selfMemory === undefined ? undefined : renderSelfMemory(input.selfMemory)
 
+  const rootTrust = renderRootTrust(input.rootTrust)
   const degraded: DegradationStep[] = []
   const total = (): number => estimateTokens(
-    [l0, renderHistory(historyTurns), hot, warm, cool, cold, flat, selfMemory]
+    [l0, renderHistory(historyTurns), hot, warm, cool, cold, flat, selfMemory, rootTrust]
       .filter((block): block is string => block !== undefined)
       .join("\n\n"),
   )
@@ -212,7 +219,7 @@ export function assembleContext(input: AssembleInput): AssembledContext {
   if (total() > input.tokenBudget && hot !== undefined) { hot = undefined; degraded.push("HOT") }
   if (total() > input.tokenBudget && selfMemory !== undefined) { selfMemory = undefined; degraded.push("SELF-MEMORY") }
 
-  const blocks = [l0, renderHistory(historyTurns), hot, warm, cool, cold, flat, selfMemory]
+  const blocks = [l0, renderHistory(historyTurns), hot, warm, cool, cold, flat, selfMemory, rootTrust]
     .filter((block): block is string => block !== undefined)
   const text = blocks.join("\n\n")
   const estimatedTokens = estimateTokens(text)

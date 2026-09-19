@@ -25,27 +25,51 @@
   "roots": [
     {
       "path": "/home/ezotoff/AI_projects/veran",
-      "mode": "observe"
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      }
     },
     {
       "path": "/home/ezotoff/ez-omo-bench",
-      "mode": "observe"
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      }
     },
     {
       "path": "/home/ezotoff/AI_projects/ANIA",
-      "mode": "observe"
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      }
     },
     {
       "path": "/home/ezotoff/AI_projects/kraken",
-      "mode": "observe"
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      }
     },
     {
       "path": "/home/ezotoff/AI_projects/voice-bridge",
-      "mode": "observe"
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      }
     },
     {
       "path": "/home/ezotoff/AI_projects/ez-omo-dash",
-      "mode": "observe"
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      }
     }
   ]
 }
