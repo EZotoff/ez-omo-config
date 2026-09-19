@@ -9,6 +9,7 @@ import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
 import { Ledger } from "./ledger"
 import { deriveChildSessionIDs, topLevelSessions } from "./topology"
 import { contiguousAssistantRun, messageText, projectTurns } from "./projector"
+import { assistantRunFor, classifyRunHealth } from "./health"
 import type { Message, Turn } from "./types"
 
 /**
@@ -140,6 +141,30 @@ async function runCorpusFork(ids: readonly string[]): Promise<void> {
     const target = turns[targetIndex]
     if (target === undefined) {
       console.error(`[${id}] no target turn in ${session.id}`)
+      continue
+    }
+    // Abort guard (mirrors live pickTarget in targets.ts): an operator-aborted
+    // assistant run is never a kick-start target — record the guard outcome
+    // instead of ticking.
+    if (target.assistantMessageID !== undefined && classifyRunHealth(assistantRunFor(target, messages)) === "aborted") {
+      console.error(`[${id}] abort-guard: aborted assistant run — not a target`)
+      results.push({
+        id,
+        corpusAction: item.action,
+        corpusConfidence: item.confidence,
+        session: session.id,
+        targetMessage: target.userMessageID,
+        targetUser: target.userText.slice(0, 140),
+        userText: target.userText.slice(0, 2000),
+        workerText: target.assistantText.slice(0, 4000),
+        tick1Needs: [],
+        outcome: "abort-guard",
+        gatheredTokens: 0,
+        tick2Action: "ABORT-GUARDED",
+        evidenceEffect: null,
+        changed: false,
+        rationale: "deterministic abort guard: MessageAbortedError turn is never a CONTINUE target (targets.ts pickTarget)",
+      })
       continue
     }
     const context = assembleContext({
