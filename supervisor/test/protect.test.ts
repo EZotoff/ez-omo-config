@@ -115,10 +115,10 @@ describe("pickTarget protection gate", () => {
 
   test("gate composes with the abort guard (aborted + protected → undefined)", () => {
     const aborted = idleKickStartFixture()
-    const withAbort = {
-      turns: aborted.turns,
-      messages: [aborted.messages[0] as Message, { ...(aborted.messages[1] as Message), finish: "aborted" }],
-    }
+    const user = aborted.messages[0]
+    const assistant = aborted.messages[1]
+    if (user === undefined || assistant === undefined) throw new Error("fixture must have two messages")
+    const withAbort = { turns: aborted.turns, messages: [user, { ...assistant, finish: "aborted" }] }
     expect(pickTarget(withAbort.turns, withAbort.messages)).toBeUndefined()
     expect(pickTarget(withAbort.turns, withAbort.messages, { sessionProtected: true })).toBeUndefined()
   })
