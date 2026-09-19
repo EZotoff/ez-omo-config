@@ -180,6 +180,8 @@ async function runCorpusFork(ids: readonly string[]): Promise<void> {
       session: session.id,
       targetMessage: target.userMessageID,
       targetUser: target.userText.slice(0, 140),
+      userText: target.userText.slice(0, 2000),
+      workerText: target.assistantText.slice(0, 4000),
       tick1Needs: event?.needs.map((entry) => ({ scope: entry.scope, target: entry.target, question: entry.question })) ?? [],
       outcome: event?.outcome ?? "none",
       gatheredTokens: event?.tokens ?? 0,
@@ -303,6 +305,8 @@ async function main(): Promise<void> {
       decision: decision.action,
       confidence: decision.confidence,
       rationale: decision.rationale.slice(0, 220),
+      userText: c.target.userText.slice(0, 2000),
+      workerText: c.target.assistantText.slice(0, 4000),
       targetExcerpt: c.target.assistantText.slice(0, 120),
     })
   }
