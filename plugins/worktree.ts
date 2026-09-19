@@ -794,7 +794,7 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 		tool: {
 			worktree_start: tool({
 				description:
-					"Create a worktree, open a new OpenCode session in the current TUI, and auto-run /start-work there. Call it with the plan name, just like /start-work itself.",
+					"Create a worktree, create a new OpenCode session, and auto-run /start-work there via the server-side session command API — no TUI switch, works headless. Call it with the plan name, just like /start-work itself.",
 				args: {
 					planName: tool.schema
 						.string()
@@ -891,40 +891,30 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						createdAt: new Date().toISOString(),
 					})
 
-					// Step 2: Navigate the TUI to the new session
-					try {
-						await new Promise((resolve) => setTimeout(resolve, 500))
-						const transport = (client as unknown as Record<string, unknown>)
-						const sessionNs = transport.session as Record<string, unknown> | undefined
-						const innerClient = sessionNs?._client as Record<string, unknown> | undefined
-						const post = innerClient?.post as ((opts: Record<string, unknown>) => Promise<unknown>) | undefined
-						if (!post) throw new Error("Could not access SDK transport")
-						await post({ url: "/tui/select-session", body: { sessionID: createdSession.id } })
-					} catch (error) {
-						const msg = error instanceof Error ? error.message : String(error)
-						log.warn(`[worktree] tui.selectSession failed: ${msg}`)
-						return `Worktree created at ${worktreePath}\nSession ${createdSession.id} created.\n\nFailed to switch TUI: ${msg}`
-					}
+				// Step 2: Kick off /start-work server-side via the session command endpoint —
+				// the exact call the TUI submit path makes after parsing "/cmd args" (app
+				// prompt-input/submit.ts: command=first token, arguments=rest). No TUI
+				// events are published: /tui/* is workspace-broadcast upstream and would
+				// hijack every attached pane (2026-09-19 incident, regression 023/024);
+				// and with no TUI attached the old append/submit flow silently no-op'd.
+				try {
+					const innerClient = (client as unknown as Record<string, Record<string, unknown>>).session?._client as Record<string, unknown> | undefined
+					const post = innerClient?.post as ((opts: Record<string, unknown>) => Promise<unknown>) | undefined
+					if (!post) throw new Error("Could not access SDK transport")
+					await post({
+						url: `/session/${createdSession.id}/command?directory=${encodeURIComponent(mainWorktreePath)}`,
+						body: { command: "start-work", arguments: `${resolvedPlanName} --worktree ${worktreePath}` },
+					})
+				} catch (error) {
+					const msg = error instanceof Error ? error.message : String(error)
+					log.warn(`[worktree] session.command failed: ${msg}`)
+					return `Worktree created at ${worktreePath}\nSession ${createdSession.id} created.\n\nFailed to dispatch /start-work: ${msg}\nRun it manually in that session: /start-work ${resolvedPlanName} --worktree ${worktreePath}`
+				}
 
-					// Step 3: Inject the /start-work command into the TUI prompt
-					try {
-						await new Promise((resolve) => setTimeout(resolve, 1000))
-						const promptText = `/start-work ${resolvedPlanName} --worktree ${worktreePath}`
-						const innerClient = (client as unknown as Record<string, Record<string, unknown>>).session?._client as Record<string, unknown> | undefined
-						const post = innerClient?.post as ((opts: Record<string, unknown>) => Promise<unknown>) | undefined
-						if (!post) throw new Error("Could not access SDK transport")
-						await post({ url: "/tui/append-prompt", body: { text: promptText } })
-						await post({ url: "/tui/submit-prompt", body: {} })
-					} catch (error) {
-						const msg = error instanceof Error ? error.message : String(error)
-						log.warn(`[worktree] session.promptAsync failed: ${msg}`)
-						return `Worktree created at ${worktreePath}\nSession ${createdSession.id} created and TUI switched.\n\nFailed to send prompt: ${msg}`
-					}
-
-					const bridgeNote = planBridge?.bridged
-						? `\n\nNote: plan was at ${planBridge.sourcePath} (legacy location); copied to ${planBridge.path} so /start-work finds it. Future plans should land in .omo/plans/ directly.`
-						: ""
-					return `Worktree created at ${worktreePath}\n\nA new OpenCode session has been requested and will start ${resolvedPlanName} automatically.${bridgeNote}`
+				const bridgeNote = planBridge?.bridged
+					? `\n\nNote: plan was at ${planBridge.sourcePath} (legacy location); copied to ${planBridge.path} so /start-work finds it. Future plans should land in .omo/plans/ directly.`
+					: ""
+				return `Worktree created at ${worktreePath}\n\nSession ${createdSession.id} created and /start-work ${resolvedPlanName} dispatched server-side — it runs regardless of whether a TUI is attached. No TUI pane was switched or prompted; the user can open the session from the session picker to watch.${bridgeNote}`
 				},
 			}),
 
@@ -1030,7 +1020,7 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 					`Forked session ${forkedSession.id}, plan: ${planCopied}, delegations: ${delegationsCopied}`,
 				)
 
-				// No TUI switch (2026-09-19 incident): /tui/select-session is a workspace-broadcast
+				// No TUI switch (2026-09-19 incident): the select-session event is workspace-broadcast
 				// event upstream — one call hijacked every attached TUI across all projects. The
 				// forked session is surfaced via the tool result; the user picks it in the picker.
 

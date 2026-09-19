@@ -17,8 +17,10 @@ source "$(cd "$(dirname "$0")/.." && pwd)/helpers.sh"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 command -v bun >/dev/null 2>&1 || { echo "FAIL: bun not found (hard dependency of this config)"; exit 1; }
 
-# 1. The TUI handoff mechanism must be present.
-assert_grep 'tui/select-session' "$REPO_ROOT/plugins/worktree.ts"
+# 1. No TUI-session-switch mechanism may remain anywhere (2026-09-19: the
+#    select-session broadcast hijacked every attached pane — 023/024 own the
+#    replacement contracts).
+assert_no_grep 'tui/select-session' "$REPO_ROOT/plugins/worktree.ts"
 
 # 2. The terminal handoff must be gone: no openTerminal import/call, no
 #    "new terminal" success message in the plugin.
@@ -43,4 +45,4 @@ if [[ $TESTS_FAILED -gt 0 ]]; then
     echo "FAILURE: worktree create handoff regression (see tests/regressions/022-worktree-create-tui-handoff.sh)"
     exit 1
 fi
-echo "PASS: worktree_create hands off via TUI session switch (no GUI terminal)"
+echo "PASS: worktree tools never hand off via GUI terminal or TUI broadcast switch"
