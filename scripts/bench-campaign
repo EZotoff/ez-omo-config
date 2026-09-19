@@ -373,7 +373,7 @@ print(json.dumps({"phase": os.environ["RESULT_PHASE"], "caseId": os.environ["RES
 PY
       completed=$((completed + 1))
       write_ledger "$manifest" "$ledger" running "$overall_exit" "$results"
-      (( exit_code == 75 )) && break 2
+      (( exit_code != 0 )) && break 2
     done
   done
   if (( completed == $(MANIFEST="$manifest" python3 -c 'import json,os; print(sum(len(p["expectedCases"]) for p in json.load(open(os.environ["MANIFEST"]))["phases"]))') )); then

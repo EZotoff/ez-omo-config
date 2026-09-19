@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # run-bench-campaign-suite.sh — task-11 fixture suite runner.
-# Runs all seven bench-campaign fixture groups in order and reports pass/fail.
 # Hermetic: isolated HOME/state/repo/output per group, fake runners only,
 # every unit stopped+reset-failed and verified absent, workspaces removed.
 set -uo pipefail
@@ -17,6 +16,7 @@ groups=(
   bench-campaign-status.sh
   bench-campaign-case-counts.sh
   bench-campaign-schema-rejection.sh
+  bench-campaign-phase-failfast.sh
 )
 
 failed=()
@@ -26,7 +26,7 @@ done
 
 echo
 if (( ${#failed[@]} == 0 )); then
-  echo "bench-campaign fixture suite: ALL 7 GROUPS PASS"
+  echo "bench-campaign fixture suite: ALL 8 GROUPS PASS"
   exit 0
 fi
 echo "bench-campaign fixture suite: FAILED — ${failed[*]}"
