@@ -105,7 +105,7 @@ require_pushed_head() {
     remote_name="${canonical_ref#refs/remotes/}"
     remote="${remote_name%%/*}"
     branch="${remote_name#*/}"
-    tip="$(git -C "$SRC_REPO" ls-remote "$remote" "refs/heads/$branch" 2>/dev/null | awk '{print $1}')"
+    tip="$(git -C "$SRC_REPO" ls-remote "$remote" "refs/heads/$branch" 2>/dev/null | awk '{print $1}' || true)"
     if [[ -z "$tip" ]]; then
         printf 'build-and-install-opencode: cannot reach remote %s to verify push status of %s (infrastructure)\n' "$remote" "$sha" >&2
         exit 2

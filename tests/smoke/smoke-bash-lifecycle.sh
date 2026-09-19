@@ -52,13 +52,20 @@ OPENCODE_BIN="$BIN" bash "$REGRESSION" > "$WORK/out.log" 2>&1
 RC=$?
 set -e
 
-cat "$WORK/out.log"
+
+# Persist the log BEFORE the EXIT trap deletes $WORK — evidence paths in the
+# result store must survive (smoke_record stores them long-term).
+EVID_DIR="$SMOKE_DIR/../../.sisyphus/evidence"
+mkdir -p "$EVID_DIR"
+EVID_LOG="$EVID_DIR/smoke-bash-lifecycle-$(date +%Y%m%d-%H%M%S).log"
+cp "$WORK/out.log" "$EVID_LOG"
+
 
 UNREACHABLE_RE='(quota|rate.?limit|unreachable|connection (refused|error|failed)|ECONNRESET|ECONNREFUSED|network error|authentication|unauthorized|no such model)'
 if [[ $RC -ne 0 ]] && grep -Eqi "$UNREACHABLE_RE" "$WORK/out.log"; then
 smoke_record "$BIN_SHA" "$SMOKE_ID" "SKIP" \
         "model/provider unreachable during regression run (binary ${BIN_SHA:0:12})" \
-        "$WORK/out.log"
+        "$EVID_LOG"
     echo "SKIP: model unreachable / provider error"
     exit 0
 fi
@@ -66,13 +73,13 @@ fi
 if [[ $RC -eq 0 ]]; then
 smoke_record "$BIN_SHA" "$SMOKE_ID" "PASS" \
         "regression bash-group-cleanup-timeout.sh green (binary ${BIN_SHA:0:12})" \
-        "$WORK/out.log"
+        "$EVID_LOG"
     echo "PASS: bash-lifecycle regression green against target binary"
     exit 0
 fi
 
 smoke_record "$BIN_SHA" "$SMOKE_ID" "FAIL" \
     "regression bash-group-cleanup-timeout.sh rc=$RC (binary ${BIN_SHA:0:12})" \
-    "$WORK/out.log"
+    "$EVID_LOG"
 echo "FAIL: regression rc=$RC"
 exit 1

@@ -39,7 +39,7 @@ const EMERGENCY_MARKER_PATH = `${process.env.HOME ?? ""}/.local/state/opencode/p
 // `cp evil ~/.opencode/bin/opencode # scripts/build-and-install-opencode.sh`
 // must NOT bypass).
 const INSTALLER_ALLOWLIST: ReadonlyArray<RegExp> = [
-	/(^|[;&|\s])scripts\/build-and-install-(opencode|omo)\.sh\b/
+	/(^|[;&|]|\n)[ \t]*((bash|sh)[ \t]+)?scripts\/build-and-install-(opencode|omo)\.sh\b/
 ]
 const VERIFY_SCRIPT = `${process.env.HOME ?? ""}/.sisyphus/scripts/verify-live-patches.sh`
 
