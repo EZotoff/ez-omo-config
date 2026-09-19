@@ -165,11 +165,46 @@ export function applyFinalGates(decision: TickDecision, confidenceFloor: number)
   return decision
 }
 
+/**
+ * Autonomous-origin policy hook (ISS-08 / ISS-18). A machine-initiated session
+ * has no human owner, so an ordinary ESCALATE would create a ticket nobody
+ * answers. Drive it to completion instead: a non-credential ESCALATE is
+ * suppressed and converted to CONTINUE; the caller logs the returned reason as
+ * TICK_SKIPPED. A hard blocker (missing credential/secret) still escalates.
+ */
+const CREDENTIAL_TERM = /\b(?:credential|secret|api[ _-]?key|password|auth(?:entication)?|token)\b/i
+const BLOCKER_TERM = /\b(?:missing|absent|expired|invalid|unavailable|required|needs?|cannot|can't|unable|no)\b/i
+
+export function isCredentialBlocker(rationale: string): boolean {
+  return CREDENTIAL_TERM.test(rationale) && BLOCKER_TERM.test(rationale)
+}
+
+export type AutonomousPolicyResult = {
+  readonly decision: TickDecision
+  /** Present when an ESCALATE was suppressed; the caller logs this as TICK_SKIPPED. */
+  readonly suppressed?: string
+}
+
+export function applyAutonomousOriginPolicy(decision: TickDecision, autonomous: boolean): AutonomousPolicyResult {
+  if (!autonomous || decision.action !== "ESCALATE") return { decision }
+  if (isCredentialBlocker(decision.rationale)) return { decision }
+  return {
+    decision: {
+      ...decision,
+      action: "CONTINUE",
+      rationale: `autonomous-origin: ESCALATE suppressed (no human owner) — drive-to-completion. ${decision.rationale}`
+    },
+    suppressed: "autonomous-origin: ESCALATE suppressed (non-credential) — drive-to-completion",
+  }
+}
+
 export type TickRequest = {
   readonly adapter: ReasoningAdapter
   readonly context: AssembledContext
   readonly target: Turn
   readonly confidenceFloor: number
+  /** True when the target session is autonomous-origin (drive-to-completion policy). */
+  readonly autonomous?: boolean
 }
 
 export const POLICY = `You are the Project Supervisor for this workspace — a read-only stand-in for the human operator. You see exactly what the operator would see: top-level user messages and assistant replies. Tool output and subagent internals are hidden from you.
@@ -198,6 +233,8 @@ Decision rules:
 11. Your recent decisions and open tickets for this session are provided. Do not repeat a decision on the same unresolved cause. If you CONTINUEd last turn and the worker still has not delivered, STEER with the specific correction.
 12. If — and only if — you can name a specific, retrievable piece of evidence that would change your call, emit information_needs (0-3) alongside your provisional action; the system gathers it and asks you again. Each need names: question (what is unknown), scope (sessions|ledger|cards), target (a sessionID, or "root"), why (why it would change the call), expected_effect (what answer would flip the action). Emit needs ONLY when you can name the exact evidence and how it would change your call; otherwise decide or ABSTAIN. Never use needs to avoid deciding. At most 3.
 
+AUTONOMOUS-ORIGIN SESSIONS: A target marked [origin: autonomous] was machine-initiated (bench-runner, ASTRA, heartbeat) and has no human owner. Drive it to completion: prefer CONTINUE on stall or error; do NOT ESCALATE for ordinary decisions. ESCALATE ONLY for a hard blocker (missing credential or secret), and mark it low-priority. Never re-litigate the automation's own purpose.
+
 Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": []}`
 
 export const CONFIRMATION_INSTRUCTION = `CONFIRMATION CHECK: The GATHERED EVIDENCE above was retrieved because you named an information need. State in "evidence_effect" whether it CONFIRMED, DISCONFIRMED, or was INCONCLUSIVE for your provisional lean, and cite the gathered evidence in your citations.`
@@ -217,7 +254,8 @@ export async function runTick(request: TickRequest): Promise<TickDecision> {
     request.context.text,
   ].join("\n\n")
   try {
-    return parseDecision(await request.adapter.complete(prompt), request.confidenceFloor)
+    const decision = parseDecision(await request.adapter.complete(prompt), request.confidenceFloor)
+    return applyAutonomousOriginPolicy(decision, request.autonomous === true).decision
   } catch (error) {
     return abstain(adapterFailure(error))
   }
@@ -236,6 +274,8 @@ export type CollectForkRequest = {
   readonly hasSiblings: boolean
   readonly nowMs: () => number
   readonly onCollect?: (event: CollectEvent) => void
+  /** True when the target session is autonomous-origin (drive-to-completion policy). */
+  readonly autonomous?: boolean
 }
 
 /**
@@ -245,6 +285,11 @@ export type CollectForkRequest = {
  * — there is no second round.
  */
 export async function runTickWithCollect(request: CollectForkRequest): Promise<TickDecision> {
+  const decision = await runCollectFork(request)
+  return applyAutonomousOriginPolicy(decision, request.autonomous === true).decision
+}
+
+async function runCollectFork(request: CollectForkRequest): Promise<TickDecision> {
   if (request.context.truncated) return abstain("context exceeded token budget")
   const header = `TARGET SESSION ${request.target.sessionID} MESSAGE ${request.target.userMessageID}`
   let raw1: string

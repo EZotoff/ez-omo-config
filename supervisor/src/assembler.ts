@@ -1,4 +1,5 @@
 import type { RootTrust } from "./config"
+import { AUTONOMOUS_ORIGIN_LABEL } from "./origins"
 import type { Turn } from "./types"
 
 export type SiblingTier = "HOT" | "WARM" | "COOL" | "COLD"
@@ -9,6 +10,8 @@ export type SiblingView = {
   readonly title?: string
   readonly lastActivityMs?: number
   readonly turns: readonly Turn[]
+  /** True when the sibling session is autonomous-origin (machine-initiated). */
+  readonly autonomous?: boolean
 }
 
 /** Per-tier token sub-budgets (oracle-context-architecture allocation). */
@@ -39,6 +42,8 @@ export type AssembleInput = {
   readonly selfMemory?: SelfMemory
   /** Target root's trust flags (policy rule 9 hook). Absent = untrusted (fail-closed). */
   readonly rootTrust?: RootTrust
+  /** True when the TARGET session is autonomous-origin (drive-to-completion policy hook). */
+  readonly targetAutonomous?: boolean
 }
 
 export type SelfMemory = {
@@ -98,7 +103,7 @@ const siblingTitle = (sibling: SiblingView): string =>
 
 const renderSibling = (tier: SiblingTier, sibling: SiblingView, nowMs: number): string => {
   const age = sibling.lastActivityMs === undefined ? "age unknown" : ageLabel(nowMs - sibling.lastActivityMs)
-  const header = `[${tier}] ${siblingTitle(sibling)} (${age}) — ${sibling.sessionID}`
+  const header = `[${tier}]${sibling.autonomous === true ? ` ${AUTONOMOUS_ORIGIN_LABEL}` : ""} ${siblingTitle(sibling)} (${age}) — ${sibling.sessionID}`
   const turns = sibling.turns.filter((turn) => turn.transcript !== "")
   if (tier === "COLD") return header
   if (tier === "COOL") {
@@ -173,7 +178,7 @@ export function assembleContext(input: AssembleInput): AssembledContext {
   const nowMs = input.nowMs ?? Date.now()
   const budgets = input.tierBudgets ?? defaultTierBudgets(input.tokenBudget)
 
-  const l0 = `L0 TARGET\n${input.target.transcript}`
+  const l0 = `L0 TARGET${input.targetAutonomous === true ? ` ${AUTONOMOUS_ORIGIN_LABEL}` : ""}\n${input.target.transcript}`
   const l0Tokens = estimateTokens(l0)
   if (l0Tokens > input.tokenBudget) {
     return { text: l0, estimatedTokens: l0Tokens, truncated: true, degraded: [] }

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { z } from "zod"
+import type { AutonomousOriginConfig } from "./origins"
 
 const trustSchema = z.object({
   autonomous_deploy: z.boolean().default(false),
@@ -10,7 +11,13 @@ const trustSchema = z.object({
 }).strict().default({ autonomous_deploy: false, autonomous_credentialed_actions: false })
 /** Per-root trust: machine-enforced capability flags (config, not ruling). Absent trust = untrusted. */
 export type RootTrust = z.infer<typeof trustSchema>
-const rootSchema = z.object({ path: z.string().min(1), mode: z.enum(["off", "shadow", "observe", "full"]), trust: trustSchema }).strict()
+const rootSchema = z.object({
+  path: z.string().min(1),
+  mode: z.enum(["off", "shadow", "observe", "full"]),
+  trust: trustSchema,
+  autonomous_path_globs: z.array(z.string().min(1)).default([]),
+  autonomous_title_prefixes: z.array(z.string().min(1)).default([]),
+}).strict()
 const tierBudgetsSchema = z.object({
   target_history: z.number().int().positive(),
   hot: z.number().int().positive(),
@@ -38,6 +45,11 @@ const configSchema = z.object({
 
 export const supervisorConfigSchema = configSchema
 export type SupervisorConfig = z.infer<typeof configSchema>
+
+/** Per-root autonomous-origin detection config (path globs + title prefixes). */
+export function rootAutonomousOrigin(root: SupervisorConfig["roots"][number]): AutonomousOriginConfig {
+  return { pathGlobs: root.autonomous_path_globs, titlePrefixes: root.autonomous_title_prefixes }
+}
 
 export class ConfigError extends Error {
   readonly name = "ConfigError"

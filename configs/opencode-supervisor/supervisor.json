@@ -29,7 +29,9 @@
       "trust": {
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
-      }
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
     },
     {
       "path": "/home/ezotoff/ez-omo-bench",
@@ -37,7 +39,9 @@
       "trust": {
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
-      }
+      },
+      "autonomous_path_globs": ["**/benchmarks/**/runs/**"],
+      "autonomous_title_prefixes": ["bench-judge:", "bench-runner:"]
     },
     {
       "path": "/home/ezotoff/AI_projects/ANIA",
@@ -45,7 +49,9 @@
       "trust": {
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
-      }
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
     },
     {
       "path": "/home/ezotoff/AI_projects/kraken",
@@ -53,7 +59,9 @@
       "trust": {
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
-      }
+      },
+      "autonomous_path_globs": ["**/kraken/**"],
+      "autonomous_title_prefixes": ["ASTRA Night"]
     },
     {
       "path": "/home/ezotoff/AI_projects/voice-bridge",
@@ -61,7 +69,9 @@
       "trust": {
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
-      }
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
     },
     {
       "path": "/home/ezotoff/AI_projects/ez-omo-dash",
@@ -69,7 +79,9 @@
       "trust": {
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
-      }
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
     }
   ]
 }

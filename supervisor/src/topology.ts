@@ -1,4 +1,5 @@
 import type { Message, Session } from "./types"
+import { classifyAutonomousOrigin, type AutonomousOriginConfig } from "./origins"
 
 const SESSION_ID = /ses_[A-Za-z0-9]+/g
 
@@ -32,4 +33,17 @@ export type RootTopology = {
 
 export function classifyRoot(root: string, sessions: readonly Session[], childSessionIDs: ReadonlySet<string>, mode: "shadow" | "off"): RootTopology {
   return { root, sessions: topLevelSessions(sessions, childSessionIDs), supervised: mode === "shadow" }
+}
+
+/**
+ * Session IDs classified autonomous-origin for a root (path + title signals).
+ * Kickoff-text (astra) detection needs messages and is applied by the caller.
+ */
+export function autonomousSessionIDs(sessions: readonly Session[], config: AutonomousOriginConfig): ReadonlySet<string> {
+  const ids = new Set<string>()
+  for (const session of sessions) {
+    const input = { directory: session.directory, ...(session.title === undefined ? {} : { title: session.title }) }
+    if (classifyAutonomousOrigin(input, config)) ids.add(session.id)
+  }
+  return ids
 }
