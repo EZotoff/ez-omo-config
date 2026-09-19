@@ -47,8 +47,11 @@ Call 1: use timeout=${TIMEOUT_MS}, command: setsid sh -c 'echo \$\$ > ${CHILD_PI
 Call 2 (immediately after call 1 returns): use timeout=${TIMEOUT_MS}, command: echo followup-ok .
 After both calls, reply with the single word DONE."
 
+# Run from the scratch dir so the throwaway session attaches to $WORK,
+# not to the repo project (each `opencode run` creates a real session
+# keyed by cwd — running it from the repo spams the project session list).
 set +e
-timeout "$RUN_TIMEOUT_S" "$OPENCODE_BIN" run --format json --model "$MODEL" "$PROMPT" \
+(cd "$WORK" && timeout "$RUN_TIMEOUT_S" "$OPENCODE_BIN" run --format json --model "$MODEL" "$PROMPT") \
     > "$JSON" 2>"$WORK/err.log"
 RUN_RC=$?
 set -e

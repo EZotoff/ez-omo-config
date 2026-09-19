@@ -256,6 +256,9 @@ Three-layer defense against patch drift (Track B v2):
 
 8. Source patches carried as fork commits (e.g. OMO patch branches on `EZotoff/oh-my-openagent`) MUST be pushed to the fork remote before the patch entry is marked `status: active`, and re-pushed as part of every reconcile/update pass that touches them. Local-only fork commits are unrecoverable if the runtime directory is lost (2026-09-18 incident: the quota-only-fallback patch survived only because its implementation session transcript could be mined). Verify with `git branch -r --contains <hash>` on the fork clone before declaring done.
 
+9. Regression tests that drive the live binary via `opencode run` MUST invoke it from a scratch working directory (e.g. `(cd "$WORK" && ... opencode run ...)`), never from the repo or its subdirectories. Every `opencode run` creates a REAL session attached to the caller's cwd's project — running from the repo spams the ez-omo-config project session list (2026-09-19 incident: an iterating bash-timeout regression test created 13 "Bash timeout regression test" sessions in ~25 minutes). Test scratch files were already in `$TMPDIR`; the session attachment point is what was missed. The auto-title model names these sessions after the prompt, so they look like human sessions in the picker.
+
+
 
 ## Shell hygiene for bash tool calls
 

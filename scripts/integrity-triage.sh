@@ -117,7 +117,9 @@ agent_run() { # $1 = prompt; writes agent output to $AGENT_OUT_FILE; returns age
     fi
     info "TRIAGE: dispatching headless triage agent (run $((st_an + 1))/$AGENT_BUDGET_PER_DAY today)"
     local rc
-    printf '%s' "$1" | timeout "$AGENT_TIMEOUT_SECS" opencode run >"$AGENT_OUT_FILE" 2>&1 && rc=0 || rc=$?
+    # --dir scratch: every `opencode run` creates a real session keyed by cwd;
+    # run from $STATE_DIR so it never attaches to the repo project.
+    printf '%s' "$1" | timeout "$AGENT_TIMEOUT_SECS" opencode run --dir "$STATE_DIR" >"$AGENT_OUT_FILE" 2>&1 && rc=0 || rc=$?
     if (( rc == 124 )); then
         warn "TRIAGE: agent timed out after ${AGENT_TIMEOUT_SECS}s"
     fi
