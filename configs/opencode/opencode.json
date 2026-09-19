@@ -989,7 +989,7 @@
       "name": "Bonsai PQ2_0 (uni-pc arm)",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "http://10.71.71.3:18211/v1",
+        "baseURL": "http://100.86.113.119:18211/v1",
         "backupURL": "http://10.71.71.3:18211/v1",
         "apiKey": "bonsai2",
         "chunkTimeout": 600000,
