@@ -6,12 +6,13 @@ import { OpencodeClient, type ServerEvent } from "./client"
 import { loadApiKey, loadConfig, loadProviderBaseURL } from "./config"
 import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
-import { pollRootOnce } from "./poller"
+import { pollRootOnce, ActivityGate } from "./poller"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTick } from "./tick"
 import { pickTarget } from "./targets"
 import { ConsoleChannel } from "./console"
+import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError } from "./health"
 import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
 import type { Action, AttentionQueueItem, Decision, OriginRegistry, Turn } from "./types"
@@ -115,6 +116,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
     path: join(stateDirectory, "queue.json"),
     append: async (type, payload) => { ledger = await ledger.append(type, payload) },
   })
+  const blackboard = await Blackboard.open({
+    path: join(stateDirectory, "blackboard.json"),
+    append: async (type, payload) => { ledger = await ledger.append(type, payload) },
+  })
+  const activityGate = new ActivityGate()
   const buildSources = async (item: AttentionQueueItem): Promise<RevalidationSources> => {
     const root = item.target.root
     const sessions = await client.listSessions(root)
@@ -129,9 +135,12 @@ export async function runService(signal: AbortSignal): Promise<void> {
       latestMessageID: () => last?.id,
       targetTurnAborted: () => aborted,
       ticketOpen: () => queue.items.some((entry) => entry.id === item.id && itemState(entry) !== "resolved"),
-      blackboardFactActive: () => true,
+      blackboardFactActive: (premise) => blackboard.factActive(premise.factID, premise.factVersion, new Date().toISOString()),
       canonicalItemFor: (key) => queue.items.find((entry) => entry.decisionKey === key && itemState(entry) !== "resolved")?.id,
-      answeredElsewhere: () => undefined,
+      answeredElsewhere: (item) => {
+        const answer = blackboard.answerFor(item.decisionKey)
+        return answer === undefined ? undefined : { source: "blackboard", entryID: answer.entryID, version: answer.version }
+      },
       approvalRequired: () => false,
       modePermits: () => true,
       citationsAdmissible: () => true,
@@ -171,10 +180,18 @@ export async function runService(signal: AbortSignal): Promise<void> {
     return runtime
   }
 
-  const recordDecision = async (decision: Decision, turn: Turn): Promise<void> => {
+  const recordDecision = async (decision: Decision, turn: Turn, root: string): Promise<void> => {
     ledger = await ledger.append("TICK_DECIDED", { decision, sessionID: turn.sessionID, messageID: turn.userMessageID })
     const action: Action = decision.action
     status.ticksByAction[action] = (status.ticksByAction[action] ?? 0) + 1
+    await blackboard.writeDecision({
+      root,
+      tickID: `tick_${ledger.records.at(-1)?.seq ?? 0}`,
+      sessionID: turn.sessionID,
+      action,
+      rationale: decision.rationale,
+      now: new Date().toISOString(),
+    })
     await writeStatus(statusPath, status)
   }
 
@@ -199,8 +216,19 @@ export async function runService(signal: AbortSignal): Promise<void> {
         }
       }
       if (target !== undefined) {
+        // CONTINUE quiescence gate (T6): never kick-start a session that moved during grace.
+        if (!activityGate.isQuiescent(sessionID, Date.now(), config.grace_period_s * 1000)) {
+          ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "activity gate: session moved during grace — not quiescent, tick suppressed" })
+          return
+        }
         ledger = await ledger.append("WORKER_TURN_COMPLETED", { sessionID, messageID: target.assistantMessageID })
-        if (target.origin === "unknown") ledger = await ledger.append("CLASSIFIED_UNKNOWN", { sessionID, messageID: target.userMessageID })
+        const recentDecisions: { readonly action: string; readonly rationale: string; readonly decidedAtMs: number }[] = []
+        for (const record of [...ledger.records].reverse()) {
+          const decided = parseTickDecided(record)
+          if (decided === undefined || decided.sessionID !== sessionID) continue
+          recentDecisions.push({ action: decided.action, rationale: decided.rationale, decidedAtMs: Date.parse(decided.decidedAt) })
+          if (recentDecisions.length === 3) break
+        }
         const context = assembleContext({
           target,
           targetHistory: scan?.turns ?? [],
@@ -213,9 +241,17 @@ export async function runService(signal: AbortSignal): Promise<void> {
           targetHistoryCapPairs: config.target_history_cap_pairs,
           siblingTurnWindow: config.sibling_turn_window,
           tokenBudget: config.token_budget,
+          selfMemory: {
+            decisions: recentDecisions,
+            openItems: queue.items
+              .filter((item) => item.target.root === runtime.root && itemState(item) !== "resolved")
+              .slice(0, 5)
+              .map((item) => ({ id: item.id, question: item.question, createdAtMs: Date.parse(item.priority.createdAt) })),
+            nowMs: Date.now(),
+          },
         })
         const decision = await tickGate.run(() => runTick({ adapter, context, target, confidenceFloor: config.confidence_floor }))
-        await recordDecision(decision, target)
+        await recordDecision(decision, target, runtime.root)
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
           const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${c.quote.slice(0, 80)}`).join("; ")
           const proposed = await consoles.proposeEscalation({
@@ -233,6 +269,15 @@ export async function runService(signal: AbortSignal): Promise<void> {
               ...(scan?.session.title === undefined ? {} : { sessionTitle: scan.session.title }),
             },
           })
+          if (proposed.kind === "enqueued") {
+            await blackboard.openQuestion({
+              root: runtime.root,
+              decisionKey: proposed.item.decisionKey,
+              queueItemID: proposed.item.id,
+              question: decision.rationale,
+              now: new Date().toISOString(),
+            })
+          }
           if (proposed.kind === "deduped" || proposed.kind === "capped") {
             const reason = proposed.kind === "deduped" ? "escalation deduped by decision key" : proposed.reason
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason })
@@ -305,6 +350,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         try {
           const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs()])
           const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now())
+          activityGate.observe(signals, Date.now())
           for (const sig of signals) {
             if (sig.kind === "busy") {
               await applyEvent(runtime, sig.sessionID, { type: "busy", at: Date.now() })
