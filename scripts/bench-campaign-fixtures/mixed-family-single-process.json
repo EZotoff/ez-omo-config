@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "runId": "fixture-mixed-family",
+  "repositoryRoot": "/tmp/bench-campaign-fixture-repo",
+  "outputDirectory": "/tmp/bench-campaign-fixture-output",
+  "monitoringOwner": { "name": "fixture-owner", "sessionId": "fixture-session" },
+  "quota": { "budgetCases": 3, "headroomPercent": 20 },
+  "diskThresholdGb": 50,
+  "persistEnvironment": [],
+  "arms": [
+    { "id": "glm-arm", "sutModel": "glm-5.2" }
+  ],
+  "phases": [
+    {
+      "id": "sut",
+      "kind": "sut",
+      "processGroup": "one-process",
+      "endpointFamily": "zai-coding-plan",
+      "model": "glm-5.2",
+      "armIds": ["glm-arm"],
+      "credentialSources": ["repo-env-local"],
+      "expectedCases": ["case-1"],
+      "runnerCommand": ["/bin/true"]
+    },
+    {
+      "id": "judge",
+      "kind": "judge",
+      "processGroup": "one-process",
+      "endpointFamily": "openrouter",
+      "model": "deepseek-r1",
+      "armIds": ["glm-arm"],
+      "credentialSources": ["opencode-auth"],
+      "expectedCases": ["case-1"],
+      "runnerCommand": ["/bin/true"]
+    }
+  ]
+}

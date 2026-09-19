@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "runId": "fixture-valid",
+  "repositoryRoot": "/tmp/bench-campaign-fixture-repo",
+  "outputDirectory": "/tmp/bench-campaign-fixture-output",
+  "monitoringOwner": { "name": "fixture-owner", "sessionId": "fixture-session" },
+  "quota": { "budgetCases": 5, "headroomPercent": 20 },
+  "diskThresholdGb": 50,
+  "persistEnvironment": ["LANG"],
+  "arms": [
+    { "id": "glm-arm", "sutModel": "glm-5.2" }
+  ],
+  "phases": [
+    {
+      "id": "sut",
+      "kind": "sut",
+      "processGroup": "sut-zai",
+      "endpointFamily": "zai-coding-plan",
+      "model": "glm-5.2",
+      "armIds": ["glm-arm"],
+      "credentialSources": ["repo-env-local"],
+      "expectedCases": ["case-1", "case-2"],
+      "runnerCommand": ["/bin/sh", "-c", "printf 'case=%s phase=%s\\n' \"$BENCH_CASE_ID\" \"$BENCH_CAMPAIGN_PHASE\""]
+    },
+    {
+      "id": "judge",
+      "kind": "judge",
+      "processGroup": "judge-openrouter",
+      "endpointFamily": "openrouter",
+      "model": "deepseek-r1",
+      "armIds": ["glm-arm"],
+      "credentialSources": ["opencode-auth"],
+      "expectedCases": ["case-1", "case-2"],
+      "runnerCommand": ["/bin/sh", "-c", "printf 'judged=%s\\n' \"$BENCH_CASE_ID\""]
+    }
+  ]
+}

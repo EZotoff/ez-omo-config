@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/bench-campaign.schema.json",
+  "title": "bench-campaign manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "repositoryRoot",
+    "outputDirectory",
+    "monitoringOwner",
+    "quota",
+    "diskThresholdGb",
+    "persistEnvironment",
+    "arms",
+    "phases"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,47}$" },
+    "repositoryRoot": { "type": "string", "pattern": "^/" },
+    "outputDirectory": { "type": "string", "pattern": "^/" },
+    "monitoringOwner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sessionId"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "sessionId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "quota": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budgetCases", "headroomPercent"],
+      "properties": {
+        "budgetCases": { "type": "integer", "minimum": 1 },
+        "headroomPercent": { "type": "number", "minimum": 20, "exclusiveMaximum": 100 }
+      }
+    },
+    "diskThresholdGb": { "type": "number", "minimum": 50 },
+    "persistEnvironment": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["LANG", "LC_ALL", "TZ"] }
+    },
+    "arms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "sutModel"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+          "sutModel": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "processGroup",
+          "endpointFamily",
+          "model",
+          "armIds",
+          "credentialSources",
+          "expectedCases",
+          "runnerCommand"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+          "kind": { "enum": ["sut", "judge"] },
+          "processGroup": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+          "endpointFamily": { "type": "string", "minLength": 1 },
+          "model": { "type": "string", "minLength": 1 },
+          "armIds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "credentialSources": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["opencode-auth", "repo-env-local", "repo-env-dev"] }
+          },
+          "expectedCases": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" }
+          },
+          "runnerCommand": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}
