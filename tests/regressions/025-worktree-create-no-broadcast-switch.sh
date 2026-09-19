@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression 023: worktree_create must not broadcast a TUI session switch and
+# Regression 025: worktree_create must not broadcast a TUI session switch and
 # must not fork twice for the same branch.
 #
 # Bug (2026-09-19, veran feat/nestor-stats incident): worktree_create POSTed
@@ -43,7 +43,7 @@ else
 fi
 
 if [[ $TESTS_FAILED -gt 0 ]]; then
-    echo "FAILURE: worktree_create broadcast-switch / double-fork regression (see tests/regressions/023-worktree-create-no-broadcast-switch.sh)"
+    echo "FAILURE: worktree_create broadcast-switch / double-fork regression (see tests/regressions/025-worktree-create-no-broadcast-switch.sh)"
     exit 1
 fi
 echo "PASS: worktree_create forks idempotently and never broadcasts a TUI switch"

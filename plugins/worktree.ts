@@ -895,7 +895,7 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 				// the exact call the TUI submit path makes after parsing "/cmd args" (app
 				// prompt-input/submit.ts: command=first token, arguments=rest). No TUI
 				// events are published: /tui/* is workspace-broadcast upstream and would
-				// hijack every attached pane (2026-09-19 incident, regression 023/024);
+				// hijack every attached pane (2026-09-19 incident, regression 025/026);
 				// and with no TUI attached the old append/submit flow silently no-op'd.
 				try {
 					const innerClient = (client as unknown as Record<string, Record<string, unknown>>).session?._client as Record<string, unknown> | undefined

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kill-test 024: proves regression 024 detects a reintroduced TUI-broadcast
+# Kill-test 026: proves regression 026 detects a reintroduced TUI-broadcast
 # kickoff in worktree_start.
 set -o errexit
 source "$(cd "$(dirname "$0")/.." && pwd)/helpers.sh"
@@ -27,13 +27,13 @@ grep -q 'tui/append-prompt' "$KILL_TMP/worktree.ts" && DETECTED=$((DETECTED + 1)
 grep -q 'command: "start-work"' "$KILL_TMP/worktree.ts" || DETECTED=$((DETECTED + 1))
 
 if [[ $DETECTED -eq 3 ]]; then
-    TESTS_PASSED=$((TESTS_PASSED + 1))  # 024's guards would FAIL on this file — detection proven
+    TESTS_PASSED=$((TESTS_PASSED + 1))  # 026.s guards would FAIL on this file — detection proven
 else
-    echo "FAILURE: kill-test 024 broken — broadcast kickoff not detectable (DETECTED=$DETECTED)"
+    echo "FAILURE: kill-test 026 broken — broadcast kickoff not detectable (DETECTED=$DETECTED)"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
 if [[ $TESTS_FAILED -gt 0 ]]; then
     exit 1
 fi
-echo "PROVED: regression 024 detects the reintroduced broadcast kickoff"
+echo "PROVED: regression 026 detects the reintroduced broadcast kickoff"

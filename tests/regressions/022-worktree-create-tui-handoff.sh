@@ -9,7 +9,7 @@
 #
 # Fix: TUI-based handoff replaced the terminal spawn; openTerminal is gone.
 # UPDATE (2026-09-19): worktree_create no longer performs ANY TUI switch
-# (workspace-broadcast hijack — see regression 023). The select-session grep
+# (workspace-broadcast hijack — see regression 025). The select-session grep
 # below now guards worktree_start's switch only.
 set -o errexit
 source "$(cd "$(dirname "$0")/.." && pwd)/helpers.sh"

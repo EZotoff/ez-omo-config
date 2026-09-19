@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Regression 024: worktree_start kicks off /start-work via the server-side
+# Regression 026: worktree_start kicks off /start-work via the server-side
 # session command endpoint — never via workspace-broadcast TUI events.
 #
-# Bug class (2026-09-19 veran incident, sibling of regression 023): worktree_start
+# Bug class (2026-09-19 veran incident, sibling of regression 025): worktree_start
 # POSTed /tui/select-session + /tui/append-prompt + /tui/submit-prompt. All three
 # are workspace-broadcast upstream (identical guard in the TUI), so with N
 # session-viewing panes attached it would navigate every pane to the new session,
@@ -40,7 +40,7 @@ else
 fi
 
 if [[ $TESTS_FAILED -gt 0 ]]; then
-    echo "FAILURE: worktree_start broadcast regression (see tests/regressions/024-worktree-start-server-command.sh)"
+    echo "FAILURE: worktree_start broadcast regression (see tests/regressions/026-worktree-start-server-command.sh)"
     exit 1
 fi
 echo "PASS: worktree_start kicks off via server-side command endpoint, zero TUI broadcasts"
