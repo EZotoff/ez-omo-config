@@ -5,7 +5,7 @@ target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-05-02"
-dep_version: "1.18.5"
+dep_version: "1.18.31"
 upstream_issue: "none"
 verification_pattern: "may create local commits freely"
 verification_strength: "discriminative"
@@ -159,3 +159,6 @@ Status: not-yet-pursued
 | v1       | 2026-05-02 | Initial canonical text: "A local commit is allowed when the user requested one or when a loaded project/skill workflow explicitly calls for checkpoint or logical-task commits. If no active workflow calls for a commit, ask first." |
 | v2       | 2026-06-21 | Removed "ask first" clause. New canonical text: "Agents may create local commits freely for atomic changes and partial-progress saves — no need to ask first. This user uses git primarily for agent work." The v1 "ask first" clause was generating passive "ready to commit when you're ready" turn-endings in the common case where no skill was explicitly loaded. The user's git workflow is agent-driven, so asking added friction without value. Safety guardrails (no secrets, no push/force-push, no destructive) are preserved unchanged. Verification step added to catch stale v1 patches. |
 | v3       | 2026-06-22 | Updated for OpenCode v1.17.9. `bash.txt` was REMOVED upstream and replaced by templated `shell/shell.txt` + `shell/prompt.ts`. Patch target moved from `tool/bash.txt` to `tool/shell/shell.txt` line 14 (single bullet within `# Git and GitHub` section). Discovered that prompt text is compiled into the Bun binary at build time via `import X from "./file.txt"` — the previous claim "No rebuild is needed" was FALSE; the patch had been inert since v1. Binary rebuild via `bun run script/build.ts --single --skip-embed-web-ui` is now documented in reapply instructions. Built patched v1.17.9 binary (140 MB) installed to `~/.opencode/bin/opencode`; official unpatched v1.17.9 (167 MB) kept as `opencode.backup-1.17.9-official`. |
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- Non-rendering (server-api): binary pattern present (3). Clean cherry-pick onto v1.18.31.

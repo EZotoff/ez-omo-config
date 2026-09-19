@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-15"
-dep_version: "1.18.5"
+dep_version: "1.18.31"
 runtime_effective: true
 runtime_effective_note: "Observed live 2026-09-15 ~23:10 on the shared daemon (:3030), A/B via tmux-driven attach TUIs at --dir /home/ezotoff/AI_projects/veran. OLD binary (pre-guard, pin-window build): Pinned section listed 12+ foreign-directory pins with directory badges (rag_base, traveller, ez-omo-config, mysocial, llm-review). PATCHED binary: Pinned section listed ONLY exact-veran pins (14 entries, slots 1-7 intact), zero foreign entries. Captures: .sisyphus/evidence/opencode--tui-pin-directory-guard/ (dialog-old-binary.txt, dialog-new-binary.txt)."
 upstream_issue: "none"
@@ -104,3 +104,6 @@ scoping on single-session fetches). This closes the hole for ALL future client
 paths rather than guarding each one. Requires a consumer blast-radius review
 first (supervisor, ocx, session utilities fetch cross-directory by ID today).
 Status: not-yet-pursued.
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- tui-interactive: PASS — Pinned section: 3 entries, all unbadged (attach-dir sessions only); no foreign pins.

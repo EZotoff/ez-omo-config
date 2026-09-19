@@ -5,7 +5,7 @@ target_file: "packages/opencode/src/cli/cmd/run/turn-summary.ts, packages/openco
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-07-19"
-dep_version: "1.18.5"
+dep_version: "1.18.31"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/37929"
 verification_pattern: "todayTimeOrDateTime"
 verification_strength: "weak"
@@ -103,3 +103,8 @@ This patch has TWO surface commits: `23020f01c` (cli-run, 6 files under `package
 3. Config option — Not viable: no config knob exists for the turn-summary format, and adding one is more invasive than the patch itself.
 
 Status: pursued (upstream PR #37929 opened 2026-07-20, all compliance checks green, awaiting maintainer review as of 2026-07-23).
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- tui-interactive: PASS — `▣ Sisyphus · GLM 5.3 Flash · 9.2s · 5:37 PM` rendered in live TUI attach (tmux `surf`, ez-omo-config dir).
+- cli-run: NOT exercised — `opencode mini` subcommand exits in headless harness; shares the same turnSummaryWriter code path verified on tui surface. Pending first real cli-run observation.
+- Cherry-picked cleanly onto v1.18.31 (no conflicts); binary pattern present (3).

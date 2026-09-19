@@ -14,7 +14,7 @@ applied_date: "2026-07-06"
 # that is a pattern-presence claim, not an effectiveness claim. The v1.18.5
 # regression (dead parent _linkifyMarkdownChunks hook) was recovered by the
 # child-onChunks redesign (commit b5d4fe483), verified 2026-08-03 (see below).
-dep_version: "1.18.5"
+dep_version: "1.18.31"
 runtime_effective: true
 runtime_effective_note: "Redesign verified EFFECTIVE on the real v1.18.5 interactive TUI surface 2026-08-03 (T3): conceal-ON renders link labels with no parenthesised (file:///...) URL, conceal-OFF shows the URL, no-link prompt unaffected, regression corpus 11/11. Live binary sha256 03edb5158179d6ad593d21321249316f191060b98e907c0c62a59064190cb4c2. Hook is the child CodeRenderable.onChunks setter (instance createMarkdownCodeRenderable wrap + walkChildren), NOT the parent _linkifyMarkdownChunks (dead in OpenTUI >= 0.4.x). Evidence: .sisyphus/evidence/task-3-tui-link-conceal-on.txt."
 upstream_issue: "none"
@@ -164,3 +164,7 @@ grep -c "isUrlOrSyntax" /home/ezotoff/src/opencode/packages/tui/src/routes/sessi
 3. Switch terminal (kitty, WezTerm, Ghostty).
 
 Status: blocked-by-upstream
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- tui-interactive: PASS — live TUI attach, link-bearing reply rendered label-only ("README.md"); zero `file://` occurrences in captured pane (regression signal absent). Pattern `__linkLabelPatch` present (1).
+- Note: OSC8 sequences do not survive tmux cell capture; judgement per entry criteria (no parenthesised URL).

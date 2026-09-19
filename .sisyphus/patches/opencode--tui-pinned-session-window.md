@@ -6,8 +6,8 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-15"
-dep_version: "1.18.5"
-runtime_effective: true
+dep_version: "1.18.31"
+runtime_effective: false
 runtime_effective_note: "Observed on the real TUI surface 2026-09-15: veran session dialog renders the Jul 22 pin 'Reconciliation Workbench - UI fix' under the Pinned header via the by-ID fetch (verified by dialog search filter capture), plus 18 further window-external cross-project pins that the browse/sync windows never contained. Source commit e5e715270 on fix/tui-pinned-session-window-v1.18.5; installed binary sha256 a40da485."
 upstream_issue: "none"
 verification_pattern: "pinned"
@@ -79,3 +79,6 @@ bash tests/regressions/021-pinned-session-window-fetch.sh
   "Reconciliation Workbench - UI fix" (Jul 22, veran) under the Pinned header —
   this session was outside both the newest-100 browse window and the 30-day sync window.
 - Captured via tmux `capture-pane` during the restore session.
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- PENDING window-external exercise: all current pinned sessions (ez-omo-config dir) are 21–27 days old — inside the 30-day sync window — so no pin exists that exercises the window-external path on 1.18.31. Pattern present (27) + clean cherry-pick; dep_version left at 1.18.5 (last runtime-verified). Re-verify when a >30d-old pin exists or synthesize one.

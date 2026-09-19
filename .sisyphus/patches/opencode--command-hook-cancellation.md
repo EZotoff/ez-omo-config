@@ -5,7 +5,7 @@ target_file: "opencode"
 target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-06-26"
-dep_version: "1.18.5"
+dep_version: "1.18.31"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/18559"
 verification_pattern: "cancelled:!1.*?command\.execute\.before.*?\.cancelled\)return"
 verification_strength: "discriminative"
@@ -49,3 +49,6 @@ OPENCODE_VERSION="$(/home/ezotoff/.opencode/bin/opencode --version)" PATH=/home/
 ## Durable Alternative
 Upstream PR #18559 adds the same plugin cancellation concept. Once merged and installed, this local source/binary patch can be deprecated and the local plugins can keep using `output.cancelled = true` against upstream OpenCode.
 Status: pursued
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- Non-rendering (server-api): discriminative regex matched binary (1); documented source grep hits 3/3 files on update/v1.18.31. Clean cherry-pick.

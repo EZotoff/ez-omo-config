@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-12"
-dep_version: "1.18.5"
+dep_version: "1.18.31"
 runtime_effective: true
 runtime_effective_note: "Observed live 2026-09-12 ~11:50 on the shared daemon (:3030). A/B at --dir /tmp/opencode (global project): OLD binary dialog listed foreign-directory sessions (verify-5 -> /tmp/opencode/verify-dc, verify-4, SMOKE-OK reply test -> /tmp/opencode/provider-check); PATCHED binary dialog listed only exact-/tmp/opencode sessions (scope-probe-114127 positive control) with zero foreign entries. Synthetic cross-dir session.updated (PATCH title on a /tmp session) never surfaced in the patched TUI. Captures: .sisyphus/evidence/opencode--tui-session-directory-scope/. Caveat: the old-TUI fallback-render path (store pollution visible mid-fetch) was not capturable via tmux timing; the insert guard itself is pinned by regression pair 020 and the probe-absent observation."
 upstream_issue: "none"
@@ -163,3 +163,6 @@ for the multi-TUI/single-daemon deployment model; not yet filed.
 ## Related Patches
 
 `opencode--tui-pinned-session-window` (2026-09-14) opened a `session.get`-by-ID path that bypassed this patch's invariant (foreign pins re-leaked into the dialog); closed by `opencode--tui-pin-directory-guard` (2026-09-15) with the owner's strict policy: foreign-directory pins are hidden everywhere and remain visible only in the TUI of their own directory.
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- tui-interactive: PASS — sessions dialog shows only ez-omo-config sessions; zero foreign-directory entries/badges.

@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-17"
-dep_version: "1.18.5"
+dep_version: "1.18.31"
 runtime_effective: true
 runtime_effective_note: "Observed live 2026-09-17 ~13:55 on the shared daemon (:3030). A/B: scratch parent session dispatched a quick-category sub-agent in background and ended its turn; server /session/status confirmed parent=idle + child=busy at capture time; tmux-driven attach TUI Sessions dialog showed the braille spinner frame on the parent row (capture: /tmp/opencode/dialog-final.txt, line '⠏ spinner-ab-test'). Pre-fix captures showed no spinner on the same shape."
 upstream_issue: "none"
@@ -79,3 +79,6 @@ spin as before). Evidence: `/tmp/opencode/dialog-final.txt`.
 
 Effective as of 2026-09-17, binary rebuilt at 1.18.5 from
 `fix/tui-subagent-spinner-v1.18.5` (HEAD `8257e338c`).
+
+### Observed 2026-09-19 (v1.18.31-p1 cutover)
+- tui-interactive: PASS — positive: parent row showed ● while background child (bg_9766578e) busy; negative: ● cleared after child completed. Verified in live dialog.
