@@ -59,6 +59,15 @@ is what makes the diagnosis arrive in minutes. This rule was added after an
 operator had to request it three times while ~$2 of compute and ~6 hours were
 invalidated by failures that ran to completion unobserved.
 
+Campaigns expected to outlive a single tool call MUST run through opencode durable-run or the bench-campaign launcher, preserve full per-case stdout/stderr, and record the unit/run ID and monitoring owner — detachment transfers process lifetime, not responsibility.
+
+### Benchmark campaign preflight
+
+1. Probe every primary AND fallback model with one tiny call before any case or delegated reader starts — validate identity, endpoint family, credential source, usability, and quota; a reachable endpoint alone is not sufficient.
+2. Treat quota reset timestamps as upper bounds — probe, don't wait.
+3. Declare an admission budget: case count plus operator-set headroom.
+4. Forbid substring `pkill`/`pgrep` — require owned unit/PID metadata.
+
 ## Context discipline for small-context models (2026-09-05 lesson)
 
 A sub-agent on the local Qwen rig died mid-task from ONE tool output: unscoped `git status` in a repo with ~4,000 untracked files emitted more tokens than the model's whole 64k window. Rules for any session that may run on a context-limited model:
