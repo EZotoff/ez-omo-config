@@ -309,7 +309,7 @@ These Python helpers and config files support stack health, drift detection, and
 | `scripts/patch-guard.py` | Guard active patch install targets against forbidden stack zones |
 | `scripts/path-classifier.py` | Classify canonical stack paths against `configs/stack-locations.json` |
 | `scripts/secrets-path-audit.py` | Fail closed when tracked paths look like secrets or auth material |
-| `scripts/restart-with-continuation.sh` | Snapshot busy top-level sessions, restart an OpenCode unit, re-inject continuation prompts via `POST /session/:id/prompt_async`. Also the engine for the systemd continuation hooks (`hook-snapshot`/`hook-resume`) installed on both OpenCode units — continuation is default, `--bare-restart` opts out. Auth: `~/.config/opencode/serve.env` / `serve-interactive.env` |
+| `scripts/restart-with-continuation.sh` | Snapshot busy top-level sessions, restart an OpenCode unit, re-inject continuation prompts via `POST /session/:id/prompt_async`. Also the engine for the systemd continuation hooks (`hook-snapshot`/`hook-resume`) installed on both OpenCode units — continuation is default, `--bare-restart` opts out. Auth: per-unit env file (`~/.config/opencode/serve.env` / `serve-interactive.env`), auto-selected from `--service` or overridden via `--auth-env`; the password never appears on a command line |
 | `scripts/source-identity-check.py` | Report package and git identity for a source checkout |
 | `scripts/legacy-name-classifier.py` | Classify legacy OpenCode/OMO naming occurrences in the config repo |
 

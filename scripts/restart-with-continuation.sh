@@ -9,6 +9,8 @@
 # Usage:
 #   restart-with-continuation.sh                 # dry-run: snapshot only, no restart, no resume
 #   restart-with-continuation.sh --restart       # snapshot -> systemctl --user restart -> resume
+#   restart-with-continuation.sh --restart --service opencode-interactive.service \
+#       --url http://127.0.0.1:3030   # auth env file auto-selected per unit
 #   restart-with-continuation.sh --restart --prompt "Pick up where you left off."
 #   restart-with-continuation.sh --bare-restart  # restart WITHOUT continuation (explicit opt-out)
 #   restart-with-continuation.sh --resume-only --state-file <file.json>   # re-inject from a saved snapshot
@@ -17,7 +19,7 @@
 #
 # Env (defaults auto-detected):
 #   OPENCODE_URL      base URL of the serve instance (default http://127.0.0.1:3021)
-#   OPENCODE_SERVER_PASSWORD   server Basic-auth password (auto-read from serve.env)
+#   OPENCODE_SERVER_PASSWORD   server Basic-auth password (auto-read from the unit's auth env file: serve.env / serve-interactive.env)
 #   OPENCODE_SERVER_USERNAME   server Basic-auth username (default: opencode)
 #
 # Evidence states: snapshot = live API read; resume = POST /session/:id/prompt_async
@@ -57,7 +59,7 @@ else
       --state-file) STATE_FILE="$2"; shift ;;
       --url) OPENCODE_URL="$2"; shift ;;
       --service) SERVICE_UNIT="$2"; shift ;;
-      --password) CLI_PASSWORD="$2"; shift ;;
+      --auth-env) AUTH_ENV="$2"; shift ;;
       --username) OPENCODE_SERVER_USERNAME="$2"; shift ;;
       -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
       *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -77,16 +79,20 @@ if [[ -n "$HOOK_MODE" ]]; then
   fi
 else
   OPENCODE_URL="${OPENCODE_URL:-http://127.0.0.1:3021}"
-  ENV_FILE="$HOME/.config/opencode/serve.env"
-  if [[ -n "${CLI_PASSWORD:-}" ]]; then
-    OPENCODE_SERVER_PASSWORD="$CLI_PASSWORD"
-  elif [[ -r "$ENV_FILE" ]] && grep -q '^OPENCODE_SERVER_PASSWORD=' "$ENV_FILE"; then
+  # Auth env file: --auth-env wins; otherwise selected by service unit, mirroring
+  # the hook-mode arguments in the continuation.conf drop-ins.
+  if [[ -z "${AUTH_ENV:-}" ]]; then
+    case "$SERVICE_UNIT" in
+      opencode-interactive.service) AUTH_ENV="$HOME/.config/opencode/serve-interactive.env" ;;
+      *)                            AUTH_ENV="$HOME/.config/opencode/serve.env" ;;
+    esac
+  fi
+  if [[ -r "$AUTH_ENV" ]] && grep -q '^OPENCODE_SERVER_PASSWORD=' "$AUTH_ENV"; then
     # The service's own env file is authoritative for the systemd-managed server;
     # an inherited OPENCODE_SERVER_PASSWORD may belong to a different instance.
-    OPENCODE_SERVER_PASSWORD="$(grep '^OPENCODE_SERVER_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)"
-  fi
-  if [[ -z "${OPENCODE_SERVER_PASSWORD:-}" ]]; then
-    echo "ERROR: no password: use --password, $ENV_FILE, or OPENCODE_SERVER_PASSWORD" >&2
+    OPENCODE_SERVER_PASSWORD="$(grep '^OPENCODE_SERVER_PASSWORD=' "$AUTH_ENV" | cut -d= -f2-)"
+  elif [[ -z "${OPENCODE_SERVER_PASSWORD:-}" ]]; then
+    echo "ERROR: no password: use --auth-env <file>, $AUTH_ENV, or OPENCODE_SERVER_PASSWORD" >&2
     exit 1
   fi
 fi

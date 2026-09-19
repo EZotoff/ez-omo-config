@@ -117,12 +117,12 @@ Two `opencode serve` instances run as systemd user services. Restarting either k
 # Default flags target opencode.service (dry-run: snapshot only, no restart):
 ~/ez-omo-config/scripts/restart-with-continuation.sh
 
-# Full restart + resume, interactive server:
-PW=$(grep ^OPENCODE_SERVER_PASSWORD= ~/.config/opencode/serve-interactive.env | cut -d= -f2-)
+# Full restart + resume, interactive server (auth env file auto-selected from
+# --service; no password on any command line):
 systemd-run --user --unit=restart-cont-$(date +%s) bash -c \
   '~/ez-omo-config/scripts/restart-with-continuation.sh --restart \\
      --service opencode-interactive.service --url http://127.0.0.1:3030 \\
-     --password "$PW" >> ~/.local/share/opencode/restart-continuations/restart.log 2>&1'
+     >> ~/.local/share/opencode/restart-continuations/restart.log 2>&1'
 ```
 
 - **Plain invocation is a dry-run** (snapshot only). Add `--restart` to actually restart and resume; `--resume-only --state-file <snapshot.json>` re-injects from a saved snapshot.
