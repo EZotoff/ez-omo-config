@@ -14,3 +14,4 @@ __pycache__/
 
 # OMO runtime state at repo root is a forbidden zone per configs/stack-locations.json
 .omo/
+review-2026-09-12.md
