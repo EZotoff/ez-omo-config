@@ -7,7 +7,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 - **Live runtime artifact safety**: never redirect diagnostic output into `~/oh-my-openagent-v4.19.2/dist/*`, `~/.opencode/bin/*`, `~/.opencode/plugin/*`, or live `~/.config/opencode/*` configs. Write `git show`, `cat`, and `curl` output only to `.sisyphus/drafts/` or mktemp.
 - Live writes require the documented timestamped `.pre-*` backup and verification flow. A failed `git show` redirect destroyed the OMO bundle on 2026-09-08.
 
-## OpenCode binary patches (live binary v1.18.31-p1, rebuilt via `update-to-latest`)
+## OpenCode binary patches (live binary v1.18.31-p2, rebuilt via `update-to-latest`)
 
 | Patch | Status | runtime_effective | Entry |
 |---|---|---|---|
@@ -21,6 +21,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 | `opencode--tui-pinned-session-window` — session dialog fetches pins by ID; Pinned section survives newest-100/30-day window pressure (2026-09-14 veran spam incident); live TUI verified 2026-09-15 | active | true | [entry](../.sisyphus/patches/opencode--tui-pinned-session-window.md) |
 | `opencode--tui-pin-directory-guard` — session dialog drops foreign-directory pinned sessions from the Pinned/`extra` rescue path while the directory filter is on; closes the `session.get`-by-ID leak the pin-window patch opened against the directory-scope invariant; strict policy (no foreign pins visible); live A/B verified 2026-09-15 | active | true | [entry](../.sisyphus/patches/opencode--tui-pin-directory-guard.md) |
 | `opencode--tui-subagent-spinner` — Sessions dialog shows the spinner on a parent row while any of its (hidden) sub-agent child sessions is busy/retry; children aggregated from the unfiltered sync list (browse/search are `roots:true`); live A/B verified 2026-09-17 | active | true | [entry](../.sisyphus/patches/opencode--tui-subagent-spinner.md) |
+| `opencode--plugin-engine-prerelease` — plugin `engines.opencode` ranges match prerelease-suffixed (`-p<N>` provenance) host builds; fixes `Plugin … skipped` toast on patched binaries | active | false | [entry](../.sisyphus/patches/opencode--plugin-engine-prerelease.md) |
 
 ## OMO fork patches (fork base v4.19.2 at `~/oh-my-openagent-v4.19.2`)
 
@@ -58,7 +59,7 @@ After the 2026-09-18 silent binary-rebuild and OMO-runtime-deletion incidents, e
 
 
 
-- **Lockfiles** — `config/patch-lockfile.json` (generation `opencode-1.18.31-patches.1`) and `config/omo-lockfile.json` (generation `omo-4.19.2-patches.1`) are the machine-authoritative source of implementation-commit SHAs per patch; `tests/test_patch_lockfile.sh` validates bijection, ancestry, and remote presence.
+- **Lockfiles** — `config/patch-lockfile.json` (generation `opencode-1.18.31-patches.2`) and `config/omo-lockfile.json` (generation `omo-4.19.2-patches.1`) are the machine-authoritative source of implementation-commit SHAs per patch; `tests/test_patch_lockfile.sh` validates bijection, ancestry, and remote presence.
 
 - **Build receipts** — `scripts/build-and-install-opencode.sh` / `scripts/build-and-install-omo.sh` write per-artifact receipts (`~/.local/share/opencode/builds/<sha256>.json`) binding binary/dist sha256 → generation → source_head. Swapping a live artifact without a receipted, generation-matched build is refused; recovery installs write a persistent red marker. Shared helpers: `scripts/lib-patchset.sh`.
 

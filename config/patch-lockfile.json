@@ -3,7 +3,7 @@
   "dependency": "opencode",
   "upstream_version": "1.18.31",
   "upstream_base": "014614d35b397775e5d397a490fc72368c894ec2",
-  "generation": "opencode-1.18.31-patches.1",
+  "generation": "opencode-1.18.31-patches.2",
   "canonical_ref": "refs/remotes/fork/update/v1.18.31",
   "patches": [
     {
@@ -93,6 +93,13 @@
         "74ffcd4d5f319167f6c530626d7156f28aed4a9a"
       ],
       "implementation_commits": []
+    },
+    {
+      "patch_id": "opencode--plugin-engine-prerelease",
+      "required": true,
+      "implementation_commits": [
+        "3b734b960d4f9604e9983cdc39fb7c1f5278c2b7"
+      ]
     }
   ]
 }
