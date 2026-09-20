@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { POLICY } from "../src/tick"
+import { parseDecision, POLICY } from "../src/tick"
 
 // Prompt-contract test for the judgment-policy rewrite (task 5).
 // The POLICY constant is the supervisor's entire judgment surface; these
@@ -66,5 +66,44 @@ describe("POLICY preserves the pre-existing contract", () => {
 
   test("stays under the ~1.5k token ceiling", () => {
     expect(estimateTokens(POLICY)).toBeLessThan(1500)
+  })
+})
+
+describe("CONTINUE mode contract", () => {
+  const continueDecision = {
+    action: "CONTINUE",
+    rationale: "The idle worker needs a nudge",
+    citations: [{ session: "ses-a", messageID: "msg-a", quote: "No reply" }],
+    confidence: 0.9,
+  }
+
+  test.each([
+    ["canonical kick-start", "kick_start", "kick_start"],
+    ["hyphenated kick-start alias", "kick-start", "kick_start"],
+    ["approve alias", "proceed", "approve"],
+    ["explicit null", null, null],
+  ])("normalizes %s", (_name, mode, expected) => {
+    const decision = parseDecision(JSON.stringify({ ...continueDecision, mode }), 0.6)
+
+    expect(decision).toMatchObject({ action: "CONTINUE", mode: expected })
+  })
+
+  test("keeps mode optional for old decisions", () => {
+    const decision = parseDecision(JSON.stringify(continueDecision), 0.6)
+
+    expect(decision.action).toBe("CONTINUE")
+    expect("mode" in decision).toBe(false)
+  })
+
+  test("keeps the decision boundary strict", () => {
+    const decision = parseDecision(JSON.stringify({ ...continueDecision, mode: "kick_start", extra: true }), 0.6)
+
+    expect(decision.action).toBe("ABSTAIN")
+  })
+
+  test("declares the machine-consumed mode field without changing the action enum", () => {
+    expect(POLICY).toContain('"mode": "kick_start|approve|null"')
+    expect(POLICY).toContain("A CONTINUE must declare mode")
+    expect(POLICY).toContain('"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE"')
   })
 })

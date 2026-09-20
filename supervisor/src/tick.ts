@@ -31,6 +31,9 @@ export type InformationNeed = z.infer<typeof informationNeedSchema>
 const evidenceEffectSchema = z.enum(["confirmed", "disconfirmed", "inconclusive"])
 export type EvidenceEffect = z.infer<typeof evidenceEffectSchema>
 
+const continueModeSchema = z.enum(["kick_start", "approve"])
+export type ContinueMode = z.infer<typeof continueModeSchema>
+
 const decisionSchema = z.object({
   action: z.enum(["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"]),
   target: z.string().min(1).optional(),
@@ -40,12 +43,14 @@ const decisionSchema = z.object({
   information_need: informationNeedSchema.nullable().optional(),
   information_needs: z.array(informationNeedSchema).max(3).optional(),
   evidence_effect: evidenceEffectSchema.optional(),
+  mode: continueModeSchema.nullable().optional(),
 }).strict()
 
 /** Decision plus the fork fields the tick loop carries (types.ts Decision stays the shared shape). */
 export type TickDecision = Decision & {
   readonly information_needs: readonly InformationNeed[]
   readonly evidence_effect?: EvidenceEffect
+  readonly mode?: ContinueMode | null
 }
 
 function abstain(reason: string): TickDecision {
@@ -99,6 +104,12 @@ function normalizeDecisionValue(value: unknown): unknown {
       : actionUpper
   const normalized: Record<string, unknown> = { ...input, action }
   if (normalized["target"] === null) delete normalized["target"]
+  const modeRaw = normalized["mode"]
+  if (typeof modeRaw === "string") {
+    const mode = modeRaw.trim().toUpperCase().replace(/[ -]/g, "_")
+    if (["KICK_START", "KICKSTART", "CONTINUE", "RESUME"].includes(mode)) normalized["mode"] = "kick_start"
+    else if (["APPROVE", "APPROVAL", "PROCEED", "GO_AHEAD"].includes(mode)) normalized["mode"] = "approve"
+  }
   const citations = normalized["citations"]
   if ((action === "ACCEPT" || action === "ABSTAIN") && Array.isArray(citations) && citations.some((item) => typeof item !== "object" || item === null)) {
     normalized["citations"] = []
@@ -148,6 +159,7 @@ export function parseDecision(raw: string, confidenceFloor: number, options?: { 
     confidence: parsed.data.confidence,
     information_needs: parsed.data.information_needs ?? [],
     ...(parsed.data.evidence_effect === undefined ? {} : { evidence_effect: parsed.data.evidence_effect }),
+    ...(parsed.data.mode === undefined ? {} : { mode: parsed.data.mode }),
   }
   // Tick 1 parses provisionally: the confidence floor and citation requirement
   // apply to the FINAL decision only, so a low-confidence lean that names a need
@@ -215,7 +227,7 @@ A worker session just completed the turn labeled TARGET below. Decide what the o
 
 Actions:
 - ACCEPT: The exchange is COMPLETE — the requested outcome is DELIVERED in this reply, nothing further expected. A reply ending mid-sentence or mid-run, reporting jobs in flight, or only planning future work is NOT complete: CONTINUE, never ACCEPT.
-- CONTINUE: The exchange is INCOMPLETE and the worker needs only a trivial go-ahead. Two trigger classes: (a) APPROVE — the worker proposed next steps and asked "shall I?"; a reasonable operator replies "proceed"/"go". (b) KICK-START — the session stalled, errored, or died and produced no reply; a reasonable operator replies "continue". The operator's word "continue" means kick-start; "proceed" means approve — never read an operator "continue" as approval of proposed next steps. No new information, decision, or authorization is needed in either case. If the worker's last turn poses a real decision — a choice between options, or authorization for consequential, out-of-scope, or destructive work — ESCALATE, never CONTINUE; a trivial in-scope "shall I?" go-ahead is APPROVE-CONTINUE, not ESCALATE. If the exchange is complete and nothing was asked, ACCEPT — never nudge a finished exchange.
+- CONTINUE: The exchange is INCOMPLETE and needs a trivial go-ahead. A CONTINUE must declare mode (oracle-plan ISS-03 + operator lexicon ruling): APPROVE = the worker proposed next steps and asked "shall I?"; KICK-START = the session is quiescent (stalled/errored, nothing in flight, no reply). The operator's word "continue" means kick-start; "proceed" means approve — never read an operator "continue" as approval. No new information, decision, or authorization is needed. If there is a real decision — a choice between options, or authorization for consequential, out-of-scope, or destructive work — ESCALATE, never CONTINUE; a trivial in-scope "shall I?" is APPROVE-CONTINUE, not ESCALATE. If complete and nothing was asked, ACCEPT — never nudge a finished exchange.
 - STEER: The worker is proceeding on stale or contradicted information established elsewhere in the supplied context. Cite the conflicting turns.
 - REFORMULATE: The reply cannot be evaluated or acted on by a competent operator seeing only the supplied transcript. Two shapes: (a) a final answer that is all jargon, with no stated impact and no required decision; (b) conclusions resting on context NOT supplied — earlier agreements, session-internal shorthand, jargon chains, hidden tool state. In shape (b) demand a standalone account rebuilt from first principles: define the terms, state what changed and why it matters — relying on nothing from the session's interior.
 - ESCALATE: A genuine operator decision is required: scope change, destructive or irreversible action, external dependency, or genuinely ambiguous intent. Describe the decision precisely.
@@ -237,7 +249,7 @@ Decision rules:
 
 AUTONOMOUS-ORIGIN SESSIONS: A target marked [origin: autonomous] was machine-initiated (bench-runner, ASTRA, heartbeat) and has no human owner. Drive it to completion: prefer CONTINUE on stall or error; do NOT ESCALATE for ordinary decisions. ESCALATE ONLY for a hard blocker (missing credential or secret), and mark it low-priority. Never re-litigate the automation's own purpose.
 
-Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": []}`
+Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "mode": "kick_start|approve|null", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": []}`
 
 export const CONFIRMATION_INSTRUCTION = `CONFIRMATION CHECK: The GATHERED EVIDENCE above was retrieved because you named an information need. State in "evidence_effect" whether it CONFIRMED, DISCONFIRMED, or was INCONCLUSIVE for your provisional lean, and cite the gathered evidence in your citations.`
 
