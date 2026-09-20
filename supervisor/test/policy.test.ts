@@ -55,6 +55,14 @@ describe("POLICY preserves the pre-existing contract", () => {
     expect(POLICY).toContain('"confidence": 0.0-1.0')
   })
 
+  test("gate round-1 refinement — accept-completion and continue-decision-pends", () => {
+    expect(POLICY).toContain("the requested outcome is DELIVERED in this reply")
+    expect(POLICY).toContain("NOT complete: CONTINUE, never ACCEPT")
+    expect(POLICY).toContain("a real decision pends — ESCALATE, never CONTINUE")
+    expect(POLICY).toContain("never nudge a finished exchange")
+    expect(POLICY).toContain("the matter is SETTLED: do not re-ask it")
+  })
+
   test("stays under the ~1.5k token ceiling", () => {
     expect(estimateTokens(POLICY)).toBeLessThan(1500)
   })
