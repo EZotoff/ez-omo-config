@@ -183,7 +183,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
     const turns = [...runtimes.values()].flatMap((entry) => entry.manifest.sessions.flatMap((scan) => scan.turns))
     status.unknownOriginRate = turns.length === 0 ? 0 : turns.filter((turn) => turn.origin === "unknown").length / turns.length
     status.machineMarkedRate = turns.length === 0 ? 0 : turns.filter((turn) => turn.origin === "machine-synthetic" || turn.origin === "machine-template").length / turns.length
-    await writeStatus(statusPath, status)
+    try {
+      await writeStatus(statusPath, status)
+    } catch (error) {
+      ledger = await ledger.append("ERROR", { root, error: `writeStatus failed: ${error instanceof Error ? error.message : String(error)}` })
+    }
     return runtime
   }
 

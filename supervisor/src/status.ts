@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { mkdir, open, readFile, rename } from "node:fs/promises"
 import { dirname } from "node:path"
 import { z } from "zod"
@@ -27,7 +28,7 @@ export type CollectTelemetry = z.infer<typeof collectTelemetrySchema>
 
 export async function writeStatus(path: string, status: SupervisorStatus): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
-  const temporary = `${path}.tmp-${process.pid}`
+  const temporary = `${path}.tmp-${process.pid}-${randomUUID()}`
   const handle = await open(temporary, "w", 0o600)
   try {
     await handle.writeFile(`${JSON.stringify(status, null, 2)}\n`)
