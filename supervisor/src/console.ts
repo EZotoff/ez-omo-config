@@ -398,6 +398,39 @@ export class ConsoleChannel {
     return replies
   }
 
+  /** Crash recovery: items left in `answered` (service killed mid-routing) re-enter
+   *  the router's tail: revalidate → resolve or propagation-pending. Idempotent. */
+  async recoverAnswered(): Promise<number> {
+    const answered = this.queue.items.filter((item) => itemState(item) === "answered")
+    let recovered = 0
+    for (const item of answered) {
+      const now = new Date().toISOString()
+      try {
+        const sources = await this.probe(item)
+        const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (outcome.kind === "retired-by-evidence") {
+          await this.queue.resolve(item.id, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
+        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+          await this.queue.resolve(item.id, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
+        } else if (outcome.kind === "expired") {
+          await this.queue.resolve(item.id, { disposition: "expired", evidence: [], now, reason: outcome.reason })
+        } else {
+          this.setLedger(await this.ledger().append("QUEUE_PROPAGATION_PROPOSED", {
+            itemID: item.id,
+            target: item.target,
+            answer: "(recovered after restart — reply was applied before the crash)",
+            mode: "pending",
+            reason: "reason" in outcome ? outcome.reason : "still relevant",
+          }))
+        }
+        recovered += 1
+      } catch (error) {
+        this.setLedger(await this.ledger().append("ERROR", { itemID: item.id, error: `recoverAnswered failed: ${error instanceof Error ? error.message : String(error)}` }))
+      }
+    }
+    return recovered
+  }
+
   /** Correlate → mark answered → revalidate → route. Never guesses on ambiguity. */
   async handleReply(reply: ReplyEvent, now: ISO8601): Promise<RouteOutcome> {
     if (isResume(reply.normalizedText)) {

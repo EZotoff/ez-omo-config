@@ -196,6 +196,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
     probe: buildSources,
   })
   await consoles.load()
+  const recovered = await consoles.recoverAnswered()
+  if (recovered > 0) {
+    ledger = await ledger.append("ERROR", { reason: "startup recovery", recovered, note: "items found in answered state after restart — re-routed" })
+  }
 
   const reconcile = async (root: string): Promise<RootRuntime> => {
     const manifest = await reconcileRoot(client, root, emptyRegistry, {
@@ -451,9 +455,14 @@ export async function runService(signal: AbortSignal): Promise<void> {
 
   // Polling ingress (SSE is unusable on live 1.18.5 for project events — see poller.ts).
   const POLL_INTERVAL_MS = 20_000
-  for (const root of config.roots) {
-    if (root.mode === "off") continue
-    const runtime0 = await reconcile(root.path)
+  const activeRoots = config.roots.filter((root) => root.mode !== "off")
+  // Startup reconciles are independent per root — run them concurrently so a
+  // multi-root restart fits inside systemd's stop/start budget (was: 6 × 60-90s
+  // sequential, which caused the SIGKILL of 2026-09-20).
+  await Promise.all(activeRoots.map((root) => reconcile(root.path)))
+  for (const root of activeRoots) {
+    const runtime0 = runtimes.get(root.path)
+    if (runtime0 === undefined) continue
     status.modes = { ...status.modes, [root.path]: runtime0.mode }
     await writeStatus(statusPath, status)
     if (root.mode === "observe" || root.mode === "full") {
