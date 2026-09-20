@@ -106,3 +106,18 @@ test("proxy fires when model emits template-empty needs array", () => {
   const raw = JSON.stringify({ action: "ESCALATE", rationale: "x", citations: [{ session: "s", messageID: "m", quote: "not yet agreed on the migration" }], confidence: 0.9, information_needs: [] })
   expect(parseDecision(raw, 0.6).information_needs?.length).toBe(1)
 })
+
+/* --- SessionScheduler defer-not-drop (import lazily to avoid cycles in other tests) --- */
+test("SessionScheduler defers throttled work instead of dropping it", async () => {
+  const { SessionScheduler } = await import("../src/service")
+  let ran = 0
+  const now = { v: 0 }
+  const sched = new SessionScheduler(1_000, () => now.v, async () => { ran += 1 })
+  await sched.enqueue("ses-a")           // runs immediately (lastTickAt unset)
+  sched.markTicked("ses-a")
+  now.v = 500                            // next enqueue is throttled (500 < 1000)
+  await sched.enqueue("ses-a")           // must DEFER, not drop
+  now.v = 1_500                          // interval elapsed before the timer fires logic-wise;
+  await new Promise((r) => setTimeout(r, 1_100))  // wait out the defer timer
+  expect(ran).toBe(2)
+})

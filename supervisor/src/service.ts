@@ -76,10 +76,26 @@ export class SessionScheduler {
     this.lastTickAt.set(sessionID, this.nowFn())
   }
 
+  private readonly deferred = new Set<string>()
+
   enqueue(sessionID: string): Promise<void> {
     const previous = this.inFlight.get(sessionID) ?? Promise.resolve()
     const next = previous.then(() => {
-      if (this.isThrottled(sessionID)) return
+      if (this.isThrottled(sessionID)) {
+        // Defer, never drop: the poller emits idle only on the completed-flip,
+        // so a dropped event leaves the turn permanently unsupervised (caught
+        // live 2026-09-20: second turn inside the 300s window vanished).
+        if (!this.deferred.has(sessionID)) {
+          this.deferred.add(sessionID)
+          const elapsed = this.nowFn() - (this.lastTickAt.get(sessionID) ?? 0)
+          const wait = Math.max(this.minIntervalMs - elapsed, 1_000)
+          setTimeout(() => {
+            this.deferred.delete(sessionID)
+            void this.enqueue(sessionID)
+          }, wait)
+        }
+        return
+      }
       return this.run(sessionID)
     })
     // Chain state must never reject (a failed run would poison every later
