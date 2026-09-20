@@ -211,6 +211,7 @@ async function runCorpusFork(ids: readonly string[]): Promise<void> {
       outcome: event?.outcome ?? "none",
       gatheredTokens: event?.tokens ?? 0,
       tick2Action: decision.action,
+      mode: decision.mode ?? null,
       evidenceEffect: decision.evidence_effect ?? null,
       changed: event?.changed ?? false,
       rationale: decision.rationale.slice(0, 200),
@@ -232,10 +233,12 @@ async function main(): Promise<void> {
     return
   }
   const allProjects = args.has("all")
-  const root = args.get("--root") ?? "/home/ezotoff/AI_projects/veran"
-  const maxContinue = Number(args.get("--sample") ?? 30)
-  const maxControl = Number(args.get("--control") ?? 15)
-  const days = Number(args.get("--days") ?? 9999)
+  const root = args.get("root") ?? "/home/ezotoff/AI_projects/veran"
+  const maxContinue = Number(args.get("sample") ?? 30)
+  const maxControl = Number(args.get("control") ?? 15)
+  const continueOffset = Number(args.get("continue-offset") ?? 0)
+  const controlOffset = Number(args.get("control-offset") ?? 0)
+  const days = Number(args.get("days") ?? 9999)
 
   const repoRoot = resolve(import.meta.dir, "../..")
   const config = await loadConfig(join(repoRoot, "configs", "opencode-supervisor", "supervisor.json"))
@@ -297,8 +300,8 @@ async function main(): Promise<void> {
       cases.push({ kind, session: sessionID, target: current.turn, targetCreatedMs: current.userCreatedMs, history: turns.slice(0, i + 1).map((t) => t.turn) })
     }
   }
-  const continueCases = cases.filter((c) => c.kind === "continue").slice(0, maxContinue)
-  const controlCases = cases.filter((c) => c.kind === "control").slice(0, maxControl)
+  const continueCases = cases.filter((c) => c.kind === "continue").slice(continueOffset, continueOffset + maxContinue)
+  const controlCases = cases.filter((c) => c.kind === "control").slice(controlOffset, controlOffset + maxControl)
   console.error(`cases: ${continueCases.length} continue-ground-truth, ${controlCases.length} control`)
 
   const siblings = [...perSession.entries()]
@@ -329,6 +332,7 @@ async function main(): Promise<void> {
       targetMessage: c.target.userMessageID,
       push: c.kind === "continue" ? "continue-class" : "substantive",
       decision: decision.action,
+      mode: decision.mode ?? null,
       confidence: decision.confidence,
       rationale: decision.rationale.slice(0, 220),
       userText: c.target.userText.slice(0, 2000),
