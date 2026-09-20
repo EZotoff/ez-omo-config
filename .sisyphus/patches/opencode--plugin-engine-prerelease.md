@@ -6,10 +6,10 @@ target_install_path: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-20"
 dep_version: "1.18.31"
-verification_pattern: "satisfies\\([a-zA-Z_$][a-zA-Z0-9_$]*,[a-zA-Z_$][a-zA-Z0-9_$]*,\\{includePrerelease:!0\\})"
+verification_pattern: "satisfies\([a-zA-Z_$][a-zA-Z0-9_$]*,[a-zA-Z_$][a-zA-Z0-9_$]*,\{includePrerelease:!0\}\)"
 verification_strength: "discriminative"
 required_evidence: "provenance"
-runtime_effective: false
+runtime_effective: true
 surfaces: "server-api"
 ---
 
@@ -36,6 +36,10 @@ Runtime verification (the real surface): after install + service restart, a TUI 
 ## Reapply Instructions
 1. In `packages/opencode/src/plugin/shared.ts`, `checkPluginCompatibility`: change `semver.satisfies(opencodeVersion, range)` to `semver.satisfies(opencodeVersion, range, { includePrerelease: true })`.
 2. Commit on `update/v1.18.31`, update `config/patch-lockfile.json` (generation + implementation_commits), push the branch to the fork, then build + install via `scripts/build-and-install-opencode.sh build` / `install`.
+
+### Observed 2026-09-20 (v1.18.31-p2 install)
+- Pattern matches live binary (exactly 1 hit; minified 3-arg satisfies shape), provenance-verified via receipt e01c2070c550 (generation opencode-1.18.31-patches.2, source_head 3b734b960d pushed to fork).
+- A/B syscall trace (strace openat, scratch-dir `opencode run`): p1 backup binary resolves the npm plugin entry (`src/index.ts`) but never imports the module graph (compatibility-stage skip); p2 binary imports the full graph (`src/auth-refresh.ts`, `src/auth-store.ts`, `src/constants.ts`, `src/headers.ts`, `src/oauth.ts` present in p2 trace only). Plugin load confirmed on the real surface. Note: skip events are publish-only (no log, dropped from /event at boot) and file plugins bypass the gate entirely (loader.ts:123), so toast watching and file-plugin probes are NOT valid observations for this gate.
 
 ## Durable Alternative
 Upstreamable: `anomalyco/opencode` `checkPluginCompatibility` should pass `includePrerelease: true` (or strip the prerelease label from the host version) so nightly/patched/fork builds satisfy plugin engine ranges. Not yet filed.
