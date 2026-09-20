@@ -6,13 +6,22 @@ The OhMyOpenCode configuration system provides portable, reusable OpenCode setti
 
 Configuration files control OpenCode behavior, provider settings, plugin loading, model assignments, and permission restrictions. All configs are copied from the local OpenCode installation with personal paths normalized to `$HOME` notation.
 
-## Project Supervisor P0
+## Project Supervisor
 
-`configs/opencode-supervisor/supervisor.json` configures the external read-only supervisor. It observes the existing server at `server_url`, supervises only configured top-level project roots, applies grace and minimum-interval limits, caps assembled context, and sends stateless JSON judgment requests to the configured model. P0 accepts only `off` and `shadow`; unknown keys or modes fail closed.
+`configs/opencode-supervisor/supervisor.json` configures the external supervisor service (`supervisor/`, Bun + strict TypeScript; deployed via the `opencode-supervisor.service` systemd unit, `observe` mode on all six configured roots). It observes the existing server at `server_url`, supervises only configured top-level project roots, applies grace and minimum-interval limits, runs stateless JSON judgment ticks against the configured model, and never writes into worker sessions — tickets surface only through the per-root `[Supervisor]` console session. Modes per root: `off`, `shadow`, `observe`, `full`; unknown keys or modes fail closed.
 
-The installer places the config at `$HOME/.config/opencode-supervisor/supervisor.json`. The service writes no OpenCode session data and binds no port. Its only writes are the hash-chained ledger and atomic status snapshot under `$HOME/.local/state/opencode-supervisor/`. The provider key remains in `$HOME/.local/share/opencode/auth.json` and is never persisted by the supervisor.
+Key config surface:
 
-Evidence state: `repo_implemented`. Not verified live: `live_file_installed`, `active_config_registered`, `runtime_loaded`, `real_project_behavior_proven`.
+- `token_budget: 40000` with `tier_budgets` (target_history 15000 / hot 8000 / warm 6000 / cool 4000 / cold 2000) — assembler v2 builds L0 target + L1 history + L2 recency-tiered siblings (with titles) + L3 self-memory; overflow degrades COLD→COOL→WARM then trims L1 oldest instead of ABSTAIN-by-truncation.
+- Collect-vs-decide fork: a judgment naming `information_need` gets one bounded gather round (≤3 lookups, ≤30s) before deciding; collect rate is guarded (20% target, 50% hard cap).
+- Session-health classifier (aborted/errored/stalled/healthy) gates CONTINUE-class targets (abort guard).
+- Protection: `bun run supervisor/src/status-cli.ts protect|unprotect <sessionID>` persists to `~/.local/state/opencode-supervisor/protected.json` and blocks CONTINUE-class targeting.
+- Per-root trust (`trust.autonomous_deploy`, `trust.autonomous_credentialed_actions`) plus autonomous-origin keys (`autonomous_path_globs`, `autonomous_title_prefixes`) classify autonomous sessions (`src/origins.ts`).
+- AttentionQueue (`src/queue.ts`, contract Seam 4): durable surfacing queue with dedupe/lease/prioritization; channels collect, ticks propose, only the queue surfaces. Console channel lifecycle in `src/console.ts`.
+
+The installer places the config at `$HOME/.config/opencode-supervisor/supervisor.json`. The service writes no OpenCode session data and binds no port. Its writes are the hash-chained ledger, atomic status snapshot, protection registry, and grading artifacts under `$HOME/.local/state/opencode-supervisor/`. The provider key remains in `$HOME/.local/share/opencode/auth.json` and is never persisted by the supervisor. Architecture authority: `docs/portable-supervisor-contract.md` (Seam 4 for queue terminology).
+
+Evidence state: `repo_implemented` + `tests_passed` (21 suites in `supervisor/test/`); `runtime_loaded` for the service and queue/status/protect CLI; console-channel live cycle in progress. Not verified live: `real_project_behavior_proven`.
 
 ---
 
