@@ -7,9 +7,7 @@
     "zai-coding-plan",
     "inception",
     "ollama-cloud",
-    "bonsai2",
-    "bonsai2-up",
-    "bonsai-lb"
+    "local"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -744,27 +742,6 @@
     "anthropic": {
       "name": "Anthropic (Claude Pro)"
     },
-    "ollama-local": {
-      "name": "Ollama (local)",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://127.0.0.1:18210/v1",
-        "backupURL": "http://10.71.71.3:18211/v1",
-        "apiKey": "ollama-local",
-        "chunkTimeout": 600000,
-        "headerTimeout": 600000
-      },
-      "models": {
-        "qwen3.8-27b": {
-          "name": "Qwen3.8 27B IQ3_XXS (local)",
-          "limit": {
-            "context": 57344,
-            "output": 16384
-          },
-          "attachment": false
-        }
-      }
-    },
     "ollama-cloud": {
       "name": "Ollama Cloud",
       "whitelist": [
@@ -840,99 +817,6 @@
         }
       }
     },
-    "qwen-tunnel": {
-      "name": "Qwen3.8-27B+MTP (uni-pc tunnel)",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://10.71.71.3:18061/v1",
-        "apiKey": "qwen-tunnel",
-        "chunkTimeout": 600000,
-        "headerTimeout": 600000
-      },
-      "models": {
-        "qwen3.8-27b": {
-          "name": "Qwen3.8 27B GSQ-RCO IQ2_S+MTP (uni-pc 128k)",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 131072,
-            "output": 16384
-          },
-          "attachment": false
-        }
-      }
-    },
-    "bonsai2": {
-      "name": "Ternary-Bonsai-2-27B (local overnight bench)",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://127.0.0.1:18210/v1",
-        "backupURL": "http://10.71.71.3:18211/v1",
-        "apiKey": "bonsai2",
-        "chunkTimeout": 600000,
-        "headerTimeout": 600000
-      },
-      "models": {
-        "ternary-bonsai-2-27b-pq2": {
-          "name": "Bonsai-2 27B PQ2_0",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 262144,
-            "output": 16384
-          },
-          "attachment": false
-        },
-        "ternary-bonsai-2-27b-ptq1": {
-          "name": "Bonsai-2 27B PTQ1_0",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 262144,
-            "output": 16384
-          },
-          "attachment": false
-        }
-      }
-    },
-    "gsq-rco": {
-      "name": "GSQ-RCO Qwen3.8-27B (local llama.cpp)",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://127.0.0.1:18211/v1",
-        "apiKey": "gsq-rco",
-        "chunkTimeout": 600000,
-        "headerTimeout": 600000
-      },
-      "models": {
-        "qwen3.8-27b": {
-          "name": "Qwen3.8-27B GSQ-RCO IQ2_S+MTP (local 128k)",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 131072,
-            "output": 16384
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false
-        }
-      }
-    },
     "openrouter": {
       "name": "OpenRouter",
       "npm": "@ai-sdk/openai-compatible",
@@ -962,8 +846,8 @@
         }
       }
     },
-    "bonsai-lb": {
-      "name": "Bonsai-2 via LiteLLM LB (uni-pc :18213)",
+    "local": {
+      "name": "Local models (Bonsai LB + GSQ via uni-pc LiteLLM :18213)",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "http://100.86.113.119:18213/v1",
@@ -973,32 +857,7 @@
       },
       "models": {
         "bonsai": {
-          "name": "Bonsai-2 LB (auto 128k/262k pool)",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 262144,
-            "output": 16384
-          },
-          "attachment": false
-        }
-      }
-    },
-    "bonsai2-up": {
-      "name": "Bonsai PQ2_0 (uni-pc arm)",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://100.86.113.119:18211/v1",
-        "backupURL": "http://10.71.71.3:18211/v1",
-        "apiKey": "bonsai2",
-        "chunkTimeout": 600000,
-        "headerTimeout": 600000
-      },
-      "models": {
-        "ternary-bonsai-2-27b-pq2": {
-          "name": "Bonsai-2 27B PQ2_0",
+          "name": "Bonsai-2 27B (LB: laptop 262k + uni-pc 2x128k, auto ctx routing)",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -1009,15 +868,23 @@
           },
           "attachment": false
         },
-        "ternary-bonsai-2-27b-ptq1": {
-          "name": "Bonsai-2 27B PTQ1_0",
+        "qwen3.8-27b": {
+          "name": "Qwen3.8-27B GSQ-RCO IQ2_S+MTP (128k, server currently down)",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
           },
           "limit": {
-            "context": 262144,
+            "context": 131072,
             "output": 16384
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           },
           "attachment": false
         }
