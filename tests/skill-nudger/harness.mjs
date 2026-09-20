@@ -106,6 +106,21 @@ async function casePortBinding() {
   assert(t.output.messages.at(-1).parts[0].text.includes("`deployment`"), "suggests deployment skill");
 }
 
+async function caseUpstreamContribution() {
+  const { plugin, proofs } = await setup();
+  const sid = "ses_test_upstream";
+  const c = toolCall(sid, "bash", { command: "gh pr create --repo anomalyco/opencode --title 'fix: x'" }, "https://github.com/a/b/pull/1");
+  await plugin["tool.execute.after"](c.input, c.output);
+  assert(proofs.some((p) => p.event === "nudge_queued" && p.rule === "upstream-contribution"), "nudge queued for upstream-contribution");
+  const t = transformCall(sid);
+  await plugin["experimental.chat.messages.transform"]({}, t.output);
+  assertEquals(deliveredRule(proofs), "upstream-contribution", "delivered rule");
+  const text = t.output.messages.at(-1).parts[0].text;
+  assert(text.includes("`wisdom`"), "suggests wisdom skill");
+  assert(text.includes("wisdom-search"), "instruction mentions wisdom-search pre-flight");
+}
+
+
 async function caseLoop() {
   const { plugin, proofs } = await setup();
   const sid = "ses_test_loop";
@@ -234,6 +249,7 @@ const CASES = {
   "repeated-failure": caseRepeatedFailure,
   "retryable-error": caseRetryableError,
   "port-binding": casePortBinding,
+  "upstream-contribution": caseUpstreamContribution,
   "loop": caseLoop,
   "dedup-and-cap": caseDedupAndCap,
   "cooldown": caseCooldown,

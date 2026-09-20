@@ -480,6 +480,7 @@ Config-layer plugin that blocks write-intent operations against the live OpenCod
 | `repeatedFailure` | Same tool call fails N times consecutively (default 2) | `debugging` skill |
 | `retryableError` | Tool output matches a pattern in `retry-errors.json` | `register-retry-error` skill |
 | `portBinding` | Port-binding / server-start command executed (mirrors the global `/deployment` mandate list) | `deployment` skill |
+| `upstreamContribution` | `gh pr create` / `gh issue create` executed (mirrors the global AGENTS.md upstream-contribution pre-flight) | `wisdom` skill |
 | `loop` | Same call repeated ≥8 times within the sliding window | Step-back advisory (no skill) |
 
 **Delivery semantics** (probe-verified 2026-08-15 on v1.18.5):

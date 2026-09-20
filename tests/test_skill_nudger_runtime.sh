@@ -31,6 +31,7 @@ run_case() {
 run_case "repeated-failure"
 run_case "retryable-error"
 run_case "port-binding"
+run_case "upstream-contribution"
 run_case "loop"
 run_case "dedup-and-cap"
 run_case "cooldown"

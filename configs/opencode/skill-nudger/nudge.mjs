@@ -28,6 +28,14 @@ export const RULES = [
     instruction: "You are starting a server / binding a port. The `deployment` skill owns the port registry — invoke it before (or right after) binding to allocate and record the port.",
   },
   {
+    id: "upstream-contribution",
+    signal: "upstreamContribution",
+    skill: "wisdom",
+    agents: null,
+    instruction:
+      "You are creating an upstream PR/issue on an external repo. AGENTS.md pre-flight: (1) read the target repo's PR/issue template and CONTRIBUTING.md and follow them exactly — some repos bot-close non-compliant PRs within hours; (2) run `~/.sisyphus/scripts/wisdom-search.sh \"<owner/repo>\"` for prior attempts and gotchas. If already submitted, verify the description against the template NOW while the compliance window is open.",
+  },
+  {
     id: "loop-precursor",
     signal: "loop",
     skill: null,

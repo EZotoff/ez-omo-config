@@ -6,6 +6,7 @@
 //   repeatedFailure  -> debugging skill
 //   retryableError   -> register-retry-error skill (patterns from retry-errors.json)
 //   portBinding      -> deployment skill
+//   upstreamContribution -> wisdom skill (AGENTS.md pre-flight: templates + wisdom-search)
 //   loop             -> step-back meta advisory (no skill)
 //
 // Delivery: pending nudge consumed on the next messages.transform call for the

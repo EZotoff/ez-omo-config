@@ -32,6 +32,10 @@ const PORT_BINDING_RES = [
   /\bkubectl\s+port-forward\b/,
 ];
 
+// Commands that create upstream PRs/issues (mirrors the global AGENTS.md
+// upstream-contribution pre-flight mandate).
+const UPSTREAM_CONTRIBUTION_RE = /\bgh\s+(?:pr|issue)\s+create\b/;
+
 let retryPatternsCache = null;
 
 export function loadRetryPatterns() {
@@ -77,6 +81,12 @@ function isPortBinding(tool, args) {
   if (tool !== "bash" && tool !== "terminal") return false;
   const cmd = typeof args?.command === "string" ? args.command : "";
   return PORT_BINDING_RES.some((re) => re.test(cmd));
+}
+
+function isUpstreamContribution(tool, args) {
+  if (tool !== "bash" && tool !== "terminal") return false;
+  const cmd = typeof args?.command === "string" ? args.command : "";
+  return UPSTREAM_CONTRIBUTION_RE.test(cmd);
 }
 
 export function createSignalTracker(config) {
@@ -159,6 +169,14 @@ export function createSignalTracker(config) {
         type: "portBinding",
         skill: "deployment",
         evidence: "a port-binding / server-start command was executed",
+      });
+    }
+    // upstream-contribution: external PR/issue creation command observed
+    if (isUpstreamContribution(tool, args)) {
+      signals.push({
+        type: "upstreamContribution",
+        skill: "wisdom",
+        evidence: "an upstream PR/issue creation command was executed (`gh pr/issue create`)",
       });
     }
 
