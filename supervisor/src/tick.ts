@@ -114,6 +114,32 @@ function normalizeDecisionValue(value: unknown): unknown {
   if ((action === "ACCEPT" || action === "ABSTAIN") && Array.isArray(citations) && citations.some((item) => typeof item !== "object" || item === null)) {
     normalized["citations"] = []
   }
+  // Deterministic uncertainty proxy (spec-sanctioned): if a high-stakes action
+  // cites evidence its own quote flags as unverified, and the model named no
+  // need, synthesize one so the fork opens. Model cooperation is unreliable
+  // (diagnosed 2026-09-20: 0/59 live decisions with needs).
+  const UNCERTAIN = /\b(unclear|unverif\w*|not (?:yet )?agree\w*|no acceptance|unconfirm\w*|alleged|disput\w*|open question|not established)\b/i
+  if (
+    (normalized["action"] === "STEER" || normalized["action"] === "ESCALATE") &&
+    !(Array.isArray(normalized["information_needs"]) && normalized["information_needs"].length > 0) &&
+    Array.isArray(normalized["citations"])
+  ) {
+    const flagged = (normalized["citations"] as Array<Record<string, unknown>>).find(
+      (c) => typeof c["quote"] === "string" && UNCERTAIN.test(c["quote"]),
+    )
+    if (flagged !== undefined && typeof flagged["quote"] === "string" && typeof flagged["session"] === "string") {
+      const action = normalized["action"]
+      normalized["information_needs"] = [{
+        question: `Verify before acting: "${flagged["quote"].slice(0, 120)}"`,
+        scope: "sessions",
+        target: flagged["session"],
+        why: "the cited evidence itself flags the fact as unverified",
+        expected_effect: `confirm or flip the ${action}`,
+        synthetic: true,
+      }]
+    }
+  }
+
   // Fork fields: accept singular `information_need` or plural `information_needs`,
   // canonicalize to the array (max 3). A malformed plural is left for the schema to reject.
   const plural = normalized["information_needs"]
@@ -236,7 +262,7 @@ Actions:
 Decision rules:
 1. CONTINUE means NO operator decision exists. If a real decision is pending, ESCALATE. If the work is simply finished, ACCEPT.
 2. Use only facts from the supplied transcript. Every non-ACCEPT/ABSTAIN action must cite specific messages.
-3. Sufficiency test before deciding: could a competent operator, seeing ONLY the supplied transcript, evaluate the matter? If the gap is a pending OPERATOR DECISION, ESCALATE. If the gap is understanding the matter itself — opacity, missing foundations, unsupplied context — REFORMULATE, demanding a standalone account rebuilt from first principles. If the gap is confidence, ABSTAIN.
+3. Sufficiency test before deciding: could a competent operator, seeing ONLY the supplied transcript, evaluate the matter? If the gap is a pending OPERATOR DECISION, ESCALATE. If the gap is understanding the matter itself — opacity, missing foundations, unsupplied context — REFORMULATE, demanding a standalone account rebuilt from first principles. If the gap is confidence, ABSTAIN. If the gap is a SPECIFIC FACT that likely exists in the project record — another session's decision, an earlier turn beyond the supplied window, an open ticket's outcome — do NOT decide across the gap and do NOT merely ABSTAIN: name it as an information_need (rule 12) so it can be retrieved. Deciding on evidence the transcript itself labels unclear, unverified, or unagreed is a failure mode, not efficiency.
 4. Prefer the least intrusive correct action: ACCEPT before CONTINUE before STEER/REFORMULATE before ESCALATE.
 5. Calibrate confidence: 0.9+ only with clear textual evidence.
 6. Read operator messages for INTENT, not literal text. The intent behind an instruction outweighs its literal wording. Before acting on a literal reading, check it against the rest of the same message and the session's purpose. If the literal reading contradicts its own context — a probable typo that reverses meaning, or a self-contradictory pairing — do NOT act on the literal reading: ACCEPT if the worker already resolved it correctly, ESCALATE if a real decision pends. Never CONTINUE on a reading that rests on a probable typo or self-contradiction.
@@ -245,7 +271,7 @@ Decision rules:
 9. Deployment, promote, prod-write, and credential decisions are ESCALATE by default. Exception: if the project's trust config marks deploys autonomous, treat them as ordinary work.
 10. L1 TARGET HISTORY contains this session's prior turns — it is your memory. Use it to resolve ambiguous references, detect contradictions, and honor decisions already made earlier in the session. If the operator already answered or gave a go-ahead earlier, the matter is SETTLED: do not re-ask it; STEER requires citing the specific conflicting message.
 11. Your recent decisions and open tickets for this session are provided. Do not repeat a decision on the same unresolved cause. If you CONTINUEd last turn and the worker still has not delivered, STEER with the specific correction.
-12. Emit information_needs (0-3) ONLY when you can name a specific, retrievable piece of evidence and how it would change your call. Each need names: question, scope (sessions|ledger|cards), target (sessionID or "root"), why, expected_effect (what answer flips the action). Never use needs to avoid deciding. At most 3.
+12. BEFORE choosing an action, run rule 3's FACT-gap check. If a specific retrievable fact is missing, emit 1-3 information_needs FIRST and return your action as provisional — the system will retrieve and re-ask. Each need names: question, scope (sessions|ledger|cards), target (sessionID or "root"), why, expected_effect (what answer flips the action). Emit information_needs: [] ONLY when the supplied transcript genuinely suffices. Never use needs to avoid deciding — a need must name retrievable evidence, not an operator's preference. At most 3.
 
 AUTONOMOUS-ORIGIN SESSIONS: A target marked [origin: autonomous] was machine-initiated (bench-runner, ASTRA, heartbeat) and has no human owner. Drive it to completion: prefer CONTINUE on stall or error; do NOT ESCALATE for ordinary decisions. ESCALATE ONLY for a hard blocker (missing credential or secret), and mark it low-priority. Never re-litigate the automation's own purpose.
 

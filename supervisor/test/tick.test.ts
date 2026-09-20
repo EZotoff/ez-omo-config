@@ -82,3 +82,27 @@ describe("REFORMULATE covers foundational opacity (merged DEMAND_EXPLANATION)", 
     expect(POLICY).not.toContain("DEMAND_EXPLANATION")
   })
 })
+
+test("uncertainty proxy synthesizes a need for high-stakes citations flagged unverified", () => {
+  const raw = JSON.stringify({
+    action: "STEER", target: null,
+    rationale: "worker proceeds on a contradicted premise",
+    citations: [{ session: "ses_other", messageID: "m1", quote: "unclear — the ledger mentions a proposal but no acceptance" }],
+    confidence: 0.9,
+  })
+  const d = parseDecision(raw, 0.6)
+  expect(d.information_needs?.length).toBe(1)
+  expect(d.information_needs?.[0]?.scope).toBe("sessions")
+})
+
+test("uncertainty proxy does not fire on clean evidence or low-stakes actions", () => {
+  const clean = JSON.stringify({ action: "STEER", rationale: "x", citations: [{ session: "s", messageID: "m", quote: "Redis was removed for ordering bugs" }], confidence: 0.9 })
+  const low = JSON.stringify({ action: "ACCEPT", rationale: "x", citations: [{ session: "s", messageID: "m", quote: "unclear" }], confidence: 0.9 })
+  expect(parseDecision(clean, 0.6).information_needs ?? []).toHaveLength(0)
+  expect(parseDecision(low, 0.6).information_needs ?? []).toHaveLength(0)
+})
+
+test("proxy fires when model emits template-empty needs array", () => {
+  const raw = JSON.stringify({ action: "ESCALATE", rationale: "x", citations: [{ session: "s", messageID: "m", quote: "not yet agreed on the migration" }], confidence: 0.9, information_needs: [] })
+  expect(parseDecision(raw, 0.6).information_needs?.length).toBe(1)
+})

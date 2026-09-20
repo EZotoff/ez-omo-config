@@ -20,6 +20,8 @@ export const statusSchema = z.object({
   ticksByAction: z.record(z.string(), z.number().int().nonnegative()),
   unknownOriginRate: z.number().min(0).max(1),
   modes: z.record(z.string(), z.string()).optional(),
+  errorsSinceStart: z.number().int().nonnegative().optional(),
+  errorsLastHour: z.number().int().nonnegative().optional(),
   machineMarkedRate: z.number().min(0).max(1),
   collect: collectTelemetrySchema.optional(),
 }).strict()

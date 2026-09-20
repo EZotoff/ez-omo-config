@@ -97,7 +97,7 @@ function eventSessionID(event: ServerEvent): string | undefined {
 }
 
 function emptyStatus(): SupervisorStatus {
-  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {}, collect: { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 } }
+  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {}, errorsSinceStart: 0, errorsLastHour: 0, collect: { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 } }
 }
 
 export async function runService(signal: AbortSignal): Promise<void> {
@@ -116,6 +116,22 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const tickGate = new ConcurrencyGate(config.max_tick_concurrency)
   let ledger = await Ledger.open(ledgerPath)
   const status = emptyStatus()
+  const errorHour = { windowStart: Date.now(), count: 0, toasted: false }
+  async function recordErrorTelemetry(payload: Record<string, unknown>): Promise<void> {
+    status.errorsSinceStart = (status.errorsSinceStart ?? 0) + 1
+    if (Date.now() - errorHour.windowStart > 3_600_000) {
+      errorHour.windowStart = Date.now()
+      errorHour.count = 0
+      errorHour.toasted = false
+    }
+    errorHour.count += 1
+    status.errorsLastHour = errorHour.count
+    if (errorHour.count >= 20 && !errorHour.toasted) {
+      errorHour.toasted = true
+      await client.toast(`Supervisor logged ${errorHour.count} errors in the last hour (check journald + ledger)`, "Supervisor error storm")
+    }
+  }
+
   const collectBudget = new CollectBudget()
   const runtimes = new Map<string, RootRuntime>()
   const protection = await ProtectionRegistry.open(join(stateDirectory, "protected.json"))
@@ -191,6 +207,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       await writeStatus(statusPath, status)
     } catch (error) {
       ledger = await ledger.append("ERROR", { root, error: `writeStatus failed: ${error instanceof Error ? error.message : String(error)}` })
+      await recordErrorTelemetry({})
     }
     return runtime
   }
@@ -393,6 +410,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
     void runtime.scheduler.enqueue(sessionID).catch(async (error) => {
       if (!(error instanceof Error)) throw error
       ledger = await ledger.append("ERROR", { root: runtime.root, sessionID, error: error.message })
+      await recordErrorTelemetry({ root: runtime.root })
     })
   }
 
@@ -402,6 +420,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
     runtime.states.set(sessionID, result.state)
     if (result.illegal) {
       ledger = await ledger.append("ERROR", { root: runtime.root, sessionID, reason: "illegal FSM transition", event: event.type })
+      await recordErrorTelemetry({ root: runtime.root })
     }
     return previous.kind !== "GRACE" && result.state.kind === "GRACE" && !result.illegal
   }
@@ -450,6 +469,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         } catch (error) {
           if (error instanceof Error) {
             ledger = await ledger.append("ERROR", { root: root.path, error: error.message })
+            await recordErrorTelemetry({ root: root.path })
           }
         }
       }
