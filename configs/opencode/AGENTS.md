@@ -83,6 +83,19 @@ A sub-agent on the local Qwen rig died mid-task from ONE tool output: unscoped `
 - Prefer `git ls-files`, `git log --oneline -5`, and glob tools over raw listings.
 - Tool outputs are capped globally (`tool_output.max_lines/max_bytes`) — when a result arrives truncated, narrow the query instead of repeating it.
 
+## Session attachment hygiene
+
+Parentless OpenCode sessions appear in the operator's session picker (subagent/task sessions are parented and hidden). Attach a session to a real project directory only when its transcript is productive work worth finding again: implementation, investigation, review, planning, or other work with future reference value.
+
+Throwaway invocations MUST run in a dedicated scratch directory instead. This includes model/provider identity or quota probes, load-balancer checks, one-word reply tests ("Reply with exactly: OK", "say ok"), harness/compliance checks, smoke tests, and any `opencode run` invocation whose transcript has no future value. Prefer:
+
+    scratch="$(mktemp -d /tmp/opencode/probe.XXXXXX)"
+    opencode run --dir "$scratch" ...
+
+`--dir` is preferable to a shell `cd`: it explicitly controls instance/project attachment (relative file arguments then resolve against that directory, so use absolute paths for project files). `--title` alone is not isolation — it only renames the session. When using `--attach`, `--dir` names a directory on the server host, so create the scratch directory there. Worktrees are real project directories: productive work belongs there, but throwaway probes launched from a worktree still belong in scratch.
+
+The same rule applies to scripts and direct API clients: throwaway sessions must use a scratch-directory instance (or be created as children of an existing parent session). **Do not send productive work to /tmp** — sessions with future reference value belong in their project directory. Incidents: 2026-09-19 regression-test spam (13 sessions in ez-omo-config), 2026-09-19/20 probe spam (~15 "PROBE-OK"/"LB_OK"/one-word-reply sessions in ez-omo-bench and ez-omo-config).
+
 
 ## Plan-execution records (durable execution baseline + final-wave verdicts)
 
