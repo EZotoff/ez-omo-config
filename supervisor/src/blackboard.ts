@@ -209,8 +209,8 @@ export class Blackboard {
   }
 
   /** Retire-by-evidence hook: the fact that answered an open question, for the queue's answeredElsewhere source. */
-  answerFor(decisionKey: DecisionKey): { readonly entryID: string; readonly version: number } | undefined {
-    return this.snapshot.answers.find((answer) => answer.decisionKey === decisionKey)
+  answerFor(decisionKey: DecisionKey, now: ISO8601): { readonly entryID: string; readonly version: number } | undefined {
+    return this.snapshot.answers.find((answer) => answer.decisionKey === decisionKey && this.factActive(answer.entryID, answer.version, now))
   }
 
   /**
@@ -238,7 +238,9 @@ export class Blackboard {
       const evict = new Set(oldestFirst.slice(0, excess).map((entry) => entry.id))
       entries = entries.filter((entry) => entry.root !== root || !evict.has(entry.id) || protectedEntry(entry))
     }
-    this.snapshot = { schemaVersion: 1, entries, answers: this.snapshot.answers }
+    const answers = this.snapshot.answers.filter((answer) =>
+      entries.some((entry) => entry.kind === "fact" && entry.id === answer.entryID && entry.version === answer.version && entry.status === "active" && !isExpired(entry, now)))
+    this.snapshot = { schemaVersion: 1, entries, answers }
     await this.persist()
   }
 }

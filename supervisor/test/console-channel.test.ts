@@ -120,7 +120,10 @@ describe("correlateReply", () => {
     expect(correlateReply("Q1: deploy?", context)).toEqual({ status: "matched", itemID: a })
   })
   test("bare answer matches the single globally surfaced item", () => {
-    expect(correlateReply("deploy?", { ...base, surfacedItemID: a })).toEqual({ status: "matched", itemID: a })
+    expect(correlateReply("deploy?", { ...base, surfacedItemID: a, surfacedItemRoot: "/root" })).toEqual({ status: "matched", itemID: a })
+  })
+  test("bare answer does not match an item surfaced on another root", () => {
+    expect(correlateReply("deploy?", { ...base, surfacedItemID: a, surfacedItemRoot: "/other-root" })).toEqual({ status: "ambiguous", candidateItemIDs: [a, b] })
   })
   test("bare answer matches the single unresolved item in the root", () => {
     expect(correlateReply("deploy?", { ...base, unresolvedItemIDs: [a] })).toEqual({ status: "matched", itemID: a })

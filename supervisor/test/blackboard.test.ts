@@ -170,7 +170,7 @@ describe("blackboard", () => {
         now: at(HOUR),
       })
       expect(answeredQuestions.map((entry) => entry.id)).toContain(question.id)
-      const answer = board.answerFor(item.decisionKey)
+      const answer = board.answerFor(item.decisionKey, at(HOUR))
       expect(answer?.entryID).toBe(fact.id)
       const outcome = revalidate(item, allTrueSources({ answeredElsewhere: () => (answer === undefined ? undefined : { source: "blackboard", entryID: answer.entryID, version: answer.version }) }), { now: at(HOUR), graceMs: 60_000, ttlMs: 24 * HOUR })
       expect(outcome.kind).toBe("retired-by-evidence")
@@ -178,6 +178,23 @@ describe("blackboard", () => {
         expect(outcome.evidence[0]?.source).toBe("blackboard")
         expect(outcome.evidence[0]).toMatchObject({ entryID: fact.id, version: fact.version })
       }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  test("expired fact answer does not retire a live ticket", async () => {
+    const { board, dir } = await openBlackboard()
+    try {
+      const item = queueItem()
+      await board.openQuestion({ root: "/root", decisionKey: item.decisionKey, queueItemID: item.id, question: item.question, now: T0 })
+      await board.writeFact({ root: "/root", subjectKey: item.decisionKey, statement: "temporary answer", ttlMs: HOUR, now: T0 })
+
+      const answer = board.answerFor(item.decisionKey, at(2 * HOUR))
+      const outcome = revalidate(item, allTrueSources({ answeredElsewhere: () => (answer === undefined ? undefined : { source: "blackboard", entryID: answer.entryID, version: answer.version }) }), { now: at(2 * HOUR), graceMs: 60_000, ttlMs: 24 * HOUR })
+
+      expect(answer).toBeUndefined()
+      expect(outcome.kind).toBe("valid")
     } finally {
       await rm(dir, { recursive: true, force: true })
     }

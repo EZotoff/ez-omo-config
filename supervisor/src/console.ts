@@ -147,6 +147,7 @@ export function glanceHeadline(question: string): string {
 export type CorrelationContext = {
   readonly root: string
   readonly surfacedItemID?: QueueItemID
+  readonly surfacedItemRoot?: string
   readonly unresolvedItemIDs: readonly QueueItemID[]
   readonly resolveAlias: (token: string) => QueueItemID | undefined
 }
@@ -168,7 +169,7 @@ export function correlateReply(text: string, context: CorrelationContext): Reply
     }
     return { status: "unmatched" }
   }
-  if (context.surfacedItemID !== undefined) return { status: "matched", itemID: context.surfacedItemID }
+  if (context.surfacedItemID !== undefined && context.surfacedItemRoot === context.root) return { status: "matched", itemID: context.surfacedItemID }
   if (context.unresolvedItemIDs.length === 1) {
     const only = context.unresolvedItemIDs[0]
     if (only !== undefined) return { status: "matched", itemID: only }
@@ -474,13 +475,14 @@ export class ConsoleChannel {
 
   private buildReply(root: string, text: string, now: ISO8601): ReplyEvent {
     const lease = this.queue.lease
+    const surfacedItem = lease === undefined ? undefined : this.queue.items.find((item) => item.id === lease.itemID)
     const unresolved = this.queue.items
       .filter((item) => item.target.root === root && itemState(item) !== "resolved" && itemState(item) !== "answered")
       .map((item) => item.id)
     const aliases = this.state.aliases[root] ?? {}
     const correlation = correlateReply(text, {
       root,
-      ...(lease === undefined ? {} : { surfacedItemID: lease.itemID }),
+      ...(lease === undefined || surfacedItem === undefined ? {} : { surfacedItemID: lease.itemID, surfacedItemRoot: surfacedItem.target.root }),
       unresolvedItemIDs: unresolved,
       resolveAlias: (token) => {
         const itemID = aliases[token]

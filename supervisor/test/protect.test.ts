@@ -125,6 +125,19 @@ describe("pickTarget protection gate", () => {
 })
 
 describe("queue protection gate", () => {
+  test("service predicate skips protected CONTINUE targets while preserving ESCALATE", async () => {
+    const path = await registryPath()
+    const registry = await ProtectionRegistry.open(path)
+    await registry.protect("ses-a")
+    const protectedSession = (sessionID: string): boolean => registry.isProtected(sessionID)
+    const { turns, messages } = idleKickStartFixture()
+    const { append } = collectAppends()
+    const queue = await AttentionQueue.open({ path: join(path, "..", "queue.json"), append, protectedSession })
+
+    expect(pickTarget(turns, messages, { sessionProtected: protectedSession("ses-a") })).toBeUndefined()
+    expect((await queue.propose(proposeInput("ses-a", "ESCALATE"))).kind).toBe("created")
+  })
+
   test("CONTINUE proposal for a protected session is blocked; ESCALATE still proposes", async () => {
     const path = await registryPath()
     const registry = await ProtectionRegistry.open(path)

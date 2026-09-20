@@ -18,6 +18,7 @@ import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
 import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
 import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
+import { ProtectionRegistry } from "./protect"
 import type { Action, AttentionQueueItem, Decision, OriginRegistry, Session, Turn } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
@@ -117,9 +118,12 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const status = emptyStatus()
   const collectBudget = new CollectBudget()
   const runtimes = new Map<string, RootRuntime>()
+  const protection = await ProtectionRegistry.open(join(stateDirectory, "protected.json"))
+  const protectedSession = (sessionID: string): boolean => protection.isProtected(sessionID)
   const queue = await AttentionQueue.open({
     path: join(stateDirectory, "queue.json"),
     append: async (type, payload) => { ledger = await ledger.append(type, payload) },
+    protectedSession,
   })
   const blackboard = await Blackboard.open({
     path: join(stateDirectory, "blackboard.json"),
@@ -143,7 +147,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       blackboardFactActive: (premise) => blackboard.factActive(premise.factID, premise.factVersion, new Date().toISOString()),
       canonicalItemFor: (key) => queue.items.find((entry) => entry.decisionKey === key && itemState(entry) !== "resolved")?.id,
       answeredElsewhere: (item) => {
-        const answer = blackboard.answerFor(item.decisionKey)
+        const answer = blackboard.answerFor(item.decisionKey, new Date().toISOString())
         return answer === undefined ? undefined : { source: "blackboard", entryID: answer.entryID, version: answer.version }
       },
       approvalRequired: () => false,
@@ -236,7 +240,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       // Operator-attention-point guard: tick only if the target reply is the
       // session's LAST message. If anything arrived after it (a ralph push, a
       // nudge, a user message), that idle moment was already handled — stand down.
-      const target = scan === undefined ? undefined : pickTarget(scan.turns, scan.messages)
+      const target = scan === undefined ? undefined : pickTarget(scan.turns, scan.messages, { sessionProtected: protectedSession(sessionID) })
       if (target === undefined) {
         if (scan !== undefined && scan.turns.length > 0) {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "target is not the session's last message (native continuation or newer turn intervened)" })
