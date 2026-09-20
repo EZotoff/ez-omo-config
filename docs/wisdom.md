@@ -119,7 +119,7 @@ wisdom-search.sh QUERY [OPTIONS]
 - `--include-status LIST`: Extend default visibility with comma-separated statuses such as `superseded,retracted`
 - `--provenance VALUE`: Filter by canonical provenance value
 - `--origin-session ID`: Filter by canonical origin session ID
-- `--touch`: Explicitly update `accessed` and `last_accessed` telemetry for returned entries
+- `--no-touch`: Disable access telemetry (on by default: `accessed` count and `last_accessed` are updated for matched entries; `--touch` is still accepted as a no-op for compatibility)
 
 **Default retrieval**: searches only `active` and `stale` entries. `superseded` and `retracted` stay hidden unless explicitly included with `--include-status`.
 
@@ -139,7 +139,7 @@ wisdom-search.sh "build error" --scope project --project-id myapp --json
 wisdom-search.sh docker --include-status superseded --json
 ```
 
-**Access Tracking**: Search is read-only by default. Pass `--touch` to explicitly update `accessed` and `last_accessed` for matched entries.
+**Access Tracking**: Search updates `accessed` and `last_accessed` for matched entries by default, making consultation measurable. Pass `--no-touch` for a strictly read-only search.
 
 ### wisdom-write.sh
 

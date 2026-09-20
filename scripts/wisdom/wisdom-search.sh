@@ -24,7 +24,7 @@ AUTHORITY_FILTER=""
 INCLUDE_STATUS=""
 PROVENANCE_FILTER=""
 ORIGIN_SESSION_FILTER=""
-TOUCH=false
+TOUCH=true
 
 # --------------------------------------------------------------------------
 # Usage
@@ -48,7 +48,7 @@ Options:
   --include-status LIST  Also include statuses: superseded,retracted
   --provenance VALUE     Filter by provenance value
   --origin-session ID    Filter by origin_session
-  --touch                Update access telemetry (accessed count, last_accessed)
+  --no-touch             Disable access telemetry (on by default: accessed count, last_accessed)
   --help, -h             Show this help
 
 Exit codes:
@@ -228,6 +228,8 @@ while [[ $# -gt 0 ]]; do
             shift ;;
         --touch)
             TOUCH=true; shift ;;
+        --no-touch)
+            TOUCH=false; shift ;;
         --help|-h)
             usage ;;
         -*)

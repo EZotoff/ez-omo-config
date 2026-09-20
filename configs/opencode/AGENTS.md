@@ -34,6 +34,13 @@ When searching for code or understanding codebase structure, use this vanilla di
 
 Prefer codegraph/LSP facts over memory. If a tool is unavailable or returns no useful result, fall back to the next appropriate vanilla tool without bootstrapping any repo-local search service.
 
+## Before upstream contributions (PRs/issues to external repos)
+
+Before creating any PR or issue on a repo you didn't create in this session:
+1. Read the repo's PR/issue templates and CONTRIBUTING.md first; follow them exactly. Some repos auto-close non-compliant PRs within hours (anomalyco/opencode: 2h).
+2. Run `~/.sisyphus/scripts/wisdom-search.sh "<repo owner/name>"` and act on any gotchas — prior attempts may exist that you don't know about.
+3. If a prior PR/issue of ours on this repo was bot-closed, say so in the new one.
+
 ## Before Modifying Unknown Systems
 
 Before changing code or config in a system you didn't build in this session,

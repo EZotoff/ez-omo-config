@@ -38,7 +38,7 @@ You have access to a shared knowledge store called **Wisdom** — institutional 
 - `--provenance VALUE`: Filter by canonical provenance (`closeout|nomination|manual|manifest-import|migration|publish-export|compat-shim`)
 - Default search returns only `active` and `stale` entries.
 - Use `--include-status superseded,retracted` to expose hidden lifecycle states when needed.
-- Use `--touch` only when you intentionally want to update access telemetry.
+- Access telemetry (`accessed`, `last_accessed`) is updated by default; pass `--no-touch` for a strictly read-only search.
 
 **Qualifying answers by authority:**
 - `published` or `verified` → state the answer as documented fact
