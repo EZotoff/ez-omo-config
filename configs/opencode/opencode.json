@@ -612,7 +612,8 @@
         "minimax-m3",
         "deepseek-v4-flash",
         "deepseek-v4-flash-vision-exp",
-        "deepseek-v4.1-flash"
+        "deepseek-v4.1-flash",
+        "qwen3.8-flash"
       ],
       "options": {
         "chunkTimeout": 30000
