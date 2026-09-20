@@ -58,7 +58,8 @@ describe("POLICY preserves the pre-existing contract", () => {
   test("gate round-1 refinement — accept-completion and continue-decision-pends", () => {
     expect(POLICY).toContain("the requested outcome is DELIVERED in this reply")
     expect(POLICY).toContain("NOT complete: CONTINUE, never ACCEPT")
-    expect(POLICY).toContain("a real decision pends — ESCALATE, never CONTINUE")
+    expect(POLICY).toContain("a real decision — a choice between options, or authorization for consequential, out-of-scope, or destructive work — ESCALATE")
+    expect(POLICY).toContain("APPROVE-CONTINUE, not ESCALATE")
     expect(POLICY).toContain("never nudge a finished exchange")
     expect(POLICY).toContain("the matter is SETTLED: do not re-ask it")
   })
