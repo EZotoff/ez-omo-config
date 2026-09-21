@@ -16,6 +16,7 @@ import { pickTarget } from "./targets"
 import { ConsoleChannel } from "./console"
 import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
+import { ContinuationBridge, readJournalEntries } from "./journalbridge"
 import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
 import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
 import { ProtectionRegistry } from "./protect"
@@ -199,6 +200,20 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const recovered = await consoles.recoverAnswered()
   if (recovered > 0) {
     ledger = await ledger.append("ERROR", { reason: "startup recovery", recovered, note: "items found in answered state after restart — re-routed" })
+  }
+
+  // Continuation journal→ledger bridge (task 10): escalate-only, no session writes.
+  const bridge = new ContinuationBridge({
+    statePath: join(stateDirectory, "journal-bridge.json"),
+    read: readJournalEntries,
+    append: async (type, payload) => { ledger = await ledger.append(type, payload) },
+  })
+  const pollBridge = async (): Promise<void> => {
+    try {
+      await bridge.poll()
+    } catch (error) {
+      ledger = await ledger.append("ERROR", { reason: "journal bridge poll failed", error: error instanceof Error ? error.message : String(error) })
+    }
   }
 
   const reconcile = async (root: string): Promise<RootRuntime> => {
@@ -446,6 +461,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   }
 
   const periodicReconcile = setInterval(() => {
+    void pollBridge()
     for (const root of config.roots) {
       if (root.mode === "off") continue
       void reconcile(root.path)
@@ -460,6 +476,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   // multi-root restart fits inside systemd's stop/start budget (was: 6 × 60-90s
   // sequential, which caused the SIGKILL of 2026-09-20).
   await Promise.all(activeRoots.map((root) => reconcile(root.path)))
+  await pollBridge()
   for (const root of activeRoots) {
     const runtime0 = runtimes.get(root.path)
     if (runtime0 === undefined) continue
