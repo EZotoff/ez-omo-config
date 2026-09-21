@@ -22,6 +22,18 @@
 #   OPENCODE_URL      base URL of the serve instance (default http://127.0.0.1:3021)
 #   OPENCODE_SERVER_PASSWORD   server Basic-auth password (auto-read from the unit's auth env file: serve.env / serve-interactive.env)
 #   OPENCODE_SERVER_USERNAME   server Basic-auth username (default: opencode)
+#   CONTINUATION_DB_FALLBACK   opt-in (default unset = OFF) second-stage crash
+#                               fallback in hook-resume: when the stop snapshot AND
+#                               the periodic checkpoint are both missing/stale/
+#                               consumed, query the shared session DB (read-only)
+#                               for top-level sessions whose latest assistant turn
+#                               never completed and that were updated within
+#                               RESUME_TTL_SECONDS. Strictly opt-in (set to 1);
+#                               no shipped unit sets it. With it unset, behavior
+#                               is identical to the checkpoint-only fallback.
+#   CONTINUATION_DB_PATH       session DB path override for the DB fallback
+#                               (test isolation only; default ~/.local/share/
+#                               opencode/opencode.db). Read-only connection.
 #
 # Evidence states: snapshot = live API read; resume = POST /session/:id/prompt_async
 # (fire-and-forget; the target session runs the prompt on next available turn).
@@ -365,6 +377,126 @@ if [[ "${CHECKPOINT_MODE:-}" == true ]]; then
 fi
 
 
+# --- DB candidate fallback (flag-gated second stage, plan task 6) ----------
+# Reached ONLY from hook-resume's crash-class path after BOTH the stop
+# snapshot and the checkpoint were declined. Queries the shared session DB
+# READ-ONLY for strict candidates: top-level (no parent_id), not archived,
+# updated within RESUME_TTL_SECONDS, latest assistant turn lacks
+# time.completed (unfinished turn semantics). Returns silently (no log lines,
+# no queries) when CONTINUATION_DB_FALLBACK is unset — flag-off behavior is
+# identical to the checkpoint-only fallback.
+db_fallback() {
+  [[ "${CONTINUATION_DB_FALLBACK:-0}" == "1" ]] || return 0
+  # One-shot across batches: any fresh (<= TTL) consumed-db marker blocks a
+  # new batch, so a second hook-resume run injects nothing.
+  local m marker_age
+  for m in "$STATE_DIR"/.consumed-"$SERVICE_UNIT"-db-*; do
+    [[ -e "$m" ]] || continue
+    marker_age=$(( $(date +%s) - $(mtime_of "$m") ))
+    if (( marker_age <= RESUME_TTL_SECONDS )); then
+      hook_log "db fallback for $SERVICE_UNIT already consumed (fresh marker $(basename "$m")); nothing to resume"
+      return 0
+    fi
+  done
+  local db_epoch db_uuid db_marker cands n out rep
+  db_epoch="$(date +%s)"
+  db_uuid="db-$db_epoch"
+  db_marker="$STATE_DIR/.consumed-$SERVICE_UNIT-$db_uuid"
+  if ! cands="$(DB_PATH="${CONTINUATION_DB_PATH:-$HOME/.local/share/opencode/opencode.db}" TTL="$RESUME_TTL_SECONDS" python3 - <<'PYEOF'
+import json, os, sqlite3, time
+db = os.environ["DB_PATH"]
+con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+cutoff = (time.time() - float(os.environ["TTL"])) * 1000
+# Assistant turns live in `message` (role inside the data JSON) on current
+# servers; newer builds project into `session_message` (role = type column).
+table = "message" if con.execute("select count(*) from message").fetchone()[0] else "session_message"
+rows = con.execute(
+    "select id, directory, title, time_updated from session "
+    "where parent_id is null and time_archived is null and time_updated >= ?", (cutoff,)).fetchall()
+out = []
+for sid, directory, title, _tu in rows:
+    if table == "message":
+        row = con.execute(
+            "select json_extract(data,'$.time.completed') from message "
+            "where session_id=? and json_extract(data,'$.role')='assistant' "
+            "order by time_created desc, rowid desc limit 1", (sid,)).fetchone()
+    else:
+        row = con.execute(
+            "select json_extract(data,'$.time.completed') from session_message "
+            "where session_id=? and type='assistant' "
+            "order by seq desc limit 1", (sid,)).fetchone()
+    if row is None or row[0] is not None:
+        continue  # no assistant turn, or the latest one completed
+    out.append({"id": sid, "title": title, "directory": directory})
+print(json.dumps({"created": int(time.time()), "sessions": out}))
+PYEOF
+)"; then
+    hook_log "db fallback query failed for $SERVICE_UNIT; db fallback skipped"
+    return 0
+  fi
+  n="$(printf '%s' "$cands" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("sessions",[])))' 2>/dev/null || echo 0)"
+  if (( n == 0 )); then
+    hook_log "db fallback for $SERVICE_UNIT: 0 candidates; nothing to resume"
+    return 0
+  fi
+  SECONDS=0
+  wait_ready 45 || { hook_log "server not ready in time; db fallback skipped"; return 0; }
+  hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
+  out="$(CANDS="$cands" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
+    OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" python3 - <<'PYEOF'
+import json, os, subprocess, sys
+from urllib.parse import quote
+cands = json.loads(os.environ["CANDS"])
+created_ms = int(cands.get("created", 0)) * 1000
+base = os.environ["OPENCODE_URL"]
+auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
+prompt = os.environ["PROMPT"]
+ok = stale = fail = 0
+dir_cache = {}
+for s in cands.get("sessions", []):
+    sid = s.get("id")
+    if not sid:
+        continue
+    d = s.get("directory") or ""
+    # Freshness guard (Task 5 semantics): skip sessions that progressed after
+    # the candidate query ran — a completed newer turn must not be re-prompted.
+    if d and d not in dir_cache:
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth,
+                            base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                           capture_output=True, text=True)
+        try:
+            dir_cache[d] = {x["id"]: x for x in json.loads(r.stdout or "[]")}
+        except ValueError:
+            dir_cache[d] = {}
+    cur = dir_cache.get(d, {}).get(sid) or {}
+    updated = cur.get("time", {}).get("updated") or 0
+    if updated and updated > created_ms:
+        print("skip-stale %s (turn newer than db query)" % sid)
+        stale += 1
+        continue
+    body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth, "-X", "POST",
+                        "-H", "Content-Type: application/json", "-d", body,
+                        base + "/session/" + sid + "/prompt_async" + q],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        print("re-prompted %s  (%s)" % (sid, s.get("title")))
+        ok += 1
+    else:
+        print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
+        fail += 1
+print("summary re-prompted=%d skipped_stale=%d failed=%d" % (ok, stale, fail))
+PYEOF
+)" >> "$HOOKS_LOG" 2>&1 || true
+  # One-shot: consume the batch AFTER attempting every candidate, even on
+  # partial failure — a second hook-resume must inject nothing.
+  touch "$db_marker"
+  rep="$(printf '%s\n' "$out" | sed -n 's/^summary re-prompted=\([0-9]*\) .*/\1/p' | tail -1)"
+  hook_log "db fallback $db_uuid done for $SERVICE_UNIT: ${rep:-0} re-prompted(s)"
+  journal_alert db_fallback "$SERVICE_UNIT" - "$db_uuid" "$n" "DB-fallback resume $SERVICE_UNIT: $n candidates"
+  return 0
+}
 if [[ -n "$HOOK_MODE" ]]; then
   # Hooks must NEVER block or fail the unit operation.
   trap 'exit 0' EXIT
@@ -409,21 +541,32 @@ latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1
   if [[ -z "$latest" ]]; then
     # Crash-class fallback (plan task 5): no stop snapshot — the unit died before
     # ExecStop could capture one (hard crash, failed preflight). Fall back to the
-    # periodic checkpoint. Order is snapshot > checkpoint > (future: DB candidates).
+    # periodic checkpoint. Order is snapshot > checkpoint > DB candidates
+    # (the last gated by CONTINUATION_DB_FALLBACK, default OFF).
     # The bypass check above already ran: a script-driven restart never reaches here.
     ckpt="$STATE_DIR/last-busy-$SERVICE_UNIT.json"
-    if [[ ! -r "$ckpt" ]]; then hook_log "no snapshot and no checkpoint for $SERVICE_UNIT; nothing to resume"; exit 0; fi
+    if [[ ! -r "$ckpt" ]]; then
+      hook_log "no snapshot and no checkpoint for $SERVICE_UNIT; nothing to resume"
+      db_fallback
+      exit 0
+    fi
     ckpt_uuid="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("uuid",""))' "$ckpt" 2>/dev/null || true)"
     ckpt_created="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("created",0))' "$ckpt" 2>/dev/null || true)"
     if [[ -z "$ckpt_uuid" || "${ckpt_created:-0}" -le 0 ]]; then
       hook_log "checkpoint for $SERVICE_UNIT unreadable or malformed; crash-class fallback skipped"
+      db_fallback
       exit 0
     fi
     ckpt_marker="$STATE_DIR/.consumed-$SERVICE_UNIT-$ckpt_uuid"
-    if [[ -e "$ckpt_marker" ]]; then hook_log "checkpoint $ckpt_uuid already consumed; nothing to resume"; exit 0; fi
+    if [[ -e "$ckpt_marker" ]]; then
+      hook_log "checkpoint $ckpt_uuid already consumed; nothing to resume"
+      db_fallback
+      exit 0
+    fi
     ckpt_age=$(( $(date +%s) - ckpt_created ))
     if (( ckpt_age > RESUME_TTL_SECONDS )); then
       hook_log "checkpoint ${ckpt_age}s old (> ${RESUME_TTL_SECONDS}s TTL); stale-checkpoint fallback skipped"
+      db_fallback
       exit 0
     fi
     SECONDS=0
