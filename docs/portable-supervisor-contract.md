@@ -14,7 +14,7 @@
 | **voice-bridge ("Vox")** | `~/AI_projects/voice-bridge/` | Voice brain: Gemini Live session, tools, interrupts, mutation pipeline, fallback chain | `voice-bridge.service`, `127.0.0.1:18220` |
 | **omo-pulse** | `~/AI_projects/ez-omo-dash/` | Visual supervisor surface: attention queue, recent projects, session cards, remote UI (`?remote=1`), desktop deep-links | dev `:4300/:4301`, prod `:4300` |
 | **ez-omo-config** | `~/ez-omo-config/` | Contract home (this doc), config store, design artifacts, docs sync | — |
-| **OC Beacon fork** | separate repo (not started) | Future native front-end implementing the same contract; Phase-2+, after walking validation | — |
+| **OC Beacon fork** | `~/src/oc-beacon/` | Native ambient attention surface; reads supervisor state through the already-configured OpenCode server | Android app |
 
 Layering: **omo-pulse is the eyes and hands, voice-bridge is the ears and voice, this repo
 owns the seam.** The interaction model: *navigate visually to establish context, then use
@@ -133,6 +133,12 @@ The supervisor service owns a durable `AttentionQueue` (spec: `~/.local/state/op
 | **AMBIENT/VISUAL** | omo-pulse attention cards, glasses TLDR | non-exclusive **dwell carousel**; may coexist with a demanding surface. Pacing config: `min_dwell_s`, `max_queue_depth`, `batch_after_idle_s` (tuned from live telemetry, not fixed now) |
 
 Cross-channel rule: if an item is currently visible on an ambient channel, the demanding channel receives that fact in its surfacing context and goes **deictic** ("the card you see") instead of re-reading.
+
+### OC Beacon read transport
+
+OC Beacon is an **AMBIENT/VISUAL, read-only** consumer. It uses the app's existing authenticated OpenCode connection and the OpenCode file-read API to read the workstation's `~/.local/state/opencode-supervisor/status.json`, `queue.json`, and `ledger.jsonl`. The home directory comes from the OpenCode path endpoint; no supervisor listener, daemon, port, or credential is added to the app.
+
+For native decision cards, every new `TICK_DECIDED` ledger payload includes `root` alongside `decision`, `sessionID`, and `messageID`. Existing ledger rows may omit `root`; consumers display an unknown-project fallback for those historical rows. The surface does not acquire presentation leases or write queue lifecycle events.
 
 ### Vox as a consumer (never the queue owner)
 
