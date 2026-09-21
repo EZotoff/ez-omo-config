@@ -301,6 +301,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - Custom agent and category model overrides
 - Skill auto-loading per category
 - Team Mode is enabled through `team_mode.enabled: true`
+- Goal tracking is enabled through `goal.enabled: true` (OMO schema: `enabled`, `auto_start`, `default_max_iterations`; defaults `false`/`false`/`100`)
 - Ultrawork is the default mode through `default_mode.ultrawork: true`
 - OMO workflow integrations
 - Extension point configurations

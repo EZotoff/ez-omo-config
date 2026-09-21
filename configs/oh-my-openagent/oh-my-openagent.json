@@ -315,6 +315,9 @@
   "ralph_loop": {
     "enabled": true
   },
+  "goal": {
+    "enabled": true
+  },
   "team_mode": {
     "enabled": true,
     "max_parallel_members": 6,
