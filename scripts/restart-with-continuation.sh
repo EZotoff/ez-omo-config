@@ -16,6 +16,7 @@
 #   restart-with-continuation.sh --resume-only --state-file <file.json>   # re-inject from a saved snapshot
 #   restart-with-continuation.sh hook-snapshot <unit> <url> <auth-env-file>   # ExecStop hook
 #   restart-with-continuation.sh hook-resume <unit> <url> <auth-env-file>     # ExecStartPost hook
+#   restart-with-continuation.sh checkpoint <unit> <url> <auth-env-file>     # periodic busy-session checkpoint
 #
 # Env (defaults auto-detected):
 #   OPENCODE_URL      base URL of the serve instance (default http://127.0.0.1:3021)
@@ -42,6 +43,7 @@ STATE_FILE=""
 
 case "${1:-}" in
   hook-snapshot|hook-resume) HOOK_MODE="$1" ;;
+  checkpoint) CHECKPOINT_MODE=true; HOOK_MODE="$1" ;;  # hook-style args; NOT the exit-0 hook contract
 esac
 
 log() { printf '[restart-continuation] %s\n' "$*"; }
@@ -86,7 +88,7 @@ if [[ -n "$HOOK_MODE" ]]; then
   fi
   if [[ -z "${OPENCODE_SERVER_PASSWORD:-}" ]]; then
     log "no password via $AUTH_ENV; hook no-op"
-    exit 0
+    if [[ "$HOOK_MODE" == checkpoint ]]; then exit 1; else exit 0; fi
   fi
 else
   OPENCODE_URL="${OPENCODE_URL:-http://127.0.0.1:3021}"
@@ -254,6 +256,85 @@ sys.exit(1 if fail else 0)
 PYEOF
 }
 
+# --- Checkpoint (periodic busy-session capture for crash-class resume) -----
+# Writes $STATE_DIR/last-busy-<unit>.json atomically (tmp + mv). Zero busy
+# sessions is a VALID checkpoint (freshness proof). On ANY probe failure the
+# previous checkpoint is left untouched and we exit non-zero.
+checkpoint() {
+  local unit="$1" dirs d enc st rc i=0 tmpstatus tmpdir tmpout
+  if ! dirs="$(MAX_AGE="$MAX_AGE_SECONDS" python3 - <<'PYEOF'
+import os, sqlite3, time
+db = os.path.expanduser("~/.local/share/opencode/opencode.db")
+con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+cutoff = (time.time() - float(os.environ["MAX_AGE"])) * 1000
+rows = con.execute(
+    "select distinct directory from session "
+    "where time_updated >= ? and time_archived is null and directory != ''", (cutoff,))
+print("\n".join(sorted(r[0] for r in rows)))
+PYEOF
+)"; then
+    log "checkpoint: directory discovery failed for $unit; previous checkpoint preserved"
+    journal_alert "checkpoint directory discovery failed for $unit; previous checkpoint preserved"
+    return 1
+  fi
+  mkdir -p "$STATE_DIR"
+  tmpstatus="$(mktemp)" tmpdir="$(mktemp -d)"
+  tmpout="$(mktemp "$STATE_DIR/last-busy-$unit.tmp.XXXXXX")"
+  trap 'rm -f "$tmpstatus" "$tmpout"; rm -rf "$tmpdir"' RETURN
+  : > "$tmpstatus"
+  if [[ -n "$dirs" ]]; then
+    while IFS= read -r d; do
+      [[ -n "$d" ]] || continue
+      i=$((i + 1))
+      enc="$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "$d")"
+      rc=0
+      st="$(api GET "/session/status?directory=$enc")" || rc=$?
+      if (( rc != 0 )); then
+        log "checkpoint: /session/status probe failed rc=$rc dir=$d — $OPENCODE_URL"
+        journal_alert "checkpoint API probe failed for $unit ($OPENCODE_URL) rc=$rc; previous checkpoint preserved"
+        return 1
+      fi
+      [[ -n "$st" ]] && printf '%s\n' "$st" >> "$tmpstatus"
+      rc=0
+      api GET "/session?directory=$enc&limit=100" > "$tmpdir/sessions-$i.json" || rc=$?
+      if (( rc != 0 )); then
+        log "checkpoint: /session probe failed rc=$rc dir=$d — $OPENCODE_URL"
+        journal_alert "checkpoint API probe failed for $unit ($OPENCODE_URL) rc=$rc; previous checkpoint preserved"
+        return 1
+      fi
+    done <<< "$dirs"
+  fi
+  UNIT="$unit" STATUS_FILE="$tmpstatus" SESSIONS_DIR="$tmpdir" OUT="$tmpout" python3 - <<'PYEOF'
+import glob, json, os, time, uuid
+merged = {}
+for line in open(os.environ["STATUS_FILE"]):
+    line = line.strip()
+    if line:
+        merged.update(json.loads(line))
+sessions = []
+for f in glob.glob(os.path.join(os.environ["SESSIONS_DIR"], "sessions-*.json")):
+    try:
+        data = json.load(open(f))
+        sessions.extend(data if isinstance(data, list) else [])
+    except (ValueError, OSError):
+        pass
+busy_ids = {sid for sid, st in merged.items() if st.get("type") in {"busy", "retry"}}
+by_id = {s["id"]: s for s in sessions}
+out = []
+for sid in sorted(busy_ids):
+    s = by_id.get(sid)
+    if s is None or s.get("parentID") or s.get("time", {}).get("archived"):
+        continue
+    out.append({"id": sid, "title": s.get("title"), "directory": s.get("directory")})
+ckpt = {"uuid": str(uuid.uuid4()), "created": int(time.time()), "sessions": out}
+with open(os.environ["OUT"], "w") as f:
+    json.dump(ckpt, f, indent=1)
+print(f"checkpoint {os.environ['UNIT']}: {len(out)} busy session(s)")
+PYEOF
+  mv -f "$tmpout" "$STATE_DIR/last-busy-$unit.json"
+  log "checkpoint written: $STATE_DIR/last-busy-$unit.json"
+}
+
 # --- Bypass flag (keeps systemd hooks out of script-driven restarts) --------
 bypass_flag() { echo "$STATE_DIR/.bypass-$SERVICE_UNIT"; }
 set_bypass() { mkdir -p "$STATE_DIR"; touch "$(bypass_flag)"; }
@@ -271,6 +352,11 @@ bypass_active() {
 # --- Hook modes (invoked by systemd ExecStop / ExecStartPost) ---------------
 HOOKS_LOG="$STATE_DIR/hooks.log"
 hook_log() { mkdir -p "$STATE_DIR"; printf '%s [hook:%s] %s\n' "$(date +%H:%M:%S)" "$HOOK_MODE" "$*" >> "$HOOKS_LOG"; }
+if [[ "${CHECKPOINT_MODE:-}" == true ]]; then
+  checkpoint "$SERVICE_UNIT"
+  exit $?
+fi
+
 
 if [[ -n "$HOOK_MODE" ]]; then
   # Hooks must NEVER block or fail the unit operation.

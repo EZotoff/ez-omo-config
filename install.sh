@@ -129,6 +129,8 @@ ITEMS=(
     "scripts|scripts/opencode_maintenance.py|$HOME/.local/share/opencode/opencode_maintenance.py"
     "scripts|systemd/user/opencode-session-archive.service|$HOME/.config/systemd/user/opencode-session-archive.service"
     "scripts|systemd/user/opencode-session-archive.timer|$HOME/.config/systemd/user/opencode-session-archive.timer"
+    "scripts|systemd/user/opencode-continuation-checkpoint.service|$HOME/.config/systemd/user/opencode-continuation-checkpoint.service"
+    "scripts|systemd/user/opencode-continuation-checkpoint.timer|$HOME/.config/systemd/user/opencode-continuation-checkpoint.timer"
 
 )
 
