@@ -16,6 +16,11 @@ const rootSchema = z.object({
   mode: z.enum(["off", "shadow", "observe", "full"]),
   trust: trustSchema,
   autonomous_path_globs: z.array(z.string().min(1)).default([]),
+  continue_writes: z.object({
+    enabled: z.boolean().default(false),
+    daily_cap: z.number().int().positive().default(5),
+    kick_start_only: z.boolean().default(true),
+  }).strict().optional(),
   autonomous_title_prefixes: z.array(z.string().min(1)).default([]),
 }).strict()
 const tierBudgetsSchema = z.object({

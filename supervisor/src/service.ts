@@ -13,6 +13,7 @@ import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
+import { continueCapKey, continueWriteText, gateContinueWrite } from "./continue-writes"
 import { ConsoleChannel } from "./console"
 import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
@@ -31,6 +32,7 @@ type RootRuntime = {
   scheduler?: SessionScheduler
   readonly states: Map<string, SessionState>
   readonly origin: AutonomousOriginConfig
+  continueWrites: { dateKey: string; count: number }
 }
 
 class ConcurrencyGate {
@@ -234,6 +236,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       manifest,
       queueDepth: 0,
       states: new Map<string, SessionState>(),
+      continueWrites: { dateKey: continueCapKey(new Date()), count: 0 },
     }
     runtime.manifest = manifest
     runtimes.set(root, runtime)
@@ -294,6 +297,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       const previousManifest = runtime.manifest
       const refreshed = await reconcile(runtime.root)
       if (refreshed !== undefined) runtime.manifest = refreshed.manifest
+      const rootConfig = config.roots.find((r) => r.path === runtime.root)
       const scan = runtime.manifest.sessions.find((entry) => entry.session.id === sessionID)
       // Operator-attention-point guard: tick only if the target reply is the
       // session's LAST message. If anything arrived after it (a ralph push, a
@@ -426,6 +430,58 @@ export async function runService(signal: AbortSignal): Promise<void> {
             const surfaced = await consoles.surfaceNext(runtime.root, new Date().toISOString())
             if (surfaced.kind === "resolved") {
               ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `escalation ${surfaced.disposition}: ${surfaced.reason}` })
+            }
+          }
+        }
+        if (
+          decision.action === "CONTINUE" &&
+          runtime.mode === "observe" &&
+          rootConfig?.continue_writes?.enabled === true
+        ) {
+          const today = continueCapKey(new Date())
+          if (runtime.continueWrites.dateKey !== today) runtime.continueWrites = { dateKey: today, count: 0 }
+          const gate = gateContinueWrite({
+            decision,
+            config: {
+              enabled: rootConfig.continue_writes.enabled,
+              dailyCap: rootConfig.continue_writes.daily_cap,
+              kickStartOnly: rootConfig.continue_writes.kick_start_only,
+            },
+            capUsedToday: runtime.continueWrites.count,
+            lastMessageID: scan?.messages.at(-1)?.id,
+            target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
+            sessionProtected: protectedSession(sessionID),
+          })
+          if (!gate.allowed) {
+            ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `continue write: ${gate.reason}` })
+          } else {
+            // Final premise re-check against live state immediately before the write.
+            const fresh = await client.listMessages(sessionID, runtime.root)
+            const liveGate = gateContinueWrite({
+              decision,
+              config: {
+              enabled: rootConfig.continue_writes.enabled,
+              dailyCap: rootConfig.continue_writes.daily_cap,
+              kickStartOnly: rootConfig.continue_writes.kick_start_only,
+            },
+              capUsedToday: runtime.continueWrites.count,
+              lastMessageID: fresh.at(-1)?.id,
+              target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
+              sessionProtected: protectedSession(sessionID),
+            })
+            if (!liveGate.allowed) {
+              ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `continue write: ${liveGate.reason}` })
+            } else {
+              await client.promptAsync(sessionID, runtime.root, continueWriteText(decision))
+              runtime.continueWrites.count += 1
+              ledger = await ledger.append("INTERVENTION_SENT", {
+                root: runtime.root,
+                sessionID,
+                targetMessageID: target.userMessageID,
+                mode: decision.mode ?? null,
+                text: "[supervisor] (continue)",
+                rationale: decision.rationale,
+              })
             }
           }
         }

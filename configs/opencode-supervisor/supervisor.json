@@ -40,8 +40,18 @@
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
       },
-      "autonomous_path_globs": ["**/benchmarks/**/runs/**"],
-      "autonomous_title_prefixes": ["bench-judge:", "bench-runner:"]
+      "autonomous_path_globs": [
+        "**/benchmarks/**/runs/**"
+      ],
+      "autonomous_title_prefixes": [
+        "bench-judge:",
+        "bench-runner:"
+      ],
+      "continue_writes": {
+        "enabled": true,
+        "daily_cap": 5,
+        "kick_start_only": true
+      }
     },
     {
       "path": "/home/ezotoff/AI_projects/ANIA",
@@ -60,8 +70,12 @@
         "autonomous_deploy": false,
         "autonomous_credentialed_actions": false
       },
-      "autonomous_path_globs": ["**/kraken/**"],
-      "autonomous_title_prefixes": ["ASTRA Night"]
+      "autonomous_path_globs": [
+        "**/kraken/**"
+      ],
+      "autonomous_title_prefixes": [
+        "ASTRA Night"
+      ]
     },
     {
       "path": "/home/ezotoff/AI_projects/voice-bridge",
