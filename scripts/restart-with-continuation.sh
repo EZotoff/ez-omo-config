@@ -289,13 +289,13 @@ wait_ready() {
 
 # --- Resume ----------------------------------------------------------------
 resume() {
-  local file="$1" deadline_env=()
+  local file="$1" dl=0
   if hook_budget_active; then
-    deadline_env=(API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))")
+    dl="$(( $(date +%s) + $(hook_deadline_rem) ))"
   fi
   SESSIONS_FILE="$file" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
-    "${deadline_env[@]}" python3 - <<'PYEOF'
+    API_DEADLINE="$dl" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
 deadline = float(os.environ.get("API_DEADLINE") or 0)
 def budget_left():
