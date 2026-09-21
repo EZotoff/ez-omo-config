@@ -377,7 +377,84 @@ if [[ -n "$HOOK_MODE" ]]; then
   # hook-resume
   if bypass_active; then clear_bypass; hook_log "bypass flag set for $SERVICE_UNIT; resume skipped, flag cleared"; exit 0; fi
 latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1 || true)"
-  if [[ -z "$latest" ]]; then hook_log "no snapshot for $SERVICE_UNIT; nothing to resume"; exit 0; fi
+  if [[ -z "$latest" ]]; then
+    # Crash-class fallback (plan task 5): no stop snapshot — the unit died before
+    # ExecStop could capture one (hard crash, failed preflight). Fall back to the
+    # periodic checkpoint. Order is snapshot > checkpoint > (future: DB candidates).
+    # The bypass check above already ran: a script-driven restart never reaches here.
+    ckpt="$STATE_DIR/last-busy-$SERVICE_UNIT.json"
+    if [[ ! -r "$ckpt" ]]; then hook_log "no snapshot and no checkpoint for $SERVICE_UNIT; nothing to resume"; exit 0; fi
+    ckpt_uuid="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("uuid",""))' "$ckpt" 2>/dev/null || true)"
+    ckpt_created="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("created",0))' "$ckpt" 2>/dev/null || true)"
+    if [[ -z "$ckpt_uuid" || "${ckpt_created:-0}" -le 0 ]]; then
+      hook_log "checkpoint for $SERVICE_UNIT unreadable or malformed; crash-class fallback skipped"
+      exit 0
+    fi
+    ckpt_marker="$STATE_DIR/.consumed-$SERVICE_UNIT-$ckpt_uuid"
+    if [[ -e "$ckpt_marker" ]]; then hook_log "checkpoint $ckpt_uuid already consumed; nothing to resume"; exit 0; fi
+    ckpt_age=$(( $(date +%s) - ckpt_created ))
+    if (( ckpt_age > RESUME_TTL_SECONDS )); then
+      hook_log "checkpoint ${ckpt_age}s old (> ${RESUME_TTL_SECONDS}s TTL); stale-checkpoint fallback skipped"
+      exit 0
+    fi
+    SECONDS=0
+    wait_ready 45 || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
+    hook_log "no stop snapshot; crash-class resume from checkpoint $ckpt_uuid"
+    ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
+      OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" python3 - <<'PYEOF'
+import json, os, subprocess, sys
+from urllib.parse import quote
+ckpt = json.load(open(os.environ["CKPT_FILE"]))
+created_ms = int(ckpt.get("created", 0)) * 1000
+base = os.environ["OPENCODE_URL"]
+auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
+prompt = os.environ["PROMPT"]
+ok = stale = fail = 0
+dir_cache = {}
+for s in ckpt.get("sessions", []):
+    sid = s.get("id")
+    if not sid:
+        continue
+    d = s.get("directory") or ""
+    # Freshness guard: skip sessions with a turn newer than the checkpoint —
+    # they completed (or progressed) after capture and must not be re-prompted.
+    if d and d not in dir_cache:
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth,
+                            base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                           capture_output=True, text=True)
+        try:
+            dir_cache[d] = {x["id"]: x for x in json.loads(r.stdout or "[]")}
+        except ValueError:
+            dir_cache[d] = {}
+    cur = dir_cache.get(d, {}).get(sid) or {}
+    updated = cur.get("time", {}).get("updated") or 0
+    if updated and updated > created_ms:
+        print("skip-stale %s (turn newer than checkpoint)" % sid)
+        stale += 1
+        continue
+    body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth, "-X", "POST",
+                        "-H", "Content-Type: application/json", "-d", body,
+                        base + "/session/" + sid + "/prompt_async" + q],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        print("re-prompted %s  (%s)" % (sid, s.get("title")))
+        ok += 1
+    else:
+        print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
+        fail += 1
+print("summary re-prompted=%d skipped_stale=%d failed=%d" % (ok, stale, fail))
+PYEOF
+)" >> "$HOOKS_LOG" 2>&1 || true
+    # One-shot: consume the checkpoint AFTER attempting every listed session,
+    # even on partial failure — a second hook-resume must inject nothing.
+    touch "$ckpt_marker"
+    ckpt_n="$(printf '%s\n' "$ckpt_out" | sed -n 's/^summary re-prompted=\([0-9]*\) .*/\1/p' | tail -1)"
+    hook_log "crash-class resume from checkpoint $ckpt_uuid done: ${ckpt_n:-0} re-prompted(s)"
+    journal_alert "crash-class resume from checkpoint $ckpt_uuid for $SERVICE_UNIT: ${ckpt_n:-0} sessions re-prompted (stop snapshot missing)"
+    exit 0
+  fi
   age=$(( $(date +%s) - $(mtime_of "$latest") ))
   if (( age > RESUME_TTL_SECONDS )); then
     hook_log "snapshot ${age}s old (> ${RESUME_TTL_SECONDS}s TTL); resume skipped"
