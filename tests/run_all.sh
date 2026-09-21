@@ -12,14 +12,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOTAL_PASSED=0
 TOTAL_FAILED=0
 
-# Run regression corpus (non-blocking — report but continue)
+# Run regression corpus (aggregate — standard tests still run after a corpus
+# failure, but the corpus result is FATAL for the final exit code: plan DoD
+# requires exit 0 only WITH regressions passing; review-enforcer consumes it)
+CORPUS_RC=0
 echo ""
 echo "Running regression corpus..."
 echo "----------------------------------------"
 if bash "$SCRIPT_DIR/run_regressions.sh"; then
     echo "Regression corpus: PASS"
 else
-    echo "Regression corpus: FAIL (continuing with standard tests)"
+    CORPUS_RC=1
+    echo "Regression corpus: FAIL (continuing with standard tests; final exit will be non-zero)"
 fi
 echo ""
 # Auto-discover test scripts
@@ -78,8 +82,8 @@ else
 fi
 echo "=========================================="
 
-# Exit non-zero if any test failed
-if [[ $TOTAL_FAILED -gt 0 ]]; then
+# Exit non-zero if any test failed OR the regression corpus failed
+if [[ $TOTAL_FAILED -gt 0 || $CORPUS_RC -ne 0 ]]; then
     exit 1
 fi
 
