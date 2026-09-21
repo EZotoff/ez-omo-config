@@ -75,7 +75,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Output Shaper** — terseness injection + reasoning-effort dialing on resume turns
 - **Skill Nudger** — ephemeral skill suggestions when tool signals match the catalog
 - **Safe update pipeline** — guided OpenCode/OMO updates with approval gate, patch preservation, rollback, evidence-state discipline
-- **Patch-preservation infrastructure** — regression corpus (28 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
+- **Patch-preservation infrastructure** — regression corpus (36 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
 - **Live-config guard** — plugin blocking writes to the live OpenCode/OMO config surface from sessions outside this repo (2026-09-10/12 sandbox-leak incidents) + 30-min config-drift detection
 - **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
 - **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
@@ -88,14 +88,14 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | Category | Count | Contents |
 |---|---|---|
 | **Commands** | 10 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate) |
-| **Configs** | 46 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
-| **Plugins** | 24 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
-| **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
-| **Scripts** | 57 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver, operator tools |
-| **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
-| **Systemd** | 14 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), weekly session-archive service + timer (30-day retention), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
-| **Tests** | 111 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + 28-pair regression corpus (56 files) |
-| **Docs** | 12 active | see [Documentation](#documentation); dated material in `docs/history/` |
+| **Configs** | 47 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
+| **Plugins** | 25 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
+| **Skills** | 22 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
+| **Scripts** | 72 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver, bench campaign runner, operator tools |
+| **Supervisor** | 52 files | Bun + strict-TypeScript read-only observer service, status CLI, journal→ledger continuation bridge, tests |
+| **Systemd** | 19 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer (crash-class resume), weekly session-archive service + timer (30-day retention), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
+| **Tests** | 148 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + 36-pair regression corpus (72 files) |
+| **Docs** | 15 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
 Counts are tracked files per top-level directory (module directories count as one line in prose, files in tables). Per-artifact paths, install targets, and statuses: [MANIFEST.md](MANIFEST.md).

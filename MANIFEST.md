@@ -65,8 +65,9 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 5k | supervisor/src/console.ts | (repo only) | `supervisor/src/` | (executed from checkout) | Console channel MVP: enqueue→revalidate→surface→correlate→resolve via per-root `[Supervisor]` session | Optional — repo_implemented + tests_passed; runtime_loaded: live cycle in progress |
 | 5l | supervisor/src/service.ts | (repo only) | `supervisor/src/` | (executed from checkout) | Service loop: reconcile, queue ticks, per-session intervals, telemetry; systemd unit `opencode-supervisor.service` (observe mode) | Optional — repo_implemented + tests_passed + runtime_loaded (deployed) |
 | 5m | supervisor/src/ (support modules: tick, client, poller, ledger, projector, replay, targets, topology, config, patterns, reconcile, statemachine, types, main, adapter) | (repo only) | `supervisor/src/` | (executed from checkout) | Supervisor core: POLICY rules 6–11, judgment ticks, ledger, replay validation, projection | Optional — repo_implemented + tests_passed |
-| 5n | supervisor/test/ (21 suites) | (repo only) | `supervisor/test/` | (repo only) | Unit suites: assembler-v2, queue, collect, console-channel, health, protect, origins, trust, policy, blackboard, corpus-contract, service-intervals, status, … | Optional — repo_implemented + tests_passed |
+| 5n | supervisor/test/ (22 suites) | (repo only) | `supervisor/test/` | (repo only) | Unit suites: assembler-v2, queue, collect, console-channel, health, protect, origins, trust, policy, blackboard, corpus-contract, service-intervals, status, journalbridge, … | Optional — repo_implemented + tests_passed |
 | 5o | configs/opencode-supervisor/README.md | `~/.config/opencode-supervisor/` | `configs/opencode-supervisor/` | `$HOME/.config/opencode-supervisor/` | Supervisor config reference: modes, field table, runtime state, consumers | Optional — repo_implemented |
+| 5p | supervisor/src/journalbridge.ts | (repo only) | `supervisor/src/` | (executed from checkout) | Journal→ledger continuation bridge: tails `journalctl --user -t restart-continuation` (persisted cursor + fingerprint dedupe), imports each machine-readable alert as ONE `TICK_DECIDED` escalation (`decision.action=ESCALATE`, confidence 0.9, continuation fields); escalate-only — never calls `promptAsync`/session-writing APIs | Optional — repo_implemented + tests_passed |
 | 6 | worktree.ts | `~/.opencode/plugin/` | `plugins/` | `$HOME/.opencode/plugin/` | Worktree Plugin | Required |
 | 7 | worktree/state.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
 | 8 | worktree/terminal.ts | `~/.opencode/plugin/worktree/` | `plugins/worktree/` | `$HOME/.opencode/plugin/worktree/` | Worktree Plugin | Required |
@@ -147,7 +148,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service — 4 `ExecStart`s: verify-live-patches (3-state provenance verdicts) + check-live-config-drift + check-remote-presence + check-provenance (receipt/generation/smoke-freshness audit) | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 23 paired regression tests (46 files total) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 36 paired regression tests (72 files total) | Required |
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016; helpers module import since 018) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 60 | `test_patch_entries.sh` | (repo only) | `tests/` | (repo only) | Patch-entry schema gate (frontmatter completeness: surfaces, runtime_effective, target_file) | Required |
@@ -156,6 +157,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 62 | `flare-serve.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | FLARE-4B local SGLang server (PARKED 2026-08-15 — unit disabled, provider removed from opencode.json; port 18200) | Optional |
 | 62b | `opencode-supervisor.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Project Supervisor service (attention queue + judgment stack, `observe` mode; runtime_loaded) | Optional |
 | 62c | `test_supervisor_config.sh` | (repo only) | `tests/` | (repo only) | Project Supervisor static contract | Required |
+| 62c-b | `test_supervisor_journal_bridge.sh` | (repo only) | `tests/` | (repo only) | Journal→ledger bridge contract (tagged alert → one escalation, restart idempotence, zero prompts) | Required |
 | 62d | `opencode-interactive.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | OpenCode interactive attach daemon (127.0.0.1:3030, basic auth via serve-interactive.env; OC Beacon mobile client via tailscale serve TLS) | Optional |
 | 62d-h | `opencode-interactive.service.d/continuation.conf` | `~/.config/systemd/user/opencode-interactive.service.d/` | `systemd/user/opencode-interactive.service.d/` | `$HOME/.config/systemd/user/opencode-interactive.service.d/` | Continuation drop-in: ExecStop snapshots busy sessions, ExecStartPost resumes snapshots <1h old; continuation is default, `--bare-restart` opts out | Optional |
 | 62d-r | `opencode-interactive.service.d/runtime-max.conf` | `~/.config/systemd/user/opencode-interactive.service.d/` | `systemd/user/opencode-interactive.service.d/` | `$HOME/.config/systemd/user/opencode-interactive.service.d/` | Daily `RuntimeMaxSec=86400` recycle — bounds upstream serve-mode memory leaks (sst/opencode#20695, 9 GB RSS incident 2026-09-19); session-safe via continuation hooks; keeper timer covers crash class | Optional |
@@ -174,12 +176,16 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 63k | `lib-patchset.sh` | (repo only) | `scripts/` | (repo only) | Shared helpers: ancestry validation + receipt read/write for both installers and validators | Required |
 | 63l | `check-provenance.sh` | (repo only) | `scripts/` | (repo only) | Provenance audit (4th `ExecStart` of `opencode-patch-integrity-check.service`): live binary + OMO dist receipt existence, generation match vs lockfile, fork-remote reachability of `source_head` (bootstrapped receipts noted), smoke freshness (missing = amber pending, FAIL = exit 1), recovery marker = hard failure (exit 1 until a receipted install clears it), emergency-bypass marker = amber. Exit 0 acceptable / 1 provenance failure / 2 infrastructure error | Required |
 | 63m | `tests/smoke/` (3 files) | (repo only) | `tests/smoke/` | (repo only) | Per-SHA smoke matrix: `lib-smoke.sh` helpers + result store, `smoke-turn-summary-timestamp.sh`, `smoke-bash-lifecycle.sh`; results in `~/.local/share/opencode/smoke-results/<binary-sha>.json` | Required |
-| 63c | `opencode-daemon-keeper.sh` | (repo only) | `scripts/` | (repo only) | Probe + recover script for the interactive daemon; `ExecStart` of `opencode-interactive-keeper.service` (1-min cadence). Recovers the agent-killed-daemon failure mode (2026-09-13/14 incidents) within ≤1 min | Required |
+| 63c | `opencode-daemon-keeper.sh` | (repo only) | `scripts/` | (repo only) | Probe + recover script for the OpenCode serve daemons (interactive :3030 + bench :3040); `ExecStart` of `opencode-interactive-keeper.service` (1-min cadence). Resolves each port from `~/.sisyphus/ports.json` (fallback literals), skips units not installed. Recovers the agent-killed-daemon failure mode (2026-09-13/14, 2026-09-21 incidents) within ≤1 min | Required |
 | 63d | `perf-review/` | (repo only) | `scripts/perf-review/` | (repo only) | Server-plugin performance metrics and log-census tooling | Required |
 | 63e | `perf-review/` | (repo only) | `tests/perf-review/` | (repo only) | Server-plugin performance benchmark harnesses | Required |
 | 63n | `opencode_maintenance.py` | `~/.local/share/opencode/` | `scripts/` | `$HOME/.local/share/opencode/` | THE session archiver (versioned 2026-09-19; live target is an install.sh symlink). Subcommands archive/restore/maintenance/status; retention default 30 days on `time_updated` (raised from 5 per operator policy); monthly activity-bucket archives with append + schema-drift reconciliation, gzip for past months, busy/disk/integrity preflight. Semantics + CLI: `docs/session-archiving.md` | Required |
 | 62i | `opencode-session-archive.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Weekly session archive oneshot: `opencode_maintenance.py archive --days 30 --apply`; logs to `~/.local/share/opencode/session-archive.log`; exit 0 on nothing-to-do | Optional |
 | 62j | `opencode-session-archive.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Weekly timer (Mon 04:30 local, `Persistent=true`) for `opencode-session-archive.service` — replaces the dead manual-monthly habit (stall 2026-07-22 → 2026-09-19) | Optional |
+| 62k | `opencode-bench.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Dedicated headless OpenCode bench server (127.0.0.1:3040, port from `~/.sisyphus/ports.json` service key `opencode-serve-bench`; auth via `serve-bench.env`); isolates autonomous bench load from the interactive daemon | Optional |
+| 62k-h | `opencode-bench.service.d/continuation.conf` | `~/.config/systemd/user/opencode-bench.service.d/` | `systemd/user/opencode-bench.service.d/` | `$HOME/.config/systemd/user/opencode-bench.service.d/` | Continuation drop-in for the bench server (ExecStop snapshot / ExecStartPost resume, same mechanism as the other OpenCode units) | Optional |
+| 62l | `opencode-continuation-checkpoint.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Oneshot 5-min busy-session checkpoint for crash-class resume: runs `restart-with-continuation.sh checkpoint` for `opencode-interactive.service` (:3030) and `opencode.service` (:3021); writes `last-busy-<unit>.json` atomically | Optional |
+| 62m | `opencode-continuation-checkpoint.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 5-minute checkpoint cadence (OnBootSec=2min, OnUnitActiveSec=5min, AccuracySec=30s) | Optional |
 
 
 ## Directory Structure
@@ -227,7 +233,7 @@ ez-omo-config/
 │   ├── worktree/           # Worktree lifecycle hooks (2 files)
 │   ├── verify-live-patches.sh # Runtime-resolved tracked-patch verifier
 │   └── watch-runtime-patches.sh # Runtime binary + OMO dist inotify watcher
-├── systemd/user/           # Patch integrity units, Project Supervisor, interactive-daemon keeper
+├── systemd/user/           # Patch integrity units, Project Supervisor, interactive-daemon keeper, bench server, continuation checkpoint
 ├── extras/                 # Extra configurations (ocx.jsonc)
 ├── docs/                   # Active documentation (configs, plugins, skills, wisdom, patches, verification, observability, compatibility debt, worktree state, OMO reference)
 │   ├── patches.md            # Patch index over .sisyphus/patches/
@@ -235,7 +241,7 @@ ez-omo-config/
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
 │   ├── live-deployment-verification.md  # Live Deployment Verification Gate documentation
-├── tests/                  # Bash verification suite, 23-pair regression corpus, and harnesses
+├── tests/                  # Bash verification suite, 36-pair regression corpus, and harnesses
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities
 │   └── audit-wisdom-first.sh  # Validates no contradictory dual-system language remains
 ├── install.sh              # Bootstrap installer
@@ -252,8 +258,8 @@ ez-omo-config/
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, the OpenCode session archiver, and Python operator helpers.
-- **Systemd**: 9 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon, weekly session-archive service + timer, and the parked FLARE-4B server.
-- **Tests**: active repo verification scripts (109 tracked files), the 25-pair regression corpus (50 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Systemd**: 19 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon + 1-min keeper timer, dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer, weekly session-archive service + timer, and the parked FLARE-4B server.
+- **Tests**: active repo verification scripts (148 tracked files), the 36-pair regression corpus (72 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)
@@ -326,7 +332,8 @@ These Python helpers and config files support stack health, drift detection, and
 | `scripts/patch-guard.py` | Guard active patch install targets against forbidden stack zones |
 | `scripts/path-classifier.py` | Classify canonical stack paths against `configs/stack-locations.json` |
 | `scripts/secrets-path-audit.py` | Fail closed when tracked paths look like secrets or auth material |
-| `scripts/restart-with-continuation.sh` | Snapshot busy top-level sessions, restart an OpenCode unit, re-inject continuation prompts via `POST /session/:id/prompt_async`. Also the engine for the systemd continuation hooks (`hook-snapshot`/`hook-resume`) installed on both OpenCode units — continuation is default, `--bare-restart` opts out. Auth: per-unit env file (`~/.config/opencode/serve.env` / `serve-interactive.env`), auto-selected from `--service` or overridden via `--auth-env`; the password never appears on a command line |
+| `scripts/restart-with-continuation.sh` | Snapshot busy top-level sessions, restart an OpenCode unit, re-inject continuation prompts via `POST /session/:id/prompt_async`. Also the engine for the systemd continuation hooks (`hook-snapshot`/`hook-resume`) and the 5-min `checkpoint` subcommand. Crash-class recovery: stop-snapshot > fresh checkpoint > opt-in DB fallback (`CONTINUATION_DB_FALLBACK`, default OFF); exactly-once via `.consumed-<unit>-<uuid>` markers (TTL 3600s). Emits machine-readable `logger -t restart-continuation` alerts (`unit= reason= rc= uuid= count= ts=`; reasons preflight_failed/snapshot_failed/resume_fallback/db_fallback). Continuation is default, `--bare-restart` opts out. Auth: per-unit env file (`~/.config/opencode/serve.env` / `serve-interactive.env`), auto-selected from `--service` or overridden via `--auth-env`; the password never appears on a command line |
+| `scripts/bench-campaign` | Benchmark campaign runner; routes case launches to the dedicated bench instance via `BENCH_SERVER_URL` (default `http://127.0.0.1:3040`) + `opencode run --attach`, lifting only `OPENCODE_SERVER_USERNAME`/`OPENCODE_SERVER_PASSWORD` from `serve-bench.env` |
 | `scripts/source-identity-check.py` | Report package and git identity for a source checkout |
 | `scripts/legacy-name-classifier.py` | Classify legacy OpenCode/OMO naming occurrences in the config repo |
 
