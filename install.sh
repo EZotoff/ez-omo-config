@@ -121,6 +121,8 @@ ITEMS=(
     "scripts|systemd/user/opencode-interactive.service|$HOME/.config/systemd/user/opencode-interactive.service"
     "scripts|systemd/user/opencode.service.d/continuation.conf|$HOME/.config/systemd/user/opencode.service.d/continuation.conf"
     "scripts|systemd/user/opencode-interactive.service.d/continuation.conf|$HOME/.config/systemd/user/opencode-interactive.service.d/continuation.conf"
+    "scripts|systemd/user/opencode-bench.service|$HOME/.config/systemd/user/opencode-bench.service"
+    "scripts|systemd/user/opencode-bench.service.d/continuation.conf|$HOME/.config/systemd/user/opencode-bench.service.d/continuation.conf"
     "scripts|systemd/user/opencode-integrity-alert.service|$HOME/.config/systemd/user/opencode-integrity-alert.service"
     "scripts|systemd/user/opencode-interactive-keeper.service|$HOME/.config/systemd/user/opencode-interactive-keeper.service"
     "scripts|systemd/user/opencode-interactive-keeper.timer|$HOME/.config/systemd/user/opencode-interactive-keeper.timer"
