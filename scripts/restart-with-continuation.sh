@@ -128,14 +128,36 @@ else
     exit 1
   fi
 fi
+# --- Hook API budget (F1 re-audit remediation) --------------------------
+# A hook (hook-snapshot / hook-resume) must never spend more than
+# SNAPSHOT_BUDGET_SECONDS (~15s default) of wall clock in TOTAL: the hook
+# block zeroes SECONDS at its start, so "budget - SECONDS" is the time left
+# for the whole hook and every api()/wait_ready/injection call is capped by
+# it. Checkpoint mode keeps the fixed 5s max-time (timer-driven, not a
+# stop/start hook).
+hook_budget_active() { [[ "$HOOK_MODE" == hook-snapshot || "$HOOK_MODE" == hook-resume ]]; }
+hook_deadline_rem() { # seconds left under the hook budget; 0 when exhausted
+  local rem=$(( ${SNAPSHOT_BUDGET_SECONDS:-15} - SECONDS ))
+  (( rem < 0 )) && rem=0
+  printf '%s\n' "$rem"
+}
 api() { # api <method> <path> [json-body]
-  local method="$1" path="$2" body="${3:-}" rc=0
+  local method="$1" path="$2" body="${3:-}" rc=0 max_time=5
+  if hook_budget_active; then
+    local rem=$(( ${SNAPSHOT_BUDGET_SECONDS:-15} - SECONDS ))
+    if (( rem <= 0 )); then
+      hook_log "api budget exhausted ($method $path); call skipped"
+      return 28
+    fi
+    (( rem < max_time )) && max_time=$rem
+    (( max_time < 1 )) && max_time=1
+  fi
   if [[ -n "$body" ]]; then
-    curl -sS -f --connect-timeout 2 --max-time 5 -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
+    curl -sS -f --connect-timeout 2 --max-time "$max_time" -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
       -X "$method" -H 'Content-Type: application/json' -d "$body" \
       "$OPENCODE_URL$path" || rc=$?
   else
-    curl -sS -f --connect-timeout 2 --max-time 5 -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
+    curl -sS -f --connect-timeout 2 --max-time "$max_time" -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
       -X "$method" "$OPENCODE_URL$path" || rc=$?
   fi
   if (( rc != 0 )) && [[ -n "$HOOK_MODE" ]]; then
@@ -246,29 +268,49 @@ PYEOF
 # --- Wait for server readiness --------------------------------------------
 wait_ready() {
   local timeout="${1:-90}"
+  # Hook mode: the total wait may never exceed the hook API budget.
+  if hook_budget_active; then
+    local rem; rem="$(hook_deadline_rem)"
+    (( rem < timeout )) && timeout=$rem
+    (( timeout < 1 )) && timeout=1
+  fi
   local deadline=$((SECONDS + timeout))
   while (( SECONDS < deadline )); do
     if api GET /session/status >/dev/null 2>&1; then
       log "server is up"
       return 0
     fi
+    if hook_budget_active && (( "$(hook_deadline_rem)" <= 0 )); then break; fi
     sleep 2
   done
-  echo "ERROR: server did not become ready within 90s" >&2
+  echo "ERROR: server did not become ready within ${timeout}s" >&2
   return 1
 }
 
 # --- Resume ----------------------------------------------------------------
 resume() {
-  local file="$1"
+  local file="$1" deadline_env=()
+  if hook_budget_active; then
+    deadline_env=(API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))")
+  fi
   SESSIONS_FILE="$file" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
-    OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" python3 - <<'PYEOF'
-import json, os, subprocess, sys
+    OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
+    "${deadline_env[@]}" python3 - <<'PYEOF'
+import json, os, subprocess, sys, time
+deadline = float(os.environ.get("API_DEADLINE") or 0)
+def budget_left():
+    return 5 if deadline <= 0 else deadline - time.time()
 snap = json.load(open(os.environ["SESSIONS_FILE"]))
 base = os.environ["OPENCODE_URL"]
 auth = [os.environ["OPENCODE_SERVER_USERNAME"], os.environ["OPENCODE_SERVER_PASSWORD"]]
-ok = fail = 0
+ok = fail = budget_skipped = 0
 for s in snap.get("sessions", []):
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (hook api budget exhausted)" % s["id"])
+        budget_skipped += 1
+        continue
+    max_time = str(max(1, min(5, int(rem))))
     # synthetic:true marks the part machine-injected (OC Beacon suppresses the
     # "response ready" push for such turns; matches OMO plugin injection shape).
     body = json.dumps({"parts": [{"type": "text", "text": os.environ["PROMPT"], "synthetic": True}]})
@@ -277,7 +319,7 @@ for s in snap.get("sessions", []):
         from urllib.parse import quote
         q = "?directory=" + quote(s["directory"], safe="")
     r = subprocess.run(
-        ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
+        ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
          "-H", "Content-Type: application/json", "-d", body,
          f"{base}/session/{s['id']}/prompt_async{q}"],
         capture_output=True, text=True)
@@ -287,7 +329,7 @@ for s in snap.get("sessions", []):
     else:
         print(f"FAILED {s['id']}: {r.stderr.strip()}", file=sys.stderr)
         fail += 1
-print(f"resumed={ok} failed={fail}")
+print(f"resumed={ok} failed={fail} budget_skipped={budget_skipped}")
 sys.exit(1 if fail else 0)
 PYEOF
 }
@@ -450,25 +492,35 @@ PYEOF
   wait_ready 45 || { hook_log "server not ready in time; db fallback skipped"; return 0; }
   hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
   out="$(CANDS="$cands" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
-    OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" python3 - <<'PYEOF'
-import json, os, subprocess, sys
+    OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
+    API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
+import json, os, subprocess, sys, time
 from urllib.parse import quote
+deadline = float(os.environ.get("API_DEADLINE") or 0)
+def budget_left():
+    return 5 if deadline <= 0 else deadline - time.time()
 cands = json.loads(os.environ["CANDS"])
 created_ms = int(cands.get("created", 0)) * 1000
 base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
-ok = stale = fail = 0
+ok = stale = fail = budget_skipped = 0
 dir_cache = {}
 for s in cands.get("sessions", []):
     sid = s.get("id")
     if not sid:
         continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    max_time = str(max(1, min(5, int(rem))))
     d = s.get("directory") or ""
     # Freshness guard (Task 5 semantics): skip sessions that progressed after
     # the candidate query ran — a completed newer turn must not be re-prompted.
     if d and d not in dir_cache:
-        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth,
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth,
                             base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
                            capture_output=True, text=True)
         try:
@@ -483,7 +535,7 @@ for s in cands.get("sessions", []):
         continue
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
-    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth, "-X", "POST",
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
                         base + "/session/" + sid + "/prompt_async" + q],
                        capture_output=True, text=True)
@@ -493,7 +545,7 @@ for s in cands.get("sessions", []):
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
         fail += 1
-print("summary re-prompted=%d skipped_stale=%d failed=%d" % (ok, stale, fail))
+print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d" % (ok, stale, fail, budget_skipped))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
   # One-shot: consume the batch AFTER attempting every candidate, even on
@@ -581,25 +633,35 @@ latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1
     wait_ready 45 || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
     hook_log "no stop snapshot; crash-class resume from checkpoint $ckpt_uuid"
     ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
-      OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" python3 - <<'PYEOF'
-import json, os, subprocess, sys
+      OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
+      API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
+import json, os, subprocess, sys, time
 from urllib.parse import quote
+deadline = float(os.environ.get("API_DEADLINE") or 0)
+def budget_left():
+    return 5 if deadline <= 0 else deadline - time.time()
 ckpt = json.load(open(os.environ["CKPT_FILE"]))
 created_ms = int(ckpt.get("created", 0)) * 1000
 base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
-ok = stale = fail = 0
+ok = stale = fail = budget_skipped = 0
 dir_cache = {}
 for s in ckpt.get("sessions", []):
     sid = s.get("id")
     if not sid:
         continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    max_time = str(max(1, min(5, int(rem))))
     d = s.get("directory") or ""
     # Freshness guard: skip sessions with a turn newer than the checkpoint —
     # they completed (or progressed) after capture and must not be re-prompted.
     if d and d not in dir_cache:
-        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth,
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth,
                             base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
                            capture_output=True, text=True)
         try:
@@ -614,7 +676,7 @@ for s in ckpt.get("sessions", []):
         continue
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
-    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", auth, "-X", "POST",
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
                         base + "/session/" + sid + "/prompt_async" + q],
                        capture_output=True, text=True)
@@ -624,7 +686,7 @@ for s in ckpt.get("sessions", []):
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
         fail += 1
-print("summary re-prompted=%d skipped_stale=%d failed=%d" % (ok, stale, fail))
+print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d" % (ok, stale, fail, budget_skipped))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
     # One-shot: consume the checkpoint AFTER attempting every listed session,
