@@ -256,7 +256,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   }
 
   const recordDecision = async (decision: Decision, turn: Turn, root: string): Promise<void> => {
-    ledger = await ledger.append("TICK_DECIDED", { decision, sessionID: turn.sessionID, messageID: turn.userMessageID })
+    ledger = await ledger.append("TICK_DECIDED", { decision, root, sessionID: turn.sessionID, messageID: turn.userMessageID })
     const action: Action = decision.action
     status.ticksByAction[action] = (status.ticksByAction[action] ?? 0) + 1
     if (status.collect !== undefined) {

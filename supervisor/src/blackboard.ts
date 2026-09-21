@@ -252,17 +252,17 @@ const byRootCounts = (entries: readonly BlackboardEntry[]): ReadonlyMap<string, 
 }
 
 /** Narrow parse of the service's TICK_DECIDED ledger payload (payload is unknown). */
-export type RecentDecision = { readonly action: Action; readonly rationale: string; readonly sessionID: string; readonly decidedAt: ISO8601 }
+export type RecentDecision = { readonly action: Action; readonly rationale: string; readonly root?: string; readonly sessionID: string; readonly decidedAt: ISO8601 }
 
 export function parseTickDecided(record: LedgerRecord): RecentDecision | undefined {
   if (record.type !== "TICK_DECIDED") return undefined
   const payload = record.payload
   if (typeof payload !== "object" || payload === null) return undefined
-  const { decision, sessionID } = payload as { decision?: unknown; sessionID?: unknown }
+  const { decision, root, sessionID } = payload as { decision?: unknown; root?: unknown; sessionID?: unknown }
   if (typeof decision !== "object" || decision === null || typeof sessionID !== "string") return undefined
   const { action, rationale } = decision as { action?: unknown; rationale?: unknown }
   if (typeof action !== "string" || typeof rationale !== "string") return undefined
   const known = ACTIONS.find((candidate) => candidate === action)
   if (known === undefined) return undefined
-  return { action: known, rationale, sessionID, decidedAt: record.timestamp }
+  return { action: known, rationale, ...(typeof root === "string" ? { root } : {}), sessionID, decidedAt: record.timestamp }
 }

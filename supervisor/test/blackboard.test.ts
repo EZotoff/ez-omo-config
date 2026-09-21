@@ -201,10 +201,11 @@ describe("blackboard", () => {
   })
 
   test("parseTickDecided narrows TICK_DECIDED payloads and rejects others", () => {
-    const record = { seq: 1, timestamp: T0, type: "TICK_DECIDED", payload: { decision: { action: "CONTINUE", rationale: "worker asked go-ahead", citations: [], confidence: 0.8 }, sessionID: "ses_1", messageID: "msg_1" }, prevHash: "GENESIS", hash: "0".repeat(64) } as const satisfies LedgerRecord
+    const record = { seq: 1, timestamp: T0, type: "TICK_DECIDED", payload: { decision: { action: "CONTINUE", rationale: "worker asked go-ahead", citations: [], confidence: 0.8 }, root: "/projects/beacon", sessionID: "ses_1", messageID: "msg_1" }, prevHash: "GENESIS", hash: "0".repeat(64) } as const satisfies LedgerRecord
     const parsed = parseTickDecided(record)
     expect(parsed?.action).toBe("CONTINUE")
     expect(parsed?.sessionID).toBe("ses_1")
+    expect(parsed?.root).toBe("/projects/beacon")
     const other = { ...record, type: "TICK_SKIPPED" } as const satisfies LedgerRecord
     expect(parseTickDecided(other)).toBeUndefined()
     const malformed = { ...record, payload: { decision: { action: "EXPLODE", rationale: "x" }, sessionID: "ses_1" } } as const satisfies LedgerRecord
