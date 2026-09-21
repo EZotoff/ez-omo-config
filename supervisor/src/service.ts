@@ -142,7 +142,8 @@ export async function runService(signal: AbortSignal): Promise<void> {
     }
     errorHour.count += 1
     status.errorsLastHour = errorHour.count
-    if (errorHour.count >= 20 && !errorHour.toasted) {
+    status.errorsLastHourPeak = Math.max(status.errorsLastHourPeak ?? 0, errorHour.count)
+    if (errorHour.count >= 10 && !errorHour.toasted) {
       errorHour.toasted = true
       await client.toast(`Supervisor logged ${errorHour.count} errors in the last hour (check journald + ledger)`, "Supervisor error storm")
     }
@@ -201,11 +202,29 @@ export async function runService(signal: AbortSignal): Promise<void> {
     ledger = await ledger.append("ERROR", { reason: "startup recovery", recovered, note: "items found in answered state after restart — re-routed" })
   }
 
-  const reconcile = async (root: string): Promise<RootRuntime> => {
-    const manifest = await reconcileRoot(client, root, emptyRegistry, {
-      initialWindowDays: config.initial_window_days,
-      fetchConcurrency: config.fetch_concurrency,
-    }, consoles.allSessionIDs())
+  const rootBackoff = new Map<string, { failures: number; nextAttemptAt: number }>()
+  const reconcile = async (root: string): Promise<RootRuntime | undefined> => {
+    const backoff = rootBackoff.get(root)
+    if (backoff !== undefined && Date.now() < backoff.nextAttemptAt) {
+      status.rootHealth = { ...status.rootHealth, [root]: { state: "failing", consecutiveFailures: backoff.failures, lastErrorAt: new Date(backoff.nextAttemptAt).toISOString() } }
+      return runtimes.get(root)
+    }
+    let manifest
+    try {
+      manifest = await reconcileRoot(client, root, emptyRegistry, {
+        initialWindowDays: config.initial_window_days,
+        fetchConcurrency: config.fetch_concurrency,
+      }, consoles.allSessionIDs())
+      rootBackoff.delete(root)
+    } catch (error) {
+      const b = rootBackoff.get(root) ?? { failures: 0, nextAttemptAt: 0 }
+      const failures = b.failures + 1
+      const delay = Math.min(2 ** Math.min(failures, 5) * 60_000, 1_800_000)
+      rootBackoff.set(root, { failures, nextAttemptAt: Date.now() + delay })
+      status.rootHealth = { ...status.rootHealth, [root]: { state: "failing", consecutiveFailures: failures, lastErrorAt: new Date().toISOString() } }
+      try { await writeStatus(statusPath, status) } catch {}
+      throw error instanceof Error ? error : new Error(String(error))
+    }
     const previous = runtimes.get(root)
     const rootConfig = config.roots.find((r) => r.path === root)
     const runtime = previous ?? {
@@ -218,6 +237,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
     }
     runtime.manifest = manifest
     runtimes.set(root, runtime)
+    status.rootHealth = { ...status.rootHealth, [root]: { state: "ok", consecutiveFailures: 0 } }
     status.lastReconcile = manifest.completedAt
     status.queueDepths[root] = runtime.queueDepth
     const turns = [...runtimes.values()].flatMap((entry) => entry.manifest.sessions.flatMap((scan) => scan.turns))
@@ -272,7 +292,8 @@ export async function runService(signal: AbortSignal): Promise<void> {
       runtime.states.set(sessionID, graceResult.state)
       if (graceResult.illegal || graceResult.state.kind !== "TICK") return
       const previousManifest = runtime.manifest
-      runtime.manifest = (await reconcile(runtime.root)).manifest
+      const refreshed = await reconcile(runtime.root)
+      if (refreshed !== undefined) runtime.manifest = refreshed.manifest
       const scan = runtime.manifest.sessions.find((entry) => entry.session.id === sessionID)
       // Operator-attention-point guard: tick only if the target reply is the
       // session's LAST message. If anything arrived after it (a ralph push, a

@@ -22,6 +22,12 @@ export const statusSchema = z.object({
   modes: z.record(z.string(), z.string()).optional(),
   errorsSinceStart: z.number().int().nonnegative().optional(),
   errorsLastHour: z.number().int().nonnegative().optional(),
+  errorsLastHourPeak: z.number().int().nonnegative().optional(),
+  rootHealth: z.record(z.string(), z.object({
+    state: z.enum(["ok", "failing"]),
+    consecutiveFailures: z.number().int().nonnegative(),
+    lastErrorAt: z.string().optional(),
+  })).optional(),
   machineMarkedRate: z.number().min(0).max(1),
   collect: collectTelemetrySchema.optional(),
 }).strict()
