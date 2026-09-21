@@ -50,8 +50,15 @@ log() { printf '[restart-continuation] %s\n' "$*"; }
 
 # Loud failure channel: the journal (survives the server being dead; the TUI
 # cannot be toasted from here). Best-effort — never fails the caller.
-journal_alert() {
-  local msg="restart-continuation: $*"
+journal_alert() { # journal_alert <reason> <unit> <rc|-> <uuid|-> <count|-> <text...>
+  # Human-readable text FIRST, then a machine-readable key=value suffix on the
+  # SAME journal line (contract for the supervisor journal->ledger bridge, plan
+  # task 10): unit= reason= rc= uuid= count= ts=. Fields a call site cannot
+  # supply are '-'.
+  local reason="$1" unit="$2" rc="${3:--}" uuid="${4:--}" count="${5:--}" ts
+  shift 5
+  ts="$(date +%s)"
+  local msg="restart-continuation: $* unit=$unit reason=$reason rc=$rc uuid=$uuid count=$count ts=$ts"
   if command -v systemd-cat >/dev/null 2>&1; then
     printf '%s\n' "$msg" | systemd-cat -p alert -t restart-continuation 2>/dev/null || true
   elif command -v logger >/dev/null 2>&1; then
@@ -274,7 +281,7 @@ print("\n".join(sorted(r[0] for r in rows)))
 PYEOF
 )"; then
     log "checkpoint: directory discovery failed for $unit; previous checkpoint preserved"
-    journal_alert "checkpoint directory discovery failed for $unit; previous checkpoint preserved"
+    journal_alert preflight_failed "$unit" - - - "checkpoint directory discovery failed for $unit; previous checkpoint preserved"
     return 1
   fi
   mkdir -p "$STATE_DIR"
@@ -291,7 +298,7 @@ PYEOF
       st="$(api GET "/session/status?directory=$enc")" || rc=$?
       if (( rc != 0 )); then
         log "checkpoint: /session/status probe failed rc=$rc dir=$d — $OPENCODE_URL"
-        journal_alert "checkpoint API probe failed for $unit ($OPENCODE_URL) rc=$rc; previous checkpoint preserved"
+        journal_alert preflight_failed "$unit" "$rc" - - "checkpoint API probe failed for $unit ($OPENCODE_URL) rc=$rc; previous checkpoint preserved"
         return 1
       fi
       [[ -n "$st" ]] && printf '%s\n' "$st" >> "$tmpstatus"
@@ -299,7 +306,7 @@ PYEOF
       api GET "/session?directory=$enc&limit=100" > "$tmpdir/sessions-$i.json" || rc=$?
       if (( rc != 0 )); then
         log "checkpoint: /session probe failed rc=$rc dir=$d — $OPENCODE_URL"
-        journal_alert "checkpoint API probe failed for $unit ($OPENCODE_URL) rc=$rc; previous checkpoint preserved"
+        journal_alert preflight_failed "$unit" "$rc" - - "checkpoint API probe failed for $unit ($OPENCODE_URL) rc=$rc; previous checkpoint preserved"
         return 1
       fi
     done <<< "$dirs"
@@ -364,13 +371,35 @@ if [[ -n "$HOOK_MODE" ]]; then
   if [[ "$HOOK_MODE" == hook-snapshot ]]; then
     if bypass_active; then hook_log "bypass flag set for $SERVICE_UNIT; snapshot skipped"; exit 0; fi
     rc=0
-    api GET /session/status >/dev/null 2>&1 || rc=$?
+    preflight_st="$(api GET /session/status 2>/dev/null)" || rc=$?
     if (( rc != 0 )); then
       hook_log "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk"
-      journal_alert "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk ($OPENCODE_URL)"
+      journal_alert preflight_failed "$SERVICE_UNIT" "$rc" - - "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk ($OPENCODE_URL)"
       exit 0
     fi
-    STATE_FILE="$STATE_DIR/snapshot-$SERVICE_UNIT-$(date +%Y%m%d-%H%M%S).json" snapshot || hook_log "snapshot failed (non-fatal)"
+    sfc=0
+    STATE_FILE="$STATE_DIR/snapshot-$SERVICE_UNIT-$(date +%Y%m%d-%H%M%S).json" snapshot || sfc=$?
+    if (( sfc != 0 )) || [[ ! -s "$STATE_FILE" ]]; then
+      (( sfc != 0 )) || sfc=1   # file missing but snapshot() masked the rc
+      # Preflight succeeded but the snapshot write/collection failed while busy
+      # sessions may exist. Count source: last checkpoint data first, then the
+      # preflight status response, else '-' (unknown).
+      busy_count="$(python3 -c 'import json,sys
+try:
+    print(len(json.load(open(sys.argv[1])).get("sessions", [])))
+except Exception:
+    sys.exit(1)' "$STATE_DIR/last-busy-$SERVICE_UNIT.json" 2>/dev/null || true)"
+      if [[ ! "$busy_count" =~ ^[0-9]+$ ]]; then
+        busy_count="$(printf '%s' "${preflight_st:-}" | python3 -c 'import json,sys
+try:
+    print(sum(1 for v in json.load(sys.stdin).values() if isinstance(v, dict) and v.get("type") in ("busy", "retry")))
+except Exception:
+    sys.exit(1)' 2>/dev/null || true)"
+      fi
+      [[ "$busy_count" =~ ^[0-9]+$ ]] || busy_count="-"
+      hook_log "snapshot failed (non-fatal) rc=$sfc; busy_count=$busy_count"
+      journal_alert snapshot_failed "$SERVICE_UNIT" "$sfc" - "$busy_count" "stop snapshot failed for $SERVICE_UNIT rc=$sfc (non-fatal); ${busy_count} busy session(s) at risk"
+    fi
     hook_log "snapshot done for $SERVICE_UNIT"
     exit 0
   fi
@@ -452,7 +481,7 @@ PYEOF
     touch "$ckpt_marker"
     ckpt_n="$(printf '%s\n' "$ckpt_out" | sed -n 's/^summary re-prompted=\([0-9]*\) .*/\1/p' | tail -1)"
     hook_log "crash-class resume from checkpoint $ckpt_uuid done: ${ckpt_n:-0} re-prompted(s)"
-    journal_alert "crash-class resume from checkpoint $ckpt_uuid for $SERVICE_UNIT: ${ckpt_n:-0} sessions re-prompted (stop snapshot missing)"
+    journal_alert resume_fallback "$SERVICE_UNIT" - "$ckpt_uuid" "${ckpt_n:-0}" "crash-class resume from checkpoint $ckpt_uuid for $SERVICE_UNIT: ${ckpt_n:-0} sessions re-prompted (stop snapshot missing)"
     exit 0
   fi
   age=$(( $(date +%s) - $(mtime_of "$latest") ))
