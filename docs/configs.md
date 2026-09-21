@@ -301,7 +301,7 @@ The installed path `~/.config/opencode/retry-errors.json` is a symlink to `confi
 - Custom agent and category model overrides
 - Skill auto-loading per category
 - Team Mode is enabled through `team_mode.enabled: true`
-- Goal tracking is enabled through `goal.enabled: true` (OMO schema: `enabled`, `auto_start`, `default_max_iterations`; defaults `false`/`false`/`100`)
+- Goal tracking (`goal.*`) stays disabled: OMO 4.19.x's goal hook re-sets the session objective from EVERY user message and throws `InvalidObjectiveError` on prompts >2000 chars (upstream bug, still present in dev as of 21 Sep 2026). Re-enable only after a fork/upstream fix gates objective-setting to explicit `/goal` usage.
 - Ultrawork is the default mode through `default_mode.ultrawork: true`
 - OMO workflow integrations
 - Extension point configurations
