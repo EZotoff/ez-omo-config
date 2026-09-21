@@ -146,15 +146,14 @@ api() { # api <method> <path> [json-body]
 
 log() { printf '[restart-continuation] %s\n' "$*"; }
 
-# --- Snapshot -------------------------------------------------------------
-snapshot() {
-  local out dirs d tmpstatus tmpdir
-  # /session and /session/status are INSTANCE-SCOPED on the HTTP API: the global list
-  # only covers the server's root directory, so directory discovery comes straight from
-  # the shared session DB (read-only). Only RECENTLY updated dirs are queried — a
-  # busy/retry session is by definition recently updated, and sweeping stale bench/tmp
-  # dirs is slow enough to race the very turns being snapshotted (2026-09-16 failure).
-  dirs="$(MAX_AGE="$MAX_AGE_SECONDS" python3 - <<'PYEOF'
+# --- Directory discovery (shared by snapshot() and checkpoint()) ------------
+# /session and /session/status are INSTANCE-SCOPED on the HTTP API: the global list
+# only covers the server's root directory, so directory discovery comes straight from
+# the shared session DB (read-only). Only RECENTLY updated dirs are queried — a
+# busy/retry session is by definition recently updated, and sweeping stale bench/tmp
+# dirs is slow enough to race the very turns being snapshotted (2026-09-16 failure).
+discover_dirs() {
+  MAX_AGE="$MAX_AGE_SECONDS" python3 - <<'PYEOF'
 import os, sqlite3, time
 db = os.path.expanduser("~/.local/share/opencode/opencode.db")
 con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
@@ -164,22 +163,40 @@ rows = con.execute(
     "where time_updated >= ? and time_archived is null and directory != ''", (cutoff,))
 print("\n".join(sorted(r[0] for r in rows)))
 PYEOF
-)"
+}
+
+# --- Snapshot -------------------------------------------------------------
+snapshot() {
+  local out dirs d tmpstatus tmpdir
+  # Wall-clock budget (F1 hardening): the per-dir loop issues two sequential API
+  # calls per directory, so cumulative collection time is otherwise unbounded.
+  # On deadline the snapshot FAILS via the caller's existing snapshot_failed
+  # path — a partial snapshot is never written. Hook mode starts SECONDS before
+  # the stop-preflight so this budget bounds the TOTAL hook-snapshot runtime,
+  # not just the collection loop.
+  local budget="${SNAPSHOT_BUDGET_SECONDS:-15}" i=0 st deadline_hit=0
+  dirs="$(discover_dirs)"
   [[ -n "$dirs" ]] || { echo "ERROR: no recently-active session directories found in DB" >&2; return 1; }
   mkdir -p "$STATE_DIR"
   out="${STATE_FILE:-$STATE_DIR/snapshot-$(date +%Y%m%d-%H%M%S).json}"
   tmpstatus="$(mktemp)" tmpdir="$(mktemp -d)"
   : > "$tmpstatus"
-  local i=0 st
   while IFS= read -r d; do
     [[ -n "$d" ]] || continue
+    if (( SECONDS >= budget )); then deadline_hit=1; break; fi
     i=$((i + 1))
     local enc="$d"
     enc="$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "$d")"
     st="$(api GET "/session/status?directory=$enc" || true)"
     [[ -n "$st" ]] && printf '%s\n' "$st" >> "$tmpstatus"
+    if (( SECONDS >= budget )); then deadline_hit=1; break; fi
     api GET "/session?directory=$enc&limit=100" > "$tmpdir/sessions-$i.json" 2>/dev/null || true
   done <<< "$dirs"
+  if (( deadline_hit )); then
+    echo "ERROR: snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); no snapshot written" >&2
+    [[ -z "$HOOK_MODE" ]] || hook_log "snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); aborting before write"
+    return 1
+  fi
   STATUS_FILE="$tmpstatus" SESSIONS_DIR="$tmpdir" OUT="$out" python3 - <<'PYEOF'
 import glob, json, os, time
 merged = {}
@@ -281,17 +298,7 @@ PYEOF
 # previous checkpoint is left untouched and we exit non-zero.
 checkpoint() {
   local unit="$1" dirs d enc st rc i=0 tmpstatus tmpdir tmpout
-  if ! dirs="$(MAX_AGE="$MAX_AGE_SECONDS" python3 - <<'PYEOF'
-import os, sqlite3, time
-db = os.path.expanduser("~/.local/share/opencode/opencode.db")
-con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-cutoff = (time.time() - float(os.environ["MAX_AGE"])) * 1000
-rows = con.execute(
-    "select distinct directory from session "
-    "where time_updated >= ? and time_archived is null and directory != ''", (cutoff,))
-print("\n".join(sorted(r[0] for r in rows)))
-PYEOF
-)"; then
+  if ! dirs="$(discover_dirs)"; then
     log "checkpoint: directory discovery failed for $unit; previous checkpoint preserved"
     journal_alert preflight_failed "$unit" - - - "checkpoint directory discovery failed for $unit; previous checkpoint preserved"
     return 1
@@ -503,6 +510,7 @@ if [[ -n "$HOOK_MODE" ]]; then
   if [[ "$HOOK_MODE" == hook-snapshot ]]; then
     if bypass_active; then hook_log "bypass flag set for $SERVICE_UNIT; snapshot skipped"; exit 0; fi
     rc=0
+    SECONDS=0   # wall-clock budget clock: covers preflight + snapshot collection
     preflight_st="$(api GET /session/status 2>/dev/null)" || rc=$?
     if (( rc != 0 )); then
       hook_log "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk"
