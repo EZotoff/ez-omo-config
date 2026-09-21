@@ -46,6 +46,17 @@ esac
 
 log() { printf '[restart-continuation] %s\n' "$*"; }
 
+# Loud failure channel: the journal (survives the server being dead; the TUI
+# cannot be toasted from here). Best-effort — never fails the caller.
+journal_alert() {
+  local msg="restart-continuation: $*"
+  if command -v systemd-cat >/dev/null 2>&1; then
+    printf '%s\n' "$msg" | systemd-cat -p alert -t restart-continuation 2>/dev/null || true
+  elif command -v logger >/dev/null 2>&1; then
+    printf '%s\n' "$msg" | logger -p user.alert -t restart-continuation 2>/dev/null || true
+  fi
+}
+
 if [[ -n "$HOOK_MODE" ]];
   then
   SERVICE_UNIT="${2:-}"; OPENCODE_URL="${3:-}"; AUTH_ENV="${4:-}"
@@ -97,15 +108,19 @@ else
   fi
 fi
 api() { # api <method> <path> [json-body]
-  local method="$1" path="$2" body="${3:-}"
+  local method="$1" path="$2" body="${3:-}" rc=0
   if [[ -n "$body" ]]; then
-    curl -sS -f -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
+    curl -sS -f --connect-timeout 2 --max-time 5 -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
       -X "$method" -H 'Content-Type: application/json' -d "$body" \
-      "$OPENCODE_URL$path"
+      "$OPENCODE_URL$path" || rc=$?
   else
-    curl -sS -f -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
-      -X "$method" "$OPENCODE_URL$path"
+    curl -sS -f --connect-timeout 2 --max-time 5 -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" \
+      -X "$method" "$OPENCODE_URL$path" || rc=$?
   fi
+  if (( rc != 0 )) && [[ -n "$HOOK_MODE" ]]; then
+    hook_log "api $method $path failed rc=$rc ($OPENCODE_URL)"
+  fi
+  return "$rc"
 }
 
 log() { printf '[restart-continuation] %s\n' "$*"; }
@@ -224,7 +239,7 @@ for s in snap.get("sessions", []):
         from urllib.parse import quote
         q = "?directory=" + quote(s["directory"], safe="")
     r = subprocess.run(
-        ["curl", "-sS", "-f", "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
+        ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", "5", "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
          "-H", "Content-Type: application/json", "-d", body,
          f"{base}/session/{s['id']}/prompt_async{q}"],
         capture_output=True, text=True)
@@ -262,8 +277,11 @@ if [[ -n "$HOOK_MODE" ]]; then
   trap 'exit 0' EXIT
   if [[ "$HOOK_MODE" == hook-snapshot ]]; then
     if bypass_active; then hook_log "bypass flag set for $SERVICE_UNIT; snapshot skipped"; exit 0; fi
-    if ! api GET /session/status >/dev/null 2>&1; then
-      hook_log "server $OPENCODE_URL unreachable at stop; nothing to snapshot"
+    rc=0
+    api GET /session/status >/dev/null 2>&1 || rc=$?
+    if (( rc != 0 )); then
+      hook_log "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk"
+      journal_alert "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk ($OPENCODE_URL)"
       exit 0
     fi
     STATE_FILE="$STATE_DIR/snapshot-$SERVICE_UNIT-$(date +%Y%m%d-%H%M%S).json" snapshot || hook_log "snapshot failed (non-fatal)"
