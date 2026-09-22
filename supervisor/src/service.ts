@@ -71,7 +71,8 @@ export class SessionScheduler {
   ) {}
 
   isThrottled(sessionID: string): boolean {
-    return this.nowFn() - (this.lastTickAt.get(sessionID) ?? 0) < this.minIntervalMs
+    const lastTick = this.lastTickAt.get(sessionID)
+    return lastTick !== undefined && this.nowFn() - lastTick < this.minIntervalMs
   }
 
   markTicked(sessionID: string): void {
