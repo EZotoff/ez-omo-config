@@ -1,0 +1,10 @@
+[Unit]
+Description=Run OpenCode session-learning sweep nightly (03:30 local, before the Monday 04:30 session archive)
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

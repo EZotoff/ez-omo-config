@@ -1,6 +1,8 @@
 // configs/opencode/skill-nudger/state.mjs
 // Per-session nudge guardrails: dedup, cooldown, cap, circuit breaker
 
+// Rules with their own 1-per-session budget, exempt from the shared nudge cap.
+const STANDALONE_BUDGET_RULES = new Set(["learning-capture"]);
 const stateBySession = new Map();
 const MAX_TRACKED_SESSIONS = 200;
 
@@ -39,9 +41,13 @@ export function getSessionState(sessionID) {
 export function canNudge(sessionID, ruleId, config, totalCalls) {
   const state = getSessionState(sessionID);
   if (state.circuitBroken) return { ok: false, reason: "circuit_open" };
-  if (state.nudgesSent >= config.maxNudgesPerSession) return { ok: false, reason: "cap_reached" };
+  const standalone = STANDALONE_BUDGET_RULES.has(ruleId);
+  if (!standalone && state.nudgesSent >= config.maxNudgesPerSession) return { ok: false, reason: "cap_reached" };
   if (state.sentRuleIds.has(ruleId)) return { ok: false, reason: "rule_already_sent" };
-  if (totalCalls - state.lastNudgeAtToolCount < config.cooldownToolCalls) {
+  if (
+    !standalone &&
+    totalCalls - state.lastNudgeAtToolCount < config.cooldownToolCalls
+  ) {
     return { ok: false, reason: "cooldown" };
   }
   return { ok: true };
@@ -50,7 +56,7 @@ export function canNudge(sessionID, ruleId, config, totalCalls) {
 export function recordNudge(sessionID, ruleId, totalCalls) {
   const state = getSessionState(sessionID);
   state.sentRuleIds.add(ruleId);
-  state.nudgesSent += 1;
+  if (!STANDALONE_BUDGET_RULES.has(ruleId)) state.nudgesSent += 1;
   state.lastNudgeAtToolCount = totalCalls;
 }
 

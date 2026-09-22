@@ -20,6 +20,7 @@ CONTENT=""
 PROJECT_ID=""
 SESSION_ID=""
 SOURCE="closeout:runtime"
+NO_SUPERSEDE=0
 
 usage() {
     cat >&2 <<'EOF'
@@ -32,10 +33,13 @@ Usage: wisdom-closeout.sh [OPTIONS]
   --session-id      source session id           (optional)
   --origin-session  alias of --session-id       (optional)
   --source          source identifier           (default: closeout:runtime)
-
+  --no-supersede    never supersede a matched record; write as new and
+                    record the near-match in observability instead
 Behavior:
   - Writes canonical Wisdom with provenance=closeout
   - If a clear replacement is detected, supersedes the previous record
+    (unless --no-supersede is set: the write proceeds as new, the event
+    records lifecycle_decision=replace-suppressed)
   - If unresolved conflict is detected, annotates new record with contradicts
 
 Exit codes:
@@ -198,6 +202,7 @@ while [[ $# -gt 0 ]]; do
         --session-id|--origin-session)
                           SESSION_ID="$2"; shift 2 ;;
         --source)         SOURCE="$2";     shift 2 ;;
+        --no-supersede)   NO_SUPERSEDE=1;  shift 1 ;;
         --help|-h)        usage ;;
         *)
             wisdom_log ERROR "Unknown option: $1"
@@ -252,6 +257,11 @@ if [[ -n "$SESSION_ID" ]]; then
 fi
 
 new_id=$("$WRITE_SCRIPT" "${write_args[@]}")
+
+if [[ "$action" == "replace" && "$NO_SUPERSEDE" -eq 1 ]]; then
+    # Unattended callers must not retire existing records on lexical similarity.
+    action="replace-suppressed"
+fi
 
 if [[ "$action" == "replace" && -n "$matched_id" ]]; then
     edit_args=("$matched_id" --scope "$SCOPE" --set-status superseded --set-superseded-by "$new_id")

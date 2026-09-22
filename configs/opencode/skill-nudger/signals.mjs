@@ -36,6 +36,10 @@ const PORT_BINDING_RES = [
 // upstream-contribution pre-flight mandate).
 const UPSTREAM_CONTRIBUTION_RE = /\bgh\s+(?:pr|issue)\s+create\b/;
 
+// Commands that launch a detached / long-running job (mirrors the global
+// AGENTS.md long-running-job monitoring and durable-execution rules).
+const LONG_JOB_RE = /\b(?:systemd-run|durable-run|setsid|nohup)\b/;
+
 let retryPatternsCache = null;
 
 export function loadRetryPatterns() {
@@ -87,6 +91,33 @@ function isUpstreamContribution(tool, args) {
   if (tool !== "bash" && tool !== "terminal") return false;
   const cmd = typeof args?.command === "string" ? args.command : "";
   return UPSTREAM_CONTRIBUTION_RE.test(cmd);
+}
+
+function isLongJobLaunch(tool, args) {
+  if (tool !== "bash" && tool !== "terminal") return false;
+  const cmd = typeof args?.command === "string" ? args.command : "";
+  return LONG_JOB_RE.test(cmd);
+}
+
+// True when this fingerprint had >= threshold consecutive failures earlier in
+// the window and has now succeeded — the fix just landed, the lesson is fresh.
+function hadResolvedFailureStreak(windows, sessionID, fp, threshold) {
+  const w = windows.get(sessionID) ?? [];
+  let run = 0;
+  let maxRun = 0;
+  for (const e of w) {
+    if (e.fp !== fp) {
+      run = 0;
+      continue;
+    }
+    if (e.failed) {
+      run += 1;
+      if (run > maxRun) maxRun = run;
+    } else {
+      run = 0;
+    }
+  }
+  return maxRun >= threshold;
 }
 
 export function createSignalTracker(config) {
@@ -187,6 +218,29 @@ export function createSignalTracker(config) {
         type: "loop",
         skill: null, // meta-nudge, no skill
         evidence: `same call executed ${repeats} times within the last ${config.windowSize} tool calls: \`${fp.slice(0, 80)}\``,
+      });
+    }
+
+    // learning-capture: detached / long-running job launched — capture the
+    // operational facts and record a monitoring owner while context is fresh.
+    // Appended LAST: the pending-nudge slot is one per session, so the
+    // learning nudge must never preempt the higher-urgency rules above.
+    if (isLongJobLaunch(tool, args)) {
+      signals.push({
+        type: "learningCapture",
+        skill: "wisdom",
+        evidence: "a detached / long-running job was launched (systemd-run / durable-run / nohup / setsid)",
+      });
+    } else if (
+      !failed &&
+      hadResolvedFailureStreak(windows, sessionID, fp, config.repeatFailureThreshold)
+    ) {
+      // learning-capture: a failure streak for this exact call just resolved —
+      // the root cause / fix is established and uncaptured.
+      signals.push({
+        type: "learningCapture",
+        skill: "wisdom",
+        evidence: `a repeated-failure streak for this call just resolved: \`${fp.slice(0, 80)}\``,
       });
     }
 

@@ -127,6 +127,11 @@ ITEMS=(
     "scripts|scripts/opencode_maintenance.py|$HOME/.local/share/opencode/opencode_maintenance.py"
     "scripts|systemd/user/opencode-session-archive.service|$HOME/.config/systemd/user/opencode-session-archive.service"
     "scripts|systemd/user/opencode-session-archive.timer|$HOME/.config/systemd/user/opencode-session-archive.timer"
+    "scripts|scripts/session-learning/extract-digest.py|$HOME/.sisyphus/scripts/session-learning/extract-digest.py"
+    "scripts|scripts/session-learning/analyst-prompt.md|$HOME/.sisyphus/scripts/session-learning/analyst-prompt.md"
+    "scripts|scripts/session-learning/nightly-sweep.sh|$HOME/.sisyphus/scripts/session-learning/nightly-sweep.sh"
+    "scripts|systemd/user/opencode-session-learning.service|$HOME/.config/systemd/user/opencode-session-learning.service"
+    "scripts|systemd/user/opencode-session-learning.timer|$HOME/.config/systemd/user/opencode-session-learning.timer"
 
 )
 

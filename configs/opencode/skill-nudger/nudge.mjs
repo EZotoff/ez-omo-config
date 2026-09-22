@@ -43,6 +43,14 @@ export const RULES = [
     instruction:
       "You have repeated the same call many times with similar inputs. Step back: re-read the error, form a different approach, delegate, or report the blocker — do not repeat the same call again.",
   },
+  {
+    id: "learning-capture",
+    signal: "learningCapture",
+    skill: "wisdom",
+    agents: null,
+    instruction:
+      "Durable learning checkpoint: a repeated-failure streak just resolved or a long-running job was just launched. If the lesson is reusable, capture up to ONE wisdom entry now with exact evidence (~/.sisyphus/scripts/wisdom-write.sh). Long-running jobs also need a recorded owner and monitoring cadence. Do not edit policy files; policy implications require an operator-reviewed postmortem.",
+  },
 ];
 
 export function ruleForSignal(signalType) {

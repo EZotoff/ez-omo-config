@@ -1,0 +1,10 @@
+[Unit]
+Description=OpenCode Session Learning — nightly closeout capture sweep (digest + analyst + wisdom candidates)
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/ez-omo-config/scripts/session-learning/nightly-sweep.sh
+StandardOutput=append:%h/.local/share/opencode/session-learning-sweep.log
+StandardError=inherit
+TimeoutStartSec=3h
