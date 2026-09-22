@@ -67,7 +67,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Worktree-aware development** — parallel worktrees with port allocation and optional Docker isolation
 - **Semantic checkpoints** — automatic git checkpoint commits scoped to root session trees (LLM file selection, temp-index safety)
 - **Runtime fallback** — automatic model switching across providers on API errors/rate limits; retry budget and 300s fallback timeout tuned by fork patches
-- **Wisdom system** — capture and reuse development knowledge across sessions
+- **Wisdom system** — capture and reuse development knowledge across sessions, plus a nightly session-learning closeout sweep that mines finalized sessions for uncaptured learnings (capped, deduped, candidate-trust)
 - **Review enforcement** — automated code-review trigger after implementation work, gated to implementation dispatches in the active session lineage
 - **Clickable file links (TUI)** — every agent emits `[label](file:///abs/path)` links (works around the OpenTUI markdown-only linkification gap)
 - **Agent git workflow** — uniform parallel-agent coordination: Conventional-Commit reflex, branch-on-concurrency, worktree merge-back-and-reclaim
@@ -91,10 +91,10 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Configs** | 46 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 24 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 18 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
-| **Scripts** | 58 files | wisdom suite (21), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, operator tools |
+| **Scripts** | 76 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, operator tools |
 | **Supervisor** | 28 files | Bun + strict-TypeScript read-only observer service, status CLI, tests |
-| **Systemd** | 14 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), weekly session-archive service + timer (30-day retention), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
-| **Tests** | 111 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + 28-pair regression corpus (56 files) |
+| **Systemd** | 17 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), weekly session-archive service + timer (30-day retention), nightly session-learning service + timer (03:30 closeout sweep), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
+| **Tests** | 146 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning closeout suite + 28-pair regression corpus |
 | **Docs** | 12 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 

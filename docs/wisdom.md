@@ -622,6 +622,18 @@ wisdom-observe.sh reset --yes
 
 **Safety**: Without `--yes`, the command exits with code 2 and makes no changes.
 
+## Session-learning closeout sweep (nightly, automated)
+
+Finalized agent sessions leak learnings — capture was voluntary and audited sessions proved it fails in three ways (narrow partial capture, full miss, wrong sink into project notepads only). Since 2026-09-22 a nightly batch sweep captures regardless of agent behavior:
+
+- **Trigger**: `opencode-session-learning.timer` (03:30 daily, before the Mon 04:30 session archive). No event-driven capture — `session.idle` is per-turn and cannot detect finalization (design debate: `.sisyphus/debates/learning-capture-closeout-design/`).
+- **Pipeline**: `nightly-sweep.sh` → `extract-digest.py` (bounded SQLite digest: user msgs, per-turn assistant finals, tool errors, wisdom calls, git commits, launched units) → one `opencode run` analyst on a cheap pinned model → strict-JSON candidates → global cap 6 / per-session 3 → `wisdom-closeout.sh --no-supersede` writes `authority=candidate`, `provenance=closeout`, tagged `session-learning`. Policy/docs findings are written as `proposal:policy` / `proposal:docs` tagged candidates — searchable, applied only by operator decision (no recurring human review duty; unreviewed candidates are the steady state).
+- **Incremental tracking**: `~/.sisyphus/session-learning/ledger.jsonl` per session — watermark (`time_updated`), digest hash, candidate ids, fork `covered_by` markers. Grown sessions re-analyze with a feedforward ALREADY CAPTURED list so the analyst never re-emits; relationship declaration (`new|duplicate|complements|contradicts`) is mandatory per candidate.
+- **Obligations**: still-active background units referenced in a session (systemd-run/durable-run) are checked via `systemctl --user is-active` and reported as obligations, never as results.
+- **Supersession**: disabled (`--no-supersede`); the script's Jaccard ≥0.70 auto-replace is unsafe for unattended use. Lifecycle hygiene is `wisdom-gc.sh`'s job.
+- **Mid-session nudge**: skill-nudger `learningCapture` signal (failure-streak-just-resolved, long-running-job launched) nudges one immediate wisdom capture with its own 1/session budget. Advisory only; the nightly sweep is the reliable backstop.
+- **Acceptance gates (automated)**: `tests/test_session_learning.sh` — incl. digest-recall validation against the three audited sessions that motivated the design.
+
 ## Skill Integration
 
 The `wisdom/` skill provides OpenCode integration for the wisdom system. It wraps the scripts and provides a high-level interface for agents.
