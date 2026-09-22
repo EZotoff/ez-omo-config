@@ -63,7 +63,7 @@ After the 2026-09-18 silent binary-rebuild and OMO-runtime-deletion incidents, e
 
 - **Build receipts** — `scripts/build-and-install-opencode.sh` / `scripts/build-and-install-omo.sh` write per-artifact receipts (`~/.local/share/opencode/builds/<sha256>.json`) binding binary/dist sha256 → generation → source_head. Swapping a live artifact without a receipted, generation-matched build is refused; recovery installs write a persistent red marker. Shared helpers: `scripts/lib-patchset.sh`.
 
-- **3-state verifier** — `scripts/verify-live-patches.sh` emits PROVENANCE-VERIFIED / RUNTIME-VERIFIED / WEAK-MARKER; weak markers never produce a green summary.
+- **3-state verifier** — `scripts/verify-live-patches.sh` emits PROVENANCE-VERIFIED / RUNTIME-VERIFIED / WEAK-MARKER; weak markers never produce a green summary. Installed symlink invocations resolve the script's real repository path before selecting the patch registry and provenance lockfile.
 
 - **Smoke matrix** — `tests/smoke/` runs 2 deterministic smokes (turn-summary timestamp, bash lifecycle) and records per-binary-sha results under `~/.local/share/opencode/smoke-results/`.
 

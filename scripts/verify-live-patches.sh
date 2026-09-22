@@ -50,8 +50,12 @@ yaml_frontmatter_value() {
 }
 
 find_repo_root() {
-    local current
-    current="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local current script_path
+    # Installed copies are normally symlinks under ~/.sisyphus/scripts. Resolve
+    # the symlink before walking upward so the repo-owned registry and lockfile
+    # win over the unrelated machine-wide ~/.sisyphus/patches directory.
+    script_path="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${BASH_SOURCE[0]}")"
+    current="$(cd "$(dirname "$script_path")" && pwd)"
     while [[ "$current" != "/" ]]; do
         if [[ -d "$current/.sisyphus/patches" ]]; then
             printf '%s\n' "$current"
@@ -288,12 +292,12 @@ if (( PROV_MODE )); then
     if [[ ! -f "$TARGET" ]]; then
         PROV_STATE="no-binary"
         PROV_DETAIL="binary not found: $TARGET"
-    elif [[ ! -f "$PATCH_LOCKFILE" ]]; then
-        PROV_STATE="no-lockfile"
-        PROV_DETAIL="lockfile missing: $PATCH_LOCKFILE"
     else
         PROV_BIN_SHA="$(sha256sum "$TARGET" | awk '{print $1}')"
-        if [[ ! -f "$RECEIPT_DIR/$PROV_BIN_SHA.json" ]]; then
+        if [[ ! -f "$PATCH_LOCKFILE" ]]; then
+            PROV_STATE="no-lockfile"
+            PROV_DETAIL="lockfile missing: $PATCH_LOCKFILE"
+        elif [[ ! -f "$RECEIPT_DIR/$PROV_BIN_SHA.json" ]]; then
             PROV_STATE="no-receipt"
             PROV_DETAIL="no build receipt for binary sha256 $PROV_BIN_SHA in $RECEIPT_DIR"
         else
@@ -358,6 +362,7 @@ weak=0
 runtime_pending=0
 runtime_failed=0
 prov_unsatisfied=0
+opencode_binary_total=0
 results_file="$(mktemp)"
 trap 'rm -f "$results_file"' EXIT
 
@@ -435,6 +440,9 @@ for entry in "${entries[@]}"; do
     fi
 
     total=$((total + 1))
+    if (( PROV_MODE )) && [[ "$dependency" == "opencode" && "$patch_id" == opencode--* ]]; then
+        opencode_binary_total=$((opencode_binary_total + 1))
+    fi
     runtime_path=""
     runtime_ver="unknown"
     result=""
@@ -583,7 +591,7 @@ done
 # AMBER = provenance satisfied but runtime evidence pending; RED = provenance
 # missing/mismatched for any required patch.
 PROV_COLOR="RED"
-if (( prov_unsatisfied == 0 && runtime_failed == 0 )); then
+if [[ "$PROV_STATE" == "verified" ]] && (( prov_unsatisfied == 0 && runtime_failed == 0 )); then
     if (( runtime_pending == 0 )); then
         PROV_COLOR="GREEN"
     else
@@ -634,10 +642,10 @@ if os.environ["VERIFY_PROV_MODE"] == "1":
 print(json.dumps(out, sort_keys=True))
 '
 else
-    printf '%-52s %-17s %-28s %-10s %-19s %s\n' PATCH_ID DEP TARGET RUNTIME STATUS PATH
-    printf '%150s\n' '' | tr ' ' '-'
+    printf '%-19s %-52s %-17s %-10s %-28s %s\n' STATUS PATCH_ID DEP RUNTIME TARGET PATH
+    printf '%160s\n' '' | tr ' ' '-'
     while IFS=$'\t' read -r patch_id dependency target_file runtime_ver result display_path detail; do
-        printf '%s %-52s %-17s %-28s %-10s %-19s %s\n' "$result" "$patch_id" "$dependency" "$target_file" "$runtime_ver" "$display_path" "$detail"
+        printf '%-19s %-52s %-17s %-10s %-28s %s%s\n' "$result" "$patch_id" "$dependency" "$runtime_ver" "$target_file" "$display_path" "${detail:+ | $detail}"
     done < "$results_file"
     printf 'Summary (grep verdicts: omo/opencode-dcp/config layers): %d total | %d applied | %d stale | %d missing-target | %d version-drift | %d acknowledged-drift | %d schema-violation\n' "$total" "$applied" "$stale" "$missing" "$drift" "$acknowledged" "$schema_fail"
     if (( PROV_MODE )); then
@@ -654,7 +662,7 @@ fi
 # Timer exit-code contract: exit 0 = acceptable state. Weak markers for
 # lockfile-required patches (unsatisfied provenance) and runtime smoke FAILs
 # are NOT acceptable; pending runtime smoke (AMBER) is.
-if ((prov_unsatisfied > 0 || runtime_failed > 0)); then
+if ((prov_unsatisfied > 0 || runtime_failed > 0)) || { ((opencode_binary_total > 0)) && [[ "$PROV_STATE" != "verified" ]]; }; then
     exit 1
 fi
 exit 0
