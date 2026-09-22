@@ -5,8 +5,8 @@ target_file: "packages/opencode/src/tool/shell.ts, packages/core/src/cross-spawn
 target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
-applied_date: "2026-09-18"
-dep_version: "1.18.5-local"
+applied_date: "2026-09-22"
+dep_version: "1.18.31-p2"
 runtime_effective: false
 upstream_issue: "none"
 verification_pattern: "escaped-observed"
@@ -14,6 +14,10 @@ verification_strength: "discriminative"
 required_evidence: "runtime"
 surfaces: "server-api, cli-run, tui-interactive"
 ---
+
+## Runtime Verification
+
+NOT YET RUNTIME-EFFECTIVE. 2026-09-22 evidence: the prior live binary (1.18.31-p2, same commit lineage) carried this patch's markers but a bash call `sleep 55; ...` with declared timeout 70000ms stayed status=running for 2h+ (vk_music session ses_f3cbe6066ffe, wedged 13:35 local) — pattern presence without runtime effect. Rebuilt (build SHA ae7e1d1c, receipted) from update/v1.18.31 superset incl. timeout-cap commit — version string 1.18.31-p2, distinct SHA from the superseded same-string binary (backup opencode.backup-1.18.31-p2-bashwedge-*) + declared-timeout regression test `packages/opencode/test/bash-lifecycle-repro.test.ts` case (h). Flip runtime_effective to true ONLY after a live session exercises the vk shape (declared-timeout bash call returns within timeout + grace).
 
 # OpenCode bash lifecycle process-group cleanup
 
