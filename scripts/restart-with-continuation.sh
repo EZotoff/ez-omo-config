@@ -137,15 +137,19 @@ fi
 # it. Checkpoint mode keeps the fixed 5s max-time (timer-driven, not a
 # stop/start hook).
 hook_budget_active() { [[ "$HOOK_MODE" == hook-snapshot || "$HOOK_MODE" == hook-resume ]]; }
+hook_budget_start() { # absolute epoch deadline — set ONCE per hook invocation, never reset
+  HOOK_DEADLINE_EPOCH=$(( $(date +%s) + ${SNAPSHOT_BUDGET_SECONDS:-15} ))
+}
 hook_deadline_rem() { # seconds left under the hook budget; 0 when exhausted
-  local rem=$(( ${SNAPSHOT_BUDGET_SECONDS:-15} - SECONDS ))
+  local rem=$(( ${HOOK_DEADLINE_EPOCH:-0} - $(date +%s) ))
+  [[ -z "${HOOK_DEADLINE_EPOCH:-}" ]] && rem=$(( ${SNAPSHOT_BUDGET_SECONDS:-15} - SECONDS ))
   (( rem < 0 )) && rem=0
   printf '%s\n' "$rem"
 }
 api() { # api <method> <path> [json-body]
   local method="$1" path="$2" body="${3:-}" rc=0 max_time=5
   if hook_budget_active; then
-    local rem=$(( ${SNAPSHOT_BUDGET_SECONDS:-15} - SECONDS ))
+    local rem; rem="$(hook_deadline_rem)"
     if (( rem <= 0 )); then
       hook_log "api budget exhausted ($method $path); call skipped"
       return 28
@@ -197,7 +201,10 @@ snapshot() {
   # path — a partial snapshot is never written. Hook mode starts SECONDS before
   # the stop-preflight so this budget bounds the TOTAL hook-snapshot runtime,
   # not just the collection loop.
-  local budget="${SNAPSHOT_BUDGET_SECONDS:-15}" i=0 st deadline_hit=0
+  # Wall-clock budget: HOOK modes only — standalone/checkpoint collection is
+  # unbounded (healthy-server full collection is allowed to take its time).
+  local budget i=0 st deadline_hit=0
+  if hook_budget_active; then budget="${SNAPSHOT_BUDGET_SECONDS:-15}"; else budget=2147483647; fi
   dirs="$(discover_dirs)"
   [[ -n "$dirs" ]] || { echo "ERROR: no recently-active session directories found in DB" >&2; return 1; }
   mkdir -p "$STATE_DIR"
@@ -490,7 +497,7 @@ PYEOF
     hook_log "db fallback for $SERVICE_UNIT: 0 candidates; nothing to resume"
     return 0
   fi
-  SECONDS=0
+  # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready 45 || { hook_log "server not ready in time; db fallback skipped"; return 0; }
   hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
   out="$(CANDS="$cands" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
@@ -535,9 +542,15 @@ for s in cands.get("sessions", []):
         print("skip-stale %s (turn newer than db query)" % sid)
         stale += 1
         continue
+    # recompute remaining budget before the POST — GET above consumed wall clock
+    rem2 = budget_left()
+    if rem2 <= 0:
+        print("skip-budget %s (hook api budget exhausted before prompt)" % sid)
+        budget_skipped += 1
+        continue
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
-    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth, "-X", "POST",
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(5, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
                         base + "/session/" + sid + "/prompt_async" + q],
                        capture_output=True, text=True)
@@ -564,7 +577,8 @@ if [[ -n "$HOOK_MODE" ]]; then
   if [[ "$HOOK_MODE" == hook-snapshot ]]; then
     if bypass_active; then hook_log "bypass flag set for $SERVICE_UNIT; snapshot skipped"; exit 0; fi
     rc=0
-    SECONDS=0   # wall-clock budget clock: covers preflight + snapshot collection
+    SECONDS=0   # legacy timer (wait_ready loop); hook budget uses HOOK_DEADLINE_EPOCH
+    hook_budget_start
     preflight_st="$(api GET /session/status 2>/dev/null)" || rc=$?
     if (( rc != 0 )); then
       hook_log "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk"
@@ -598,6 +612,7 @@ except Exception:
     exit 0
   fi
   # hook-resume
+  hook_budget_start   # one absolute deadline for the whole hook: fallbacks may not reset it
   if bypass_active; then clear_bypass; hook_log "bypass flag set for $SERVICE_UNIT; resume skipped, flag cleared"; exit 0; fi
 latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1 || true)"
   if [[ -z "$latest" ]]; then
@@ -631,7 +646,7 @@ latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1
       db_fallback
       exit 0
     fi
-    SECONDS=0
+  # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
     wait_ready 45 || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
     hook_log "no stop snapshot; crash-class resume from checkpoint $ckpt_uuid"
     ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
@@ -676,9 +691,15 @@ for s in ckpt.get("sessions", []):
         print("skip-stale %s (turn newer than checkpoint)" % sid)
         stale += 1
         continue
+    # recompute remaining budget before the POST — GET above consumed wall clock
+    rem2 = budget_left()
+    if rem2 <= 0:
+        print("skip-budget %s (hook api budget exhausted before prompt)" % sid)
+        budget_skipped += 1
+        continue
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
-    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth, "-X", "POST",
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(5, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
                         base + "/session/" + sid + "/prompt_async" + q],
                        capture_output=True, text=True)
@@ -705,7 +726,7 @@ PYEOF
     mv "$latest" "$STATE_DIR/consumed-$(basename "$latest")"
     exit 0
   fi
-  SECONDS=0
+  # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready 45 || { hook_log "server not ready in time; resume skipped"; exit 0; }
   hook_log "resuming from $(basename "$latest")"
   resume "$latest" >> "$HOOKS_LOG" 2>&1 || true
