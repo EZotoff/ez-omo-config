@@ -35,6 +35,8 @@ const TOOL_DECLARED_GRACE_MS = 90_000; // declared timeout + cleanup grace
 const TOOL_MIN_DEADLINE_MS = 150_000;
 const RETRY_GRACE_MS = 60_000; // skip sessions in retry until next + grace
 const MAX_REAPS_PER_SESSION = 3; // dead-letter after this many reap attempts
+const ACTIVE_WINDOW_MS_DEFAULT = 24 * 60 * 60_000; // ignore sessions idle longer than this
+const EXEMPT_TOOLS_DEFAULT = ["question"]; // tools that legitimately wait for humans
 
 const DEFAULTS = {
   enabled: true,
@@ -42,6 +44,8 @@ const DEFAULTS = {
   silent_stall_ms: SILENT_STALL_MS_DEFAULT,
   tool_no_timeout_floor_ms: TOOL_NO_TIMEOUT_FLOOR_MS,
   max_reaps_per_session: MAX_REAPS_PER_SESSION,
+  active_window_ms: ACTIVE_WINDOW_MS_DEFAULT,
+  exempt_tools: EXEMPT_TOOLS_DEFAULT,
   exempt_sessions: [],
   exempt_directories: [],
 };
@@ -79,6 +83,7 @@ function loadConfig() {
     return {
       ...DEFAULTS,
       ...raw,
+      exempt_tools: Array.isArray(raw?.exempt_tools) ? raw.exempt_tools.map((t) => String(t).toLowerCase()) : [...EXEMPT_TOOLS_DEFAULT],
       exempt_sessions: Array.isArray(raw?.exempt_sessions) ? raw.exempt_sessions : [],
       exempt_directories: Array.isArray(raw?.exempt_directories) ? raw.exempt_directories : [],
     };
@@ -118,6 +123,7 @@ function evaluateSession(messages, now, cfg, liveRef = 0) {
   // declared timeout that never fired and background_output awaits).
   for (const part of parts) {
     if (part?.type !== "tool" || part?.state?.status !== "running") continue;
+    if (cfg.exempt_tools.includes(String(part?.tool ?? "").toLowerCase())) continue; // waits-for-human tools
     const startedAt = Number(part?.state?.time?.start) || 0;
     if (!startedAt) continue;
     const deadline = toolDeadlineMs(part, cfg);
@@ -217,6 +223,9 @@ export const BusyStallReaper = async (ctx) => {
         if (info?.parentID) continue; // child sessions: OMO retry machinery governs
         if (cfg.exempt_sessions.includes(sid)) continue;
         if (cfg.exempt_directories.some((d) => info?.directory === d)) continue;
+        // recency gate: never re-kick long-abandoned sessions
+        const updated = Number(info?.time?.updated) || 0;
+        if (cfg.active_window_ms > 0 && updated && now - updated > cfg.active_window_ms) continue;
         const st = statusTrack.get(sid);
         if (st?.type === "retry" && (!st.next || now < Number(st.next) + RETRY_GRACE_MS)) continue;
         let msgs;

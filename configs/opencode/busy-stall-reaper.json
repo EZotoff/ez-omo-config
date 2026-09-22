@@ -1,9 +1,14 @@
 {
   "enabled": true,
-  "dry_run": true,
+  "dry_run": false,
   "silent_stall_ms": 600000,
   "tool_no_timeout_floor_ms": 1800000,
   "max_reaps_per_session": 3,
-  "exempt_sessions": [],
+  "active_window_ms": 86400000,
+  "exempt_tools": ["question"],
+  "exempt_sessions": [
+    "ses_f39feb282ffeWDmiKNSHgpIrz7",
+    "ses_f54cb3005ffeDJF61RFHNrMWeB"
+  ],
   "exempt_directories": []
 }
