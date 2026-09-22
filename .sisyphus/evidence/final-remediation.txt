@@ -1,0 +1,46 @@
+# Final Verification Wave remediation — crashsafe-continuation-hardening
+Date: 2026-09-21 (worktree plan/crashsafe-continuation-hardening)
+
+## Defects fixed
+1. F1/Must-Have — hook-snapshot total runtime now bounded (~15s wall clock):
+   `SECONDS=0` set at hook-snapshot start (before stop-preflight, so the budget
+   covers preflight + collection); snapshot() checks `SECONDS >= budget`
+   (${SNAPSHOT_BUDGET_SECONDS:-15}) at each per-dir loop iteration AND between
+   the two API calls. On deadline: hook_log "snapshot budget exceeded" line,
+   return 1 → caller's existing snapshot_failed path fires (busy_count +
+   journal_alert snapshot_failed, contract-valid). No partial write. Exit 0
+   hook contract preserved.
+2. F1/Must-NOT — directory-discovery sqlite block extracted to ONE shared
+   `discover_dirs()` used by snapshot() and checkpoint(). Zero behavior change
+   (identical query/env/heredoc).
+3. F4/T10 — added tests/test_supervisor_journal_bridge.sh.kill.sh (idempotent;
+   removes ${TMPDIR:-/tmp}/supervisor-bridge-* scratch dirs; kills only
+   journalctl children of a bun journalbridge.test process via /proc
+   parent-identity guard; no pkill sweeps).
+
+## Verification (commands + results)
+- bash -n scripts/restart-with-continuation.sh → OK
+- bash -n tests/test_supervisor_journal_bridge.sh.kill.sh → OK
+- bash tests/test_supervisor_journal_bridge.sh → PASS (bun: 5 pass / 0 fail, 45 expect())
+- bash tests/test_supervisor_journal_bridge.sh.kill.sh (x2) → PASS, idempotent (0 removed, 0 killed)
+- bash tests/regressions/028-continuation-wedge-fastfail.sh → PASS (rc=0 in 5048ms < 15000ms; rc= line logged; journal alert visible)
+- bash tests/regressions/029-continuation-crash-resume-once.sh → PASS (inject-once, second run no-op)
+- Budget QA (scratch /tmp/opencode/budget.XXXXXX, XDG_STATE_DIR isolated, real
+  session DB touched read-only only — shipped discovery behavior):
+  * SIGSTOPped scratch http.server, default budget: hook-snapshot rc=0,
+    wall=5.03s (<15s), preflight_failed alert contract-valid.
+  * Responsive scratch server, SNAPSHOT_BUDGET_SECONDS=0: rc=0, wall=0.09s,
+    hooks.log lines "snapshot budget exceeded (0s >= 0s) after 0 dir(s);
+    aborting before write" + "snapshot failed (non-fatal) rc=1; busy_count=0",
+    0 snapshot files written, journal alert: reason=snapshot_failed rc=1
+    uuid=- count=0 ts=... (contract-valid).
+  * journalctl -t restart-continuation confirms both alert lines above.
+
+## Scratch cleanup receipts
+- QA scratch dirs /tmp/opencode/budget.* removed at script exit (trap) and
+  verified removed; scratch python servers killed by recorded PID only.
+- /tmp/opencode/budget-qa.sh, budget-qa2.sh removed.
+
+## Frozen (untouched)
+T5/T6 resume logic, db_fallback, alert contract call sites, checkpoint failure
+semantics, supervisor/src, systemd units, docs/MANIFEST/README/install.sh.

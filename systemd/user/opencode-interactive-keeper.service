@@ -1,8 +1,9 @@
 [Unit]
-Description=OpenCode Interactive Daemon Keeper — auto-start opencode-interactive.service when :3030 is unreachable
-# Recovers the daemon after agent-run update procedures stop it and die before
-# the restart step (2026-09-13/14 incidents). systemd Restart= never fires on
-# explicit stops, so a probe timer is the only coverage for this failure class.
+Description=OpenCode Daemon Keeper — auto-recover opencode-interactive.service (:3030) and opencode-bench.service
+# Recovers the daemons after agent-run update procedures stop them and die
+# before the restart step (2026-09-13/14, 2026-09-21 incidents). systemd
+# Restart= never fires on explicit stops, so a probe timer is the only
+# coverage for this failure class.
 After=opencode-interactive.service
 
 [Service]

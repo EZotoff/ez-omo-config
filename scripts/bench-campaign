@@ -6,6 +6,10 @@ SCRIPT_DIR="$(dirname "$SELF")"
 SCHEMA="$SCRIPT_DIR/bench-campaign.schema.json"
 DEFAULT_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bench-campaign"
 STATE_DIR="${BENCH_CAMPAIGN_STATE_DIR:-$DEFAULT_STATE_DIR}"
+# Dedicated bench instance (opencode-bench.service). See "Bench server
+# attachment" in the usage header for the verified mechanism.
+BENCH_SERVER_URL="${BENCH_SERVER_URL:-http://127.0.0.1:3040}"
+BENCH_SERVER_ENV_FILE="${BENCH_SERVER_ENV_FILE:-$HOME/.config/opencode/serve-bench.env}"
 
 usage() {
   cat <<'EOF'
@@ -30,6 +34,18 @@ MVP contract:
 
   BENCH_CAMPAIGN_STATE_DIR may override the state root for isolated tests.
 
+Bench server attachment (Task 7):
+  Campaign case launches are routed to the dedicated bench instance
+  (opencode-bench.service, default http://127.0.0.1:3040) instead of the
+  interactive server. The supported client-attachment mechanism is the
+  `opencode run --attach <url>` flag (packages/opencode/src/cli/cmd/run.ts:
+  190-193, 349-355, 943-946); Basic-auth is read from OPENCODE_SERVER_USERNAME /
+  OPENCODE_SERVER_PASSWORD (run.ts:194-203; server/auth.ts:18-19). This script
+  exports BENCH_SERVER_URL plus the bench instance's auth env into every case's
+  runner environment; a runner command attaches with `--attach "$BENCH_SERVER_URL"`.
+  Override the URL with BENCH_SERVER_URL and the auth file with
+  BENCH_SERVER_ENV_FILE.
+
 Phase 2 (defined, disabled):
   A future runner may emit secret-free JSONL failure records with fields
   {schemaVersion,caseId,phase,kind,code,fingerprint,retryable}. Fingerprints
@@ -43,6 +59,24 @@ die() { printf 'bench-campaign: %s\n' "$*" >&2; exit 2; }
 secure_dir() {
   mkdir -p "$1"
   chmod 700 "$1"
+}
+
+# Export the bench instance URL and its Basic-auth credentials into the case
+# runner environment. The runner attaches with `--attach "$BENCH_SERVER_URL"`;
+# opencode reads OPENCODE_SERVER_USERNAME/PASSWORD for the Basic-auth header.
+# Only the two auth keys are lifted from the env file (never the whole file).
+load_bench_server_env() {
+  if [[ -r "$BENCH_SERVER_ENV_FILE" ]]; then
+    local line
+    while IFS= read -r line; do
+      case "$line" in
+        OPENCODE_SERVER_USERNAME=*|OPENCODE_SERVER_PASSWORD=*)
+          export "${line%%=*}=${line#*=}"
+          ;;
+      esac
+    done <"$BENCH_SERVER_ENV_FILE"
+  fi
+  export BENCH_SERVER_URL
 }
 
 validate_manifest() {
@@ -330,6 +364,7 @@ run_campaign() {
   chmod 600 "$results"
   write_ledger "$manifest" "$ledger" running 0 "$results"
   load_credentials "$manifest"
+  load_bench_server_env
 
   phase_count="$(MANIFEST="$manifest" python3 -c 'import json,os; print(len(json.load(open(os.environ["MANIFEST"]))["phases"]))')"
   for ((phase_index=0; phase_index<phase_count; phase_index++)); do

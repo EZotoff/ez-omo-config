@@ -1,0 +1,30 @@
+=== QA Scenario 1: inventory cross-check ===
+date: 2026-09-21T15:37:47+02:00
+
+-- git ls-files systemd/user | wc -l --
+19
+-- README Systemd count --
+**Systemd** | 19 files
+
+-- MANIFEST row presence for new artifacts (grep -c) --
+opencode-bench.service                                  2
+opencode-bench.service.d/continuation.conf              1
+opencode-continuation-checkpoint.service                1
+opencode-continuation-checkpoint.timer                  1
+journalbridge.ts                                        1
+test_supervisor_journal_bridge.sh                       1
+bench-campaign                                          1
+
+-- README category counts vs git ls-files --
+Commands README=10 git=10
+Configs  README=47 git=47
+Plugins  README=25 git=25
+Scripts  README=72 git=72
+Supervisor README=52 git=52
+Systemd  README=19 git=19
+Tests    README=148 git=148
+Docs     README=15 git=15
+Skills   README=22 git_dirs=22
+
+-- regressions --
+README corpus=36-pair regression corpus (72 files) git_files=72 git_pairs=72
