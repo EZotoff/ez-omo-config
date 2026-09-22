@@ -30,3 +30,5 @@ Durable per-wake journal at `<dir>/.omo/run-continuation/wakes/<wakeID>.json` �
 ## Runtime Verification
 
 runtime_effective: false — flip only after a real server crash mid-wake is recovered by the journal (wake file transitions to consumed and the session continues).
+
+Observed 2026-09-22 (happy path, first live transit): wake d32d532e-a0c7-4082-9c9a-380fe55401c1 for ses_f39feb282ffeWDmiKNSHgpIrz7 (ez-omo-bench) written before dispatch, dispatched, consumed on real output — state machine + OMO_WAKE-marker identity verified on a real background-task completion. Crash-recovery path (watchdog replay / dead-letter) still unproven.
