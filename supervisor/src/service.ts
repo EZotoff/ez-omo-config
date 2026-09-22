@@ -8,7 +8,7 @@ import { OpencodeClient, type ServerEvent } from "./client"
 import { loadApiKey, loadConfig, loadProviderBaseURL, rootAutonomousOrigin } from "./config"
 import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
-import { pollRootOnce, ActivityGate } from "./poller"
+import { pollRootOnce, ActivityGate, type WatchState } from "./poller"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
@@ -577,7 +577,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
     if (root.mode === "observe" || root.mode === "full") {
       void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
     }
-    const watchStates = new Map<string, { messageCount: number; completed: boolean }>()
+    const watchStates = new Map<string, WatchState>()
     void (async () => {
       while (!signal.aborted) {
         await Bun.sleep(POLL_INTERVAL_MS)
@@ -585,12 +585,15 @@ export async function runService(signal: AbortSignal): Promise<void> {
         if (runtime === undefined) continue
         try {
           const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs()])
-          const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now())
+          const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now(), config.stall_minutes * 60_000)
           activityGate.observe(signals, Date.now())
           for (const sig of signals) {
             if (sig.kind === "busy") {
               await applyEvent(runtime, sig.sessionID, { type: "busy", at: Date.now() })
-            } else if (sig.kind === "idle") {
+            } else if (sig.kind === "idle" || sig.kind === "stalled") {
+              // A STALL is a synthetic idle: the worker stopped producing without
+              // ever completing — the same operator-attention point, detected by
+              // absence instead of by completion (wedged-stream class, D295-adjacent).
               if (await applyEvent(runtime, sig.sessionID, { type: "idle", at: Date.now() })) {
                 await enqueueIdle(runtime, sig.sessionID)
               }

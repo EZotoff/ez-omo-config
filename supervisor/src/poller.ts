@@ -4,12 +4,17 @@ import type { Session } from "./types"
 export type PollSignal =
   | { readonly kind: "busy"; readonly sessionID: string }
   | { readonly kind: "idle"; readonly sessionID: string }
+  | { readonly kind: "stalled"; readonly sessionID: string }
   | { readonly kind: "activity"; readonly sessionID: string; readonly lastUpdatedMs: number }
 
-type WatchState = {
+export type WatchState = {
   readonly messageCount: number
   readonly completed: boolean
+  /** A stall was already reported for this episode; reset on message growth. */
+  stallFired: boolean
 }
+
+const EMPTY_STATE: WatchState = { messageCount: 0, completed: false, stallFired: false }
 
 const RECENT_ACTIVITY_MS = 15 * 60_000
 
@@ -22,8 +27,13 @@ const RECENT_ACTIVITY_MS = 15 * 60_000
  *
  * Idle signal: last message is an assistant whose time.completed is set and the
  * message count has not grown since the previous poll. Busy signal: message
- * count grew. Only top-level sessions (per the child-ID set from reconcile)
- * updated within the recent-activity window are polled.
+ * count grew. STALL signal: an INCOMPLETE turn (assistant never completed —
+ * wedged stream, hung generation) quiescent past stallAfterMs — this class
+ * produces no idle flip on its own and would otherwise be invisible forever
+ * (live case 2026-09-20: glm-5.3-flash stream wedged 25+ minutes). Fires once
+ * per stall episode; message growth resets it. Only top-level sessions (per the
+ * child-ID set from reconcile) updated within the recent-activity window are
+ * polled.
  */
 export async function pollRootOnce(
   client: OpencodeClient,
@@ -31,6 +41,7 @@ export async function pollRootOnce(
   childIDs: ReadonlySet<string>,
   previous: Map<string, WatchState>,
   nowMs: number,
+  stallAfterMs = 15 * 60_000,
 ): Promise<readonly PollSignal[]> {
   const sessions = (await client.listSessions(root)).filter(
     (session: Session) =>
@@ -46,6 +57,7 @@ export async function pollRootOnce(
     const state: WatchState = {
       messageCount: messages.length,
       completed: last !== undefined && last.role === "assistant" && last.time.completed !== undefined,
+      stallFired: previous.get(session.id)?.stallFired ?? false,
     }
     next.set(session.id, state)
     const prior = previous.get(session.id)
@@ -56,8 +68,16 @@ export async function pollRootOnce(
       signals.push(state.completed ? { kind: "idle", sessionID: session.id } : { kind: "busy", sessionID: session.id })
     } else if (state.messageCount > prior.messageCount) {
       signals.push({ kind: "busy", sessionID: session.id })
+      // Growth resets the stall episode.
+      state.stallFired = false
     } else if (!prior.completed && state.completed) {
       signals.push({ kind: "idle", sessionID: session.id })
+    } else if (!state.completed && !state.stallFired) {
+      const quiescentFor = nowMs - (session.timeUpdatedMs ?? nowMs)
+      if (quiescentFor >= stallAfterMs) {
+        state.stallFired = true
+        signals.push({ kind: "stalled", sessionID: session.id })
+      }
     }
     if (session.timeUpdatedMs !== undefined) {
       signals.push({ kind: "activity", sessionID: session.id, lastUpdatedMs: session.timeUpdatedMs })

@@ -98,3 +98,59 @@ describe("gateSteerWrite", () => {
     expect(t).toContain("reconcile with A/13")
   })
 })
+
+/* --- Stall detection (poller) — regression fixture: the 2026-09-20 wedged glm-5.3-flash turn --- */
+test("poller emits stalled once for an incomplete turn quiescent past the threshold", async () => {
+  const { pollRootOnce } = await import("../src/poller")
+  const { OpencodeClient } = await import("../src/client")
+  const c = new OpencodeClient("http://127.0.0.1:1", undefined) // never reached — HTTP stubbed below
+  const origFetch = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = (async () => {
+    calls += 1
+    if (calls % 2 === 1) {
+      return new Response(JSON.stringify([{ id: "ses_wedge", directory: "/root", time: { updated: 1_000_000 } }]), { status: 200 })
+    }
+    return new Response(JSON.stringify([
+      { id: "u1", sessionID: "ses_wedge", role: "user", time: { created: 999_000 }, parts: [{ id: "p1", messageID: "u1", type: "text", text: "go" }] },
+      { id: "a1", sessionID: "ses_wedge", role: "assistant", time: { created: 1_000_000 }, parts: [{ id: "p2", messageID: "a1", type: "step-start" }] },
+    ]), { status: 200 })
+  }) as unknown as typeof fetch
+  try {
+    const prev = new Map()
+    const now = 1_000_000 + 20 * 60_000 // 20 min after last update
+    const s1 = await pollRootOnce(c, "/root", new Set(), prev, now, 15 * 60_000)
+    const s2 = await pollRootOnce(c, "/root", new Set(), prev, now + 60_000, 15 * 60_000)
+    const kinds1 = s1.filter((x) => x.sessionID === "ses_wedge").map((x) => x.kind)
+    const kinds2 = s2.filter((x) => x.sessionID === "ses_wedge").map((x) => x.kind)
+    expect(kinds1).toContain("stalled")
+    expect(kinds2).not.toContain("stalled") // fires once per episode
+  } finally {
+    globalThis.fetch = origFetch
+  }
+})
+
+test("poller does not stall healthy completed sessions", async () => {
+  const { pollRootOnce } = await import("../src/poller")
+  const { OpencodeClient } = await import("../src/client")
+  const c = new OpencodeClient("http://127.0.0.1:1", undefined)
+  const origFetch = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = (async () => {
+    calls += 1
+    if (calls % 2 === 1) {
+      return new Response(JSON.stringify([{ id: "ses_ok", directory: "/root", time: { updated: 1_000_000 } }]), { status: 200 })
+    }
+    return new Response(JSON.stringify([
+      { id: "u1", sessionID: "ses_ok", role: "user", time: { created: 999_000 }, parts: [{ id: "p1", messageID: "u1", type: "text", text: "go" }] },
+      { id: "a1", sessionID: "ses_ok", role: "assistant", time: { created: 1_000_000, completed: 1_000_500 }, parts: [{ id: "p2", messageID: "a1", type: "text", text: "done" }] },
+    ]), { status: 200 })
+  }) as unknown as typeof fetch
+  try {
+    const prev = new Map()
+    const s1 = await pollRootOnce(c, "/root", new Set(), prev, 1_000_000 + 60 * 60_000, 15 * 60_000)
+    expect(s1.filter((x) => x.sessionID === "ses_ok" && x.kind === "stalled")).toHaveLength(0)
+  } finally {
+    globalThis.fetch = origFetch
+  }
+})

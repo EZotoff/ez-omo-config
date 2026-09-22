@@ -40,6 +40,7 @@ const configSchema = z.object({
   server_password_env: z.string().min(1).default("OPENCODE_SERVER_PASSWORD"),
   initial_window_days: z.number().int().positive().default(7),
   fetch_concurrency: z.number().int().positive().default(8),
+  stall_minutes: z.number().int().positive().default(15),
   model: z.object({ provider: z.string().min(1), id: z.string().min(1) }).strict(),
   grace_period_s: z.number().int().nonnegative(),
   min_intervention_interval_s: z.number().int().nonnegative(),

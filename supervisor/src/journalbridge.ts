@@ -47,7 +47,8 @@ export function parseContinuationAlert(message: string): ContinuationAlert | und
   if (match === null) return undefined
   const [, unit, reason, rc, uuid, count, ts] = match
   if ((CONTINUATION_REASONS as readonly string[]).every((candidate) => candidate !== reason)) return undefined
-  return { unit, reason: reason as ContinuationReason, rc, uuid, count, ts, fingerprint: fingerprintOf(unit, reason, uuid, ts) }
+  if (unit === undefined || rc === undefined || uuid === undefined || count === undefined || ts === undefined) return undefined
+  return { unit, reason: reason as ContinuationReason, rc, uuid, count, ts, fingerprint: fingerprintOf(unit, reason as ContinuationReason, uuid, ts) }
 }
 
 /**

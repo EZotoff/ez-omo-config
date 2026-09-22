@@ -73,10 +73,10 @@ describe("ContinuationBridge", () => {
     for (const [index, reason] of reasons.entries()) {
       expect(rows[index]?.decision.action).toBe("ESCALATE")
       expect(rows[index]?.decision.confidence).toBeGreaterThanOrEqual(0.7)
-      expect(rows[index]?.continuation.source).toBe("continuation")
-      expect(rows[index]?.continuation.reason).toBe(reason)
-      expect(rows[index]?.continuation.uuid).toBe(`uuid-${reason}`)
-      expect(rows[index]?.continuation.fingerprint).toHaveLength(64)
+      expect(rows[index]?.continuation['source']).toBe("continuation")
+      expect(rows[index]?.continuation['reason']).toBe(reason)
+      expect(rows[index]?.continuation['uuid']).toBe(`uuid-${reason}`)
+      expect(rows[index]?.continuation['fingerprint']).toHaveLength(64)
     }
   })
 
@@ -117,7 +117,7 @@ describe("ContinuationBridge", () => {
     expect(await bridge4.poll()).toBe(1)
     const rows = await continuationRows(ledgerPath)
     expect(rows).toHaveLength(2)
-    expect(rows[1]?.continuation.uuid).toBe("u2")
+    expect(rows[1]?.continuation['uuid']).toBe("u2")
   })
 
   test("non-matching entries advance the cursor without importing", async () => {
