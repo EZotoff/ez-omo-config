@@ -1,0 +1,30 @@
+# Task 6 QA — Scenario 2: strict matching, flag ON
+date: 2026-09-21T14:37:58+02:00
+setup: scratch opencode serve :3971 (unregistered ephemeral port), XDG_DATA_HOME=$scratch/data, systemd-run unit dbf-qa-serve; two top-level sessions via POST /session {}; scratch DB seeded read-write with assistant rows: A=ses_f3c082fe5ffelAZtOIv88LFXek (time.completed set), B=ses_f3c082fbaffeRiMawq9IBByOcf (no completed). No snapshot, no checkpoint in $scratch/state.
+
+## Run 1 (CONTINUATION_DB_FALLBACK=1, CONTINUATION_DB_PATH=$scratch/data/opencode/opencode.db)
+hooks.log:
+14:37:16 [hook:hook-resume] no snapshot and no checkpoint for dbf-test; nothing to resume
+14:37:16 [hook:hook-resume] no snapshot, no checkpoint; db fallback engaged for dbf-test (1 candidate(s), batch db-1789994236)
+14:37:16 [hook:hook-resume] db fallback db-1789994236 done for dbf-test: 1 re-prompted(s)
+14:37:25 [hook:hook-resume] no snapshot and no checkpoint for dbf-test; nothing to resume
+14:37:25 [hook:hook-resume] db fallback for dbf-test already consumed (fresh marker .consumed-dbf-test-db-1789994236); nothing to resume
+batch marker: 
+
+## Candidate selection (read-only DB check after run)
+A(completed) ses_f3c082fe5ffelAZtOIv88LFXek messages: 1
+  role=assistant completed=1789994194996
+B(unfinished) ses_f3c082fbaffeRiMawq9IBByOcf messages: 3
+  role=assistant completed=None
+  role=user completed=None
+  role=assistant completed=1789994238310
+-> exactly the unfinished session B was prompted (role=user message at run time, then assistant turn completed); A(completed) untouched (1 message only).
+
+## Journal alert
+Sep 21 14:37:16 EZ-Raider restart-continuation[377306]: restart-continuation: DB-fallback resume dbf-test: 1 candidates unit=dbf-test reason=db_fallback rc=- uuid=db-1789994236 count=1 ts=1789994236
+
+## Run 2 (one-shot consumption)
+last hooks.log line: 14:37:25 [hook:hook-resume] db fallback for dbf-test already consumed (fresh marker .consumed-dbf-test-db-1789994236); nothing to resume
+re-prompted after run 2: 0 (verified via read-only DB: no new user messages after run-2 timestamp; hooks.log shows only 'already consumed')
+
+VERDICT: PASS — strict match (completed excluded), marker .consumed-dbf-test-db-1789994236 exists, second run zero prompts, alert reason=db_fallback uuid=db-1789994236 count=1.

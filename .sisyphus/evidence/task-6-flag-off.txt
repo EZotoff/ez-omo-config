@@ -1,0 +1,10 @@
+# Task 6 QA — Scenario 1: flag OFF changes nothing
+date: 2026-09-21T14:36:08+02:00
+cmd: env -u CONTINUATION_DB_FALLBACK XDG_STATE_DIR=$scratch/state /home/ezotoff/.local/share/opencode/worktree/0b1af5b8f6ef97a33ba5e5479cde1a1c29c16dc7/plan/crashsafe-continuation-hardening/scripts/restart-with-continuation.sh hook-resume dbf-test http://127.0.0.1:3971 $scratch/auth.env
+exit: 0 (no server needed; no snapshot, no checkpoint)
+hooks.log (complete):
+14:35:58 [hook:hook-resume] no snapshot and no checkpoint for dbf-test; nothing to resume
+db-fallback log lines: 0
+0
+state dir contents (no markers, no consumed files): . .. hooks.log 
+VERDICT: flag OFF identical to Task 5 checkpoint-only output; DB path never ran (no db_* wording, no artifacts).
