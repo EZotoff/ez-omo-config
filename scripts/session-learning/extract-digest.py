@@ -59,7 +59,7 @@ MUTATING_RE = re.compile(
     r"docker\s+(?:run|compose)|systemd-run|tee\s|>\s*/(?:etc|home))\b",
 )
 LONG_JOB_RE = re.compile(r"\b(?:systemd-run|durable-run|setsid|nohup)\b")
-UNIT_NAME_RE = re.compile(r"(?:systemd-run[^|;>]*--unit[= ](\S+?)\b|durable-run\s+(\S+))")
+UNIT_NAME_RE = re.compile(r"(?:systemd-run[^|;>]*--unit[= ]([A-Za-z0-9_.@-]+)|durable-run\s+([A-Za-z0-9_.@-]+))")
 WISDOM_CALL_RE = re.compile(r"wisdom-(?:write|closeout|sync|nominate)\.sh")
 GIT_COMMIT_RE = re.compile(r"\bgit\s+commit\b")
 
@@ -167,7 +167,9 @@ def cmd_select(args) -> None:
             attempts = row.get("attempts", 1)
             last = to_ms(row.get("last_time_updated"))
             if status in ("analyzed", "covered", "no_candidates", "proposal_only"):
-                if last is not None and updated is not None and last >= updated:
+                last = to_ms(row.get("last_time_updated"))
+                updated_ms_early = to_ms(updated)
+                if last is not None and updated_ms_early is not None and last >= updated_ms_early:
                     continue
             elif status in ("analyst_failed", "parse_failed") and attempts >= 5:
                 continue
@@ -238,7 +240,7 @@ def cmd_select(args) -> None:
 def session_signal_score(conn, session_id: str) -> dict:
     tool_calls = errors = mutations = 0
     cur = conn.execute(
-        "SELECT data FROM part WHERE session_id=? AND data LIKE '%\"type\":\"tool\"%'",
+        "SELECT data FROM part WHERE session_id=? AND (data LIKE '%\"type\":\"tool\"%' OR data LIKE '%\"type\": \"tool\"%')",
         (session_id,),
     )
     for (raw,) in cur:
