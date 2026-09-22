@@ -45,7 +45,7 @@ const REGISTRY_FIXTURE = {
   compaction_fallback_models: [
     "deepseek/deepseek-v4-flash",
     "zai-coding-plan/glm-5.3",
-    "openai/gpt-5.6-sol",
+    "openai/gpt-6-sol",
   ],
 };
 
@@ -53,7 +53,7 @@ const OMO_CONFIG_FIXTURE = {
   agents: {
     sisyphus: {
       model: "zai-coding-plan/glm-5.3",
-      fallback_models: ["openai/gpt-5.6-sol"],
+      fallback_models: ["openai/gpt-6-sol"],
     },
   },
 };
@@ -244,7 +244,7 @@ async function caseChainAdvanceAndExhaustion() {
     assertEquals(s.calls.summarize[2].body.providerID, "openai", "failure 3 → openai sol");
 
     // Failure 4: openai fails -> chain exhausted: toast, no dispatch
-    s.setMessages(failedCompactionMessages({ sessionID: "ses_t2", assistantID: "a4", providerID: "openai", modelID: "gpt-5.6-sol" }));
+    s.setMessages(failedCompactionMessages({ sessionID: "ses_t2", assistantID: "a4", providerID: "openai", modelID: "gpt-6-sol" }));
     await s.plugin.event({ event: sessionErrorEvent("ses_t2") });
     assertEquals(s.calls.summarize.length, 3, "exhausted chain must not dispatch again");
     assertEquals(s.calls.toasts.length, 1, "exhaustion must surface exactly one toast");
@@ -275,7 +275,7 @@ async function caseChatFailureUnchanged() {
     assertEquals(s.calls.summarize.length, 0, "non-compaction failure must not touch summarize");
     assertEquals(s.calls.promptAsync.length, 1, "chat failure keeps promptAsync fallback");
     assertEquals(s.calls.promptAsync[0].body.model.providerID, "openai", "chat fallback resolves agent chain");
-    assertEquals(s.calls.promptAsync[0].body.model.modelID, "gpt-5.6-sol", "chat fallback model");
+    assertEquals(s.calls.promptAsync[0].body.model.modelID, "gpt-6-sol", "chat fallback model");
   } finally {
     s.cleanup();
   }

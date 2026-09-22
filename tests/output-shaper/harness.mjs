@@ -281,7 +281,7 @@ async function runOptionVocabulary() {
       { providerID: "deepseek", modelID: "deepseek-flash", field: "reasoningEffort", value: "low" },
       { providerID: "opencode-go", modelID: "deepseek-v4-flash", field: "reasoningEffort", value: "low" },
       { providerID: "ollama-cloud", modelID: "deepseek-v4-pro:0813", field: "reasoningEffort", value: "low" },
-      { providerID: "openai", modelID: "gpt-5.6-sol", field: "reasoningEffort", value: "low" },
+      { providerID: "openai", modelID: "gpt-6-sol", field: "reasoningEffort", value: "low" },
       { providerID: "google", modelID: "gemini-3.1-pro-preview", field: "thinkingConfig", value: { thinkingLevel: "low" } },
     ];
     const droppedKeys = ["reasoning_effort", "thinking_budget", "thinkingLevel"];
@@ -444,7 +444,7 @@ async function main() {
       await runClampCase("kimi-resume-clamped", "kimi-for-coding-oauth", "kimi-for-coding", "reasoningEffort", "low");
       break;
     case "gpt-resume-clamped":
-      await runClampCase("gpt-resume-clamped", "openai", "gpt-5.6-sol", "reasoningEffort", "low");
+      await runClampCase("gpt-resume-clamped", "openai", "gpt-6-sol", "reasoningEffort", "low");
       break;
     case "gemini-resume-clamped":
       await runClampCase(

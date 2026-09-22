@@ -8,7 +8,7 @@ const PROVIDER_MODEL_MATRIX = [
   ["zai-coding-plan", "glm-5.3"],
   ["kimi-for-coding-oauth", "kimi-for-coding"],
   ["kimi-for-coding-oauth", "k3"],
-  ["openai", "gpt-5.6-sol"],
+  ["openai", "gpt-6-sol"],
   ["deepseek", "deepseek-flash"],
   ["opencode-go", "deepseek-v4-flash"],
   ["opencode-go", "deepseek-v4-pro"],
