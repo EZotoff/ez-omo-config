@@ -105,8 +105,8 @@ could never start. `check_db_busy()` now provides mutual exclusion only between 
 maintenance runs via an flock on `~/.local/share/opencode/opencode-maintenance.lock` (held for
 the process lifetime; the OS releases it on crash). Holding WAL sidecars open is normal for
 SQLite readers and never blocks a writer in WAL mode; `busy_timeout` on the script's
-connections remains the real concurrency guard. First post-fix run (2026-09-22 15:48) passed
-the preflight with both servers running and completed the Jul–Sep backlog prune.
+connections remains the real concurrency guard. First post-fix run (2026-09-22) passed
+the preflight with both servers running and completed the Jul–Aug backlog prune.
 
 
 ## History
@@ -116,6 +116,9 @@ the preflight with both servers running and completed the Jul–Sep backlog prun
 - 2026-09-19: retention formalized at 30 days on `time_updated`; weekly timer installed.
 - 2026-09-21: throwaway-session sweeper added (`sweep-throwaway-sessions.py`); first run soft-archived
   126 probe-pattern sessions (31 project-attached). Timer rc=10 busy-preflight limitation documented.
+- 2026-09-22: busy-preflight fixed (maintenance lockfile replaces the /proc sidecar scan); regression
+  pair `maintenance-busy-preflight.sh`; first successful timer-path apply archived+pruned 3,566
+  sessions (2.6 GB, Jul–Aug batches) with both serve instances running.
 
 - 2026-09-22: busy-preflight fixed (maintenance flock lockfile); backlog run archived + pruned
   3,566 sessions across the Jul–Sep buckets and compressed the Jul/Aug archives (hot DB
