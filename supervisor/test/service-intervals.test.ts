@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { SessionScheduler } from "../src/service"
+import { SessionScheduler, tickDecidedPayload } from "../src/service"
+import type { Decision, Turn } from "../src/types"
 
 const INTERVAL_MS = 300_000
 
@@ -84,5 +85,26 @@ describe("SessionScheduler", () => {
     now += INTERVAL_MS + 1
     const third = scheduler.enqueue("s1")
     await expect(third).rejects.toThrow("boom")
+  })
+})
+
+describe("tickDecidedPayload", () => {
+  test("carries the project root into new ledger records", () => {
+    const decision: Decision = { action: "ACCEPT", rationale: "work is complete", citations: [], confidence: 0.9 }
+    const turn: Turn = {
+      sessionID: "ses_1",
+      userMessageID: "msg_1",
+      origin: "human",
+      userText: "finish it",
+      assistantText: "done",
+      transcript: "finish it\ndone",
+    }
+
+    expect(tickDecidedPayload(decision, turn, "/projects/oc-beacon")).toEqual({
+      decision,
+      root: "/projects/oc-beacon",
+      sessionID: "ses_1",
+      messageID: "msg_1",
+    })
   })
 })

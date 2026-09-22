@@ -107,6 +107,13 @@ export class SessionScheduler {
   }
 }
 
+export const tickDecidedPayload = (decision: Decision, turn: Turn, root: string) => ({
+  decision,
+  root,
+  sessionID: turn.sessionID,
+  messageID: turn.userMessageID,
+})
+
 function eventSessionID(event: ServerEvent): string | undefined {
   const properties = event.properties
   if (properties === undefined) return undefined
@@ -263,7 +270,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   }
 
   const recordDecision = async (decision: Decision, turn: Turn, root: string): Promise<void> => {
-    ledger = await ledger.append("TICK_DECIDED", { decision, root, sessionID: turn.sessionID, messageID: turn.userMessageID })
+    ledger = await ledger.append("TICK_DECIDED", tickDecidedPayload(decision, turn, root))
     const action: Action = decision.action
     status.ticksByAction[action] = (status.ticksByAction[action] ?? 0) + 1
     if (status.collect !== undefined) {
