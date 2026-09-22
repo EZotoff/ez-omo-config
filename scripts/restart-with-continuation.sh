@@ -42,6 +42,7 @@ set -euo pipefail
 
 STATE_DIR="${XDG_STATE_DIR:-$HOME/.local/share/opencode}/restart-continuations"
 DEFAULT_PROMPT="The OpenCode server was restarted for maintenance and your previous turn was interrupted. Continue exactly where you left off."
+WAKE_PROMPT_DEFAULT="A background-task wake notification was lost during a server restart. Re-check your background tasks via background_output(task_id=...) and continue the work."
 
 SERVICE_UNIT="${SERVICE_UNIT:-opencode.service}"
 MAX_AGE_SECONDS="${MAX_AGE_SECONDS:-86400}"
@@ -293,7 +294,7 @@ resume() {
   if hook_budget_active; then
     dl="$(( $(date +%s) + $(hook_deadline_rem) ))"
   fi
-  SESSIONS_FILE="$file" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
+  SESSIONS_FILE="$file" PROMPT="$PROMPT" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
     API_DEADLINE="$dl" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -313,7 +314,8 @@ for s in snap.get("sessions", []):
     max_time = str(max(1, min(5, int(rem))))
     # synthetic:true marks the part machine-injected (OC Beacon suppresses the
     # "response ready" push for such turns; matches OMO plugin injection shape).
-    body = json.dumps({"parts": [{"type": "text", "text": os.environ["PROMPT"], "synthetic": True}]})
+    text = (os.environ.get("WAKE_PROMPT") if s.get("status") == "wake-pending" else os.environ["PROMPT"])
+    body = json.dumps({"parts": [{"type": "text", "text": text, "synthetic": True}]})
     q = ""
     if s.get("directory"):
         from urllib.parse import quote
@@ -711,6 +713,74 @@ PYEOF
   exit 0
 fi
 
+# --- R3 convergence guard + wake-journal union (crashsafe integration) ------
+# After the first snapshot, re-snapshot until two consecutive passes yield an
+# identical session-ID set (timeout-bounded), then union in sessions that have
+# NON-TERMINAL wake-journal entries (<dir>/.omo/run-continuation/wakes/*.json,
+# states: queued / dispatching / dispatched-awaiting-output). Those get the
+# generic wake resume prompt — no payload reconstruction (debate decision v3).
+converge_snapshot() {
+  local timeout="${CONVERGE_TIMEOUT_SECONDS:-15}" t0=$SECONDS prev_ids="" pass=0 ids
+  local tmpA tmpB out
+  tmpA="$(mktemp)" tmpB="$(mktemp)"
+  # The union lands in STATE_DIR with the snapshot-*.json name the resume phase
+  # selects via 'ls -t'; writing it to a mktemp path (or letting bash's
+  # 'VAR=x func' STATE_FILE leak point there) would resume a stale snapshot.
+  out="$STATE_DIR/snapshot-converged-$(date +%Y%m%d-%H%M%S).json"
+  while :; do
+    pass=$((pass + 1))
+    STATE_FILE="$tmpB" snapshot >/dev/null 2>&1 || true
+    ids="$(F="$tmpB" python3 -c 'import json,os; print(" ".join(sorted(s["id"] for s in json.load(open(os.environ["F"]))["sessions"])))' 2>/dev/null || echo ERR)"
+    if [[ -n "$ids" && "$ids" != ERR && "$ids" == "$prev_ids" ]]; then
+      log "converged after $pass pass(es) ($((SECONDS - t0))s): ${ids:-<empty>}"
+      break
+    fi
+    prev_ids="$ids"
+    cat "$tmpB" > "$tmpA" 2>/dev/null || true
+    if (( SECONDS - t0 >= timeout )); then
+      log "convergence timeout after ${timeout}s (pass $pass); using latest snapshot"
+      break
+    fi
+  done
+  union_wakes "$tmpA" "$out"
+  STATE_FILE="$out"
+  rm -f "$tmpA" "$tmpB"
+  log "converged snapshot: $out"
+}
+
+union_wakes() {
+  local src="$1" out="$2" dirs d
+  dirs="$(discover_dirs)" || dirs=""
+  SRC="$src" OUT="$out" DIRS="$dirs" python3 - <<'PYEOF'
+import glob, json, os
+snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
+have = {s['id'] for s in snap.get('sessions', [])}
+nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
+added = 0
+for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
+    for wf in glob.glob(os.path.join(d, '.omo', 'run-continuation', 'wakes', '*.json')):
+        try:
+            w = json.load(open(wf))
+        except (ValueError, OSError):
+            continue
+        sid = w.get('sessionID')
+        if not sid or w.get('state') not in nonterminal or sid in have:
+            continue
+        snap['sessions'].append({
+            'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
+            'status': 'wake-pending', 'time_updated': None,
+            'captured_at_ms': int(__import__('time').time() * 1000),
+            'resume_prompt_target': '', 'wake_file': wf,
+        })
+        have.add(sid)
+        added += 1
+os.makedirs(os.path.dirname(os.environ['OUT']), exist_ok=True)
+json.dump(snap, open(os.environ['OUT'], 'w'), indent=1)
+print(f"union: {added} wake-pending session(s) added -> {os.environ['OUT']}")
+PYEOF
+  log "$out"
+}
+
 # --- Main (standalone) ------------------------------------------------------
 if [[ "$RESUME_ONLY" == true ]]; then
   [[ -n "$STATE_FILE" && -r "$STATE_FILE" ]] || { echo "--resume-only needs --state-file" >&2; exit 2; }
@@ -730,7 +800,12 @@ if [[ "$BARE_RESTART" == true ]]; then
   exit 0
 fi
 
-snapshot
+if [[ "$RESTART" == true ]]; then
+  # R3: convergence-guarded snapshot + wake-journal union before stopping the server
+  converge_snapshot
+else
+  snapshot
+fi
 
 if [[ "$RESTART" != true ]]; then
   log "dry-run: snapshot saved. Re-run with --restart to restart and resume."
