@@ -135,7 +135,6 @@ function normalizeDecisionValue(value: unknown): unknown {
         target: flagged["session"],
         why: "the cited evidence itself flags the fact as unverified",
         expected_effect: `confirm or flip the ${action}`,
-        synthetic: true,
       }]
     }
   }
@@ -253,7 +252,7 @@ A worker session just completed the turn labeled TARGET below. Decide what the o
 
 Actions:
 - ACCEPT: The exchange is COMPLETE — the requested outcome is DELIVERED in this reply, nothing further expected. A reply ending mid-sentence or mid-run, reporting jobs in flight, or only planning future work is NOT complete: CONTINUE, never ACCEPT.
-- CONTINUE: The exchange is INCOMPLETE and needs a trivial go-ahead. A CONTINUE must declare mode (oracle-plan ISS-03 + operator lexicon ruling): APPROVE = the worker proposed next steps and asked "shall I?"; KICK-START = the session is quiescent (stalled/errored, nothing in flight, no reply). The operator's word "continue" means kick-start; "proceed" means approve — never read an operator "continue" as approval. No new information, decision, or authorization is needed. If there is a real decision — a choice between options, or authorization for consequential, out-of-scope, or destructive work — ESCALATE, never CONTINUE; a trivial in-scope "shall I?" is APPROVE-CONTINUE, not ESCALATE. If complete and nothing was asked, ACCEPT — never nudge a finished exchange.
+- CONTINUE: The exchange is INCOMPLETE and needs a trivial go-ahead. A CONTINUE must declare mode: APPROVE for "shall I?"; KICK-START when stalled or errored with nothing in flight. A trivial in-scope request is APPROVE-CONTINUE, not ESCALATE. Operator "continue" means kick-start; "proceed" means approve. If there is a real decision — a choice between options, or authorization for consequential, out-of-scope, or destructive work — ESCALATE. If complete and nothing was asked, ACCEPT — never nudge a finished exchange.
 - STEER: The worker is proceeding on stale or contradicted information established elsewhere in the supplied context. Cite the conflicting turns.
 - REFORMULATE: The reply cannot be evaluated or acted on by a competent operator seeing only the supplied transcript. Two shapes: (a) a final answer that is all jargon, with no stated impact and no required decision; (b) conclusions resting on context NOT supplied — earlier agreements, session-internal shorthand, jargon chains, hidden tool state. In shape (b) demand a standalone account rebuilt from first principles: define the terms, state what changed and why it matters — relying on nothing from the session's interior.
 - ESCALATE: A genuine operator decision is required: scope change, destructive or irreversible action, external dependency, or genuinely ambiguous intent. Describe the decision precisely.
@@ -262,10 +261,10 @@ Actions:
 Decision rules:
 1. CONTINUE means NO operator decision exists. If a real decision is pending, ESCALATE. If the work is simply finished, ACCEPT.
 2. Use only facts from the supplied transcript. Every non-ACCEPT/ABSTAIN action must cite specific messages.
-3. Sufficiency test before deciding: could a competent operator, seeing ONLY the supplied transcript, evaluate the matter? If the gap is a pending OPERATOR DECISION, ESCALATE. If the gap is understanding the matter itself — opacity, missing foundations, unsupplied context — REFORMULATE, demanding a standalone account rebuilt from first principles. If the gap is confidence, ABSTAIN. If the gap is a SPECIFIC FACT that likely exists in the project record — another session's decision, an earlier turn beyond the supplied window, an open ticket's outcome — do NOT decide across the gap and do NOT merely ABSTAIN: name it as an information_need (rule 12) so it can be retrieved. Deciding on evidence the transcript itself labels unclear, unverified, or unagreed is a failure mode, not efficiency.
+3. Sufficiency test before deciding: could a competent operator, seeing ONLY the supplied transcript, evaluate it? A pending decision → ESCALATE; missing foundations or context → REFORMULATE, rebuilt from first principles and relying on nothing from the session's interior; low confidence → ABSTAIN. A specific retrievable fact gap → information_need (rule 12), never guess.
 4. Prefer the least intrusive correct action: ACCEPT before CONTINUE before STEER/REFORMULATE before ESCALATE.
 5. Calibrate confidence: 0.9+ only with clear textual evidence.
-6. Read operator messages for INTENT, not literal text. The intent behind an instruction outweighs its literal wording. Before acting on a literal reading, check it against the rest of the same message and the session's purpose. If the literal reading contradicts its own context — a probable typo that reverses meaning, or a self-contradictory pairing — do NOT act on the literal reading: ACCEPT if the worker already resolved it correctly, ESCALATE if a real decision pends. Never CONTINUE on a reading that rests on a probable typo or self-contradiction.
+6. Read operator messages for INTENT, not literal text. Intent outweighs its literal wording. Check the message and session purpose; on a probable typo or contradiction, ACCEPT if resolved or ESCALATE if a decision pends. Never CONTINUE on a reading that rests on a probable typo or self-contradiction.
 7. CONTINUE is legal ONLY when the session is quiescent — nothing is in flight (no tool, command, or subagent running; the session is not busy). A running session needs no nudge. When in doubt, ABSTAIN.
 8. A question is an INFORMATION request only if the operator needs the answer to make a decision. A question that provokes the worker's own reasoning ("why would X be the case?", "what is the purpose of Y?") is a thinking-prompt, not an info request — do not ESCALATE for it.
 9. Deployment, promote, prod-write, and credential decisions are ESCALATE by default. Exception: if the project's trust config marks deploys autonomous, treat them as ordinary work.
