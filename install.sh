@@ -45,6 +45,8 @@ ITEMS=(
     "configs|configs/opencode/skill-nudger.mjs|$HOME/.config/opencode/skill-nudger.mjs"
     "configs|configs/opencode/agent-default-guard.mjs|$HOME/.config/opencode/agent-default-guard.mjs"
     "configs|configs/opencode/live-config-guard.mjs|$HOME/.config/opencode/live-config-guard.mjs"
+    "configs|configs/opencode/busy-stall-reaper.mjs|$HOME/.config/opencode/busy-stall-reaper.mjs"
+    "configs|configs/opencode/busy-stall-reaper.json|$HOME/.config/opencode/busy-stall-reaper.json"
     "configs|configs/opencode/agent/document-writer.md|$HOME/.config/opencode/agent/document-writer.md"
     "configs|configs/opencode/agent/prometheus-planner.md|$HOME/.config/opencode/agent/prometheus-planner.md"
     "configs|configs/opencode/skill-nudger|$HOME/.config/opencode/skill-nudger"
