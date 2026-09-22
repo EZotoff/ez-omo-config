@@ -103,53 +103,43 @@ def check_integrity(db_conn: sqlite3.Connection) -> bool:
     return result == "ok"
 
 
-def _iter_open_fd_targets() -> list[str]:
-    targets: list[str] = []
-    proc_dir = Path("/proc")
-    if not proc_dir.exists():
-        return targets
+MAINTENANCE_LOCK_PATH = os.path.expanduser(
+    "~/.local/share/opencode/opencode-maintenance.lock"
+)
 
-    for proc_entry in proc_dir.iterdir():
-        if not proc_entry.name.isdigit():
-            continue
-        fd_dir = proc_entry / "fd"
-        if not fd_dir.is_dir():
-            continue
-        try:
-            for fd_entry in fd_dir.iterdir():
-                try:
-                    targets.append(os.path.realpath(os.readlink(fd_entry)))
-                except OSError:
-                    continue
-        except OSError:
-            continue
-    return targets
+_maintenance_lock_handle = None
 
 
 def check_db_busy(db_path: str) -> bool:
-    expanded_path = os.path.expanduser(db_path)
-    try:
-        with open(expanded_path, "rb") as db_handle:
-            try:
-                fcntl.flock(db_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                LOGGER.debug("database lock acquisition failed for %s", expanded_path)
-                return True
-            finally:
-                try:
-                    fcntl.flock(db_handle, fcntl.LOCK_UN)
-                except OSError:
-                    pass
-    except FileNotFoundError:
-        LOGGER.debug("database file missing for busy check: %s", expanded_path)
-        return False
+    """True only when another opencode_maintenance run is already active.
 
-    open_targets = set(_iter_open_fd_targets())
-    for suffix in ("-wal", "-shm"):
-        sidecar_path = os.path.realpath(expanded_path + suffix)
-        if sidecar_path in open_targets:
-            LOGGER.debug("sidecar file currently open: %s", sidecar_path)
-            return True
+    The historical heuristic — treating any process holding the DB's
+    ``-wal``/``-shm`` sidecars open as "busy" — permanently blocked the
+    weekly timer while the always-on ``opencode serve`` instances were
+    running (every logged run exited EXIT_BUSY; see
+    docs/session-archiving.md). Holding a WAL sidecar open is normal for
+    SQLite readers and never blocks a writer in WAL mode; ``busy_timeout``
+    on this script's connections is the real concurrency guard. The only
+    genuine hazard is two maintenance runs racing each other, so mutual
+    exclusion is an flock on a dedicated lockfile, held for the lifetime
+    of this process.
+    """
+    global _maintenance_lock_handle
+    if _maintenance_lock_handle is not None:
+        return False  # this process already holds the maintenance lock
+
+    lock_handle = open(MAINTENANCE_LOCK_PATH, "a+")
+    try:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_handle.close()
+        LOGGER.debug(
+            "maintenance lock held by another run: %s", MAINTENANCE_LOCK_PATH
+        )
+        return True
+
+    _maintenance_lock_handle = lock_handle  # held until process exit; OS releases on exit
+    LOGGER.debug("maintenance lock acquired: %s", MAINTENANCE_LOCK_PATH)
     return False
 
 

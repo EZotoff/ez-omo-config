@@ -67,7 +67,8 @@ Exit codes: `0` ok (including "nothing to archive"), `1` error, `10` DB busy/loc
 `11` low disk, `12` integrity failure. The timer's log captures stdout; a busy night simply
 retries next Monday (`Persistent=true` also catches machine-off windows).
 
-Preflight on every mutating run: DB file-lock + open-fd check, disk space (2× estimated payload +
+Preflight on every mutating run: maintenance-run mutual exclusion (flock on a dedicated
+lockfile — see the fixed limitation below), disk space (2× estimated payload +
 500 MB buffer), full integrity check. Do not run archive/prune while bench campaigns or many agents
 are mid-run — the preflight helps but is not a substitute for picking a quiet window.
 
@@ -97,19 +98,28 @@ Safety model: parentless sessions only, strict title-regex allowlist, sessions u
 last 12 h are skipped (in-flight campaigns keep their evidence), and lazy auto-titles
 ("New session - <ts>", "preflight-stdin:") are only trusted for /tmp scratch cwds.
 
-Known limitation of the retention archiver discovered while building this (2026-09-21 log audit):
-every logged timer run exits rc=10 — `check_db_busy()` treats open `-wal`/`-shm` sidecars as
-"busy", and the two always-on `opencode serve` instances hold them open 24/7, so the weekly
-apply can never start while they run. "A busy night simply retries next Monday" therefore
-currently never succeeds. Fixing that preflight is tracked separately; until then the sweeper
-keeps the picker clean.
+Historical limitation (fixed 2026-09-22): the original `check_db_busy()` treated open
+`-wal`/`-shm` sidecars as "busy", and the two always-on `opencode serve` instances hold them
+open 24/7 — so every timer run exited rc=10 while the servers were up, and the weekly apply
+could never start. `check_db_busy()` now provides mutual exclusion only between concurrent
+maintenance runs via an flock on `~/.local/share/opencode/opencode-maintenance.lock` (held for
+the process lifetime; the OS releases it on crash). Holding WAL sidecars open is normal for
+SQLite readers and never blocks a writer in WAL mode; `busy_timeout` on the script's
+connections remains the real concurrency guard. First post-fix run (2026-09-22 15:48) passed
+the preflight with both servers running and completed the Jul–Sep backlog prune.
 
 
 ## History
 
 - 2026-03: JSONL export era (`archive_sessions.py`, `archive/` per-project exports) — superseded.
 - 2026-04 → 2026-07: monthly manual runs of the SQLite archiver; habit stopped after Jul 22.
-- 2026-09-19: retention formalized at 30 days on `time_updated`; weekly timer installed;
-  Jul–Aug backlog archived and pruned.
+- 2026-09-19: retention formalized at 30 days on `time_updated`; weekly timer installed.
 - 2026-09-21: throwaway-session sweeper added (`sweep-throwaway-sessions.py`); first run soft-archived
   126 probe-pattern sessions (31 project-attached). Timer rc=10 busy-preflight limitation documented.
+
+- 2026-09-22: busy-preflight fixed (maintenance flock lockfile); backlog run archived + pruned
+  3,566 sessions across the Jul–Sep buckets and compressed the Jul/Aug archives (hot DB
+  8,139 → 4,579 sessions; 0 older than 30 days). Known cost: each apply re-materializes all
+  past-month `.db.gz` archives to scan for appends (~7 GB decompress/recompress I/O per run)
+  even when a bucket has no eligible sessions — acceptable at weekly cadence, revisit if it
+  grows.
