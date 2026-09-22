@@ -6,9 +6,6 @@
   "max_reaps_per_session": 3,
   "active_window_ms": 86400000,
   "exempt_tools": ["question"],
-  "exempt_sessions": [
-    "ses_f39feb282ffeWDmiKNSHgpIrz7",
-    "ses_f54cb3005ffeDJF61RFHNrMWeB"
-  ],
+  "exempt_sessions": [],
   "exempt_directories": []
 }
