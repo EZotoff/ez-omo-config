@@ -79,9 +79,37 @@ are mid-run — the preflight helps but is not a substitute for picking a quiet 
   `~/.local/share/opencode/session-archive.log`.
 - Verify: `systemctl --user list-timers | grep session-archive`.
 
+## Throwaway-session sweeper (2026-09-21)
+
+[scripts/sweep-throwaway-sessions.py](../scripts/sweep-throwaway-sessions.py) is a complement to the
+30-day retention archiver for a different problem: **fresh probe debris**. The 2026-09-19/20
+bench-session-spam incidents showed throwaway sessions (PROBE-OK / LB_OK / one-word reply tests /
+regression-test auto-titles) polluting the picker for weeks, which the retention window never
+touches. The sweeper soft-archives them (`time_archived` set — reversible, rows stay intact;
+`session.list` and the TUI picker filter archived sessions out):
+
+```bash
+python3 scripts/sweep-throwaway-sessions.py          # dry-run: list matching sessions
+python3 scripts/sweep-throwaway-sessions.py --apply  # soft-archive them
+```
+
+Safety model: parentless sessions only, strict title-regex allowlist, sessions updated within the
+last 12 h are skipped (in-flight campaigns keep their evidence), and lazy auto-titles
+("New session - <ts>", "preflight-stdin:") are only trusted for /tmp scratch cwds.
+
+Known limitation of the retention archiver discovered while building this (2026-09-21 log audit):
+every logged timer run exits rc=10 — `check_db_busy()` treats open `-wal`/`-shm` sidecars as
+"busy", and the two always-on `opencode serve` instances hold them open 24/7, so the weekly
+apply can never start while they run. "A busy night simply retries next Monday" therefore
+currently never succeeds. Fixing that preflight is tracked separately; until then the sweeper
+keeps the picker clean.
+
+
 ## History
 
 - 2026-03: JSONL export era (`archive_sessions.py`, `archive/` per-project exports) — superseded.
 - 2026-04 → 2026-07: monthly manual runs of the SQLite archiver; habit stopped after Jul 22.
 - 2026-09-19: retention formalized at 30 days on `time_updated`; weekly timer installed;
   Jul–Aug backlog archived and pruned.
+- 2026-09-21: throwaway-session sweeper added (`sweep-throwaway-sessions.py`); first run soft-archived
+  126 probe-pattern sessions (31 project-attached). Timer rc=10 busy-preflight limitation documented.
