@@ -346,3 +346,18 @@ describe("ConsoleChannel dispositions", () => {
     await rm(dir, { recursive: true, force: true })
   })
 })
+
+test("ticket and toast use human-oriented naming (title + project, not raw IDs)", async () => {
+  const { formatTicket, glanceHeadline } = await import("../src/console")
+  const item = {
+    schemaVersion: 1, id: "att_1", version: 1, decisionKey: "k", kind: "decision",
+    origin: { tickID: "tick_1", ledgerSeq: 1, decision: { action: "ESCALATE", rationale: "r", citations: [], confidence: 0.9 }, citations: [], informationNeeds: [], contextDigest: "" },
+    target: { root: "/home/ezotoff/AI_projects/veran", sessionID: "ses_f3fb18cafffe", userMessageID: "u1", sessionTitle: "supervisor live queue cycle test" },
+    actionClass: "ESCALATE", escalationKind: "DECISION", question: "Should the deploy proceed?",
+    rationale: "r", priority: { stakes: 3, urgency: 3, confidence: 0.9, freshness: 1, createdAt: "t" },
+    premises: [], relatedItemIDs: [], lifecycle: [], poisonCount: 0,
+  } as never
+  const ticket = formatTicket("Q2", item)
+  expect(ticket).toContain("Q2 — supervisor live queue cycle test [veran]")
+  expect(ticket).not.toContain("ses_f3fb18caff")
+})

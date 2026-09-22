@@ -195,14 +195,23 @@ function dispositionFor(outcome: RevalidationOutcome): ResolutionDisposition | u
   }
 }
 
-function formatTicket(alias: string, item: AttentionQueueItem): string {
-  const session = item.target.sessionID.slice(0, 14)
-  const title = item.target.sessionTitle === undefined ? "" : ` — ${item.target.sessionTitle}`
+export function projectBasename(root: string): string {
+  return root.split("/").at(-1) ?? root
+}
+
+export function sessionLabel(item: AttentionQueueItem): string {
+  // Human-oriented: session TITLE first; the raw ID is for logs, not for people.
+  return item.target.sessionTitle ?? `session ${item.target.sessionID.slice(0, 14)}`
+}
+
+export function formatTicket(alias: string, item: AttentionQueueItem): string {
+  const session = sessionLabel(item)
+  const project = projectBasename(item.target.root)
   const citations = item.origin.citations
     .map((citation) => `${citation.session}/${citation.messageID}: ${citation.quote.slice(0, 80)}`)
     .join("; ")
   return [
-    `${alias} [session ${session}${title}]`,
+    `${alias} — ${session} [${project}]`,
     glanceHeadline(item.question),
     "",
     item.question,
@@ -373,7 +382,7 @@ export class ConsoleChannel {
     }
     const alias = await this.assignAlias(root, item.id)
     await this.client.promptAsync(consoleID, root, formatTicket(alias, item))
-    await this.client.toast(`${alias}: ${glanceHeadline(item.question)}`, `[Supervisor] ${root.split("/").at(-1) ?? root}`)
+    await this.client.toast(`${projectBasename(root)} — ${sessionLabel(item)}: ${glanceHeadline(item.question)}`, `[Supervisor] ${projectBasename(root)}`)
     return { kind: "surfaced", item, presentationID: lease.lease.presentationID, alias }
   }
 
