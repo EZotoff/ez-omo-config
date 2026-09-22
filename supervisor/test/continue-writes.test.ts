@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { continueCapKey, continueWriteText, gateContinueWrite } from "../src/continue-writes"
+import { continueCapKey, continueWriteText, gateContinueWrite, gateSteerWrite, steerWriteText } from "../src/continue-writes"
 
 const base = {
   config: { enabled: true, dailyCap: 5, kickStartOnly: true },
@@ -57,5 +57,44 @@ describe("continueWriteText", () => {
 describe("continueCapKey", () => {
   test("date-scoped key resets daily", () => {
     expect(continueCapKey(new Date("2026-09-21T23:59:59Z"))).toBe("2026-09-21")
+  })
+})
+
+describe("gateSteerWrite", () => {
+  const steer = (citations: { session: string; quote: string }[]) => ({
+    decision: { action: "STEER" as const, rationale: "reconcile with the sibling finding", citations },
+    config: { enabled: true, dailyCap: 3 },
+    capUsedToday: 0,
+    lastMessageID: "a1",
+    target: { assistantMessageID: "a1", sessionID: "ses_target" },
+    sessionProtected: false,
+  })
+
+  test("allows STEER with a non-target citation and intact premise", () => {
+    const gate = gateSteerWrite(steer([{ session: "ses_sibling", quote: "Redis was removed for ordering bugs" }]))
+    expect(gate).toEqual({ allowed: true })
+  })
+  test("blocks target-only citations (cross-session evidence is STEER's justification)", () => {
+    const gate = gateSteerWrite(steer([{ session: "ses_target", quote: "local evidence only" }]))
+    expect(gate.allowed).toBe(false)
+    if (!gate.allowed) expect(gate.reason).toContain("outside the target session")
+  })
+  test("blocks on premise change", () => {
+    const input = steer([{ session: "ses_sibling", quote: "fact" }])
+    const gate = gateSteerWrite({ ...input, lastMessageID: "newer-push" })
+    expect(gate.allowed).toBe(false)
+  })
+  test("blocks on cap", () => {
+    const gate = gateSteerWrite({ ...steer([{ session: "s", quote: "f" }]), capUsedToday: 3 })
+    expect(gate.allowed).toBe(false)
+  })
+  test("blocks when disabled or protected", () => {
+    expect(gateSteerWrite({ ...steer([{ session: "s", quote: "f" }]), config: { enabled: false, dailyCap: 3 } }).allowed).toBe(false)
+    expect(gateSteerWrite({ ...steer([{ session: "s", quote: "f" }]), sessionProtected: true }).allowed).toBe(false)
+  })
+  test("steerWriteText is visible and carries the guidance", () => {
+    const t = steerWriteText({ rationale: "reconcile with A/13 before proceeding" })
+    expect(t.startsWith("[supervisor] (steer)")).toBe(true)
+    expect(t).toContain("reconcile with A/13")
   })
 })

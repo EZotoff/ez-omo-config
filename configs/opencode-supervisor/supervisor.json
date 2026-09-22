@@ -51,6 +51,10 @@
         "enabled": true,
         "daily_cap": 5,
         "kick_start_only": true
+      },
+      "steer_writes": {
+        "enabled": true,
+        "daily_cap": 3
       }
     },
     {

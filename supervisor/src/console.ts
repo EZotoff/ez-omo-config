@@ -226,6 +226,7 @@ export type ConsoleChannelOptions = {
   readonly ledger: () => Ledger
   readonly setLedger: (next: Ledger) => void
   readonly probe: (item: AttentionQueueItem) => Promise<RevalidationSources>
+  readonly deliverPropagation?: (input: { root: string; sessionID: string; answer: string; ticketID: QueueItemID }) => Promise<boolean>
 }
 
 export class ConsoleChannel {
@@ -236,6 +237,7 @@ export class ConsoleChannel {
   private readonly ledger: () => Ledger
   private readonly setLedger: (next: Ledger) => void
   private readonly probe: (item: AttentionQueueItem) => Promise<RevalidationSources>
+  private readonly deliverPropagation: ((input: { root: string; sessionID: string; answer: string; ticketID: QueueItemID }) => Promise<boolean>) | undefined
 
   constructor(options: ConsoleChannelOptions) {
     this.client = options.client
@@ -244,6 +246,7 @@ export class ConsoleChannel {
     this.ledger = options.ledger
     this.setLedger = options.setLedger
     this.probe = options.probe
+    this.deliverPropagation = options.deliverPropagation
   }
 
   get held(): { readonly root: string; readonly itemID: QueueItemID } | undefined {
@@ -473,7 +476,19 @@ export class ConsoleChannel {
       const item = await this.queue.resolve(itemID, { disposition: "expired", evidence: [], now, reason: outcome.reason })
       return { kind: "resolved", disposition: "expired", item }
     }
-    const reason = outcome.kind === "valid" ? "still relevant" : outcome.reason
+    const reason = outcome.kind === "valid" ? "still relevant" : "reason" in outcome ? outcome.reason : "still relevant"
+    if (this.deliverPropagation !== undefined) {
+      const delivered = await this.deliverPropagation({
+        root: answered.target.root,
+        sessionID: answered.target.sessionID,
+        answer: reply.normalizedText,
+        ticketID: itemID,
+      })
+      if (delivered) {
+        const item = await this.queue.resolve(itemID, { disposition: "propagated", evidence: [], now, reason: "operator answer delivered to worker session" })
+        return { kind: "resolved", disposition: "propagated", item }
+      }
+    }
     this.setLedger(await this.ledger().append("QUEUE_PROPAGATION_PROPOSED", {
       itemID,
       replyEventID: reply.id,

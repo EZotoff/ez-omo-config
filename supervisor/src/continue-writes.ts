@@ -54,3 +54,44 @@ export function continueWriteText(decision: Pick<Decision, "rationale">): string
 export function continueCapKey(now: Date): string {
   return now.toISOString().slice(0, 10)
 }
+
+export type SteerWriteConfig = {
+  readonly enabled: boolean
+  readonly dailyCap: number
+}
+
+export type SteerWriteGateInput = {
+  readonly decision: { readonly action: Decision["action"]; readonly rationale: string; readonly citations: readonly { readonly session: string; readonly quote: string }[] }
+  readonly config: SteerWriteConfig
+  readonly capUsedToday: number
+  readonly lastMessageID: string | undefined
+  readonly target: { readonly assistantMessageID?: string; readonly sessionID: string }
+  readonly sessionProtected: boolean
+}
+
+/**
+ * STEER carries substantive cross-session guidance into a worker session — a wrong
+ * steer misdirects work, so the gate adds one CONTINUE does not have: at least one
+ * citation must come from OUTSIDE the target session (cross-session evidence is
+ * STEER's whole justification).
+ */
+export function gateSteerWrite(input: SteerWriteGateInput): ContinueWriteGate {
+  if (!input.config.enabled) return { allowed: false, reason: "steer writes disabled for this root" }
+  if (input.sessionProtected) return { allowed: false, reason: "session is operator-protected" }
+  if (input.decision.action !== "STEER") return { allowed: false, reason: "action is not STEER" }
+  if (input.capUsedToday >= input.config.dailyCap) {
+    return { allowed: false, reason: `daily steer cap reached (${input.config.dailyCap})` }
+  }
+  if (input.lastMessageID === undefined || input.target.assistantMessageID !== input.lastMessageID) {
+    return { allowed: false, reason: "premise changed before write: newer message after target reply" }
+  }
+  const nonTarget = input.decision.citations.some((c) => c.session !== input.target.sessionID)
+  if (!nonTarget) {
+    return { allowed: false, reason: "STEER requires at least one citation outside the target session" }
+  }
+  return { allowed: true }
+}
+
+export function steerWriteText(decision: Pick<Decision, "rationale">): string {
+  return `[supervisor] (steer) ${decision.rationale.slice(0, 600)}`
+}

@@ -197,6 +197,13 @@ export async function runService(signal: AbortSignal): Promise<void> {
     ledger: () => ledger,
     setLedger: (next) => { ledger = next },
     probe: buildSources,
+    deliverPropagation: async (input) => {
+      const rootConfig = config.roots.find((r) => r.path === input.root)
+      if (rootConfig?.continue_writes?.enabled !== true) return false
+      await client.promptAsync(input.sessionID, input.root, `[supervisor] (operator answer) ${input.answer.slice(0, 500)}`)
+      ledger = await ledger.append("QUEUE_PROPAGATION_DELIVERED", { root: input.root, sessionID: input.sessionID, answer: input.answer.slice(0, 200) })
+      return true
+    },
   })
   await consoles.load()
   const recovered = await consoles.recoverAnswered()
