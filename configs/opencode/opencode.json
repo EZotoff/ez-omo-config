@@ -926,7 +926,7 @@
           "attachment": false
         },
         "scout": {
-          "name": "Scout 4B",
+          "name": "MiniCPM3 4B",
           "reasoning": false,
           "limit": {
             "context": 6144,
