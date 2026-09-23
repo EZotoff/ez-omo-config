@@ -614,7 +614,8 @@
         "deepseek-v4-flash",
         "deepseek-v4-flash-vision-exp",
         "deepseek-v4.1-flash",
-        "qwen3.8-flash"
+        "qwen3.8-flash",
+        "qwen3.8-max"
       ],
       "options": {
         "chunkTimeout": 30000
@@ -629,6 +630,40 @@
           },
           "limit": {
             "context": 1000000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "reasoning_effort": "low"
+            },
+            "medium": {
+              "reasoning_effort": "medium"
+            },
+            "xhigh": {
+              "reasoning_effort": "xhigh"
+            }
+          }
+        },
+        "qwen3.8-max": {
+          "name": "Qwen 3.8 Max",
+          "reasoning": true,
+          "attachment": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 1000000,
+            "input": 868928,
             "output": 131072
           },
           "modalities": {

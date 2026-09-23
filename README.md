@@ -148,7 +148,7 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 |----------|--------|-------|
 | **google** | Gemini 3.8 Flash, Gemini 3.1 Pro Preview | whitelisted; Antigravity entries remain declared but hidden |
 | **openai** (Codex OAuth) | GPT 6 Sol / 5.6 Terra / 6 Luna | OAuth: `opencode auth login openai`; whitelisted |
-| **opencode-go** | MiniMax M3, DeepSeek V4 Flash, V4 Flash Vision Exp, V4.1 Flash, Qwen 3.8 Flash | whitelisted to OMO fallback-chain models; Qwen 3.8 Flash added for benchmark evaluation |
+| **opencode-go** | MiniMax M3, DeepSeek V4 Flash, V4 Flash Vision Exp, V4.1 Flash, Qwen 3.8 Flash, Qwen 3.8 Max | whitelisted to OMO fallback-chain models; Qwen 3.8 Flash added for benchmark evaluation; Qwen 3.8 Max added 2026-09-23 (1M ctx, $15/mo plan limit) |
 | **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
 | **zai-coding-plan** | GLM 5.3, GLM 5.3 Flash | Coding Plan API; whitelisted |
 | **inception** | Mercury 2.5 (260k ctx) | replaces Mercury 2 (Sep 2026); also OMO Aspect Dynamics scoring/polishing model |
