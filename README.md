@@ -92,9 +92,9 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Plugins** | 25 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 22 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
 | **Scripts** | 76 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, bench campaign runner, operator tools |
-| **Supervisor** | 57 files | Bun + strict-TypeScript read-only observer service, status CLI, journal→ledger continuation bridge, tests |
+| **Supervisor** | 59 files | Bun + strict-TypeScript read-only observer service, status CLI, journal→ledger continuation bridge, tests |
 | **Systemd** | 21 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer (crash-class resume), weekly session-archive service + timer (30-day retention), nightly session-learning service + timer (03:30 closeout sweep), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
-| **Tests** | 153 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning closeout suite + regression corpus (paired .sh/.kill.sh) |
+| **Tests** | 154 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning closeout suite + regression corpus (paired .sh/.kill.sh) |
 | **Docs** | 15 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
