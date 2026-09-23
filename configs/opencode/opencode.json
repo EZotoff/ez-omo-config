@@ -884,7 +884,7 @@
       }
     },
     "local": {
-      "name": "Local models (Bonsai LB + GSQ via uni-pc LiteLLM :18213)",
+      "name": "Local",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "http://100.86.113.119:18213/v1",
@@ -894,7 +894,7 @@
       },
       "models": {
         "bonsai": {
-          "name": "Bonsai-2 27B (LB: laptop 262k + uni-pc 2x128k, auto ctx routing)",
+          "name": "Bonsai 27B",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -906,7 +906,7 @@
           "attachment": false
         },
         "qwen3.8-27b": {
-          "name": "Qwen3.8-27B GSQ-RCO IQ2_S+MTP (128k, server currently down)",
+          "name": "Qwen 27B GSQ",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -926,7 +926,7 @@
           "attachment": false
         },
         "scout": {
-          "name": "MiniCPM3-4B scout (6k, GBNF YAML)",
+          "name": "Scout 4B",
           "reasoning": false,
           "limit": {
             "context": 6144,
@@ -935,7 +935,7 @@
           "attachment": false
         },
         "bonsai-unipc": {
-          "name": "Bonsai-2 27B (uni-pc only, 3x131k slots)",
+          "name": "Bonsai 27B (uni-pc)",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
