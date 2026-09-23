@@ -42,6 +42,21 @@ Deployed via the `opencode-supervisor.service` systemd unit (observe mode). Evid
 
 `voice-bridge` (Vox) reads the ledger read-side to surface escalations to the voice agent — it tails `ledger.jsonl` and triggers on `TICK_DECIDED` with `action=ESCALATE` and `confidence ≥ 0.7`. It never writes to the ledger or the supervisor. See `docs/voice-bridge.md` and the ownership split in `docs/portable-supervisor-contract.md` (Seam 4).
 
-## Consumers
+### Continuation alerts (journal→ledger bridge) — the contract Vox consumes for crash events
 
-`voice-bridge` (Vox) reads this ledger read-side to surface escalations to the voice agent — it tails `ledger.jsonl` and triggers on `TICK_DECIDED` with `action=ESCALATE` and `confidence ≥ 0.7`. It never writes to the ledger or the supervisor. See `docs/voice-bridge.md`.
+**Status: wired and verified live 2026-09-23 (Vox consumer not yet built — this section is the handoff contract).**
+
+Producer chain: `scripts/restart-with-continuation.sh` (ExecStop/ExecStartPost hooks + checkpoint timer) emits journal alerts under tag `restart-continuation`, each carrying a machine-readable suffix `unit=<u> reason=<r> rc=<n|-> uuid=<uuid|-> count=<n|-> ts=<epoch>` with reasons `preflight_failed | snapshot_failed | resume_fallback | db_fallback`. `supervisor/src/journalbridge.ts` tails `journalctl --user -t restart-continuation` (persisted cursor + alert-fingerprint dedupe in `~/.local/state/opencode-supervisor/journal-bridge.json`), and imports each alert as exactly ONE `TICK_DECIDED` ledger entry:
+
+```json
+{"seq":11434,"type":"TICK_DECIDED","payload":{
+  "decision":{"action":"ESCALATE","confidence":0.9,
+    "rationale":"continuation alert: resume_fallback on opencode-bench.service (rc=-, count=1)"},
+  "continuation":{"source":"continuation","unit":"opencode-bench.service",
+    "reason":"resume_fallback","rc":"-","uuid":"<checkpoint-uuid>",
+    "count":"1","ts":"<epoch>","fingerprint":"<sha256 of unit+reason+uuid+ts>"}}}
+```
+
+Vox semantics for these entries: `reason=preflight_failed` = a server wedged/crashed and no stop-snapshot could be taken; `reason=resume_fallback` = crash-class recovery ran and N sessions were re-prompted from checkpoint (recovery happened — informational unless count is large or repeated); `reason=snapshot_failed` = busy sessions existed but snapshot failed (sessions at risk); `reason=db_fallback` = last-resort resume without a checkpoint. Delivery latency: up to 10 min (bridge polls on the 600s `periodicReconcile`). The bridge is ESCALATE-ONLY: it never calls `promptAsync` or any session-writing API — the continuation scripts remain the single writer of recovery prompts (`.consumed-*` markers are one-shot). Dedupe guarantee: one journal alert → one ledger escalation across supervisor restarts; Vox should still dedupe on `fingerprint` defensively.
+
+First organic catch: a real `:3030` degradation on 2026-09-23 (~12:22 local, `preflight_failed rc=28`) and a deliberate live drill the same day (SIGSTOP'd bench server → checkpoint → crash-resume → escalation, seq 11434).
