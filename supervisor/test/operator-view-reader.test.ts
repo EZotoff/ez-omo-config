@@ -244,6 +244,13 @@ describe("operator-view reader edge cases", () => {
     if (out.state === "frozen") expect(out.reason).toBe("read-error")
   })
 
+  test("(c10) validity before any read → frozen read-error (no image to extend)", () => {
+    const reader = new OperatorViewReader({ path: "operator-view.json", wallMs: () => T0, monoMs: () => 0 })
+    const out = reader.validity(T0, 0)
+    expect(out.state).toBe("frozen")
+    if (out.state === "frozen") expect(out.reason).toBe("read-error")
+  })
+
   test("contract thresholds are pinned", () => {
     expect(READ_STALE_AGE_MS).toBe(30_000)
     expect(READ_FUTURE_SKEW_MS).toBe(5_000)
