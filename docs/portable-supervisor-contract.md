@@ -12,7 +12,7 @@
 | Component | Repo | Role | Runs |
 |---|---|---|---|
 | **voice-bridge ("Vox")** | `~/AI_projects/voice-bridge/` | Voice brain: Gemini Live session, tools, interrupts, mutation pipeline, fallback chain | `voice-bridge.service`, `127.0.0.1:18220` |
-| **omo-pulse** | `~/AI_projects/ez-omo-dash/` | Visual supervisor surface: attention queue, recent projects, session cards, remote UI (`?remote=1`), desktop deep-links | dev `:4300/:4301`, prod `:4300` |
+| **omo-pulse** | `~/AI_projects/ez-omo-dash/` | Visual supervisor surface: attention queue, recent projects, session cards, remote UI (`?view=remote`, FIFO), desktop deep-links | dev `:4300/:4301`, prod `:4300` |
 | **ez-omo-config** | `~/ez-omo-config/` | Contract home (this doc), config store, design artifacts, docs sync | — |
 | **OC Beacon** | `~/src/oc-beacon/` | Native ambient attention surface (SHIPPED 2026-09-21: attention cards, AR-glance headlines, escalation/root-health/error-peak push notifications, directory-grouped strands); reads supervisor state through the already-configured OpenCode server | Android app |
 
@@ -104,7 +104,7 @@ codegraph, and tests are repo-scoped):
    shipped ahead of schedule: attention cards, AR-glance headlines, escalation/root-health/
    error-peak push notifications, directory-grouped strands). Remaining gap for the walking
    rung: **answer capture** (tap/spoken reply routed as a queue reply event, Seam 4) and
-   spoken replies via Vox. Web-in-Chrome (`?remote=1`) remains the fallback/comparison path;
+   spoken replies via Vox. Web-in-Chrome (`?view=remote`) remains the fallback/comparison path;
    its responsive + push-to-talk gaps are unchanged. Record fallback events per the
    proposal's §Prototype Validation.
 3. **Peripheral decision**: only after (2); the contract's interaction concepts
@@ -183,6 +183,11 @@ Versioning: `schemaVersion` on items; v1 changes are ADDITIVE ONLY (consumers to
 unknown fields); a breaking change ships as `schemaVersion: 2` with a dual-write window.
 Consumers must never write these files (single writer: the supervisor service).
 
+**Live-card retraction (2026-09-23):** the three-file priority order above is RETAINED for
+diagnostics and history only. For **live operator-facing cards** it is RETRACTED — the binding
+source is the [`operator-view.json` read model](#operator-read-model-operatorviewjson--binding-for-live-operator-facing-cards)
+below; consumers MUST NOT independently join these files into live card state.
+
 **Supervisor ingress note** (internal, no seam change): the supervisor's own observation
 ingress is HTTP polling because project-scoped instance SSE is broken (see patch
 `opencode--sse-directory-filter-removal`). The server-level `/global/event` route — being
@@ -190,3 +195,58 @@ adopted by omo-pulse's SSE-realtime plan — is unfiltered and is the candidate 
 ingress for a future supervisor version, with client-side filtering.
 
 Cross-repo impact: none for the console MVP (all inside the supervisor service); the omo-pulse attention view and the Vox queue-consumer transport are the future cross-repo pieces and land in this doc first when defined — the schema above is that definition.
+
+### Operator read model (`operator-view.json`) — binding for live operator-facing cards
+
+Amendment 2026-09-23 (design source of truth: `.omo/notes/orca-transition/40-oracle-design.md` §5; that
+design body wins on any conflict). **The three-file independent read above is RETRACTED for live
+operator-facing cards**: consumers MUST NOT join `status.json`, `queue.json`, or a ledger tail into
+live card state. The single live-card source is one versioned atomic read model published by the
+supervisor. This section is binding BEFORE any consumer exists; supervisor implementation (plan
+orca-transition Task 2) and Orca/omo-pulse consumers (Tasks 3, 12) implement to this text exactly.
+
+**File**: `operator-view.json` in the supervisor state directory, alongside the files above.
+
+#### Publication (supervisor obligations)
+
+- **(a) Content.** The file MUST contain `generation`, `lastSeq`, `producedAt`, and a bounded set of
+  active queue cards with decision/premise summaries, computed from **ONE coherent ledger prefix** —
+  the publish operation captures a single state/seq snapshot taken after ledger append AND queue
+  derivation. The supervisor MUST NEVER publish a `lastSeq` beyond the data incorporated in the
+  cards.
+- **(b) Atomicity and monotonicity.** Publication MUST be single-image atomic: write a temp file in
+  the same directory, then rename over `operator-view.json`. `(generation, lastSeq)` MUST be
+  strictly monotonically increasing across publications (lexicographic: `generation` first, then
+  `lastSeq`).
+- **(d) Heartbeat.** The supervisor MUST republish `operator-view.json` at most every **15 seconds**
+  even when no ledger change occurred, so `producedAt` staleness measures supervisor liveness
+  rather than a quiet queue.
+- **(e) Ledger tail is diagnostic-only.** `ledger.jsonl` entries at `seq <= lastSeq` MAY be used for
+  diagnostic history, but MUST NEVER be joined to an independently newer `status.json`/
+  `queue.json` for live cards. The old independent-join plan is **RETRACTED**.
+- **(f) Probe/throwaway filter.** Sessions classified as autonomous probe/throwaway traffic (the
+  omo-focus "PROBE-OK" class) MUST be excluded at the read model — from Needs You cards, rail
+  attention marking, and jump targets. The supervisor's test suite MUST include a probe-noise test
+  case: a probe burst must not surface or displace any card.
+
+#### Reader obligations (c)
+
+- Readers MUST validate the schema before use, poll at most every **5 seconds**, and after receipt
+  recheck freshness with a **monotonic timer** (never an extended wall-clock read).
+- Stale = `producedAt` older than **30 seconds** at receipt, or more than **5 seconds** in the
+  future. Readers MUST freeze (grey existing cards, disable their jump actions, label
+  "**Supervisor state stale**") within **5 seconds** after the 30-second budget expires.
+- The same freeze/grey + disabled-jump + stale-label treatment MUST apply on: a `(generation, lastSeq)`
+  gap/regression, invalid schema, older `generation`, or supervisor not running.
+- Readers MUST NEVER render a partly joined queue and MUST NEVER convert a stale card to Idle.
+- Readers MUST reread on rename (atomic replace invalidates any cached image) and refresh
+  periodically.
+- A wall-clock jump beyond **±5 seconds** (backward or forward) MUST force a fresh read rather than
+  extending validity of the current image.
+
+#### Required test cases
+
+29/31-second ages; +6-second future `producedAt`; restart with an old snapshot on disk; missing
+updates; clock jumps under a fake clock; a 10-minute quiet period (no escalations → cards remain
+live, never grey — gates the panel); and the probe-noise burst case above.
+
