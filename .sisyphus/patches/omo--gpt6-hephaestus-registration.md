@@ -8,9 +8,9 @@ applied_date: "2026-09-23"
 dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "GPT-5.3 Codex, GPT-5.4, GPT-5.5, GPT-5.6, and GPT-6 models"
-runtime_effective: false
+runtime_effective: true
 surfaces: "n/a (agent registration + chat.message hook logic, not rendering)"
-note: "Source patch, fork commit 8822e6b2e on branch feature/wake-journal-outbox (pushed to EZotoff/oh-my-openagent). runtime_effective false pending opencode serve restart (loads rebuilt dist/index.js) + live /agent listing showing hephaestus + a sisyphus+gpt-6-sol probe session showing no hijack/injection."
+note: "Source patch, fork commit 8822e6b2e on branch feature/wake-journal-outbox (pushed to EZotoff/oh-my-openagent). Runtime-verified 2026-09-23 after continuation-safe restart of both servers: GET /agent on :3021 and :3030 list Hephaestus (19 agents, was 18); probe session ses_f3267e7caffeUMW0oJ2iRT9IZk (Sisyphus + openai/gpt-6-sol, scratch dir) persisted agent=Sisyphus with no toast rewrite and no [Directory Context] injection and answered 'OK'; Hephaestus + gpt-6-sol probe session answered 'OK' (no injection in scratch dir without AGENTS.md, as designed)."
 ---
 
 # Accept GPT-6 models for Hephaestus registration and Sisyphus-native GPT detection
