@@ -891,22 +891,22 @@
           "attachment": false
         },
         "scout": {
-          "name": "MiniCPM3-4B scout 6k (laptop, GBNF YAML)",
+          "name": "MiniCPM3-4B scout (6k, GBNF YAML)",
           "reasoning": false,
           "limit": {
             "context": 6144,
-            "output": 2048
+            "output": 4096
           },
           "attachment": false
         },
         "bonsai-unipc": {
-          "name": "Bonsai-2 27B uni-pc only (2x128k slots)",
+          "name": "Bonsai-2 27B (uni-pc only, 3x131k slots)",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
           },
           "limit": {
-            "context": 126976,
+            "context": 393216,
             "output": 16384
           },
           "attachment": false
