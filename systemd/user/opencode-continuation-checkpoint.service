@@ -4,7 +4,7 @@ After=opencode.service opencode-interactive.service
 
 [Service]
 Type=oneshot
-ExecStart=%h/ez-omo-config/scripts/restart-with-continuation.sh checkpoint opencode-interactive.service http://127.0.0.1:3030 %h/.config/opencode/serve-interactive.env
-ExecStart=%h/ez-omo-config/scripts/restart-with-continuation.sh checkpoint opencode.service http://127.0.0.1:3021 %h/.config/opencode/serve.env
-ExecStart=%h/ez-omo-config/scripts/restart-with-continuation.sh checkpoint opencode-bench.service http://127.0.0.1:3040 %h/.config/opencode/serve-bench.env
+ExecStart=-%h/ez-omo-config/scripts/restart-with-continuation.sh checkpoint opencode-interactive.service http://127.0.0.1:3030 %h/.config/opencode/serve-interactive.env
+ExecStart=-%h/ez-omo-config/scripts/restart-with-continuation.sh checkpoint opencode.service http://127.0.0.1:3021 %h/.config/opencode/serve.env
+ExecStart=-%h/ez-omo-config/scripts/restart-with-continuation.sh checkpoint opencode-bench.service http://127.0.0.1:3040 %h/.config/opencode/serve-bench.env
 TimeoutStartSec=2min
