@@ -21,6 +21,7 @@ import { ContinuationBridge, readJournalEntries } from "./journalbridge"
 import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
 import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
 import { ProtectionRegistry } from "./protect"
+import { OperatorViewPublisher } from "./operator-view"
 import type { Action, AttentionQueueItem, Decision, OriginRegistry, Session, Turn } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
@@ -173,6 +174,24 @@ export async function runService(signal: AbortSignal): Promise<void> {
     path: join(stateDirectory, "blackboard.json"),
     append: async (type, payload) => { ledger = await ledger.append(type, payload) },
   })
+  // Atomic operator-view.json read model (orca-transition Task 2): published
+  // after ledger append + queue derivation, plus a ≤15 s idle heartbeat.
+  const operatorView = new OperatorViewPublisher({
+    path: join(stateDirectory, "operator-view.json"),
+    items: () => queue.items,
+    ledgerSeq: () => ledger.records.at(-1)?.seq ?? 0,
+    onHeartbeatError: (error) => {
+      void ledger.append("ERROR", { reason: "operator-view heartbeat publish failed", error: error instanceof Error ? error.message : String(error) }).then((next) => { ledger = next }).catch(() => undefined)
+    },
+  })
+  const publishOperatorView = async (): Promise<void> => {
+    try {
+      await operatorView.publish()
+    } catch (error) {
+      ledger = await ledger.append("ERROR", { reason: "operator-view publish failed", error: error instanceof Error ? error.message : String(error) })
+      await recordErrorTelemetry({})
+    }
+  }
   const activityGate = new ActivityGate()
   const buildSources = async (item: AttentionQueueItem): Promise<RevalidationSources> => {
     const root = item.target.root
@@ -303,6 +322,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       now: new Date().toISOString(),
     })
     await writeStatus(statusPath, status)
+    await publishOperatorView()
   }
 
   const recordCollect = (event: CollectEvent): void => {
@@ -558,8 +578,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
       if (root.mode === "off") continue
       void reconcile(root.path)
     }
+    void publishOperatorView()
   }, 600_000)
   signal.addEventListener("abort", () => clearInterval(periodicReconcile), { once: true })
+  operatorView.startHeartbeat()
+  signal.addEventListener("abort", () => operatorView.stop(), { once: true })
 
   // Polling ingress (SSE is unusable on live 1.18.5 for project events — see poller.ts).
   const POLL_INTERVAL_MS = 20_000
@@ -569,6 +592,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   // sequential, which caused the SIGKILL of 2026-09-20).
   await Promise.all(activeRoots.map((root) => reconcile(root.path)))
   await pollBridge()
+  await publishOperatorView()
   for (const root of activeRoots) {
     const runtime0 = runtimes.get(root.path)
     if (runtime0 === undefined) continue

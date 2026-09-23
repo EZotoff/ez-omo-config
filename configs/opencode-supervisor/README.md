@@ -34,7 +34,7 @@ The bundled `supervisor.json` installs to `$HOME/.config/opencode-supervisor/sup
 - **Console channel** (`src/console.ts`): tickets surface through the per-root `[Supervisor]` console session (enqueue→revalidate→surface→correlate→resolve). Live cycle in progress.
 - **Protection command**: `bun run supervisor/src/status-cli.ts protect <sessionID> [--reason]` / `unprotect` — persists to `~/.local/state/opencode-supervisor/protected.json`; protected sessions are skipped for CONTINUE-class targets (ESCALATE may still surface).
 
-Runtime state is under `$HOME/.local/state/opencode-supervisor/`: `status.json`, `ledger.jsonl`, `protected.json`, and `grading/` artifacts. The API key is read from `$HOME/.local/share/opencode/auth.json` and is never written to status, ledger, or logs.
+Runtime state is under `$HOME/.local/state/opencode-supervisor/`: `status.json`, `ledger.jsonl`, `protected.json`, `operator-view.json` (atomic read model for operator-facing consumers — see docs/portable-supervisor-contract.md), and `grading/` artifacts. The API key is read from `$HOME/.local/share/opencode/auth.json` and is never written to status, ledger, or logs.
 
 Deployed via the `opencode-supervisor.service` systemd unit (observe mode). Evidence: `repo_implemented` + `tests_passed` (`supervisor/test/`, 21 suites); `runtime_loaded` for queue/status/protect CLI and the service; console-channel live cycle in progress. Not verified live: `real_project_behavior_proven`.
 
