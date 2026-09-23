@@ -14,7 +14,7 @@
 | **voice-bridge ("Vox")** | `~/AI_projects/voice-bridge/` | Voice brain: Gemini Live session, tools, interrupts, mutation pipeline, fallback chain | `voice-bridge.service`, `127.0.0.1:18220` |
 | **omo-pulse** | `~/AI_projects/ez-omo-dash/` | Visual supervisor surface: attention queue, recent projects, session cards, remote UI (`?remote=1`), desktop deep-links | dev `:4300/:4301`, prod `:4300` |
 | **ez-omo-config** | `~/ez-omo-config/` | Contract home (this doc), config store, design artifacts, docs sync | — |
-| **OC Beacon fork** | `~/src/oc-beacon/` | Native ambient attention surface; reads supervisor state through the already-configured OpenCode server | Android app |
+| **OC Beacon** | `~/src/oc-beacon/` | Native ambient attention surface (SHIPPED 2026-09-21: attention cards, AR-glance headlines, escalation/root-health/error-peak push notifications, directory-grouped strands); reads supervisor state through the already-configured OpenCode server | Android app |
 
 Layering: **omo-pulse is the eyes and hands, voice-bridge is the ears and voice, this repo
 owns the seam.** The interaction model: *navigate visually to establish context, then use
@@ -100,8 +100,13 @@ codegraph, and tests are repo-scoped):
 ## Validation ladder
 
 1. **Desktop**: omo-pulse + voice widget on the workstation; deep-links as the full-view fallback.
-2. **Android (walking test)**: same web app in Chrome; responsive + push-to-talk are the gaps
-   to close. Record fallback events per the proposal's §Prototype Validation.
+2. **Android (walking test)**: **primary vehicle is OC Beacon native** (amended 2026-09-21 —
+   shipped ahead of schedule: attention cards, AR-glance headlines, escalation/root-health/
+   error-peak push notifications, directory-grouped strands). Remaining gap for the walking
+   rung: **answer capture** (tap/spoken reply routed as a queue reply event, Seam 4) and
+   spoken replies via Vox. Web-in-Chrome (`?remote=1`) remains the fallback/comparison path;
+   its responsive + push-to-talk gaps are unchanged. Record fallback events per the
+   proposal's §Prototype Validation.
 3. **Peripheral decision**: only after (2); the contract's interaction concepts
    (PROJECT/SESSION/VIEW/SELECTION/VOICE/ACTION/SHOW/ATTENTION) stay stable across devices.
 
@@ -110,10 +115,14 @@ codegraph, and tests are repo-scoped):
 | Item | Repo | Status |
 |---|---|---|
 | Escalation `confidence ≥ 0.7` filter in ledger-tailer | voice-bridge | **done** — `ESCALATION_CONFIDENCE_THRESHOLD = 0.7` gate in [`src/pipeline/interrupts.ts:23`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/interrupts.ts) (TICK_DECIDED + ESCALATE + confidence ≥ 0.7, per final-design.md Amendment 2 §A) |
-| `prompt_supervisor` write-path guardrail | this repo (design doc) | **REQUIRED, not done** — current implementation ([`src/pipeline/tools/prompt-supervisor.ts:20-46`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/tools/prompt-supervisor.ts)) is UNGATED: it writes into a supervisor console session directly via `promptAsync` (creates the `[Supervisor]` console session if absent). Future gate: replies become correlated queue events routed by the reply-router (Seam 4), not free-form console writes |
+| `prompt_supervisor` write-path guardrail | this repo (design doc) | **REQUIRED, not done** — current implementation ([`src/pipeline/tools/prompt-supervisor.ts:20-46`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/tools/prompt-supervisor.ts)) is UNGATED: it writes into a supervisor console session directly via `promptAsync` (creates the `[Supervisor]` console session if absent). Future gate: replies become correlated queue events routed by the reply-router (Seam 4 — the router is now LIVE in the supervisor service), not free-form console writes |
 | Voice widget + context feed in remote UI | omo-pulse | not started |
 | Show-view renderer (Seam 2 frames) | omo-pulse | not started |
-| Real-voice dogfood → MANIFEST evidence upgrade | this repo | blocked on (row above) |
+| Real-voice dogfood → MANIFEST evidence upgrade | this repo | blocked on (voice widget row) |
+| Attention projection consumption (Seam 4 read → attention view) | omo-pulse | not started (schema defined above) |
+| Ledger-tailer → `QUEUE_*` projection upgrade (escalations from the queue, not raw TICK_DECIDED) | voice-bridge | not started |
+| OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon | not started — required for walking rung |
+| OC Beacon walking-rung prep (spoken replies via Vox, small-screen polish) | oc-beacon + voice-bridge | not started |
 
 ## Seam 4 — Attention queue (Supervisor-owned)
 
@@ -151,4 +160,33 @@ For native decision cards, every new `TICK_DECIDED` ledger payload includes `roo
 - **SKIP** = next (snooze, `notBefore`); **HOLD** = freeze dwell on this channel; **DND** = global pause, aging continues, APPROVAL items never auto-resolve.
 - Ambiguous replies correlate to nothing: record `QUEUE_REPLY_AMBIGUOUS`, request `Q<n>:` or a numbered choice — no guessing, no mutation.
 
-Cross-repo impact: none for the console MVP (all inside the supervisor service); the omo-pulse attention view and the Vox queue-consumer transport are the future cross-repo pieces and land in this doc first when defined.
+#### Attention projection (consumption contract)
+
+The stable surface every consumer reads (OC Beacon today; omo-pulse attention view and Vox
+tomorrow) is the supervisor's state directory, in this priority order:
+
+1. **`queue.json`** — open attention items, each an `AttentionQueueItem` (`schemaVersion: 1`)
+   with the exact schema of the working spec (§2 of
+   `.local-state/attention-queue-contract.md`, mirrored in
+   `supervisor/src/queue.ts`): id, decisionKey, actionClass, escalationKind, question,
+   rationale, citations, target {root, sessionID, sessionTitle}, priority inputs, premises,
+   lifecycle (append-only; current state = last event).
+2. **`status.json`** — operational telemetry: `modes` per root, `rootHealth` per root
+   (ok/failing + consecutive failures), `errorsSinceStart`/`errorsLastHour`/`errorsLastHourPeak`,
+   `collect` telemetry, `queueDepths`.
+3. **`ledger.jsonl`** — append-only event stream (`QUEUE_ITEM_PROPOSED/REVALIDATED/SURFACED/
+   RESOLVED`, `QUEUE_REPLY_RECEIVED/AMBIGUOUS`, `QUEUE_PROPAGATION_DELIVERED/PROPOSED`,
+   `INTERVENTION_SENT`, `TICK_DECIDED`, `TICK_SKIPPED`) for consumers that want history
+   rather than snapshot.
+
+Versioning: `schemaVersion` on items; v1 changes are ADDITIVE ONLY (consumers tolerate
+unknown fields); a breaking change ships as `schemaVersion: 2` with a dual-write window.
+Consumers must never write these files (single writer: the supervisor service).
+
+**Supervisor ingress note** (internal, no seam change): the supervisor's own observation
+ingress is HTTP polling because project-scoped instance SSE is broken (see patch
+`opencode--sse-directory-filter-removal`). The server-level `/global/event` route — being
+adopted by omo-pulse's SSE-realtime plan — is unfiltered and is the candidate event-driven
+ingress for a future supervisor version, with client-side filtering.
+
+Cross-repo impact: none for the console MVP (all inside the supervisor service); the omo-pulse attention view and the Vox queue-consumer transport are the future cross-repo pieces and land in this doc first when defined — the schema above is that definition.
