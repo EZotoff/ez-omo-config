@@ -74,6 +74,7 @@ Campaigns expected to outlive a single tool call MUST run through opencode durab
 2. Treat quota reset timestamps as upper bounds — probe, don't wait.
 3. Declare an admission budget: case count plus operator-set headroom.
 4. Forbid substring `pkill`/`pgrep` — require owned unit/PID metadata.
+5. Check provider quota headroom before launching (and when investigating a possible rate-limit failure): run `~/.sisyphus/scripts/quotas.sh` (Z.AI, ChatGPT, Ollama Cloud, Kimi, OpenCode Go; `--json` for raw payload). Treat unreachable, errored, or STALE entries as unknown — never infer headroom. If you lack shell access, ask a shell-capable parent to run it and report the output.
 
 ## Context discipline for small-context models (2026-09-05 lesson)
 
