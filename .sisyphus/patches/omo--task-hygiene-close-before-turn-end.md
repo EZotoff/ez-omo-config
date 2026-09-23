@@ -8,9 +8,9 @@ applied_date: "2026-09-22"
 dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "stale lie in your own tracking list"
-runtime_effective: false
+runtime_effective: true
 surfaces: "n/a (prompt content, not rendering)"
-note: "Source patch, fork commit ff320aa04 on branch feature/wake-journal-outbox (pushed to EZotoff/oh-my-openagent). runtime_effective false pending (a) opencode serve restart to load rebuilt dist/index.js and (b) behavioral re-audit of task-completion rate with the 2026-09-22 session-DB queries."
+note: "Source patch, fork commit ff320aa04 on branch feature/wake-journal-outbox (pushed to EZotoff/oh-my-openagent). runtime_effective true since 2026-09-23: both serve surfaces restarted post-rebuild and scratch-instance behavioral probe observed the amended close-before-turn-end behavior. 1-2wk metric re-audit (never-completed rate vs 36% baseline) remains open."
 ---
 
 # Sisyphus glm-5-2 Task-Hygiene Rule (close tasks before turn end)
@@ -44,5 +44,4 @@ git -C /home/ezotoff/oh-my-openagent-v4.19.2 branch -r --contains ff320aa04   # 
 ```
 
 ## Runtime Status
-
-Not yet effective: the running `opencode serve` processes loaded the pre-patch plugin bundle at startup. Requires a session-safe restart (`scripts/restart-with-continuation.sh` procedure, both surfaces) to load the rebuilt `dist/index.js`, then a 1-2 week behavioral re-audit with the audit queries (task_create adoption + never-completed rate on glm-5.3-flash multi-prompt sessions) before flipping `runtime_effective: true`.
+runtime_effective: true — verified live 2026-09-23. Both managed serve surfaces restarted 12:13/12:14 CEST after the 11:19 dist rebuild (opencode.service :3021, opencode-interactive.service :3030; fresh process start times via `ps -eo lstart,args`). Behavioral probe from a throwaway scratch instance (`/tmp/opencode/taskhyg.t5l5Nz`, glm-5.3-flash): model created two tasks, executed both, then explicitly emitted `task_update status=completed` for both before ending the turn, narrating "Marking them completed before finishing the turn" — the amended rule's exact shape. Open follow-up (separate from effectiveness): 1-2 week session-DB re-audit to confirm the never-completed rate drops from the 36% baseline before declaring the coordination problem fixed.

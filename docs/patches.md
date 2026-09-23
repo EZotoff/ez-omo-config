@@ -52,7 +52,7 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 | `omo--remove-activity-stagnation-bypass` | upstreamed | — | [entry](../.sisyphus/patches/omo--remove-activity-stagnation-bypass.md) |
 | `omo--parent-wake-sync-mode-for-tui-render` | rolled_back | — | [entry](../.sisyphus/patches/omo--parent-wake-sync-mode-for-tui-render.md) |
 | `omo--writing-routing-to-document-writer` — sisyphus docs routing → document-writer subagent; writing category dormant (fork commit 87bae6856 + config description override) | active | true | [entry](../.sisyphus/patches/omo--writing-routing-to-document-writer.md) |
-| `omo--task-hygiene-close-before-turn-end` — sisyphus glm-5-2 tasks-section rule: close every task before turn end (fork commit ff320aa04) | active | false | [entry](../.sisyphus/patches/omo--task-hygiene-close-before-turn-end.md) |
+| `omo--task-hygiene-close-before-turn-end` — sisyphus glm-5-2 tasks-section rule: close every task before turn end (fork commit ff320aa04) | active | true | [entry](../.sisyphus/patches/omo--task-hygiene-close-before-turn-end.md) |
 | `omo--gpt6-hephaestus-registration` — accept GPT-6 models for hephaestus registration + sisyphus-native detection; fixes ghost-hephaestus hijack on gpt-6-sol (fork commit 8822e6b2e) | active | false | [entry](../.sisyphus/patches/omo--gpt6-hephaestus-registration.md) |
 
 ## Provenance gates (2026-09-18 patch-loss incidents)
