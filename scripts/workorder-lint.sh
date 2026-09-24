@@ -8,7 +8,9 @@
 #   workorder-lint.sh --template    print a skeleton workorder (passes this lint)
 #
 # Rules (docs/workorders.md §Required fields):
-#   (a) `intent:` and `budget:` header lines present and non-empty.
+#   (a) `intent:`, `budget:`, `status:` (and optional `lane:`) header lines
+#       present, non-empty, and in the PREAMBLE — before the first `## `
+#       heading. Header fields after the first section heading do not count.
 #   (b) `status:` is `open` or `done`.
 #   (c) `## Scope` section with >=1 listed file path.
 #   (d) `## Teardown checklist` section with >=1 checklist item.
@@ -20,11 +22,15 @@
 #   (f) `## Escalation` section, if present: must be `none` or NAME a canonical
 #       trigger (scope-drift | budget-2x | blocking-dependency). A named trigger
 #       on a `status: done` workorder is a violation (escalated work stays open).
+#   (g) Lite bounds (unless `lane: full`): `budget:` must parse as `Nm` with
+#       N <= 30 (or `N files` with N <= 2), AND `## Scope` must list <= 2 files.
+#       Anything larger is flagged "exceeds lite bounds — escalate to full
+#       episode". An explicit `lane: full` header opts out of the bound check
+#       (the workorder then documents that it left the lite lane).
 #
 # HTML comment lines (<!-- -->) are ignored so examples/hints may live inline.
 # Exit: 0 = pass, 1 = violations found, 2 = usage/IO error.
 #
-# No network, no ports, no writes.
 
 set -euo pipefail
 
@@ -86,20 +92,27 @@ section_body() {
     ' "$1"
 }
 
+# Preamble: everything before the first `## ` heading (where the header
+# fields intent/budget/status/lane must live).
+preamble() {
+    awk '/^## /{exit} {print}' "$1"
+}
+
 errors=0
 flag() { echo "workorder: $file: $1"; errors=$((errors + 1)); }
 
-# --- (a) intent / budget, (b) status ---
-get_field() {
-    sed -n "s/^$1:[[:space:]]*//p" "$file" | sed -n '/./{p;q}' | sed 's/[[:space:]]*#.*$//'
+# --- (a) intent / budget / status / lane — header fields must be in the preamble ---
+pfield() { # field-name — first non-empty `field:` line of the preamble, comments stripped
+    preamble "$file" | sed -n "s/^$1:[[:space:]]*//p" | sed -n '/./{p;q}' | sed 's/[[:space:]]*#.*$//'
 }
 
-intent="$(get_field intent)"
-budget="$(get_field budget)"
-status="$(get_field status)"
+intent="$(pfield intent)"
+budget="$(pfield budget)"
+status="$(pfield status)"
+lane="$(pfield lane)"
 
-[[ -n "$intent" ]] || flag "missing or empty 'intent:' line"
-[[ -n "$budget" ]] || flag "missing or empty 'budget:' line"
+[[ -n "$intent" ]] || flag "missing or empty 'intent:' line in the preamble (before the first '## ' heading)"
+[[ -n "$budget" ]] || flag "missing or empty 'budget:' line in the preamble (before the first '## ' heading)"
 [[ "$status" == "open" || "$status" == "done" ]] \
     || flag "status must be open or done (got: '${status:-missing}')"
 
@@ -107,6 +120,23 @@ status="$(get_field status)"
 scope="$(section_body "$file" "Scope" | grep -c '^[[:space:]]*-[[:space:]]*[^[:space:]]' || true)"
 [[ "$scope" -ge 1 ]] || flag "'## Scope' section missing or lists no files"
 
+# --- (g) lite bounds (opt-out: lane: full) ---
+if [[ "$lane" != "full" ]]; then
+    if [[ "$budget" =~ ^([0-9]+)m$ ]]; then
+        (( ${BASH_REMATCH[1]} <= 30 )) \
+            || flag "budget '${budget}' exceeds lite bounds — escalate to full episode (or set 'lane: full')"
+    elif [[ "$budget" =~ ^([0-9]+)[[:space:]]*files?$ ]]; then
+        (( ${BASH_REMATCH[1]} <= 2 )) \
+            || flag "budget '${budget}' exceeds lite bounds — escalate to full episode (or set 'lane: full')"
+    else
+        flag "budget '${budget}' does not parse as '<N>m' or '<N> files'"
+    fi
+    (( scope <= 2 )) \
+        || flag "scope lists $scope files — exceeds lite bounds — escalate to full episode (or set 'lane: full')"
+fi
+
+
+# --- (d) teardown checklist ---
 # --- (d) teardown checklist ---
 checklist="$(section_body "$file" "Teardown checklist")"
 [[ -n "$(printf '%s\n' "$checklist" | grep -E '^[[:space:]]*- \[[ x]\]' || true)" ]] \

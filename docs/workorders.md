@@ -50,10 +50,11 @@ closeout.status: complete
 
 | Field | Requirement |
 |---|---|
-| `intent:` | Non-empty one-liner. |
-| `budget:` | Non-empty bound (`30m`, `2 files`, …). |
-| `status:` | `open` or `done`. |
-| `## Scope` | ≥1 listed file path. Scope is a closed list — files outside it are drift. |
+| `intent:` | Non-empty one-liner in the preamble (before the first `## ` heading). |
+| `budget:` | Non-empty bound in the preamble: `30m` (≤30m) or `2 files` (≤2). Larger budgets fail the lite-bound lint. |
+| `status:` | `open` or `done`, in the preamble. |
+| `lane:` | Optional. `lane: full` opts out of the lite-bound check (budget ≤30m / scope ≤2 files) — for workorders that knowingly left the lite lane. |
+| `## Scope` | ≥1 listed file path, ≤2 unless `lane: full` (lite-bound enforced). Scope is a closed list — files outside it are drift. |
 | `## Teardown checklist` | Present, ≥1 checklist item. |
 | `## Teardown receipt` | REQUIRED on completed workorders only (see below). |
 | `## Escalation` | Optional; if present and not `none`, it must NAME a trigger. |
@@ -99,5 +100,7 @@ Scribe summaries (session summaries produced by scribes/assistants) are an **IND
 scripts/workorder-lint.sh <file>      # validate one workorder (flags only)
 scripts/workorder-lint.sh --template  # print a skeleton workorder
 ```
+
+Header fields (`intent:`, `budget:`, `status:`, `lane:`) must appear in the preamble — before the first `## ` heading; the lint ignores them below it. The lint also enforces the lite bounds mechanically: budget parses as `Nm` with N≤30 (or `N files` with N≤2) and `## Scope` lists ≤2 files, else it flags "exceeds lite bounds — escalate to full episode"; `lane: full` opts out.
 
 Exit 0 = pass, 1 = violations, 2 = usage error. The `--template` skeleton passes its own lint.
