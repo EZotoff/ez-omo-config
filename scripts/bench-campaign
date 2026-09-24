@@ -263,11 +263,13 @@ launch() {
   install -m 600 "$manifest" "$run_dir/manifest.json"
   write_resolved_manifest "$manifest" "$run_dir/resolved-manifest.json"
 
+  # Forward the per-case watchdog tuning into the unit (default 2700 s).
   /usr/bin/systemd-run --user --unit="$unit" --collect \
     --property=Type=exec --property=UMask=0077 \
     --property=StandardOutput=journal --property=StandardError=journal \
     --description="Benchmark campaign $run_id" \
     /usr/bin/env -i "HOME=$HOME" "PATH=/usr/local/bin:/usr/bin:/bin" \
+    ${BENCH_CASE_TIMEOUT_SEC:+"BENCH_CASE_TIMEOUT_SEC=$BENCH_CASE_TIMEOUT_SEC"} \
     "$SELF" __run "$run_id" "$STATE_DIR" >/dev/null
   printf '%s\n' "$run_id"
 }
@@ -398,7 +400,10 @@ sys.stdout.buffer.write(b"\0".join(part.encode() for part in command) + b"\0")
 PY
         mapfile -d '' -t command <"$run_dir/command.nul"
         rm -f "$run_dir/command.nul"
-        "${command[@]}" >"$stdout_log" 2>"$stderr_log"
+        # Per-case watchdog: a wedged stream must never hold the campaign
+        # forever (observed: silent SSE stall, 33+ min without a byte).
+        case_timeout="${BENCH_CASE_TIMEOUT_SEC:-2700}"
+        timeout --kill-after=30s "$case_timeout" "${command[@]}" >"$stdout_log" 2>"$stderr_log"
         exit_code=$?
         set -e
         # Decision (f) wire half: a sut-phase runner must echo the model it
