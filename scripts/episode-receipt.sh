@@ -94,21 +94,22 @@ require_manifest() {
 manifest_schema_errors() {
     local mp="$1"
     jq -e '
-        .schema == "0.2"
-        and (.episode | type == "string" and length > 0)
-        and (.project | type == "string")
-        and (.intent | type == "string")
-        and (.started | type == "string")
-        and (["active","paused","closed","superseded"] | index(.status))
-        and (["full","lite","in-session"] | index(.lane))
-        and (.owner | type == "string")
-        and (.phases | type == "array" and length > 0)
-        and (.phases | all(.name | type == "string" and length > 0))
-        and (.phases | all(.status | type == "string"))
-        and (.phases | all(.receipts | type == "array"))
-        and (.phases | all(.sessions | type == "array"))
-        and ((.learnings // []) | type == "array")
-        and ((.follow_ups // []) | type == "array")
+        . as $m
+        | ($m.schema == "0.2")
+        and ($m.episode | type == "string" and length > 0)
+        and ($m.project | type == "string")
+        and ($m.intent | type == "string")
+        and ($m.started | type == "string")
+        and (["active","paused","closed","superseded"] | index($m.status))
+        and (["full","lite","in-session"] | index($m.lane))
+        and ($m.owner | type == "string")
+        and ($m.phases | type == "array" and length > 0)
+        and ($m.phases | all((.name | type == "string" and length > 0)
+            and (.status | type == "string")
+            and (.receipts | type == "array")
+            and (.sessions | type == "array")))
+        and (($m.learnings // []) | type == "array")
+        and (($m.follow_ups // []) | type == "array")
     ' "$mp" >/dev/null 2>&1 && { echo ok; return 0; }
     echo "manifest fails schema v0.2: $mp"
     return 1
@@ -118,21 +119,22 @@ manifest_schema_errors() {
 receipt_schema_errors() {
     local r="$1"
     printf '%s' "$r" | jq -e '
-        (.seq | type == "number")
-        and (.ts | type == "string")
-        and (.phase | type == "string" and length > 0)
-        and (["receipt","checkpoint"] | index(.kind))
-        and (.claims | type == "array" and length > 0 and all(type == "string"))
-        and (.evidence | type == "array"
+        . as $o
+        | ($o.seq | type == "number")
+        and ($o.ts | type == "string")
+        and ($o.phase | type == "string" and length > 0)
+        and (["receipt","checkpoint"] | index($o.kind))
+        and ($o.claims | type == "array" and length > 0 and all(type == "string"))
+        and ($o.evidence | type == "array"
              and all((.path | type == "string") and (.sha256 | type == "string")))
-        and ((.session // null) | (. == null or type == "string"))
+        and (($o.session // null) | (. == null or type == "string"))
     ' >/dev/null 2>&1 && return 0
     echo "receipt fails schema: $r"
     return 1
 }
 
 next_seq() {
-    jq '[.phases[].receipts[].seq] | (max // 0) + 1'
+    echo '[.phases[].receipts[].seq] | (max // 0) + 1'
 }
 
 cmd_append() {
@@ -213,10 +215,11 @@ cmd_append() {
         --arg kind "$kind" \
         --argjson claims "$claims" \
         --argjson evidence "$ev_json" \
-        --argjson session "${session:-null}" \
+        --arg sess "${session:-}" \
         '{
             seq: $seq, ts: $ts, phase: $phase, kind: $kind,
-            claims: $claims, evidence: $evidence, session: $session,
+            claims: $claims, evidence: $evidence,
+            session: (if ($sess | length) == 0 then null else $sess end),
             resume_pointer: null, verified: null, verified_reason: null
         }')"
     receipt_schema_errors "$receipt" >/dev/null || die_usage "$(receipt_schema_errors "$receipt")"
@@ -226,8 +229,9 @@ cmd_append() {
         || die_usage "unknown phase '$phase' (not in manifest phases[])"
 
     local tmp="$mp.tmp"
-    jq --argjson r "$receipt" --argjson s "${session:-null}" '
-        if $s != null and ((.phases[] | select(.name == $r.phase) | .sessions | index($s)) == null) then
+    jq --argjson r "$receipt" --arg s "${session:-}" '
+        ($s | length) as $slen |
+        if ($slen > 0 and ((.phases[] | select(.name == $r.phase) | .sessions | index($s)) == null)) then
             (.phases[] | select(.name == $r.phase) | .sessions) += [$s]
         else . end
         | (.phases[] | select(.name == $r.phase) | .receipts) += [$r]
@@ -246,8 +250,8 @@ run_verify() {
 
     # Per-receipt schema + cross-receipt invariants
     if ! jq -e '
-        ([.phases[].receipts[].seq] | length == ([.phases[].receipts[].seq] | unique | length))  # seq unique
-        and ([.phases[].receipts[] | .seq] == ([.phases[].receipts[] | .seq] | sort))                 # monotonic
+        (([.phases[].receipts[].seq] | length) == ([.phases[].receipts[].seq] | unique | length))  # seq unique
+        and ([.phases[].receipts[].seq] == ([.phases[].receipts[].seq] | sort))                 # monotonic
     ' "$mp" >/dev/null 2>&1; then
         echo "receipt invariants failed (seq uniqueness/monotonicity) in $mp"
         return 2
@@ -260,7 +264,7 @@ run_verify() {
     fi
     # receipt.phase must exist in phases[]
     local orphan
-    orphan="$(jq -r '. as $m | .phases[].receipts[] | select(($m.phases | any(.name == .phase)) | not) | .seq' "$mp")"
+    orphan="$(jq -r '. as $m | .phases[].receipts[] | .phase as $p | select(($m.phases | any(.name == $p)) | not) | .seq' "$mp")"
     if [[ -n "$orphan" ]]; then
         echo "receipt references unknown phase (seq=$orphan)"
         return 2
