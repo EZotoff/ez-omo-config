@@ -310,7 +310,30 @@ s13() {
     ok "S13 respawn-record allows 1 then refuses"
 }
 
-s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; s12; s13
+# --- Scenario 14: unknown flag → JSON unknown + exit 0 ---
+s14() {
+    local out rc=0
+    out="$(run_isolated "$HEALTH" ses_x --bogus)" || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S14 exit=$rc (usage must exit 0)"; return; }
+    jq -e '.verdict == "unknown" and .session_id == "ses_x" and (.error | startswith("usage:"))' <<<"$out" >/dev/null \
+        || { bad "S14 output: $out"; return; }
+    out="$(run_isolated "$HEALTH" --bogus)" || rc=$?
+    [[ $rc -eq 0 && "$(jq -r .session_id <<<"$out")" == "null" ]] \
+        || { bad "S14 no-sid output: $out rc=$rc"; return; }
+    ok "S14 unknown flag → JSON unknown, exit 0"
+}
+
+# --- Scenario 15: extra positional arg → JSON unknown + exit 0 ---
+s15() {
+    local out rc=0
+    out="$(run_isolated "$HEALTH" ses_a ses_b)" || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S15 exit=$rc (usage must exit 0)"; return; }
+    jq -e '.verdict == "unknown" and .session_id == "ses_a" and (.error | startswith("usage:"))' <<<"$out" >/dev/null \
+        || { bad "S15 output: $out"; return; }
+    ok "S15 extra positional → JSON unknown, exit 0"
+}
+
+s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; s12; s13; s14; s15
 
 echo
 echo "agent-lifecycle: PASS=$PASS FAIL=$FAIL"

@@ -88,10 +88,10 @@ fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --probe-window) WINDOW="${2:?}"; shift 2 ;;
-        --db) DB="${2:?}"; shift 2 ;;
-        --*) echo "usage error: unknown flag $1" >&2; exit 0 ;;
-        *) [[ -z "$SID" ]] || { echo "usage error: extra arg $1" >&2; exit 0; }; SID="$1"; shift ;;
+        --probe-window) [[ $# -ge 2 ]] || { unknown_json "$SID" "usage: --probe-window requires a value"; exit 0; }; WINDOW="$2"; shift 2 ;;
+        --db) [[ $# -ge 2 ]] || { unknown_json "$SID" "usage: --db requires a value"; exit 0; }; DB="$2"; shift 2 ;;
+        --*) unknown_json "$SID" "usage: unknown flag $1"; exit 0 ;;
+        *) [[ -z "$SID" ]] || { unknown_json "$SID" "usage: extra positional argument $1"; exit 0; }; SID="$1"; shift ;;
     esac
 done
 
