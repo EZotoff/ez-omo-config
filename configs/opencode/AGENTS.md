@@ -66,8 +66,8 @@ is what makes the diagnosis arrive in minutes. This rule was added after an
 operator had to request it three times while ~$2 of compute and ~6 hours were
 invalidated by failures that ran to completion unobserved.
 
-Campaigns expected to outlive a single tool call MUST run through opencode durable-run or the bench-campaign launcher, preserve full per-case stdout/stderr, and record the unit/run ID and monitoring owner — detachment transfers process lifetime, not responsibility.
 
+**No unbound promises (2026-09-23 lesson).** Commit to future action only after arming a wake trigger and recording a durable handle: an owned background task with a deadline and task ID, or a continuation hook owning this session plus its state file. An operator handoff ends responsibility, not a trigger. If arming can't be verified, say "needs your input" and give current state. Promises are bounded: "observed until <deadline> via <handle>". On any wake, reconcile from durable state before acting.
 ### Benchmark campaign preflight
 
 1. Probe every primary AND fallback model with one tiny call before any case or delegated reader starts — validate identity, endpoint family, credential source, usability, and quota; a reachable endpoint alone is not sufficient.
