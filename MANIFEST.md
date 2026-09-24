@@ -132,6 +132,9 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 32 | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 49 | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
 | 49a | episode-receipt.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Episode Receipts (append/verify/advance/lint — `.omo/episodes/` manifests; W1 lane). Tests: `tests/test_episode_receipt.sh` | Required |
+| 49b | plans-index.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Plan index generator — regenerates `.omo/plans/INDEX.md` (name/title/status/checkbox progress/execution-record/mtime; W2 lane) | Required |
+| 49c | plan-lifecycle-sweep.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Stale-plan sweep — flags `.omo/plans/` plans older than 7 days lacking `## Execution Record`; report-only, never writes (W2 lane) | Required |
+| 49d | execution-record-lint.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Execution-record + reviews-ledger linter (plan/plans/ledger modes; W2 lane; schema spec `docs/reviews.md`). Tests: `tests/test_execution_record_lint.sh` | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 | 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
 | 28a | test_dcp_bounded_range.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Verification | Archived (`.retired`) |
@@ -148,6 +151,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28m | test_plugin_console_hygiene.sh | (repo only) | `tests/` | (repo only) | Plugin Console Hygiene (no console.* in config-layer plugins and plugin entry files; anti-regression for the 2026-09-06 stdout spam) | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 29b | patches.md | (repo only) | `docs/` | (repo only) | Documentation — patch index (thin index over `.sisyphus/patches/`) | Required |
+| 29c | reviews.md | (repo only) | `docs/` | (repo only) | Documentation — plan-review ledger spec (`.omo/plans/<plan>.reviews.md`; 4+2 budget, REJECT schema; enforced by `scripts/execution-record-lint.sh` — W2 lane) | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/history/` | (repo only) | RETIRED 2026-06-23 — DCP byte-budget reference (historical) | Archived |
 | 30b | history/ | (repo only) | `docs/history/` | (repo only) | Dated snapshots: incidents, retired DCP, update migrations, architecture reviews | Archived |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
@@ -272,7 +276,7 @@ ez-omo-config/
 - **Core Configs**: existing OpenCode/OMO configs plus the Project Supervisor P0 `supervisor.json`. DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
-- **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, the OpenCode session archiver, Python operator helpers, and the episode receipt script `scripts/episode-receipt.sh` (append/verify/advance, `--checkpoint`; W1 lane).
+- **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, the OpenCode session archiver, Python operator helpers, the episode receipt script `scripts/episode-receipt.sh` (append/verify/advance, `--checkpoint`; W1 lane), and the plan-lifecycle tooling `scripts/plans-index.sh` / `scripts/plan-lifecycle-sweep.sh` / `scripts/execution-record-lint.sh` (W2 lane).
 - **Systemd**: 19 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon + 1-min keeper timer, dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer, weekly session-archive service + timer, and the parked FLARE-4B server.
 - **Tests**: active repo verification scripts (148 tracked files), the 36-pair regression corpus (72 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
