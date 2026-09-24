@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-
 # Test harness — discover and run all test_*.sh scripts
 # Usage: bash tests/run_all.sh
 #
 # Auto-discovery covers the patch gates: test_patch_entries.sh (schema)
-# and test_patch_lockfile.sh (bijection/ancestry/remote presence).
+# and test_patch_lockfile.sh (bijection/ancestry/remote presence), plus
+# test_execution_record_lint.sh (plan Execution Record + reviews-ledger
+# lint — .omo/plans/workflow-standardization.md W2.4).
 
 set -o errexit
 
