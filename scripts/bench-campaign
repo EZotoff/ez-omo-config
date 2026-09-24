@@ -349,7 +349,7 @@ PY
 
 run_campaign() {
   local run_id="$1" state_dir="$2" run_dir manifest output_dir threshold ledger results
-  local overall_exit=0 completed=0 phase_count phase_index case_count case_index
+  local overall_exit=0 completed=0 consecutive_failures=0 phase_count phase_index case_count case_index
   run_dir="$state_dir/$run_id"
   manifest="$run_dir/manifest.json"
   ledger="$run_dir/ledger.json"
@@ -429,7 +429,19 @@ print(json.dumps({"phase": os.environ["RESULT_PHASE"], "caseId": os.environ["RES
 PY
       completed=$((completed + 1))
       write_ledger "$manifest" "$ledger" running "$overall_exit" "$results"
-      (( exit_code != 0 )) && break 2
+      # Circuit breaker, not fail-on-any: one isolated failure (a wedged stream
+      # on a flaky gateway) must not halt a 90-case queue — but two CONSECUTIVE
+      # failures mean something systemic and abort the campaign (the
+      # bench-batch.sh policy, proven against the 2026-08 failure runs).
+      if (( exit_code != 0 )); then
+        consecutive_failures=$((consecutive_failures + 1))
+        if (( consecutive_failures >= 2 )); then
+          printf '[circuit breaker] %d consecutive failures — aborting campaign\n' "$consecutive_failures" >&2
+          break 2
+        fi
+      else
+        consecutive_failures=0
+      fi
     done
   done
   if (( completed == $(MANIFEST="$manifest" python3 -c 'import json,os; print(sum(len(p["expectedCases"]) for p in json.load(open(os.environ["MANIFEST"]))["phases"]))') )); then

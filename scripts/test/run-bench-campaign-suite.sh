@@ -18,6 +18,7 @@ groups=(
   bench-campaign-schema-rejection.sh
   bench-campaign-phase-failfast.sh
   bench-campaign-sut-echo.sh
+  bench-campaign-case-watchdog.sh
 )
 
 failed=()
@@ -27,7 +28,7 @@ done
 
 echo
 if (( ${#failed[@]} == 0 )); then
-  echo "bench-campaign fixture suite: ALL 9 GROUPS PASS"
+  echo "bench-campaign fixture suite: ALL 10 GROUPS PASS"
   exit 0
 fi
 echo "bench-campaign fixture suite: FAILED — ${failed[*]}"
