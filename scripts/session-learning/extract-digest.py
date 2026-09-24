@@ -132,27 +132,8 @@ def collect_session_parts(conn, session_id: str):
 # ---------------------------------------------------------------- select
 
 
-def cmd_select(args) -> None:
-    conn = connect_ro(args.db)
-    cutoff_ms = int((time.time() - args.stale_hours * 3600) * 1000)
-    ledger = load_ledger(args.ledger)
-    exclude = [os.path.expanduser(p) for p in EXCLUDE_DIR_PREFIXES]
-    if args.workdir and args.workdir not in exclude:
-        exclude.append(args.workdir)
-
-    cur = conn.execute(
-        """
-        SELECT s.id, s.directory, s.title, s.time_created, s.time_updated,
-               s.agent, s.model,
-               (SELECT COUNT(*) FROM message m WHERE m.session_id = s.id) AS msgs
-        FROM session s
-        WHERE s.parent_id IS NULL
-          AND s.time_archived IS NULL
-          AND s.time_updated < ?
-        """,
-        (cutoff_ms,),
-    )
-
+def qualifying_from_cursor(conn, cur, ledger, exclude, pool=None):
+    """Shared qualification loop for the top-level and subagent pools."""
     qualifying = []
     for sid, directory, title, created, updated, agent, model, msgs in cur:
         directory = directory or ""
@@ -165,7 +146,6 @@ def cmd_select(args) -> None:
         if row:
             status = row.get("status")
             attempts = row.get("attempts", 1)
-            last = to_ms(row.get("last_time_updated"))
             if status in ("analyzed", "covered", "no_candidates", "proposal_only"):
                 last = to_ms(row.get("last_time_updated"))
                 updated_ms_early = to_ms(updated)
@@ -195,19 +175,46 @@ def cmd_select(args) -> None:
                 reason = "tool_calls>=15_and_mutations>=2"
         if not reason:
             continue
-        qualifying.append(
-            {
-                "session_id": sid,
-                "directory": directory,
-                "title": truncate(title, 120),
-                "msgs": msgs,
-                "time_created": created_ms,
-                "time_updated": updated_ms,
-                "agent": agent,
-                "model": model,
-                "reason": reason,
-            }
-        )
+        entry = {
+            "session_id": sid,
+            "directory": directory,
+            "title": truncate(title, 120),
+            "msgs": msgs,
+            "time_created": created_ms,
+            "time_updated": updated_ms,
+            "agent": agent,
+            "model": model,
+            "reason": reason,
+        }
+        if pool:
+            entry["pool"] = pool
+        qualifying.append(entry)
+    return qualifying
+
+
+
+def cmd_select(args) -> None:
+    conn = connect_ro(args.db)
+    cutoff_ms = int((time.time() - args.stale_hours * 3600) * 1000)
+    ledger = load_ledger(args.ledger)
+    exclude = [os.path.expanduser(p) for p in EXCLUDE_DIR_PREFIXES]
+    if args.workdir and args.workdir not in exclude:
+        exclude.append(args.workdir)
+
+    cur = conn.execute(
+        """
+        SELECT s.id, s.directory, s.title, s.time_created, s.time_updated,
+               s.agent, s.model,
+               (SELECT COUNT(*) FROM message m WHERE m.session_id = s.id) AS msgs
+        FROM session s
+        WHERE s.parent_id IS NULL
+          AND s.time_archived IS NULL
+          AND s.time_updated < ?
+        """,
+        (cutoff_ms,),
+    )
+
+    qualifying = qualifying_from_cursor(conn, cur, ledger, exclude)
 
     # Fork dedup: same directory, created within the same hour -> keep the
     # largest (earliest on tie); mark the rest covered_by the canonical one.
@@ -232,6 +239,32 @@ def cmd_select(args) -> None:
     keep = {s["session_id"] for s in canonical_rows[: args.limit]}
     out = [s for s in selected if not s["covered_by"] and s["session_id"] in keep]
     out += [s for s in selected if s["covered_by"]]
+
+    # Subagent pool (2026-09-24): the original selector used WHERE parent_id IS NULL,
+    # which structurally excluded every subagent session (oracle/Momus/debate children —
+    # the sessions that carry plan-review and architecture learnings). Subagent sessions
+    # are swept in their OWN capped pool so they never compete with the top-level budget:
+    # allowlisted agents only, same staleness/ledger/msg gates, ranked by size.
+    if getattr(args, "subagent_cap", 0) > 0:
+        agents = [a.strip() for a in getattr(args, "subagent_agents", "").split(",") if a.strip()]
+        if agents:
+            marks = ",".join("?" for _ in agents)
+            sub_cur = conn.execute(
+                f"""
+                SELECT s.id, s.directory, s.title, s.time_created, s.time_updated,
+                       s.agent, s.model,
+                       (SELECT COUNT(*) FROM message m WHERE m.session_id = s.id) AS msgs
+                FROM session s
+                WHERE s.parent_id IS NOT NULL
+                  AND s.time_archived IS NULL
+                  AND s.time_updated < ?
+                  AND s.agent IN ({marks})
+                """,
+                (cutoff_ms, *agents),
+            )
+            sub_q = qualifying_from_cursor(conn, sub_cur, ledger, exclude, pool="subagent")
+            sub_q.sort(key=lambda s: (-(s["msgs"]), s["time_updated"] or 0))
+            out.extend(sub_q[: args.subagent_cap])
 
     for s in out:
         print(json.dumps(s, ensure_ascii=False))
@@ -585,6 +618,8 @@ def cmd_sweep(args) -> None:
         stale_hours=args.stale_hours,
         limit=args.limit,
         workdir=str(workdir),
+        subagent_cap=args.subagent_cap,
+        subagent_agents=args.subagent_agents,
     )
     import io
     from contextlib import redirect_stdout
@@ -835,6 +870,9 @@ def main() -> None:
     p_select.add_argument("--stale-hours", type=float, default=6)
     p_select.add_argument("--limit", type=int, default=8)
     p_select.add_argument("--workdir", default=DEFAULT_WORKDIR)
+    p_select.add_argument("--subagent-cap", type=int, default=0)
+    p_select.add_argument("--subagent-agents", default="oracle,Momus,general")
+    p_select.set_defaults(func=cmd_select)
     p_select.set_defaults(func=cmd_select)
 
     p_digest = sub.add_parser("digest")
@@ -860,6 +898,8 @@ def main() -> None:
     p_sweep.add_argument("--global-cap", type=int, default=6)
     p_sweep.add_argument("--per-session-cap", type=int, default=3)
     p_sweep.add_argument("--analyst-timeout", type=int, default=900)
+    p_sweep.add_argument("--subagent-cap", type=int, default=3)
+    p_sweep.add_argument("--subagent-agents", default="oracle,Momus,general")
     p_sweep.add_argument("--dry-run", action="store_true")
     p_sweep.set_defaults(func=cmd_sweep)
 
