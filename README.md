@@ -91,11 +91,11 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Configs** | 49 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 25 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 23 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, closeout, acceptance-boundary skills, … |
-| **Scripts** | 81 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, bench campaign runner, episode receipt + plan-lifecycle tooling (plans index, stale-plan sweep, execution-record lint), operator tools |
+| **Scripts** | 84 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, bench campaign runner, episode receipt + plan-lifecycle tooling (plans index, stale-plan sweep, execution-record lint), lite-lane tooling (workorder lint, agent leases, spawn health check), operator tools |
 | **Supervisor** | 59 files | Bun + strict-TypeScript read-only observer service, status CLI, journal→ledger continuation bridge, tests |
 | **Systemd** | 21 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer (crash-class resume), weekly session-archive service + timer (30-day retention), nightly session-learning service + timer (03:30 closeout sweep), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
-| **Tests** | 156 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning + execution-record lint suites + regression corpus (paired .sh/.kill.sh) |
-| **Docs** | 16 active | see [Documentation](#documentation); dated material in `docs/history/` |
+| **Tests** | 158 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning + execution-record lint + workorder/agent-lifecycle suites + regression corpus (paired .sh/.kill.sh) |
+| **Docs** | 17 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
 Counts are tracked files per top-level directory (module directories count as one line in prose, files in tables). Per-artifact paths, install targets, and statuses: [MANIFEST.md](MANIFEST.md).
@@ -261,6 +261,7 @@ Backups are retained indefinitely — clean old ones periodically (`rm -rf ~/.ez
 | Session archiving (retention + CLI) | [docs/session-archiving.md](docs/session-archiving.md) |
 | Bench session-spam mitigation (proposal) | [docs/bench-session-spam-mitigation.md](docs/bench-session-spam-mitigation.md) |
 | Plan review ledger spec (W2) | [docs/reviews.md](docs/reviews.md) |
+| Workorder spec, `--lite` lane (W3) | [docs/workorders.md](docs/workorders.md) |
 
 History (dated snapshots): [incidents & experiments](docs/history/incidents.md) · [DCP byte-budget (retired)](docs/history/dcp-byte-budget.md) · [update migration v1.14.28](docs/history/update-migration-v1.14.28.md) · [patch-management architecture review](docs/history/architecture-review-patch-management-2026-06-28.md) · [performance review of patch-preservation stack](docs/history/perf-review-patch-preservation-2026-09-15.md)
 
