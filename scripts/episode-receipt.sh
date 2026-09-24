@@ -37,14 +37,18 @@
 #   }
 #
 # Subcommands:
-#   append  <episode_dir> --phase P --claims '<json array>' [--evidence p1,p2]
-#          [--session ses_x] [--checkpoint] [--intent T]
+#   append  <episode_dir> [--phase P] --claims '<json array>' [--evidence-refs p1,p2]
+#          [--session ses_x] [--checkpoint] [--intent T] [--resume-pointer '<text>']
 #       Canonicalizes receipt JSON (jq -S), hashes evidence file bytes (sha256)
 #       at append time, validates against schema v0.2, appends under flock on
 #       <episode_dir>/.lock, assigns monotonic seq. Atomic write (tmp + mv).
+#       --evidence-refs is an exact alias of --evidence. --resume-pointer sets
+#       the receipt's resume_pointer (checkpoints).
 #       --checkpoint: with no manifest, auto-creates a minimal v0.2 manifest
 #       (lane in-session, single "session" phase) and puts the receipt in it —
 #       single source of truth, no sidecar files. --intent required in that case.
+#       With --checkpoint, --phase defaults to "session"; on an existing manifest
+#       the (defaulted or given) phase must exist in phases[] as usual.
 #   verify  <episode_dir>
 #       Consumer-side check: manifest schema validity, receipt schema validity,
 #       evidence-file existence + sha256 digest match, phase-transition legality
@@ -138,20 +142,25 @@ next_seq() {
 }
 
 cmd_append() {
-    local dir="" phase="" claims="" evidence="" session="" checkpoint=false intent=""
+    local dir="" phase="" claims="" evidence="" session="" checkpoint=false intent="" resume=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --phase) phase="${2:?}"; shift 2 ;;
             --claims) claims="${2:?}"; shift 2 ;;
-            --evidence) evidence="${2:?}"; shift 2 ;;
+            --evidence|--evidence-refs) evidence="${2:?}"; shift 2 ;;
             --session) session="${2:?}"; shift 2 ;;
             --intent) intent="${2:?}"; shift 2 ;;
             --checkpoint) checkpoint=true; shift ;;
+            --resume-pointer) resume="${2:?}"; shift 2 ;;
             *) [[ -z "$dir" ]] || die_usage "unexpected arg: $1"; dir="$1"; shift ;;
         esac
     done
-    [[ -n "$dir" ]] || die_usage "append <episode_dir> --phase P --claims '<json array>' [...]"
-    [[ -n "$phase" ]] || die_usage "append: --phase required"
+    [[ -n "$dir" ]] || die_usage "append <episode_dir> [--phase P] --claims '<json array>' [...]"
+    # --phase optional with --checkpoint: default 'session' (matches auto-created manifest)
+    if [[ -z "$phase" ]]; then
+        $checkpoint || die_usage "append: --phase required (or use --checkpoint for default 'session')"
+        phase="session"
+    fi
     [[ -n "$claims" ]] || die_usage "append: --claims required"
     mkdir -p "$dir"
 
@@ -216,11 +225,12 @@ cmd_append() {
         --argjson claims "$claims" \
         --argjson evidence "$ev_json" \
         --arg sess "${session:-}" \
+        --arg res "${resume:-}" \
         '{
             seq: $seq, ts: $ts, phase: $phase, kind: $kind,
             claims: $claims, evidence: $evidence,
             session: (if ($sess | length) == 0 then null else $sess end),
-            resume_pointer: null, verified: null, verified_reason: null
+            resume_pointer: (if ($res | length) == 0 then null else $res end), verified: null, verified_reason: null
         }')"
     receipt_schema_errors "$receipt" >/dev/null || die_usage "$(receipt_schema_errors "$receipt")"
 

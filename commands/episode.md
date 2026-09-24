@@ -7,9 +7,9 @@ Record a checkpoint for the current episode by invoking the receipt script direc
 Run from the episode's project root:
 
 ```bash
-scripts/episode-receipt.sh append --checkpoint \
+scripts/episode-receipt.sh append .omo/episodes/<slug> --checkpoint \
   --intent "<what this session is doing for the episode>" \
-  --claims "<what was done, as verifiable claims>" \
+  --claims '["<what was done, as verifiable claims>"]' \
   --evidence-refs "<paths + quoted message excerpts with message IDs, comma-separated>" \
   --resume-pointer "<where the next session should pick up>"
 ```

@@ -9,6 +9,8 @@
 #   3. 10 concurrent appends → flock holds, all present, sequences unique+monotonic
 #   4. advance without verify-pass → refused, exit non-zero
 #   5. --checkpoint on no-manifest episode → minimal manifest auto-created containing the receipt
+#   6. --checkpoint WITHOUT --phase on fresh dir + --resume-pointer → default phase 'session',
+#      resume_pointer persisted, exit 0
 #
 # No network, no ports. Temp dirs under $(mktemp -d).
 
@@ -143,8 +145,24 @@ s5() {
     [[ "$extras" == "0" ]] || { bad "S5 sidecar files present"; return; }
     ok "S5 --checkpoint auto-created minimal manifest containing the receipt"
 }
+# --- Scenario 6: checkpoint without --phase, with --resume-pointer ---
+s6() {
+    local d; d="$(mktemp -d)"
+    echo "s6 evidence" > "$d/ev.txt"
+    run_isolated append "$d/ep-fresh" --checkpoint --intent "no-phase checkpoint" \
+        --claims '["did stuff"]' --evidence-refs "$d/ev.txt" \
+        --resume-pointer "resume at X" >/dev/null \
+        || { bad "S6 checkpoint append failed"; return; }
+    local mp="$d/ep-fresh/manifest.yaml"
+    [[ -f "$mp" ]] || { bad "S6 manifest not auto-created"; return; }
+    jq -e '.phases[0].receipts[0].resume_pointer == "resume at X"' "$mp" >/dev/null \
+        || { bad "S6 resume_pointer not set"; return; }
+    jq -e '.phases[0].name == "session" and .phases[0].receipts[0].phase == "session"' "$mp" >/dev/null \
+        || { bad "S6 default phase not session"; return; }
+    ok "S6 checkpoint without --phase: default session phase, resume_pointer set"
+}
 
-s1; s2; s3; s4; s5
+s1; s2; s3; s4; s5; s6
 
 echo "----------------------------------------"
 echo "episode-receipt tests: Pass: $PASS | Fail: $FAIL"
