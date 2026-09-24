@@ -11,8 +11,12 @@
 #   5. --checkpoint on no-manifest episode → minimal manifest auto-created containing the receipt
 #   6. --checkpoint WITHOUT --phase on fresh dir + --resume-pointer → default phase 'session',
 #      resume_pointer persisted, exit 0
+#   7. hand-edited malformed receipt (claims: []) → verify exit 2
+#   8. lint flags stale active episode and active-without-checkpoint; clean episode → exit 0
+#   9. msg:<id>|<excerpt> evidence ref round-trip: append → verify pass → tamper stored
+#      excerpt → verify digest-mismatch exit 2
 #
-# No network, no ports. Temp dirs under $(mktemp -d).
+# No network, no ports. Temp dirs tracked and removed via EXIT trap.
 
 set -euo pipefail
 
@@ -21,6 +25,14 @@ SCRIPT="$SCRIPT_DIR/../scripts/episode-receipt.sh"
 
 PASS=0
 FAIL=0
+
+TMPDIRS=()
+new_tmpdir() {
+    local d; d="$(mktemp -d)"
+    TMPDIRS+=("$d")
+    printf '%s' "$d"
+}
+trap 'rm -rf "${TMPDIRS[@]}"' EXIT
 
 ok()   { echo "PASS: $1"; PASS=$((PASS + 1)); }
 bad()  { echo "FAIL: $1"; FAIL=$((FAIL + 1)); }
@@ -40,7 +52,7 @@ run_isolated() {
 
 # --- Scenario 1: append→verify across two separate invocations ---
 s1() {
-    local d; d="$(mktemp -d)"
+    local d; d="$(new_tmpdir)"
     echo "evidence-one" > "$d/ev1.txt"
     fixture_manifest "$d/ep"
     if ! run_isolated append "$d/ep" --phase design --claims '["claim one"]' --evidence "$d/ev1.txt" --session ses_s1a >/dev/null; then
@@ -66,7 +78,7 @@ s1() {
 
 # --- Scenario 2: tamper evidence after append ---
 s2() {
-    local d; d="$(mktemp -d)"
+    local d; d="$(new_tmpdir)"
     echo "original bytes" > "$d/ev.txt"
     fixture_manifest "$d/ep"
     run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null
@@ -87,16 +99,21 @@ s2() {
 
 # --- Scenario 3: 10 concurrent appends ---
 s3() {
-    local d; d="$(mktemp -d)"
+    local d; d="$(new_tmpdir)"
     fixture_manifest "$d/ep"
     local i
     for i in $(seq 1 10); do
         echo "ev-$i" > "$d/ev$i.txt"
     done
+    local pids=()
     for i in $(seq 1 10); do
         bash "$SCRIPT" append "$d/ep" --phase design --claims "[\"claim $i\"]" --evidence "$d/ev$i.txt" >/dev/null 2>&1 &
+        pids+=($!)
     done
-    wait
+    local pid st
+    for pid in "${pids[@]}"; do
+        wait "$pid" || { bad "S3 append job $pid exited non-zero"; return; }
+    done
     local count uniq sorted
     count="$(jq -r '[.phases[].receipts[].seq] | length' "$d/ep/manifest.yaml")"
     uniq="$(jq -r '[.phases[].receipts[].seq] | unique | length' "$d/ep/manifest.yaml")"
@@ -109,7 +126,7 @@ s3() {
 
 # --- Scenario 4: advance without verify-pass ---
 s4() {
-    local d; d="$(mktemp -d)"
+    local d; d="$(new_tmpdir)"
     echo "s4 bytes" > "$d/ev.txt"
     fixture_manifest "$d/ep"
     run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null
@@ -125,7 +142,7 @@ s4() {
 
 # --- Scenario 5: --checkpoint auto-creates minimal manifest ---
 s5() {
-    local d; d="$(mktemp -d)"
+    local d; d="$(new_tmpdir)"
     echo "checkpoint evidence" > "$d/ev.txt"
     mkdir -p "$d/ep-new"
     run_isolated append "$d/ep-new" --checkpoint --intent "in-session episode" \
@@ -147,7 +164,7 @@ s5() {
 }
 # --- Scenario 6: checkpoint without --phase, with --resume-pointer ---
 s6() {
-    local d; d="$(mktemp -d)"
+    local d; d="$(new_tmpdir)"
     echo "s6 evidence" > "$d/ev.txt"
     run_isolated append "$d/ep-fresh" --checkpoint --intent "no-phase checkpoint" \
         --claims '["did stuff"]' --evidence-refs "$d/ev.txt" \
@@ -162,7 +179,91 @@ s6() {
     ok "S6 checkpoint without --phase: default session phase, resume_pointer set"
 }
 
-s1; s2; s3; s4; s5; s6
+# --- Scenario 7: hand-edited malformed receipt (claims: []) → verify exit 2 ---
+s7() {
+    local d; d="$(new_tmpdir)"
+    echo "s7 evidence" > "$d/ev.txt"
+    fixture_manifest "$d/ep"
+    run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null \
+        || { bad "S7 append failed"; return; }
+    # Hand-edit the manifest: break the receipt schema
+    jq '(.phases[].receipts[] | select(.seq == 1) | .claims) = []' \
+        "$d/ep/manifest.yaml" > "$d/ep/manifest.yaml.tmp" && mv "$d/ep/manifest.yaml.tmp" "$d/ep/manifest.yaml"
+    local rc=0
+    run_isolated verify "$d/ep" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 2 ]] || { bad "S7 malformed receipt verify exit=$rc (want 2)"; return; }
+    ok "S7 malformed receipt (claims: []) → verify exit 2"
+}
+
+# --- Scenario 8: lint flags stale active + missing checkpoint; clean episode ok ---
+s8() {
+    local d; d="$(new_tmpdir)"
+
+    # (a) stale active episode: backdate started + receipt ts beyond 7 days
+    echo "s8a evidence" > "$d/ev.txt"
+    mkdir -p "$d/stale"
+    fixture_manifest "$d/stale"
+    run_isolated append "$d/stale" --phase design --claims '["old claim"]' \
+        --evidence "$d/ev.txt" --checkpoint >/dev/null || { bad "S8 stale-fixture append failed"; return; }
+    jq --arg old "2026-09-01T00:00:00Z" '
+        .started = $old
+        | (.phases[].receipts[].ts) = $old
+    ' "$d/stale/manifest.yaml" > "$d/stale/manifest.yaml.tmp" && mv "$d/stale/manifest.yaml.tmp" "$d/stale/manifest.yaml"
+    local rc=0
+    run_isolated lint "$d/stale" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S8 stale episode lint exit=$rc (want 1)"; return; }
+
+    # (b) active with recent activity but no checkpoint receipt
+    fixture_manifest "$d/nocheck"
+    run_isolated append "$d/nocheck" --phase design --claims '["did work without checkpointing"]' >/dev/null \
+        || { bad "S8 no-checkpoint fixture append failed"; return; }
+    rc=0
+    run_isolated lint "$d/nocheck" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S8 active-no-checkpoint lint exit=$rc (want 1)"; return; }
+
+    # (c) clean episode: recent checkpoint → lint exit 0
+    echo "s8c evidence" > "$d/evc.txt"
+    run_isolated append "$d/clean" --checkpoint --intent "clean episode" \
+        --claims '["fresh work"]' --evidence "$d/evc.txt" >/dev/null \
+        || { bad "S8 clean-fixture checkpoint failed"; return; }
+    rc=0
+    run_isolated lint "$d/clean" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S8 clean episode lint exit=$rc (want 0)"; return; }
+    ok "S8 lint: stale active flagged, missing checkpoint flagged, clean ok"
+}
+
+# --- Scenario 9: msg:<id>|<excerpt> evidence ref round-trip ---
+s9() {
+    local d; d="$(new_tmpdir)"
+    fixture_manifest "$d/ep"
+    run_isolated append "$d/ep" --phase design --claims '["said the thing"]' \
+        --evidence-refs 'msg:msg_123|agent claimed the build was green' >/dev/null \
+        || { bad "S9 append with msg evidence ref failed"; return; }
+    local mp="$d/ep/manifest.yaml"
+    jq -e '
+        .phases[].receipts[].evidence[0].path == "msg:msg_123"
+        and (.phases[].receipts[].evidence[0].excerpt | type == "string")
+    ' "$mp" >/dev/null || { bad "S9 msg evidence entry malformed"; return; }
+    local want
+    want="$(printf '%s' 'agent claimed the build was green' | sha256sum | awk '{print $1}')"
+    jq -e --arg w "$want" '.phases[].receipts[].evidence[0].sha256 == $w' "$mp" >/dev/null \
+        || { bad "S9 stored digest != sha256(excerpt bytes)"; return; }
+    # verify pass (round-trip)
+    run_isolated verify "$d/ep" >/dev/null 2>&1 \
+        || { bad "S9 verify failed on untampered msg evidence"; return; }
+    # tamper the stored excerpt → digest-mismatch, exit 2
+    jq '(.phases[].receipts[].evidence[] | select(.path == "msg:msg_123") | .excerpt) = "tampered excerpt"' \
+        "$mp" > "$mp.tmp" && mv "$mp.tmp" "$mp"
+    local rc=0
+    run_isolated verify "$d/ep" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 2 ]] || { bad "S9 tampered-excerpt verify exit=$rc (want 2)"; return; }
+    local reason
+    reason="$(jq -r '[.phases[].receipts[]][0].verified_reason' "$mp")"
+    [[ "$reason" == "digest-mismatch" ]] || { bad "S9 tampered reason=$reason"; return; }
+    ok "S9 msg evidence round-trip: pass → tampered excerpt → exit 2 digest-mismatch"
+}
+
+s1; s2; s3; s4; s5; s6; s7; s8; s9
 
 echo "----------------------------------------"
 echo "episode-receipt tests: Pass: $PASS | Fail: $FAIL"

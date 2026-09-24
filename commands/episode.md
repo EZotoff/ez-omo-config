@@ -17,13 +17,13 @@ scripts/episode-receipt.sh append .omo/episodes/<slug> --checkpoint \
 Rules:
 
 - Every argument must be explicit — the script does not infer intent, claims, or evidence from the session.
-- Evidence refs MUST include quoted message excerpts with their message IDs (bounded `session_evidence`); never paste full transcripts.
+- Evidence refs MUST include quoted message excerpts with their message IDs (bounded `session_evidence`); never paste full transcripts. A session-evidence ref has the exact form `msg:<message-id>|<quoted excerpt>` (comma-separated with file refs; excerpts must not contain commas) — the receipt stores `{path: "msg:<message-id>", sha256: <sha256 of excerpt UTF-8 bytes>, excerpt}`, and `verify` recomputes the digest over the stored excerpt (mismatch → digest-mismatch failure).
 - If no manifest exists yet for the episode, `--checkpoint` auto-creates a minimal one at `.omo/episodes/<slug>/manifest.yaml` — the manifest is the single source of truth; no sidecar receipts.
 - Never fabricate a checkpoint: if you cannot name concrete evidence, say so and stop.
 
-Then check episode hygiene and flag (never fix silently):
+Then check episode hygiene with `scripts/episode-receipt.sh lint .omo/episodes/<slug>` (flags, never fixes):
 
-- **Stale active episodes**: manifests with `status: active` but no recent activity — report them.
-- **Missing checkpoints**: work done in this session with no receipt recorded — name the gap and checkpoint it now.
+- **Stale active episodes**: manifests with `status: active` but no activity (last verify or newest receipt) in >7 days — report them.
+- **Missing checkpoints**: `status: active` with no `kind:"checkpoint"` receipt — name the gap and checkpoint it now.
 
 Reply with: the receipt sequence number (or the script's error), and any hygiene flags raised.
