@@ -15,6 +15,10 @@
 #   8. lint flags stale active episode and active-without-checkpoint; clean episode → exit 0
 #   9. msg:<id>|<excerpt> evidence ref round-trip: append → verify pass → tamper stored
 #      excerpt → verify digest-mismatch exit 2
+#  10. receipt with two evidence entries, second tampered → verify exit 2 AND
+#      receipt verified == false (per-receipt aggregation)
+#  11. msg excerpt with literal trailing newline → verify passes (base64 framing)
+#  12. advance to current phase refused; advance backwards to a done phase refused
 #
 # No network, no ports. Temp dirs tracked and removed via EXIT trap.
 
@@ -27,10 +31,13 @@ PASS=0
 FAIL=0
 
 TMPDIRS=()
+# Sets the nameref'd variable to a fresh temp dir and registers it for the
+# EXIT trap in the PARENT shell (command substitution would run in a subshell
+# and the trap would clean nothing).
 new_tmpdir() {
-    local d; d="$(mktemp -d)"
-    TMPDIRS+=("$d")
-    printf '%s' "$d"
+    local -n ref=$1
+    ref="$(mktemp -d)"
+    TMPDIRS+=("$ref")
 }
 trap 'rm -rf "${TMPDIRS[@]}"' EXIT
 
@@ -52,7 +59,7 @@ run_isolated() {
 
 # --- Scenario 1: append→verify across two separate invocations ---
 s1() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     echo "evidence-one" > "$d/ev1.txt"
     fixture_manifest "$d/ep"
     if ! run_isolated append "$d/ep" --phase design --claims '["claim one"]' --evidence "$d/ev1.txt" --session ses_s1a >/dev/null; then
@@ -78,7 +85,7 @@ s1() {
 
 # --- Scenario 2: tamper evidence after append ---
 s2() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     echo "original bytes" > "$d/ev.txt"
     fixture_manifest "$d/ep"
     run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null
@@ -99,7 +106,7 @@ s2() {
 
 # --- Scenario 3: 10 concurrent appends ---
 s3() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     fixture_manifest "$d/ep"
     local i
     for i in $(seq 1 10); do
@@ -126,7 +133,7 @@ s3() {
 
 # --- Scenario 4: advance without verify-pass ---
 s4() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     echo "s4 bytes" > "$d/ev.txt"
     fixture_manifest "$d/ep"
     run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null
@@ -142,7 +149,7 @@ s4() {
 
 # --- Scenario 5: --checkpoint auto-creates minimal manifest ---
 s5() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     echo "checkpoint evidence" > "$d/ev.txt"
     mkdir -p "$d/ep-new"
     run_isolated append "$d/ep-new" --checkpoint --intent "in-session episode" \
@@ -164,7 +171,7 @@ s5() {
 }
 # --- Scenario 6: checkpoint without --phase, with --resume-pointer ---
 s6() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     echo "s6 evidence" > "$d/ev.txt"
     run_isolated append "$d/ep-fresh" --checkpoint --intent "no-phase checkpoint" \
         --claims '["did stuff"]' --evidence-refs "$d/ev.txt" \
@@ -181,7 +188,7 @@ s6() {
 
 # --- Scenario 7: hand-edited malformed receipt (claims: []) → verify exit 2 ---
 s7() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     echo "s7 evidence" > "$d/ev.txt"
     fixture_manifest "$d/ep"
     run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null \
@@ -197,7 +204,7 @@ s7() {
 
 # --- Scenario 8: lint flags stale active + missing checkpoint; clean episode ok ---
 s8() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
 
     # (a) stale active episode: backdate started + receipt ts beyond 7 days
     echo "s8a evidence" > "$d/ev.txt"
@@ -234,7 +241,7 @@ s8() {
 
 # --- Scenario 9: msg:<id>|<excerpt> evidence ref round-trip ---
 s9() {
-    local d; d="$(new_tmpdir)"
+    local d; new_tmpdir d
     fixture_manifest "$d/ep"
     run_isolated append "$d/ep" --phase design --claims '["said the thing"]' \
         --evidence-refs 'msg:msg_123|agent claimed the build was green' >/dev/null \
@@ -263,7 +270,61 @@ s9() {
     ok "S9 msg evidence round-trip: pass → tampered excerpt → exit 2 digest-mismatch"
 }
 
-s1; s2; s3; s4; s5; s6; s7; s8; s9
+# --- Scenario 10: per-receipt aggregation (two entries, second tampered) ---
+s10() {
+    local d; new_tmpdir d
+    echo "s10 first" > "$d/ev1.txt"
+    echo "s10 second" > "$d/ev2.txt"
+    fixture_manifest "$d/ep"
+    run_isolated append "$d/ep" --phase design --claims '["two entries"]'         --evidence-refs "$d/ev1.txt,$d/ev2.txt" >/dev/null \
+        || { bad "S10 append failed"; return; }
+    echo "TAMPERED" > "$d/ev2.txt"
+    local rc=0
+    run_isolated verify "$d/ep" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 2 ]] || { bad "S10 verify exit=$rc (want 2)"; return; }
+    local vflag reason
+    vflag="$(jq -r '[.phases[].receipts[]][0].verified' "$d/ep/manifest.yaml")"
+    reason="$(jq -r '[.phases[].receipts[]][0].verified_reason' "$d/ep/manifest.yaml")"
+    [[ "$vflag" == "false" ]] || { bad "S10 receipt verified=$vflag (want false; passing entry must not overwrite)"; return; }
+    [[ "$reason" == "digest-mismatch" ]] || { bad "S10 reason=$reason"; return; }
+    ok "S10 two-entry receipt, second tampered → exit 2, receipt verified:false"
+}
+
+# --- Scenario 11: msg excerpt with literal trailing newline ---
+s11() {
+    local d; new_tmpdir d
+    fixture_manifest "$d/ep"
+    run_isolated append "$d/ep" --phase design --claims '["newline excerpt"]' \
+        --evidence-refs $'msg:msg_x|excerpt ending with newline\n' >/dev/null \
+        || { bad "S11 append with trailing-newline excerpt failed"; return; }
+    run_isolated verify "$d/ep" >/dev/null 2>&1 \
+        || { bad "S11 verify failed on trailing-newline excerpt"; return; }
+    ok "S11 msg excerpt with trailing newline → verify passes"
+}
+
+# --- Scenario 12: advance forward-only (current / done targets refused) ---
+s12() {
+    local d; new_tmpdir d
+    echo "s12 bytes" > "$d/ev.txt"
+    fixture_manifest "$d/ep"
+    run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null \
+        || { bad "S12 append failed"; return; }
+    local rc=0
+    # advance to the CURRENT phase → refused
+    run_isolated advance "$d/ep" design >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 4 ]] || { bad "S12 advance-to-current exit=$rc (want 4)"; return; }
+    # successful forward advance design → build
+    rc=0
+    run_isolated advance "$d/ep" build >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S12 forward advance failed (exit=$rc)"; return; }
+    # advance BACKWARDS to design (now done) → refused
+    rc=0
+    run_isolated advance "$d/ep" design >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 4 ]] || { bad "S12 advance-backwards exit=$rc (want 4)"; return; }
+    ok "S12 advance forward-only: current refused, backwards-to-done refused"
+}
+
+s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; s12
 
 echo "----------------------------------------"
 echo "episode-receipt tests: Pass: $PASS | Fail: $FAIL"

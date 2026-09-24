@@ -41,7 +41,10 @@
 #   session evidence:   { "path": "msg:<message-id>", "sha256": "<hex>",
 #                         "excerpt": "<quoted excerpt>" }
 #                       sha256 = hash of the excerpt's UTF-8 bytes; verify
-#                       recomputes it over the stored excerpt.
+#                       recomputes it over the stored excerpt. Excerpt bytes are
+#                       round-tripped base64-framed at verify (never through
+#                       jq -r), so excerpts with trailing newlines hash
+#                       identically at append and verify.
 #
 # Subcommands:
 #   append  <episode_dir> [--phase P] --claims '<json array>' [--evidence-refs p1,p2]
@@ -65,13 +68,19 @@
 #       validity per receipt, evidence existence + digest match (files: file
 #       bytes; msg: refs: stored excerpt bytes), phase-transition legality
 #       (receipt.phase must exist in phases[]; seq unique + monotonic).
+#       Verified flags are aggregated PER RECEIPT: verified=true only if ALL
+#       of the receipt's evidence entries pass; any missing entry →
+#       verified_reason "evidence-missing"; any mismatch → "digest-mismatch"
+#       (mismatch takes precedence over missing).
 #       Unresolvable evidence (missing file) → receipt KEPT, marked
 #       "verified": false (degraded). Writes updated verified flags under flock.
 #   advance <episode_dir> <to_phase>
 #       Runs verify in-process (same flock acquisition — single lock per
-#       command); moves the phase pointer ONLY after a passing verify (current
-#       phase → done, to_phase → in_progress, current_phase updated). Refuses
-#       otherwise. There is no manual-advance path.
+#       command, acquired before any manifest read); moves the phase pointer
+#       ONLY after a passing verify (current phase → done, to_phase →
+#       in_progress, current_phase updated). Forward-only: refuses if target
+#       is the current phase or a phase already done. Refuses otherwise.
+#       There is no manual-advance path.
 #   lint   <episode_dir>
 #       Read-only hygiene check; flags, never fabricates or fixes:
 #         (a) stale active episode: status active AND last activity
@@ -126,11 +135,13 @@ release_lock() {
 }
 
 sha256_of_stdin() {
+    local sum
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum | awk '{print $1}'
+        sum="$(sha256sum)" || return 1
     else
-        shasum -a 256 | awk '{print $1}'  # macOS fallback
+        sum="$(shasum -a 256)" || return 1  # macOS fallback
     fi
+    printf '%s' "$sum" | awk '{print $1}'
 }
 
 # Validate manifest against schema v0.2 (structural). Echo "ok" or error text; rc!=0 on failure.
@@ -182,6 +193,9 @@ receipt_schema_errors() {
                  and (.sha256 | type == "string")
                  and ((.excerpt // null) | (. == null or type == "string"))))
         and (($o.session // null) | (. == null or type == "string"))
+        and (($o.resume_pointer // null) | (. == null or type == "string"))
+        and (($o.verified // null) | (. == null or type == "boolean"))
+        and (($o.verified_reason // null) | (. == null or type == "string"))
     ' >/dev/null 2>&1 && return 0
     echo "receipt fails schema: $r"
     return 1
@@ -251,14 +265,18 @@ cmd_append() {
             local abs digest mtmp
             if [[ "$p" == msg:* && "$p" == *"|"* ]]; then
                 local mid="${p%%|*}" excerpt="${p#*|}"
-                digest="$(printf '%s' "$excerpt" | sha256_of_stdin)"
+                digest="$(printf '%s' "$excerpt" | sha256_of_stdin)" \
+                    || die_usage "failed to hash msg evidence ref: $p"
+                [[ -n "$digest" ]] || die_usage "empty digest for msg evidence ref: $p"
                 ev_json="$(printf '%s' "$ev_json" | jq -c --arg p "$mid" --arg d "$digest" --arg e "$excerpt" \
                     '. + [{path: $p, sha256: $d, excerpt: $e}]')" \
                     || die_usage "failed to encode msg evidence ref: $p"
             else
                 [[ -f "$p" ]] || die_usage "evidence file not found: $p"
                 abs="$(cd "$(dirname "$p")" && pwd)/$(basename "$p")"
-                digest="$(sha256_of_stdin < "$p")"
+                digest="$(sha256_of_stdin < "$p")" \
+                    || die_usage "failed to hash evidence file: $p"
+                [[ -n "$digest" ]] || die_usage "empty digest for evidence file: $p"
                 ev_json="$(printf '%s' "$ev_json" | jq -c --arg p "$abs" --arg d "$digest" \
                     '. + [{path: $p, sha256: $d}]')" \
                     || die_usage "failed to encode evidence entry: $p"
@@ -366,7 +384,8 @@ run_verify() {
     if ! jq -r '.phases[].receipts[]
             | .seq as $s
             | .evidence[]
-            | {seq: $s, path: .path, sha256: .sha256, excerpt: (.excerpt // "")}
+            | {seq: $s, path: .path, sha256: .sha256,
+               excerpt_b64: ((.excerpt // "") | @base64)}
             | tojson | @base64' "$mp" > "$efile" 2>/dev/null; then
         rm -f "$efile"
         echo "verify: failed to enumerate evidence in $mp"
@@ -376,16 +395,18 @@ run_verify() {
     local findings="" results='[]'
     while IFS= read -r line; do
         [[ -n "$line" ]] || continue
-        local rec seq path want excerpt got ok
+        local rec seq path want eb64 got ok
         rec="$(printf '%s' "$line" | base64 -d 2>/dev/null)" || { rm -f "$efile"; echo "verify: corrupt evidence record in $mp"; return 2; }
         seq="$(printf '%s' "$rec" | jq -r '.seq')" || { rm -f "$efile"; echo "verify: bad evidence record in $mp"; return 2; }
         path="$(printf '%s' "$rec" | jq -r '.path')" || { rm -f "$efile"; echo "verify: bad evidence record in $mp"; return 2; }
         want="$(printf '%s' "$rec" | jq -r '.sha256')" || { rm -f "$efile"; echo "verify: bad evidence record in $mp"; return 2; }
-        excerpt="$(printf '%s' "$rec" | jq -r '.excerpt')" || { rm -f "$efile"; echo "verify: bad evidence record in $mp"; return 2; }
+        eb64="$(printf '%s' "$rec" | jq -r '.excerpt_b64')" || { rm -f "$efile"; echo "verify: bad evidence record in $mp"; return 2; }
         if [[ "$path" == msg:* ]]; then
-            got="$(printf '%s' "$excerpt" | sha256_of_stdin)"
+            got="$(printf '%s' "$eb64" | base64 -d | sha256_of_stdin)" \
+                || { rm -f "$efile"; echo "verify: failed to hash excerpt (seq=$seq)"; return 2; }
         elif [[ -f "$path" ]]; then
-            got="$(sha256_of_stdin < "$path")"
+            got="$(sha256_of_stdin < "$path")" \
+                || { rm -f "$efile"; echo "verify: failed to hash evidence file: $path"; return 2; }
         else
             findings+="degraded: seq=$seq evidence missing: $path"$'\n'
             results="$(jq -cn --argjson rs "$results" --argjson s "$seq" \
@@ -393,6 +414,7 @@ run_verify() {
             [[ $rc -eq 2 ]] || rc=3
             continue
         fi
+        [[ -n "$got" ]] || { rm -f "$efile"; echo "verify: empty digest for seq=$seq ($path)"; return 2; }
         if [[ "$got" != "$want" ]]; then
             findings+="hard: seq=$seq digest mismatch: $path"$'\n'
             ok="mismatch"
@@ -408,12 +430,18 @@ run_verify() {
     # Write verified flags (still under the caller's lock) via tmp+mv.
     local tmp="$mp.tmp"
     if ! jq --argjson results "$results" --arg ts "$(now_iso)" --argjson rc "$rc" '
-        reduce $results[] as $r (.;
-            (.phases[].receipts[] | select(.seq == $r.seq) | .verified) = ($r.ok == "pass")
-            | (.phases[].receipts[] | select(.seq == $r.seq) | .verified_reason)
-                = (if $r.ok == "pass" then null
-                   elif $r.ok == "missing" then "evidence-missing"
-                   else "digest-mismatch" end))
+        # Aggregate PER RECEIPT: pass only if every entry passes;
+        # mismatch beats missing for verified_reason.
+        ($results | group_by(.seq)
+            | map({(.[0].seq | tostring):
+                   (if any(.ok == "mismatch") then "digest-mismatch"
+                    elif any(.ok == "missing") then "evidence-missing"
+                    else "pass" end)})
+            | add // {}) as $verdicts
+        | (.phases[].receipts[] | select($verdicts[.seq | tostring] != null)) |=
+            (.verified = ($verdicts[.seq | tostring] == "pass")
+             | .verified_reason = (if $verdicts[.seq | tostring] == "pass" then null
+                                   else $verdicts[.seq | tostring] end))
         | .last_verify = {ts: $ts,
             result: (if $rc == 0 then "pass" elif $rc == 2 then "hard-fail" else "degraded" end)}
     ' "$mp" > "$tmp" 2>/dev/null; then
@@ -448,10 +476,11 @@ cmd_verify() {
 
 cmd_advance() {
     local dir="${1:?usage: advance <episode_dir> <to_phase>}" to="${2:?usage: advance <episode_dir> <to_phase>}"
-    local mp; mp="$(require_manifest "$dir")"
 
-    # Single lock acquisition covers verify + advance write.
+    # Lock BEFORE resolving/reading the manifest; single lock covers
+    # verify + advance write.
     acquire_lock "$dir"
+    local mp; mp="$(require_manifest "$dir")"
 
     if ! jq -e --arg p "$to" '.phases | any(.name == $p)' "$mp" >/dev/null 2>&1; then
         release_lock
@@ -464,6 +493,15 @@ cmd_advance() {
     if [[ $vrc -ne 0 ]]; then
         release_lock
         echo "advance refused: verify did not pass (rc=$vrc)"
+        return 4
+    fi
+
+    # Forward-only: refuse target == current phase or already-done phase
+    if ! jq -e --arg to "$to" '. as $m
+            | (.phases[] | select(.name == $to) | .status) as $ts
+            | ($to != $m.current_phase) and ($ts != "done")' "$mp" >/dev/null 2>&1; then
+        release_lock
+        echo "advance refused: '$to' is the current phase or already done (forward-only)"
         return 4
     fi
 

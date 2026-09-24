@@ -131,6 +131,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 31 | worktree-post-create.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 32 | worktree-pre-delete.sh | `~/.opencode/scripts/` | `scripts/` | `$HOME/.opencode/scripts/` | Worktree Hooks | Required |
 | 49 | verify-live-deployment.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Live Deployment Verification | Required |
+| 49a | episode-receipt.sh | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Episode Receipts (append/verify/advance/lint — `.omo/episodes/` manifests; W1 lane). Tests: `tests/test_episode_receipt.sh` | Required |
 | 27 | ocx.jsonc | `~/.opencode/` | `extras/` | `$HOME/.opencode/` | Registry | Optional |
 | 28 | test_live_deployment_contract.sh | (repo only) | `tests/` | (repo only) | Live Deployment Verification | Required |
 | 28a | test_dcp_bounded_range.sh | (repo only) | `tests/` | (repo only) | RETIRED 2026-06-23 — DCP Verification | Archived (`.retired`) |
