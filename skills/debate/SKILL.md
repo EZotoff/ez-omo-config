@@ -48,6 +48,57 @@ When a judge or reviewer agent hangs or fails, the orchestrator follows this pro
 
 **Logging**: Every timeout, cancellation, retry, or skip is logged in `transcript.md` with timestamp and task_id.
 
+### Canonical Directory
+
+Every debate lives in `.sisyphus/debates/<slug>/` (slug convention: `{topic-slug}-{YYYYMMDD-HHMMSS}` for decision reviews, or a stable short slug for panel/quick modes). The skill never writes debate artifacts anywhere else.
+
+**Migration note**: legacy debate dirs under `.sisyphus/debates/` that lack `state.json` are still valid historical records — do not backfill state for them. If a legacy debate must be extended or resumed, start a NEW canonical dir and reference the legacy dir as an input; never graft new stages onto a stateless layout.
+
+### Per-Stage State (state.json) — Recovery, Not Resurrection
+
+Every multi-stage debate (decision review, multi-round panel) maintains `state.json` in its canonical dir. It is written by the orchestrator after EACH stage completes, before moving on. A restart mid-debate must NEVER reconstruct lost stages from imagination — it reads `state.json` and reuses only what verifiably exists.
+
+**Schema** (minimal example):
+
+```json
+{
+  "stage": "critique",
+  "inputs":  [{"path": "proposal.md", "sha256": "<hash-at-stage-time>"}],
+  "outputs": [{"path": "critique.md", "sha256": "<hash>"}],
+  "prompt_hashes": {"critic": "<sha256-of-dispatch-prompt>"},
+  "needs_rerun": false,
+  "needs_rerun_reason": null,
+  "ts": "2026-09-24T12:34:56Z"
+}
+```
+
+- `stage`: last completed stage (`proposal` | `critique` | `revision` | `evaluation`, or mode-specific stage names).
+- `inputs`/`outputs`: paths (relative to the debate dir) + sha256 of file bytes recorded at stage completion.
+- `prompt_hashes`: sha256 of the exact dispatch prompt per role, so a prompt change invalidates the stage.
+- `needs_rerun` + `needs_rerun_reason`: set true when a resume detects divergence.
+
+**Resume semantics (recovery-not-resurrection)**:
+
+1. Read `state.json` first. If absent, the debate starts from Stage 1 — no assumptions.
+2. For each completed stage: re-hash the recorded input/output files and compare against the stored hashes.
+3. Matching hashes + matching prompt hash → reuse the stage output as-is; skip re-dispatch.
+4. Divergent/missing hash or changed prompt → mark `needs_rerun: true` with the diverging field named in `needs_rerun_reason`, and re-run that stage and everything downstream of it.
+5. NEVER fabricate stage outputs that are not on disk. If a stage's output file is gone, that stage is lost — re-run it, do not paraphrase it from memory or transcript fragments.
+6. Record every resume decision (reused / re-ran / why) in `transcript.md`.
+
+`work_items` (task-list style breakdowns sometimes derived from a debate, e.g. revision directives) are an OPTIONAL projection: they may be generated from stage outputs for consumption by other skills, but they are never the source of truth. A `work_items` file that disagrees with the stage outputs is regenerated or discarded — the stage artifacts under the canonical dir win.
+
+### Binding-Judge Model Floor
+
+Binding verdicts require judges with strong-model categories. Small-model categories cannot hold binding weight — they may only produce advisory notes.
+
+| Judge dispatch | Max weight | Rationale |
+|---|---|---|
+| `subagent_type="oracle"`, or categories `ultrabrain` / `deep` / `unspecified-high` | binding | Strong-model roles capable of consequential verdicts |
+| Small-model categories (`quick`, `unspecified-low`, and equivalent lightweight categories) | advisory only | Verdict quality below the binding floor |
+
+Enforcement: when configuring judges for a Decision Review, the orchestrator MUST NOT assign `weight: binding` to a small-model category. If a runtime constraint forces a small-model judge into a panel (e.g. fallback demotion), its weight is automatically downgraded to advisory and the change is noted in `transcript.md`. A panel with zero eligible binding judges cannot produce `ADOPT` — degrade to `REVISE` or `ESCALATE` (same rule as binding-judge quorum failure).
+
 ### Judge Roles and Category Mapping
 
 Judges map to existing OMO categories. Do not create custom judge personas.
@@ -647,8 +698,9 @@ synthesis_scores:
 │   ├── judge-analyst.md
 │   ├── judge-stylist.md
 │   └── judge-aesthete.md
+├── state.json           # Per-stage recovery state (see Per-Stage State)
 ├── debate.yaml           # Final structured artifact
-└── transcript.md         # Full record including any retries/skips
+└── transcript.md         # Full record including any retries/skips, resume decisions
 ```
 
 ---
@@ -771,4 +823,6 @@ Output: `debate.yaml` with `revised_draft` and change log
 | Letting advisory judges override binding judges | Defeats the point of binding/advisory distinction | Advisory criteria can flag `REVISE`; they cannot force `ADOPT` past a binding veto |
 | Skipping the revision stage | Loses the synthesis quality that distinguishes decision review from debate | Stage 3 is mandatory; critiques must be addressed or explicitly declined with rationale |
 | Summarizing debate results in process language | Reads as insider baseball — judge labels, block IDs, scores, "X was discarded in favour of Y" assume the user read every judge output | Lead with the self-contained verdict in plain language; load `reader-report` at synthesis points; chat summary is a projection of the canonical reader deliverable, not an independent synthesis |
+| Resurrecting lost debate stages from memory after a restart | Fabricated "recovered" stages are indistinguishable from real ones and poison downstream verdicts | Read `state.json`, verify hashes, reuse matching stages, `needs_rerun` the rest — never reconstruct stage outputs that are not on disk |
+| Assigning `weight: binding` to a small-model judge category | Verdict quality below the binding floor silently weakens every ADOPT decision | Binding weight only on oracle / `ultrabrain` / `deep` / `unspecified-high`; small-model categories are advisory-only |
 | Treating `REVISE` as failure | `REVISE` is the productive middle outcome — the proposal has merit | Return to Stage 3 with the specific binding-judge directives; do not restart from scratch |
