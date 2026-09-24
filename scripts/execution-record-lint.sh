@@ -26,21 +26,26 @@
 #       have a corresponding `F#<n>: APPROVE|REJECT` verdict line inside the
 #       Execution Record section.
 #   (c) Every `F#<n>: REJECT` line inside the Execution Record requires, on
-#       that line or later in the same section, EITHER:
+#       a line STRICTLY AFTER the REJECT line, EITHER:
 #         - a line mentioning the same `F#<n>` AND a severity tag
-#           (CRITICAL|MAJOR|MINOR) with actionable finding text, OR
-#         - a later (or same-line) `F#<n>: ... APPROVE|RESOLVED` mention —
-#           the REJECT was superseded by a resolved re-review. This covers
-#           the real records' forms: a later `F#1: APPROVE` line
-#           (workflow-standardization), `F#1: REJECT then APPROVE ...`
-#           (patch-provenance), and `F#1: REJECT→RESOLVED — ...`
-#           (supervisor-rollout).
+#           (CRITICAL|MAJOR|MINOR) with actionable finding text (same-line
+#           severity on the REJECT line itself no longer satisfies — the
+#           finding must exist as its own follow-up record), OR
+#         - a later `F#<n>: APPROVE|RESOLVED` verdict-position line
+#           (`F#<n>: APPROVE`, colon-space-verdict, e.g. 'F#1: APPROVE +
+#           F#2: APPROVE — delta review' satisfies BOTH F#1 and F#2).
+#           Prose like 'not APPROVED' does NOT match (word-boundary
+#           anchored). In legacy sweep mode ONLY, the same-line narrative
+#           resolution `F#<n>: REJECT ... (then|→|->) (APPROVE|RESOLVED|
+#           closed|fixed)` and same-line severity are still accepted
+#           (historical records).
 #       An unresolved REJECT with no severity-tagged finding fails (W2 QA row:
 #       "F-wave REJECT without actionable finding → lint fails the record").
 #
-# Ledger rule (d) — accepted format (matches the docs/reviews.md spec):
-#   A markdown file containing ONE ```json fenced block per review round.
-#   Each block is a single JSON object:
+# Ledger rule (d) — accepted format (canonical per docs/reviews.md):
+#   A markdown file containing ONE ```json fenced block per review round
+#   (machine-checkable); markdown prose between blocks is allowed for
+#   context and is ignored. Each block is a single JSON object:
 #     {
 #       "verdict": "OKAY|REJECT|ESCALATE|OKAY-WITH-RISKS",
 #       "round": <number>,
@@ -54,8 +59,20 @@
 #       "disposition": <string|object|null>,
 #       "remaining_risks": <string|array|null>
 #     }
-#   At least one fenced block is required. Non-json fenced blocks are ignored;
-#   prose outside fences is ignored.
+#   Mechanical rules (docs/reviews.md §Budget and hard stop):
+#     (d1) At least one fenced block is required; non-json fenced blocks
+#          are ignored.
+#     (d2) Round numbers must be monotonically 1..N in file order —
+#          no gaps, no duplicates.
+#     (d3) Any round numbered >= 5 must carry extension evidence: its
+#          `budget` must be an OBJECT containing `extended: true` and a
+#          non-empty `extension_evidence` (string or array).
+#     (d4) Any round numbered > 6 fails (4+2 budget exceeded).
+#     (d5) If the LAST round is numbered 6 and its verdict is REJECT,
+#          the ledger fails — the terminal verdict at budget exhaustion
+#          must be ESCALATE or OKAY-WITH-RISKS.
+#     (d6) An unterminated (unclosed) final ```json fence is a named
+#          lint failure.
 #
 # No network, no ports, no writes.
 
@@ -124,9 +141,11 @@ lint_plan_file() {
         fi
     done < <(grep -Eo '^F[0-9]+\. \[x\]' "$file" | grep -Eo '[0-9]+' || true)
 
-    # the same F#n) on/after the REJECT line, OR a later (or same-line)
-    # F#n resolution mention (APPROVE|RESOLVED — covers 'REJECT then APPROVE',
-    # 'REJECT→RESOLVED', and later-round 'F#n: APPROVE' forms).
+    # (c) resolution rules (see header): strict mode requires the severity
+    # finding on a line STRICTLY AFTER the REJECT line and resolutions at
+    # verdict position (`F#n: APPROVE`, word-boundary anchored); legacy
+    # sweep mode also accepts same-line severity and the same-line
+    # narrative resolution `F#n: REJECT ... (then|→|->) (APPROVE|RESOLVED|closed|fixed)`.
     local total reject_n
     total="$(printf '%s\n' "$body" | wc -l | tr -d ' ')"
     while IFS= read -r reject_n; do
@@ -135,23 +154,28 @@ lint_plan_file() {
         for ((i = 1; i <= total; i++)); do
             line="$(printf '%s\n' "$body" | sed -n "${i}p")"
             printf '%s' "$line" | grep -Eq "F#${reject_n}: REJECT" || continue
-            # scan from the REJECT line to the end of the section
-            local j later
-            for ((j = i; j <= total; j++)); do
+            # scan lines after the REJECT line (strict: strictly after;
+            # legacy: starting at the REJECT line itself)
+            local j later start
+            if [[ "$mode" == "legacy" ]]; then start=$i; else start=$((i + 1)); fi
+            for ((j = start; j <= total; j++)); do
                 later="$(printf '%s\n' "$body" | sed -n "${j}p")"
                 if printf '%s' "$later" | grep -Eq "F#${reject_n}" \
                     && printf '%s' "$later" | grep -Eq '\((CRITICAL|MAJOR|MINOR)\)|\b(CRITICAL|MAJOR|MINOR)\b'; then
                     satisfied=1; break
                 fi
-                local res_re="F#${reject_n}:.*(APPROVE|RESOLVED)"
-                # legacy sweep also accepts 'REJECT then closed/fixed' prose
-                [[ "$mode" == "legacy" ]] && res_re="F#${reject_n}:.*(APPROVE|RESOLVED|closed|fixed)"
+                local res_re="F#${reject_n}: (APPROVE|RESOLVED)\b"
+                if [[ "$mode" == "legacy" ]]; then
+                    # legacy: loose matcher incl. same-line narrative
+                    # 'REJECT then closed/fixed' prose forms
+                    res_re="F#${reject_n}:.*(APPROVE|RESOLVED|closed|fixed)"
+                fi
                 if printf '%s' "$later" | grep -Eq "$res_re"; then
                     satisfied=1; break
                 fi
             done
             if [[ $satisfied -eq 0 ]]; then
-                echo "plan: $file: F#${reject_n}: REJECT without severity-tagged finding (CRITICAL|MAJOR|MINOR) or later APPROVE resolution"
+                echo "plan: $file: F#${reject_n}: REJECT without a strictly-later severity-tagged finding (CRITICAL|MAJOR|MINOR) or a verdict-position 'F#${reject_n}: APPROVE' resolution"
                 rc=1
             fi
         done
@@ -184,9 +208,22 @@ lint_plans_dir() {
 lint_ledger() {
     local file="$1"
     [[ -f "$file" ]] || { echo "ledger: no such file: $file"; return 1; }
-    local tmp
+    local tmp seqf
     tmp="$(mktemp)"
-    trap 'rm -f "$tmp"' RETURN
+    seqf="$(mktemp)"
+    trap 'rm -f "$tmp" "$seqf"' RETURN
+
+    local rc=0
+
+    # (d6) unterminated (unclosed) ```json fence is a named failure
+    if ! awk '
+        /^```json[[:space:]]*$/ { open = 1; next }
+        /^```[[:space:]]*$/     { open = 0 }
+        END { exit open ? 3 : 0 }
+    ' "$file"; then
+        echo "ledger: $file: unterminated json fenced block"
+        rc=1
+    fi
 
     # Extract each ```json fenced block into $tmp, one JSON doc per record
     # separated by \x1e (records can be multiline). Delimiter is emitted
@@ -202,7 +239,7 @@ lint_ledger() {
         return 1
     fi
 
-    local rc=0 idx=0 doc
+    local idx=0 doc
     while IFS= read -r -d $'\x1e' doc; do
         idx=$((idx + 1))
         [[ -n "$doc" ]] || { echo "ledger: $file: block $idx is empty"; rc=1; continue; }
@@ -218,13 +255,46 @@ lint_ledger() {
                                  and has("blocking_rationale")))
             and has("disposition")
             and has("remaining_risks")
+            and (if .round >= 5 then
+                    (.budget | type == "object")
+                    and (.budget.extended == true)
+                    and (.budget.extension_evidence |
+                        if type == "string" then length > 0
+                        elif type == "array" then length > 0
+                        else false end)
+                 else true end)
         ' >/dev/null 2>&1; then
             echo "ledger: $file: block $idx does not match the reviews-ledger schema"
             printf '%s\n' "$doc" | jq . >/dev/null 2>&1 \
                 || echo "ledger: $file: block $idx is not valid JSON"
             rc=1
+            continue
         fi
+        printf '%s %s\n' "$(printf '%s' "$doc" | jq -r '.round')" \
+                          "$(printf '%s' "$doc" | jq -r '.verdict')" >> "$seqf"
     done < "$tmp"
+
+    # (d2) monotonic 1..N, (d4) round > 6, (d5) terminal REJECT at round 6
+    if [[ -s "$seqf" ]]; then
+        local expected=1 row r v last_r=0 last_v="" mono=1
+        while read -r r v; do
+            [[ "$r" == "$expected" ]] || mono=0
+            expected=$((expected + 1))
+            last_r="$r"; last_v="$v"
+            if (( r > 6 )); then
+                echo "ledger: $file: round $r exceeds the 4+2 budget (max 6)"
+                rc=1
+            fi
+        done < "$seqf"
+        if [[ $mono -eq 0 ]]; then
+            echo "ledger: $file: rounds are not monotonically numbered 1..N (gap or duplicate)"
+            rc=1
+        fi
+        if [[ "$last_r" == "6" && "$last_v" == "REJECT" ]]; then
+            echo "ledger: $file: REJECT at budget exhaustion (last round 6 terminal verdict must be ESCALATE or OKAY-WITH-RISKS)"
+            rc=1
+        fi
+    fi
     return $rc
 }
 
