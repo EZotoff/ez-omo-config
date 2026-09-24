@@ -92,3 +92,9 @@ Selection-gated triage of raw human-channel input pasted directly into the sessi
 - **Dependencies**: None; per-project `.omo/inbox/` convention
 - **Use Case**: WhatsApp/email/PR-comment feedback → decision-ready items with a dedup memory
 - **Install**: `install.sh --skills`
+
+### closeout/
+Standalone, idempotent episode closeout. Mandatory-referenced by every terminal path (Atlas post-F-wave, in-session completion, lite completion). Inputs: episode manifest + linked artifacts + receipts only (bounded `session_evidence`: message IDs + immutable excerpts — never full transcripts). Outputs: problem/intent restatement, per-phase work recap, learnings TLDR, next steps (potential vs mandatory `follow_ups:` with dedupe IDs for the Supervisor), and a terminal receipt `closeout.status: complete|degraded|failed`; degraded names gaps in the opening summary and never invents recap.
+- **Dependencies**: `.omo/episodes/` manifests written by `scripts/episode-receipt.sh` (W1 lane)
+- **Use Case**: Terminal summaries for episodes on every completion path; `/episode` command documents the checkpoint invocation
+- **Install**: `install.sh --skills`

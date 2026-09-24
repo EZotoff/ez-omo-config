@@ -20,6 +20,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 1h | option-compare.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
 | 1i | dual-review.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
 | 1j | escalate.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
+| 1k | episode.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (episode checkpoint; documents `scripts/episode-receipt.sh append --checkpoint` invocation — W1 lane) | Optional |
 | 2 | opencode.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 3 | opencode.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
 | 3b | dcp.jsonc.retired | `configs/opencode/` | `configs/opencode/` | (not installed) | RETIRED 2026-06-23 — DCP retired; Magic Context currently disabled | Archived |
@@ -106,6 +107,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 30f | verify-built/ | `~/.config/opencode/skills/verify-built/` | `skills/verify-built/` | `$HOME/.config/opencode/skills/` | Stage-1 Alignment Verification | Optional |
 | 30g | inbound-triage/ | `~/.config/opencode/skills/inbound-triage/` | `skills/inbound-triage/` | `$HOME/.config/opencode/skills/` | Inbox Triage (selection-gated) | Optional |
 | 30h | add-provider/ (project-scoped) | (project-local) | `.opencode/skill/add-provider/` | not installed — OpenCode loads it from the repo when sessions run in this project | Provider/Model Onboarding (checklist + audit) | Required |
+| 30i | closeout/ | `~/.config/opencode/skills/closeout/` | `skills/closeout/` | `$HOME/.config/opencode/skills/` | Episode Closeout (terminal summary + status receipt; consumes `.omo/episodes/` manifests written by `scripts/episode-receipt.sh` — W1 lane) | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
@@ -265,11 +267,11 @@ ez-omo-config/
 ## Artifact Summary
 
 - **Total Artifacts**: repo-managed OpenCode/OMO commands, configs, plugins, skills, scripts, tests, docs, extras, and Docker templates.
-- **Commands**: 10 slash command prompts (model presets, session utilities, handoff emit/resume, four review presets)
+- **Commands**: 11 slash command prompts (model presets, session utilities, handoff emit/resume, four review presets, episode checkpoint)
 - **Core Configs**: existing OpenCode/OMO configs plus the Project Supervisor P0 `supervisor.json`. DCP retired 2026-06-23; see `dcp.jsonc.retired` for historical reference.
 - **Plugins**: worktree, git safety, review, checkpoint, session clipboard, clickable-link, worktree support, and shared primitive files.
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
-- **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, the OpenCode session archiver, and Python operator helpers.
+- **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, the OpenCode session archiver, Python operator helpers, and the episode receipt script `scripts/episode-receipt.sh` (append/verify/advance, `--checkpoint`; W1 lane).
 - **Systemd**: 19 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon + 1-min keeper timer, dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer, weekly session-archive service + timer, and the parked FLARE-4B server.
 - **Tests**: active repo verification scripts (148 tracked files), the 36-pair regression corpus (72 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)

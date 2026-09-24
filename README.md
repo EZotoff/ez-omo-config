@@ -87,10 +87,10 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 
 | Category | Count | Contents |
 |---|---|---|
-| **Commands** | 10 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate) |
+| **Commands** | 11 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate), episode checkpoint |
 | **Configs** | 49 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 25 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
-| **Skills** | 22 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, acceptance-boundary skills, … |
+| **Skills** | 23 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, closeout, acceptance-boundary skills, … |
 | **Scripts** | 76 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, bench campaign runner, operator tools |
 | **Supervisor** | 59 files | Bun + strict-TypeScript read-only observer service, status CLI, journal→ledger continuation bridge, tests |
 | **Systemd** | 21 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer (crash-class resume), weekly session-archive service + timer (30-day retention), nightly session-learning service + timer (03:30 closeout sweep), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |

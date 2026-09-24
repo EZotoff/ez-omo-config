@@ -322,6 +322,13 @@ Selection-gated triage: raw input pasted directly into the session (primary — 
 
 **Install Method**: `install.sh --skills`
 
+### closeout/
+Standalone, idempotent episode closeout (workflow standardization, W1). Mandatory-referenced by every terminal path (Atlas post-F-wave, in-session completion, lite completion); start-work references and enforces it but does not own it. Inputs are the episode manifest + linked artifacts + receipts only (bounded `session_evidence`: message IDs + immutable excerpts — never full transcripts). Outputs four sections (problem/intent restatement, per-phase recap, learnings TLDR, next steps with potential vs mandatory `follow_ups:` dedupe IDs for the Supervisor) and a terminal receipt `closeout.status: complete|degraded|failed`; degraded names gaps in the opening summary and never invents recap. Consumes `.omo/episodes/` manifests written by `scripts/episode-receipt.sh` (append/verify/advance; `/episode` command in `commands/episode.md` documents the `--checkpoint` invocation).
+
+**Install Target**: `$HOME/.config/opencode/skills/closeout/`
+
+**Install Method**: `install.sh --skills`
+
 ### Review-preset commands
 Four visible, editable composition templates in `commands/`: `/design-review` (draft→critique→challenge), `/option-compare` (independent drafts → judge → adversarial check), `/dual-review` (functional + design lanes in parallel, conflicts stated), `/escalate` (binding three-judge panel with dissent and calibration note). All end at operator decisions; none dispatches autonomously.
 
@@ -355,6 +362,7 @@ postmortem-policy/ + handoff-relay/ + verify-built/ + inbound-triage/ → decisi
 | handoff-relay/ | Optional | `$HOME/.config/opencode/skills/handoff-relay/` | `install.sh` |
 | verify-built/ | Optional | `$HOME/.config/opencode/skills/verify-built/` | `install.sh` |
 | inbound-triage/ | Optional | `$HOME/.config/opencode/skills/inbound-triage/` | `install.sh` |
+| closeout/ | Optional | `$HOME/.config/opencode/skills/closeout/` | `install.sh` |
 | atlas-review-handler/ | Required | `$HOME/.config/opencode/skills/atlas-review-handler/` | `install.sh` |
 | review-protocol/ | Required | `$HOME/.config/opencode/skills/review-protocol/` | `install.sh` |
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
