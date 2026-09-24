@@ -110,21 +110,6 @@ Create the section only if it does not exist; if an `Execution baseline:` line i
 
 When executing a plan with a Final Verification Wave: as you record each reviewer's verdict and check their F-box in the plan document, append `F#<n>: APPROVE|REJECT — <one-clause evidence>` to the plan's `## Execution Record` in the same editing pass — one line per reviewer, each reviewer's LATEST verdict, pointer-style evidence (command + exit code, evidence path, or file:line). The `#` is LITERAL — write `F#1:`, `F#2:`, not `F1:`, `F2:` — and the lines go INSIDE the `## Execution Record` section, never past later sections at document EOF. Example lines: `F#1: APPROVE — bash tests/run_all.sh exit 0`, `F#2: REJECT — missing evidence .sisyphus/evidence/x.md`. Reviewer subagents stay read-only — YOU (the orchestrator) write these lines. These lines are the durable record of execution: `boulder.json` is deleted at completion and records nothing; the plan document survives.
 
-## Claude CLI auth model — subscription OAuth only, NO API key
-
-This machine uses the **Claude Pro/Max subscription** (OAuth credentials in `~/.claude/.credentials.json`). There is no `ANTHROPIC_API_KEY` and one must **not** be provisioned.
-
-**Consequences for any `claude` / `claude -p` invocation or wrapper:**
-
-- **NEVER pass `--bare`.** It ignores OAuth/keychain and requires `ANTHROPIC_API_KEY` (or `apiKeyHelper` via `--settings`), which does not exist here. The invocation will fail auth.
-- **NEVER set `ANTHROPIC_API_KEY=...`** in wrapper scripts, env files, MCP server configs, or skill instructions to "make it work". That routes through pay-per-token billing instead of the subscription and breaks the subscription commitment.
-- The non-bare path is correct and intended: OAuth credentials are read automatically from `~/.claude/.credentials.json`. Hooks, `CLAUDE.md`, and skills auto-load — this is desired, not bleed to mitigate.
-- To scope an invocation, use `--allowedTools`, `--add-dir`, `--permission-mode`, `--model`, `--system-prompt` / `--append-system-prompt`, `--max-turns`. **Not** `--bare`.
-
-If a tool, plugin, skill, or proposal requires `--bare` or `ANTHROPIC_API_KEY`, it is wrong for this machine; redesign it to use the OAuth path.
-
-Reference: wisdom entry `20260729-<id>` (search wisdom with `~/.sisyphus/scripts/wisdom-search.sh "claude subscription bare"`).
-
 ## Session-safe OpenCode server restarts (2026-09-16)
 
 Two `opencode serve` instances run as systemd user services. Restarting either kills in-flight turns. **Never bare-restart when sessions may be active** — use the continuation script so active top-level sessions are snapshotted and resumed with a continuation prompt:
