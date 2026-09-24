@@ -1,6 +1,6 @@
 {
-  "enabled": true,
-  "dry_run": false,
+  "enabled": false,
+  "dry_run": true,
   "silent_stall_ms": 600000,
   "tool_no_timeout_floor_ms": 1800000,
   "max_reaps_per_session": 3,

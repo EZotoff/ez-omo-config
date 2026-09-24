@@ -16,7 +16,6 @@
     "./skill-nudger.mjs",
     "./agent-default-guard.mjs",
     "./live-config-guard.mjs",
-    "./busy-stall-reaper.mjs",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
