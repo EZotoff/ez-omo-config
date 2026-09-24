@@ -116,6 +116,7 @@ ITEMS=(
     "scripts|scripts/watch-runtime-patches.sh|$HOME/.sisyphus/scripts/watch-runtime-patches.sh"
     "scripts|scripts/integrity-alert.sh|$HOME/.sisyphus/scripts/integrity-alert.sh"
     "scripts|scripts/integrity-triage.sh|$HOME/.sisyphus/scripts/integrity-triage.sh"
+"scripts|scripts/episode-receipt.sh|$HOME/.sisyphus/scripts/episode-receipt.sh"
     "scripts|systemd/user/opencode-integrity-triage.service|$HOME/.config/systemd/user/opencode-integrity-triage.service"
     "scripts|systemd/user/opencode-patch-watcher.service|$HOME/.config/systemd/user/opencode-patch-watcher.service"
     "scripts|systemd/user/opencode-patch-integrity-check.service|$HOME/.config/systemd/user/opencode-patch-integrity-check.service"
