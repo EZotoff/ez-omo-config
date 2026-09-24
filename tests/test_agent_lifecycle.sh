@@ -3,21 +3,22 @@
 # test_agent_lifecycle.sh — W3.2/W3.3 QA scenarios for agent-lease.sh and
 # spawn-health-check.sh. Plan: .omo/plans/workflow-standardization.md §W3.
 #
-# Scenarios:
-#   1. lease create → check: state active, fields intact
-#   2. create with past expires_at → check: expired + handoff record emitted
-#      (reason budget_exhausted, action checkpoint_handoff; no kill text)
-#   3. renew extends expires_at on an active lease
-#   4. release sets state released; second release refused
-#   5. health-check on nonexistent id → verdict unknown, exit 0
-#   6. health-check on a real session with messages (picked read-only from
-#      opencode.db via LIMIT 1) → verdict healthy, exit 0
-#   7. health-check window: fixture DB with a fresh 0-message session →
-#      spawning at default window, zero_token with --probe-window 0
 #   8. --usage-from-db attaches message/part counts (read-only)
+#   9. over-budget lease (budget_messages exceeded, --usage-from-db on
+#      check) → expired + handoff with trigger: "budget"
+#  10. healing: expired state without a handoff record → check emits the
+#      missing handoff exactly once
+#  11. naive ISO timestamps (no Z / offset) rejected for --expires-at and --now
+#  12. health-check with a missing DB → one parseable JSON line (verdict
+#      unknown, error set), exit 0
+#  13. respawn-record: allows the first respawn, refuses the second (--max 1)
 #
-# No DB writes anywhere (all sqlite access mode=ro). Scratch leases files via
-# --leases. Temp dirs removed via EXIT trap.
+# No writes to the LIVE opencode.db (scratch fixture DBs only). All sqlite
+# access to the live DB is mode=ro. Scratch leases/state files via --leases
+# / --state-file. Temp dirs removed via EXIT trap.
+#
+# Live-session scenarios (S6, S8) SKIP with a message when the live DB is
+# absent or has no qualifying session — they never fail on an empty DB.
 
 set -euo pipefail
 
@@ -209,7 +210,107 @@ PYEOF
     ok "S8 --usage-from-db attaches counts"
 }
 
-s1; s2; s3; s4; s5; s6; s7; s8
+
+# --- Scenario 9: over-budget ACTIVE lease → expired + handoff trigger budget ---
+s9() {
+    local d; new_tmpdir d
+    local fdb="$d/fixture.db"
+    python3 - "$fdb" <<'PYEOF'
+import sqlite3, sys
+con = sqlite3.connect(sys.argv[1])
+con.execute("create table message (id text, session_id text, time_created integer)")
+con.execute("create table part (id text, session_id text)")
+con.executemany("insert into message values (?, 'ses_bud', 0)", [(str(i),) for i in range(5)])
+con.commit(); con.close()
+PYEOF
+    local lf="$d/leases.jsonl" id
+    id="$(run_isolated "$LEASE" create --session ses_bud --role worker \
+        --soft-budget 50000 --expires-at "2030-01-01T00:00:00Z" \
+        --budget-messages 2 --leases "$lf" | jq -r .id)" \
+        || { bad "S9 create"; return; }
+    local out
+    out="$(run_isolated "$LEASE" check --id "$id" --leases "$lf" --usage-from-db --db "$fdb")" \
+        || { bad "S9 check exit"; return; }
+    [[ "$(jq -r .state <<<"$out")" == "expired" ]] || { bad "S9 state != expired"; return; }
+    local handoff
+    handoff="$(jq -c --arg id "$id" 'select(.handoff == true and .lease_id == $id)' "$lf")" \
+        || { bad "S9 scan"; return; }
+    jq -e '.reason == "budget_exhausted" and .action == "checkpoint_handoff" and .trigger == "budget"' \
+        <<<"$handoff" >/dev/null \
+        || { bad "S9 handoff trigger: $handoff"; return; }
+    ok "S9 over-budget → handoff trigger budget"
+}
+
+# --- Scenario 10: healing emits the missing handoff exactly once ---
+s10() {
+    local d; new_tmpdir d
+    local lf="$d/leases.jsonl" id
+    id="$(run_isolated "$LEASE" create --session ses_heal --role replay \
+        --soft-budget 1000 --expires-at "2020-01-01T00:00:00Z" --leases "$lf" | jq -r .id)" \
+        || { bad "S10 create"; return; }
+    # Simulate the crash window: expire the lease with the handoff records stripped.
+    run_isolated "$LEASE" check --id "$id" --leases "$lf" >/dev/null
+    grep -v '"handoff":true' "$lf" > "$lf.healed" && mv "$lf.healed" "$lf"
+    run_isolated "$LEASE" check --id "$id" --leases "$lf" >/dev/null \
+        || { bad "S10 healing check exit"; return; }
+    local n
+    n="$(jq -r --arg id "$id" 'select(.handoff == true and .lease_id == $id) | 1' "$lf" | wc -l | tr -d ' ')"
+    [[ "$n" -eq 1 ]] || { bad "S10 handoff count after heal: $n"; return; }
+    run_isolated "$LEASE" check --id "$id" --leases "$lf" >/dev/null
+    n="$(jq -r --arg id "$id" 'select(.handoff == true and .lease_id == $id) | 1' "$lf" | wc -l | tr -d ' ')"
+    [[ "$n" -eq 1 ]] || { bad "S10 handoff duplicated on re-check: $n"; return; }
+    ok "S10 healing emits missing handoff once"
+}
+
+# --- Scenario 11: naive ISO timestamps rejected ---
+s11() {
+    local d; new_tmpdir d
+    local lf="$d/leases.jsonl"
+    if run_isolated "$LEASE" create --session ses_naive --role worker \
+        --soft-budget 1 --expires-at "2030-01-01T00:00:00" --leases "$lf" >/dev/null 2>&1; then
+        bad "S11 naive --expires-at accepted"; return
+    fi
+    local id
+    id="$(run_isolated "$LEASE" create --session ses_naive --role worker \
+        --soft-budget 1 --expires-at "2030-01-01T00:00:00Z" --leases "$lf" | jq -r .id)" \
+        || { bad "S11 create"; return; }
+    if run_isolated "$LEASE" check --id "$id" --leases "$lf" --now "2030-01-01T01:00:00" >/dev/null 2>&1; then
+        bad "S11 naive --now accepted"; return
+    fi
+    ok "S11 naive ISO rejected (--expires-at, --now)"
+}
+
+# --- Scenario 12: health-check missing DB → JSON + exit 0 ---
+s12() {
+    local d; new_tmpdir d
+    local out rc=0
+    out="$(run_isolated "$HEALTH" ses_x --db "$d/nonexistent.db")" || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S12 exit=$rc (probe must exit 0)"; return; }
+    jq -e '.verdict == "unknown" and (.error | length > 0)' <<<"$out" >/dev/null \
+        || { bad "S12 output not always-JSON unknown: $out"; return; }
+    out="$(run_isolated "$HEALTH" ses_x --db "$d/nonexistent.db" --probe-window abc)" || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S12 invalid-window exit=$rc"; return; }
+    jq -e '.verdict == "unknown" and (.error | length > 0)' <<<"$out" >/dev/null \
+        || { bad "S12 invalid-window output: $out"; return; }
+    ok "S12 missing DB / invalid window → JSON unknown, exit 0"
+}
+
+# --- Scenario 13: respawn-record allows 1 then refuses ---
+s13() {
+    local d; new_tmpdir d
+    local sf="$d/respawn-state.jsonl" out
+    out="$(run_isolated "$HEALTH" --respawn-record --session ses_resp --max 1 --state-file "$sf")" \
+        || { bad "S13 first respawn-record exit"; return; }
+    jq -e '.respawn_allowed == true and .respawn_n == 1' <<<"$out" >/dev/null \
+        || { bad "S13 first: $out"; return; }
+    out="$(run_isolated "$HEALTH" --respawn-record --session ses_resp --max 1 --state-file "$sf")" \
+        || { bad "S13 second respawn-record exit"; return; }
+    jq -e '.respawn_allowed == false and .respawn_n == 1' <<<"$out" >/dev/null \
+        || { bad "S13 second (refusal): $out"; return; }
+    ok "S13 respawn-record allows 1 then refuses"
+}
+
+s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; s12; s13
 
 echo
 echo "agent-lifecycle: PASS=$PASS FAIL=$FAIL"

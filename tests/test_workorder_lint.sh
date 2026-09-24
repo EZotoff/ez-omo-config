@@ -13,8 +13,11 @@
 #   7. post-hoc drift: completed with unchecked checklist item → exit 1
 #   8. escalation section without a named trigger → exit 1
 #   9. named trigger + status: done → exit 1 (escalated work stays open)
+#  10. budget over the lite bound (90m) → exit 1
+#  11. scope over the lite bound (3 files) → exit 1
+#  12. lane: full opts out of the lite-bound check → exit 0
+#  13. header field below the first `## ` heading does not count → exit 1
 #
-# No network, no ports. Temp dirs tracked and removed via EXIT trap.
 
 set -euo pipefail
 
@@ -177,7 +180,79 @@ EOF
     expect_rc "S9 escalated trigger + status done" 1 bash "$SCRIPT" "$d/wo.md"
 }
 
-s1; s2; s3; s4; s5; s6; s7; s8; s9
+
+# --- Scenario 10: budget over lite bounds fails ---
+s10() {
+    local d; new_tmpdir d
+    valid_open | sed 's/^budget: 30m/budget: 90m/' > "$d/wo.md"
+    expect_rc "S10 budget exceeds lite bounds" 1 bash "$SCRIPT" "$d/wo.md"
+}
+
+# --- Scenario 11: scope over lite bounds fails ---
+s11() {
+    local d; new_tmpdir d
+    cat > "$d/wo.md" <<'EOF'
+# Workorder: retry-log-rotate
+
+intent: rotate retry-plugin log weekly
+budget: 30m
+status: open
+
+## Scope
+
+- configs/opencode/provider-connect-retry.mjs
+- scripts/foo.sh
+- docs/bar.md
+
+## Teardown checklist
+
+- [ ] log rotation verified locally
+
+## Teardown receipt
+
+<!-- pending -->
+EOF
+    expect_rc "S11 scope exceeds lite bounds" 1 bash "$SCRIPT" "$d/wo.md"
+}
+
+# --- Scenario 12: lane: full opts out of the bound check ---
+s12() {
+    local d; new_tmpdir d
+    cat > "$d/wo.md" <<'EOF'
+# Workorder: retry-log-rotate
+
+intent: rotate retry-plugin log weekly
+budget: 90m
+status: open
+lane: full
+
+## Scope
+
+- configs/opencode/provider-connect-retry.mjs
+- scripts/foo.sh
+- docs/bar.md
+
+## Teardown checklist
+
+- [ ] log rotation verified locally
+
+## Teardown receipt
+
+<!-- pending -->
+EOF
+    expect_rc "S12 lane: full bypasses lite bounds" 0 bash "$SCRIPT" "$d/wo.md"
+}
+
+# --- Scenario 13: header field below the first heading does not count ---
+s13() {
+    local d; new_tmpdir d
+    valid_open \
+        | sed '/^intent: /d' \
+        | sed 's|^## Teardown receipt|intent: moved below the heading\n\n## Teardown receipt|' > "$d/wo.md"
+    expect_rc "S13 intent below first heading rejected" 1 bash "$SCRIPT" "$d/wo.md"
+}
+
+s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; s12; s13
 
 echo "----------------------------------------"
 echo "workorder-lint tests: Pass: $PASS | Fail: $FAIL"
