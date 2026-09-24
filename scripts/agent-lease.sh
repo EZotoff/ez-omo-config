@@ -9,9 +9,10 @@
 # are never rewritten. The LAST record for a lease id is its current state.
 #
 # Lease record: { id, session_id, role, soft_budget_tokens, expires_at (ISO),
-#                 state: active|expired|released|handed_off, created_at }
+#                 budget_messages (nullable int), state: active|expired|released|handed_off,
+#                 created_at }
 # Handoff record: { handoff: true, lease_id, reason: "budget_exhausted",
-#                    action: "checkpoint_handoff", ts }
+#                    action: "checkpoint_handoff", trigger: "time"|"budget", ts }
 #
 # Semantics: an expired lease NEVER emits kill instructions. The documented
 # transition is checkpoint/ledger handoff — the orchestrator (or its scribe)
@@ -21,19 +22,32 @@
 #
 # Subcommands:
 #   create  --session ses_x --role R --soft-budget N --expires-at ISO
-#            [--leases FILE] [--usage-from-db] [--db FILE]
+#            [--budget-messages N] [--leases FILE] [--usage-from-db] [--db FILE]
 #       Appends an active lease record; prints its JSON. --usage-from-db adds
 #       a read-only usage approximation: {message_count, part_count} for the
 #       session from opencode.db (sqlite3 mode=ro URI; never written).
+#       --budget-messages N records a message-count budget; `check` enforces
+#       it when given --usage-from-db (over-budget ACTIVE lease → expired +
+#       handoff with trigger: "budget").
 #   check   --id LEASE_ID [--leases FILE] [--now ISO]
+#           [--usage-from-db] [--db FILE]
 #       Prints the current lease record (with any state transition applied).
 #       If state==active and now > expires_at → appends an expired record AND
 #       a handoff record {lease_id, reason: budget_exhausted,
-#       action: checkpoint_handoff}.
+#       action: checkpoint_handoff, trigger: "time"}. If state==active and
+#       --usage-from-db and the session's live message_count exceeds
+#       budget_messages → same transition with trigger: "budget".
+#       Healing: if the latest state is `expired` but NO handoff record exists
+#       for the lease (crash between the two appends), the missing handoff is
+#       emitted (idempotent — no duplicates on the normal path).
 #   renew   --id LEASE_ID --extend-minutes N [--leases FILE] [--now ISO]
 #       Only active leases; expires_at += N minutes (appended record).
 #   release --id LEASE_ID [--leases FILE] [--now ISO]
 #       Only active leases; state → released.
+#
+# Timestamps: --expires-at and --now MUST carry an explicit UTC designator
+# (trailing Z) or numeric offset (+HH:MM). Naive local-time ISO strings are
+# rejected with an error.
 #
 # Overrides for testability: --leases FILE (default .omo/leases.jsonl),
 # --db FILE (default ~/.local/share/opencode/opencode.db).
@@ -64,6 +78,17 @@ iso_to_epoch() {
 
 epoch_to_iso() {
     python3 -c 'import sys,datetime; print(datetime.datetime.fromtimestamp(int(sys.argv[1]), datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$1"
+}
+
+# Reject naive (timezone-less) ISO strings: require Z or numeric offset.
+require_tz() {
+    python3 -c 'import sys,datetime; dt=datetime.datetime.fromisoformat(sys.argv[1].replace("Z","+00:00")); sys.exit(0 if dt.tzinfo is not None else 1)' "$1" 2>/dev/null
+}
+
+iso_tz_or_die() { # what value -> die with a clear message on naive/invalid ISO
+    local what="$1" val="$2"
+    iso_to_epoch "$val" >/dev/null 2>&1 || die "$what must be ISO8601 (got: $val)"
+    require_tz "$val" || die "$what must include a timezone (trailing Z or +HH:MM offset), e.g. 2030-01-01T00:00:00Z — naive local-time timestamps are ambiguous and rejected (got: $val)"
 }
 
 # Read-only usage approximation from opencode.db (mode=ro URI, LIMIT queries).
@@ -104,6 +129,21 @@ last_record_for() {
         'select(.id == $id) | tojson' "$lf" 2>/dev/null | tail -n 1
 }
 
+# 0 (true) if a handoff record exists for the lease id.
+handoff_exists() {
+    local lf="$1" id="$2"
+    jq -e --arg id "$id" 'select(.handoff == true and .lease_id == $id) | true' "$lf" >/dev/null 2>&1
+}
+
+append_handoff() { # lf id trigger ts
+    local lf="$1" id="$2" trigger="$3" ts="$4"
+    local handoff
+    handoff="$(jq -S -c -n --arg lid "$id" --arg trg "$trigger" --arg ts "$ts" \
+        '{handoff: true, lease_id: $lid,
+          reason: "budget_exhausted", action: "checkpoint_handoff", trigger: $trg, ts: $ts}')"
+    append_record "$lf" "$handoff"
+}
+
 append_record() {
     local lf="$1" rec="$2"
     printf '%s\n' "$rec" >> "$lf"
@@ -120,7 +160,7 @@ parse_common() {
 }
 
 cmd_create() {
-    local session="" role="" budget="" expires="" leases="$DEFAULT_LEASES" db="$DEFAULT_DB" usage=false
+    local session="" role="" budget="" expires="" budget_msgs="null" leases="$DEFAULT_LEASES" db="$DEFAULT_DB" usage=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --session) session="${2:?}"; shift 2 ;;
@@ -130,12 +170,16 @@ cmd_create() {
             --leases) leases="${2:?}"; shift 2 ;;
             --db) db="${2:?}"; shift 2 ;;
             --usage-from-db) usage=true; shift ;;
+            --budget-messages) budget_msgs="${2:?}"; shift 2 ;;
             *) die "create: unexpected arg: $1" ;;
         esac
     done
     [[ -n "$session" && -n "$role" && -n "$budget" && -n "$expires" ]] \
         || die "create requires --session --role --soft-budget --expires-at"
-    iso_to_epoch "$expires" >/dev/null 2>&1 || die "--expires-at must be ISO8601 (got: $expires)"
+    iso_tz_or_die "--expires-at" "$expires"
+    if [[ "$budget_msgs" != "null" ]]; then
+        [[ "$budget_msgs" =~ ^[0-9]+$ ]] || die "--budget-messages must be a non-negative integer"
+    fi
     local id; id="$(new_lease_id)"
     local usage_json="null"
     if $usage; then
@@ -146,9 +190,11 @@ cmd_create() {
     rec="$(jq -S -c -n \
         --arg id "$id" --arg session "$session" --arg role "$role" \
         --argjson budget "$budget" --arg expires "$expires" \
+        --argjson budget_msgs "$budget_msgs" \
         --arg created "$(now_iso)" --argjson usage "$usage_json" \
         '{id: $id, session_id: $session, role: $role,
           soft_budget_tokens: $budget, expires_at: $expires,
+          budget_messages: $budget_msgs,
           state: "active", created_at: $created, usage: $usage}')" \
         || die "failed to build lease record"
     acquire_lock "$leases"
@@ -158,16 +204,19 @@ cmd_create() {
 }
 
 cmd_check() {
-    local id="" leases="$DEFAULT_LEASES" now=""
+    local id="" leases="$DEFAULT_LEASES" now="" db="$DEFAULT_DB" usage=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --id) id="${2:?}"; shift 2 ;;
             --leases) leases="${2:?}"; shift 2 ;;
             --now) now="${2:?}"; shift 2 ;;
+            --db) db="${2:?}"; shift 2 ;;
+            --usage-from-db) usage=true; shift ;;
             *) die "check: unexpected arg: $1" ;;
         esac
     done
     [[ -n "$id" ]] || die "check requires --id"
+    [[ -n "$now" ]] && iso_tz_or_die "--now" "$now"
     [[ -f "$leases" ]] || die "no leases file at $leases"
     [[ -n "$now" ]] || now="$(now_iso)"
 
@@ -176,26 +225,40 @@ cmd_check() {
     last="$(last_record_for "$leases" "$id")"
     [[ -n "$last" ]] || { release_lock; die "no lease with id $id in $leases"; }
 
-    local state expires now_e exp_e
+    local state expires budget_msgs
     state="$(jq -r '.state' <<<"$last")"
     expires="$(jq -r '.expires_at' <<<"$last")"
 
     if [[ "$state" == "active" ]]; then
+        local now_e exp_e trigger=""
         now_e="$(iso_to_epoch "$now")" || { release_lock; die "bad --now: $now"; }
         exp_e="$(iso_to_epoch "$expires")" || { release_lock; die "bad expires_at: $expires"; }
         if (( now_e > exp_e )); then
+            trigger="time"
+        elif $usage; then
+            budget_msgs="$(jq -r '.budget_messages // empty' <<<"$last")"
+            if [[ -n "$budget_msgs" && "$budget_msgs" != "null" ]]; then
+                local live_mc
+                live_mc="$(usage_from_db "$db" "$(jq -r '.session_id' <<<"$last")" | jq -r '.message_count')" \
+                    || { release_lock; die "usage query failed"; }
+                if (( live_mc > budget_msgs )); then trigger="budget"; fi
+            fi
+        fi
+        if [[ -n "$trigger" ]]; then
             # State transition: expired + checkpoint-handoff record. NEVER a
             # kill instruction — respawn/kill decisions stay with the orchestrator.
             local exp_rec
             exp_rec="$(jq -S -c '.state = "expired"' <<<"$last")"
             append_record "$leases" "$exp_rec"
-            local handoff
-            handoff="$(jq -S -c -n --arg lid "$id" --arg ts "$now" \
-                '{handoff: true, lease_id: $lid,
-                  reason: "budget_exhausted", action: "checkpoint_handoff", ts: $ts}')"
-            append_record "$leases" "$handoff"
+            append_handoff "$leases" "$id" "$trigger" "$now"
             last="$exp_rec"
         fi
+    elif [[ "$state" == "expired" ]] && ! handoff_exists "$leases" "$id"; then
+        # Healing: the expired→handoff append pair was interrupted (crash window).
+        # Emit the missing handoff once; idempotent on the normal path.
+        local trg="time"
+        if (( $(iso_to_epoch "$now") <= $(iso_to_epoch "$expires") )); then trg="budget"; fi
+        append_handoff "$leases" "$id" "$trg" "$now"
     fi
     release_lock
     printf '%s\n' "$last"
@@ -215,6 +278,7 @@ cmd_renew() {
     [[ -n "$id" && -n "$minutes" ]] || die "renew requires --id --extend-minutes"
     [[ "$minutes" =~ ^[0-9]+$ ]] || die "--extend-minutes must be a non-negative integer"
     [[ -f "$leases" ]] || die "no leases file at $leases"
+    [[ -n "$now" ]] && iso_tz_or_die "--now" "$now"
     [[ -n "$now" ]] || now="$(now_iso)"
 
     acquire_lock "$leases"
@@ -245,6 +309,7 @@ cmd_release() {
     done
     [[ -n "$id" ]] || die "release requires --id"
     [[ -f "$leases" ]] || die "no leases file at $leases"
+    [[ -n "$now" ]] && iso_tz_or_die "--now" "$now"
     [[ -n "$now" ]] || now="$(now_iso)"
 
     acquire_lock "$leases"
