@@ -115,13 +115,13 @@ codegraph, and tests are repo-scoped):
 | Item | Repo | Status |
 |---|---|---|
 | Escalation `confidence ≥ 0.7` filter in ledger-tailer | voice-bridge | **done** — `ESCALATION_CONFIDENCE_THRESHOLD = 0.7` gate in [`src/pipeline/interrupts.ts:23`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/interrupts.ts) (TICK_DECIDED + ESCALATE + confidence ≥ 0.7, per final-design.md Amendment 2 §A) |
-| `prompt_supervisor` write-path guardrail | this repo (design doc) | **REQUIRED, not done** — current implementation ([`src/pipeline/tools/prompt-supervisor.ts:20-46`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/tools/prompt-supervisor.ts)) is UNGATED: it writes into a supervisor console session directly via `promptAsync` (creates the `[Supervisor]` console session if absent). Future gate: replies become correlated queue events routed by the reply-router (Seam 4 — the router is now LIVE in the supervisor service), not free-form console writes |
+| `prompt_supervisor` write-path guardrail | this repo (design doc) | **contract defined, implementation pending** — design note: [docs/prompt-supervisor-write-path-guardrail.md](prompt-supervisor-write-path-guardrail.md); contract rule in Seam 4 (Amendment 2026-09-25): replies become correlated queue events routed by the reply-router (Seam 4 — the router is LIVE in the supervisor service), never free-form console writes. Current implementation ([`src/pipeline/tools/prompt-supervisor.ts:20-46`](file:///home/ezotoff/AI_projects/voice-bridge/src/pipeline/tools/prompt-supervisor.ts)) remains UNGATED (direct `promptAsync` into the `[Supervisor]` console session) until the bridge lands the gate in its own session |
 | Voice widget + context feed in remote UI | omo-pulse | not started |
 | Show-view renderer (Seam 2 frames) | omo-pulse | not started |
 | Real-voice dogfood → MANIFEST evidence upgrade | this repo | blocked on (voice widget row) |
 | Attention projection consumption (Seam 4 read → attention view) | omo-pulse | not started (schema defined above) |
 | Ledger-tailer → `QUEUE_*` projection upgrade (escalations from the queue, not raw TICK_DECIDED) | voice-bridge | not started |
-| OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon | not started — required for walking rung |
+| OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon | **contract defined, implementation pending** — reply ingress defined in Seam 4 (Amendment 2026-09-25): reply-inbox session over the app's existing OpenCode connection, envelope/plain-text shapes, alias/contextTag correlation, clientMessageID dedup; needs supervisor `BeaconChannel` + oc-beacon send path |
 | OC Beacon walking-rung prep (spoken replies via Vox, small-screen polish) | oc-beacon + voice-bridge | not started |
 
 ## Seam 4 — Attention queue (Supervisor-owned)
@@ -149,11 +149,85 @@ OC Beacon is an **AMBIENT/VISUAL, read-only** consumer. It uses the app's existi
 
 For native decision cards, every new `TICK_DECIDED` ledger payload includes `root` alongside `decision`, `sessionID`, and `messageID`. Existing ledger rows may omit `root`; consumers display an unknown-project fallback for those historical rows. The surface does not acquire presentation leases or write queue lifecycle events.
 
+#### OC Beacon answer capture — reply ingress (Amendment 2026-09-25)
+
+Defines how a native-app answer (tap on a choice card, or a typed reply) becomes a
+correlated `ReplyEvent` (`reply_<id>`) the live reply-router consumes. Design constraint:
+OC Beacon keeps its read-transport posture — **no new supervisor listener, daemon, port, or
+credential in the app**. The ingress therefore reuses the app's existing authenticated
+OpenCode connection, in the write direction, via the same session API the supervisor's
+console channel already polls.
+
+**Transport: per-root reply-inbox session.** OC Beacon sends each answer as one top-level
+`user` message (promptAsync) into a dedicated inbox session per target root, titled
+`[Beacon replies] <basename(root)>` (created on first reply if absent; the title prefix MUST
+NOT be `[Supervisor]`, which the supervisor excludes as its own chatter). The supervisor
+extends its existing `pollReplies` watermark pattern to observe inbox-session user turns —
+the same mechanism it uses for console replies — through a `BeaconChannel` (channel class
+AMBIENT/VISUAL per Addendum A; presents nothing, collects replies only). Inbox sessions are
+excluded from ordinary supervision, exactly like `[Supervisor]` console sessions.
+
+**Message shape.** One reply per message, either:
+
+1. *Envelope* (preferred; single JSON object as the whole message text):
+
+```jsonc
+{ "v": 1,
+  "clientMessageID": "<uuidv7>",          // client-generated, used for dedup
+  "kind": "text|choice|speech",           // ReplyInput kinds per the queue spec §5
+  "text": "use Qdrant",                    // text / transcript; for choice: omit, use index
+  "index": 1,                              // choice only, 0-based into the card's options
+  "contextTag": "pres_…",                 // optional, from the surfaced presentation
+  "explicitItemID": "att_…" }              // optional, when the card names the item
+```
+
+2. *Plain-text fallback* (no envelope): `Q<n>:`-prefixed answer, bare answer, or disposition
+   keyword (SKIP / HOLD / DND) — parsed by the same normalizer as console replies.
+
+**Correlation with the queue item.** Resolution order matches the queue spec §5:
+`explicitItemID` wins; then `contextTag` if it maps to the currently surfaced presentation;
+then the `Q<n>` alias (resolved through the supervisor's per-root alias table in `consoles.json`);
+then the standard rules (a bare answer correlates to the single globally surfaced item;
+otherwise `ambiguous` — never guessed, `QUEUE_REPLY_AMBIGUOUS` recorded, the app is asked to
+re-present with `Q<n>:` or a numbered choice). Ledger events are unchanged
+(`QUEUE_REPLY_RECEIVED` / `QUEUE_REPLY_AMBIGUOUS` with `channelID: "beacon"`).
+
+**Auth.** Inherited from the app's existing OpenCode server connection — the same credential
+used for the file-read transport. The supervisor accepts replies only from its designated
+inbox sessions (matched by the title convention above) and ignores any other session content.
+Spoken replies are out of scope for this ingress (they ride the Vox channel); the envelope's
+`speech` kind exists so a future transcribe-then-send path needs no schema change.
+
+**Idempotency and dedup.** Delivery is at-least-once: the client may retransmit after a
+timeout using the SAME `clientMessageID`. The supervisor records processed `clientMessageID`s
+and drops duplicates; the watermark on the inbox session prevents replay of already-observed
+messages; and the reply-router's transitions are idempotent by construction (transition key
+`(itemID, itemVersion, fromState, eventID)`; a duplicate reply-event key returns the prior
+route result per the queue spec §7/§10). Late replies to terminal items are recorded, never
+re-routed.
+
+Implementation is pending: supervisor-side `BeaconChannel` (its own repo/sessions) and the
+OC Beacon send path (oc-beacon repo). The contract shape above is binding before either lands.
+
 ### Vox as a consumer (never the queue owner)
 
 - `surface()` maps an item to a Seam 2 `show` frame + `contextTag`; `collectReply()` converts speech/choices/confirmations into **correlated reply events** (`ReplyEvent`, `reply_<id>`) — never direct writes into worker sessions.
 - **Vox defer-as-request**: Vox may defer while speaking, mid-dialog, or when the operator is away. Deferral releases the lease, sets `notBefore`, and records `CHANNEL_DEFERRED` — it is a **scheduling request, never a retire**; the item stays queued and keeps aging.
 - Code-affecting spoken answers still pass Vox's existing `propose_mutation` confirmation gate.
+
+#### Write-path rule — replies are queue events, never console writes (Amendment 2026-09-25)
+
+Any consumer that speaks on the operator's behalf — Vox (`prompt_supervisor` tool today),
+OC Beacon, omo-pulse — MUST deliver an operator reply as a **correlated queue reply event**
+(`ReplyEvent`, routed by the reply-router) and MUST NOT write free-form text into a
+`[Supervisor]` console session or a worker session. Consumers are reply *sources*, not write
+paths: they submit a reply through the channel ingress defined for their class (Vox:
+`collectReply()` per the queue spec §8; OC Beacon: the reply-inbox transport above) and the
+supervisor alone decides correlation, revalidation, and propagation. Text that correlates to
+nothing is `QUEUE_REPLY_AMBIGUOUS` — recorded, never written anywhere, never guessed.
+Direct `promptAsync` into console/worker sessions is reserved to the supervisor service
+(single writer) and to the supervisor's own gated propagation path. Design note for the
+voice-bridge gate: [docs/prompt-supervisor-write-path-guardrail.md](prompt-supervisor-write-path-guardrail.md).
 
 ### Dispositions
 
