@@ -411,7 +411,7 @@ PY
         # mismatch with the manifest model invalidates the case — the SUT is
         # never silently substitutable.
         if [[ "$phase_kind" == "sut" ]]; then
-          echoed="$(grep -m1 '^BENCH_SUT_MODEL=' "$stdout_log" | cut -d= -f2- || true)"
+          echoed="$(grep -am1 '^BENCH_SUT_MODEL=' "$stdout_log" | cut -d= -f2- || true)"
           if [[ -z "$echoed" ]]; then
             printf 'sut-model-echo-missing: no BENCH_SUT_MODEL marker in runner stdout; SUT identity unverifiable (operator decision f)\n' >>"$stderr_log"
             exit_code=1
