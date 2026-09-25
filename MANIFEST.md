@@ -156,6 +156,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 29b | patches.md | (repo only) | `docs/` | (repo only) | Documentation — patch index (thin index over `.sisyphus/patches/`) | Required |
 | 29c | reviews.md | (repo only) | `docs/` | (repo only) | Documentation — plan-review ledger spec (`.omo/plans/<plan>.reviews.md`; 4+2 budget, REJECT schema; enforced by `scripts/execution-record-lint.sh` — W2 lane) | Required |
 | 29d | workorders.md | (repo only) | `docs/` | (repo only) | Documentation — `--lite` lane workorder spec (`.omo/workorders/`; intent/budget/status contract; validated by `scripts/workorder-lint.sh` — W3 lane) | Required |
+| 29e | prompt-supervisor-write-path-guardrail.md | (repo only) | `docs/` | (repo only) | Design note — `prompt_supervisor` write-path guardrail (replies become correlated queue events routed by the reply-router, never free-form console writes; bridge implements later per contract Amendment 2026-09-25) | Required |
 | 30 | dcp-byte-budget.md | (repo only) | `docs/history/` | (repo only) | RETIRED 2026-06-23 — DCP byte-budget reference (historical) | Archived |
 | 30b | history/ | (repo only) | `docs/history/` | (repo only) | Dated snapshots: incidents, retired DCP, update migrations, architecture reviews | Archived |
 | 53 | `verify-live-patches.sh` | `~/.sisyphus/scripts/` | `scripts/` | `$HOME/.sisyphus/scripts/` | Rewritten patch verifier with all 7 structural fixes | Required |
