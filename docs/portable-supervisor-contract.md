@@ -121,7 +121,7 @@ codegraph, and tests are repo-scoped):
 | Real-voice dogfood → MANIFEST evidence upgrade | this repo | blocked on (voice widget row) |
 | Attention projection consumption (Seam 4 read → attention view) | omo-pulse | not started (schema defined above) |
 | Ledger-tailer → `QUEUE_*` projection upgrade (escalations from the queue, not raw TICK_DECIDED) | voice-bridge | not started |
-| OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon | **contract defined, implementation pending** — reply ingress defined in Seam 4 (Amendment 2026-09-25): reply-inbox session over the app's existing OpenCode connection, envelope/plain-text shapes, alias/contextTag correlation, clientMessageID dedup; needs supervisor `BeaconChannel` + oc-beacon send path |
+| OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon + ez-omo-config | **implementation done, runtime observation pending** — send path SHIPPED in oc-beacon (`0ab9780c`); supervisor-side `BeaconChannel` implemented in ez-omo-config (`supervisor/src/beacon.ts`, 2026-09-26): inbox discovery + watermark + envelope/plain-text + `clientMessageID` dedup + correlation (explicitItemID → contextTag → alias → §5) routed through the shared reply-router with `channelID: "beacon"`; repo_implemented + tests_passed, not yet observed on a live beacon reply |
 | OC Beacon walking-rung prep (spoken replies via Vox, small-screen polish) | oc-beacon + voice-bridge | not started |
 
 ## Seam 4 — Attention queue (Supervisor-owned)
@@ -206,8 +206,14 @@ messages; and the reply-router's transitions are idempotent by construction (tra
 route result per the queue spec §7/§10). Late replies to terminal items are recorded, never
 re-routed.
 
-Implementation is pending: supervisor-side `BeaconChannel` (its own repo/sessions) and the
-OC Beacon send path (oc-beacon repo). The contract shape above is binding before either lands.
+Implementation status (updated 2026-09-26): the OC Beacon send path is SHIPPED (oc-beacon
+commit `0ab9780c` — per-root reply-inbox sessions over the app's existing OpenCode
+connection). The supervisor-side `BeaconChannel` is implemented in ez-omo-config
+(`supervisor/src/beacon.ts` + `supervisor/test/beacon-channel.test.ts`): inbox discovery by
+title convention, watermark polling, v1-envelope parsing with `clientMessageID` dedup,
+correlation order as specified, routing through the shared reply-router with
+`channelID: "beacon"`. Runtime observation on a live beacon reply is still pending
+(status: repo_implemented + tests_passed). The contract shape above remains binding.
 
 ### Vox as a consumer (never the queue owner)
 

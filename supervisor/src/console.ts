@@ -109,6 +109,14 @@ export type RouteOutcome =
   | { readonly kind: "unmatched" }
   | { readonly kind: "resumed" }
 
+/** Options for handleReply when another channel reuses the shared reply router.
+ *  channelID labels the ledger events; promptChoice=false suppresses the
+ *  console-side "which item?" prompt (e.g. BeaconChannel re-presents via its own cards). */
+export type HandleReplyOptions = {
+  readonly channelID?: string
+  readonly promptChoice?: boolean
+}
+
 const TICKET_PREFIX = /^q\d+\b\s*:?\s*/i
 const ITEM_ID = /^(att_[a-z0-9]+)/i
 
@@ -386,6 +394,10 @@ export class ConsoleChannel {
     return { kind: "surfaced", item, presentationID: lease.lease.presentationID, alias }
   }
 
+  aliasTable(): Readonly<Record<string, Readonly<Record<string, string>>>> {
+    return this.state.aliases
+  }
+
   /** Poll the root's console for new operator turns; first observation sets the watermark. */
   async pollReplies(root: string, now: ISO8601): Promise<readonly ReplyEvent[]> {
     const consoleID = this.state.consoles[root]
@@ -443,32 +455,35 @@ export class ConsoleChannel {
     return recovered
   }
 
-  /** Correlate → mark answered → revalidate → route. Never guesses on ambiguity. */
-  async handleReply(reply: ReplyEvent, now: ISO8601): Promise<RouteOutcome> {
+  /** Correlate → mark answered → revalidate → route. Never guesses on ambiguity.
+   *  Shared reply-router: BeaconChannel routes its replies through this method
+   *  with { channelID: "beacon", promptChoice: false } (Seam 4, Amendment 2026-09-25). */
+  async handleReply(reply: ReplyEvent, now: ISO8601, options: HandleReplyOptions = {}): Promise<RouteOutcome> {
+    const channelID = options.channelID ?? CHANNEL_ID
     if (isResume(reply.normalizedText)) {
       this.state = { consoles: this.state.consoles, counters: this.state.counters, aliases: this.state.aliases, watermarks: this.state.watermarks, dnd: false }
       await this.persist()
-      this.setLedger(await this.ledger().append("QUEUE_REPLY_RECEIVED", { replyEventID: reply.id, channelID: CHANNEL_ID, action: "resume" }))
+      this.setLedger(await this.ledger().append("QUEUE_REPLY_RECEIVED", { replyEventID: reply.id, channelID, action: "resume" }))
       return { kind: "resumed" }
     }
     if (reply.correlation.status === "ambiguous") {
-      this.setLedger(await this.ledger().append("QUEUE_REPLY_AMBIGUOUS", { replyEventID: reply.id, root: reply.root, candidates: reply.correlation.candidateItemIDs }))
-      await this.requestChoice(reply)
+      this.setLedger(await this.ledger().append("QUEUE_REPLY_AMBIGUOUS", { replyEventID: reply.id, root: reply.root, channelID, candidates: reply.correlation.candidateItemIDs }))
+      if (options.promptChoice !== false) await this.requestChoice(reply)
       return { kind: "ambiguous", candidates: reply.correlation.candidateItemIDs }
     }
     if (reply.correlation.status === "unmatched") {
-      this.setLedger(await this.ledger().append("QUEUE_REPLY_AMBIGUOUS", { replyEventID: reply.id, root: reply.root, reason: "no item correlates" }))
+      this.setLedger(await this.ledger().append("QUEUE_REPLY_AMBIGUOUS", { replyEventID: reply.id, root: reply.root, channelID, reason: "no item correlates" }))
       return { kind: "unmatched" }
     }
     const itemID = reply.correlation.itemID
     const current = this.queue.items.find((entry) => entry.id === itemID)
     if (current === undefined || itemState(current) === "resolved" || itemState(current) === "answered") {
-      this.setLedger(await this.ledger().append("QUEUE_REPLY_AMBIGUOUS", { replyEventID: reply.id, root: reply.root, reason: "item is already terminal" }))
+      this.setLedger(await this.ledger().append("QUEUE_REPLY_AMBIGUOUS", { replyEventID: reply.id, root: reply.root, channelID, reason: "item is already terminal" }))
       return { kind: "unmatched" }
     }
     const disposition = parseDisposition(reply.normalizedText)
     if (disposition !== undefined) return this.applyDisposition(disposition, itemID, reply, now)
-    const answered = await this.queue.markAnswered(itemID, reply.id, CHANNEL_ID, now)
+    const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
     const lease = this.queue.lease
     if (lease !== undefined && lease.itemID === itemID) await this.queue.defer(lease.presentationID, now, now)
     const sources = await this.probe(answered)

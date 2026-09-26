@@ -15,6 +15,7 @@ import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
 import { continueCapKey, continueWriteText, gateContinueWrite } from "./continue-writes"
 import { ConsoleChannel } from "./console"
+import { BeaconChannel, BEACON_CHANNEL_ID } from "./beacon"
 import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
 import { ContinuationBridge, readJournalEntries } from "./journalbridge"
@@ -236,8 +237,18 @@ export async function runService(signal: AbortSignal): Promise<void> {
   await consoles.load()
   const recovered = await consoles.recoverAnswered()
   if (recovered > 0) {
-    ledger = await ledger.append("ERROR", { reason: "startup recovery", recovered, note: "items found in answered state after restart — re-routed" })
   }
+
+  // OC Beacon answer capture (Seam 4, Amendment 2026-09-25): polls per-root
+  // reply-inbox sessions and routes replies through the shared reply-router.
+  const beacon = new BeaconChannel({
+    client,
+    queue,
+    statePath: join(stateDirectory, "beacon.json"),
+    aliases: () => consoles.aliasTable(),
+    route: (reply, now) => consoles.handleReply(reply, now, { channelID: "beacon", promptChoice: false }),
+  })
+  await beacon.load()
 
   // Continuation journal→ledger bridge (task 10): escalate-only, no session writes.
   const bridge = new ContinuationBridge({
@@ -265,7 +276,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       manifest = await reconcileRoot(client, root, emptyRegistry, {
         initialWindowDays: config.initial_window_days,
         fetchConcurrency: config.fetch_concurrency,
-      }, consoles.allSessionIDs())
+      }, new Set([...consoles.allSessionIDs(), ...beacon.allSessionIDs()]))
       rootBackoff.delete(root)
     } catch (error) {
       const b = rootBackoff.get(root) ?? { failures: 0, nextAttemptAt: 0 }
@@ -608,7 +619,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         const runtime = runtimes.get(root.path)
         if (runtime === undefined) continue
         try {
-          const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs()])
+          const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs(), ...beacon.allSessionIDs()])
           const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now(), config.stall_minutes * 60_000)
           activityGate.observe(signals, Date.now())
           for (const sig of signals) {
@@ -626,6 +637,12 @@ export async function runService(signal: AbortSignal): Promise<void> {
           const replies = await consoles.pollReplies(root.path, new Date().toISOString())
           for (const reply of replies) {
             await consoles.handleReply(reply, new Date().toISOString())
+          }
+          // OC Beacon reply-inbox ingestion (Seam 4, Amendment 2026-09-25) — same
+          // tick cadence as the console channel; routing shares the reply-router.
+          const beaconReplies = await beacon.poll(root.path, new Date().toISOString())
+          for (const reply of beaconReplies) {
+            await beacon.handleReply(reply, new Date().toISOString())
           }
         } catch (error) {
           if (error instanceof Error) {
