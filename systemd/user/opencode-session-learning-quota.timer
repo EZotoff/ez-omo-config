@@ -1,0 +1,9 @@
+[Unit]
+Description=Probe Z.AI quota every 30 min; quota-sweep acts only inside the 30-120 min pre-reset window
+
+[Timer]
+OnCalendar=*-*-* *:00/30
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

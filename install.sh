@@ -143,8 +143,11 @@ ITEMS=(
     "scripts|scripts/session-learning/extract-digest.py|$HOME/.sisyphus/scripts/session-learning/extract-digest.py"
     "scripts|scripts/session-learning/analyst-prompt.md|$HOME/.sisyphus/scripts/session-learning/analyst-prompt.md"
     "scripts|scripts/session-learning/nightly-sweep.sh|$HOME/.sisyphus/scripts/session-learning/nightly-sweep.sh"
+    "scripts|scripts/session-learning/quota-sweep.sh|$HOME/.sisyphus/scripts/session-learning/quota-sweep.sh"
     "scripts|systemd/user/opencode-session-learning.service|$HOME/.config/systemd/user/opencode-session-learning.service"
     "scripts|systemd/user/opencode-session-learning.timer|$HOME/.config/systemd/user/opencode-session-learning.timer"
+    "scripts|systemd/user/opencode-session-learning-quota.service|$HOME/.config/systemd/user/opencode-session-learning-quota.service"
+    "scripts|systemd/user/opencode-session-learning-quota.timer|$HOME/.config/systemd/user/opencode-session-learning-quota.timer"
     "scripts|systemd/user/opencode-continuation-checkpoint.service|$HOME/.config/systemd/user/opencode-continuation-checkpoint.service"
     "scripts|systemd/user/opencode-continuation-checkpoint.timer|$HOME/.config/systemd/user/opencode-continuation-checkpoint.timer"
 

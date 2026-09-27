@@ -1,0 +1,10 @@
+[Unit]
+Description=OpenCode Session Learning — opportunistic quota-burn sweep (parallel backlog drain inside the Z.AI pre-reset window)
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/ez-omo-config/scripts/session-learning/quota-sweep.sh
+StandardOutput=append:%h/.local/share/opencode/session-learning-quota.log
+StandardError=inherit
+TimeoutStartSec=2h

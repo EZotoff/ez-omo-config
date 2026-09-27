@@ -632,6 +632,7 @@ Finalized agent sessions leak learnings — capture was voluntary and audited se
 - **Obligations**: still-active background units referenced in a session (systemd-run/durable-run) are checked via `systemctl --user is-active` and reported as obligations, never as results.
 - **Supersession**: disabled (`--no-supersede`); the script's Jaccard ≥0.70 auto-replace is unsafe for unattended use. Lifecycle hygiene is `wisdom-gc.sh`'s job.
 - **Mid-session nudge**: skill-nudger `learningCapture` signal (failure-streak-just-resolved, long-running-job launched) nudges one immediate wisdom capture with its own 1/session budget. Advisory only; the nightly sweep is the reliable backstop.
+- **Quota-opportunistic drain**: `quota-sweep.sh` (30-min probe timer) launches a parallel analyst pool (5 workers) only when the Z.AI 5h rolling reset is 30–120 min away, burning otherwise-expiring quota on the backlog. Guards: usage ceiling 90% (headroom for live agents on the same provider), max-batch 30/run, scaled caps (12 global / 2 per session), shared flock with the nightly sweep, lock-guarded ledger writes. `--analyst-cmd` default is `opencode run` — dropping the `run` token is a guarded regression (`tests/test_quota_sweep.sh`).
 - **Acceptance gates (automated)**: `tests/test_session_learning.sh` — incl. digest-recall validation against the three audited sessions that motivated the design.
 
 ## Skill Integration

@@ -25,6 +25,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,7 +38,20 @@ DEFAULT_WORKDIR = os.path.expanduser(
 DEFAULT_LOG = os.path.expanduser("~/.local/share/opencode/session-learning.log")
 DEFAULT_MODEL = "zai-coding-plan/glm-5.3-flash"
 WISDOM_SYSTEM_STORE = os.path.expanduser("~/.sisyphus/wisdom/system.jsonl")
-WISDOM_CLOSEOUT = os.path.expanduser("~/.sisyphus/scripts/wisdom-closeout.sh")
+def _locate_wisdom_closeout() -> str:
+    """Co-located bundle first (repo: scripts/wisdom/, installed: sibling), then installed default."""
+    here = Path(__file__).resolve().parent
+    for candidate in (
+        here.parent / "wisdom" / "wisdom-closeout.sh",
+        here.parent / "wisdom-closeout.sh",
+        here / "wisdom-closeout.sh",
+    ):
+        if candidate.exists():
+            return str(candidate)
+    return os.path.expanduser("~/.sisyphus/scripts/wisdom-closeout.sh")
+
+
+WISDOM_CLOSEOUT = _locate_wisdom_closeout()
 ANALYST_TITLE_PREFIX = "[session-learning]"
 
 EXCLUDE_DIR_PREFIXES = [
@@ -567,8 +581,7 @@ def run_analyst(args, session_id: str, digest_path: str, prior: list) -> dict:
     cmd = [
         "timeout",
         str(args.analyst_timeout),
-        "opencode",
-        "run",
+        *getattr(args, "analyst_cmd", "opencode").split(),
         "--dir",
         args.workdir,
         "--model",
@@ -579,8 +592,9 @@ def run_analyst(args, session_id: str, digest_path: str, prior: list) -> dict:
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
+        output = (proc.stderr or "") + (proc.stdout or "")
         raise RuntimeError(
-            f"analyst exit {proc.returncode}: {truncate(proc.stderr or proc.stdout, 300)}"
+            f"analyst exit {proc.returncode}: {truncate(output.strip()[-400:], 300)}"
         )
     obj = extract_json_object(proc.stdout)
     if obj is None:
@@ -828,6 +842,250 @@ def cmd_sweep(args) -> None:
     print(summary)
 
 
+# ---------------------------------------------------------------- quota-sweep
+
+QUOTAS_SH = os.path.expanduser("~/.sisyphus/scripts/quotas.sh")
+QUOTA_PROVIDER = "zai-coding-plan"
+QUOTA_WINDOW_ID = "5h"
+
+
+def zai_window_state(probe_cmd: str):
+    """Return {'used': int, 'reset_min': float} for the Z.AI 5h window, or None."""
+    try:
+        proc = subprocess.run(
+            probe_cmd.split(), capture_output=True, text=True, timeout=120
+        )
+        data = json.loads(proc.stdout)
+    except Exception:  # noqa: BLE001 — probe failures mean "do not run"
+        return None
+    for provider in data.get("providers", []):
+        if provider.get("providerId") != QUOTA_PROVIDER:
+            continue
+        for window in provider.get("windows", []):
+            if window.get("id") != QUOTA_WINDOW_ID:
+                continue
+            reset_ms = window.get("resetsAtMs")
+            used = window.get("usedPercent")
+            if reset_ms is None or used is None:
+                return None
+            return {
+                "used": int(used),
+                "reset_min": (int(reset_ms) - time.time() * 1000) / 60000,
+            }
+    return None
+
+
+def in_quota_window(state: dict, min_min: float, max_min: float, usage_ceiling: int) -> bool:
+    if state is None:
+        return False
+    if not (min_min <= state["reset_min"] <= max_min):
+        return False
+    if state["used"] >= usage_ceiling:
+        return False
+    return True
+
+
+def _quota_analyze_task(args, s, cands_path, ledger_path, lock):
+    """Worker: digest + analyst + ledger row for one session. Thread-safe via lock."""
+    sid = s["session_id"]
+    try:
+        conn = connect_ro(args.db)
+        digest = build_digest(conn, sid)
+        conn.close()
+    except Exception as exc:  # noqa: BLE001
+        with lock:
+            append_ledger(
+                ledger_path,
+                {
+                    "session_id": sid,
+                    "last_time_updated": s["time_updated"],
+                    "digest_sha256": None,
+                    "status": "analyst_failed",
+                    "error": truncate(str(exc), 200),
+                    "candidate_ids": [],
+                    "attempts": ledger_attempts(ledger_path, sid) + 1,
+                },
+            )
+        return None
+    digest_path = str(Path(args.state_dir) / "digests" / f"{sid}.json")
+    Path(digest_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(digest_path).write_text(json.dumps(digest, ensure_ascii=False))
+    digest_sha = hashlib.sha256(json.dumps(digest, ensure_ascii=False).encode()).hexdigest()
+    if args.dry_run:
+        with lock:
+            append_ledger(
+                ledger_path,
+                {
+                    "session_id": sid,
+                    "last_time_updated": s["time_updated"],
+                    "digest_sha256": digest_sha,
+                    "status": "dry_run",
+                    "candidate_ids": [],
+                    "attempts": 1,
+                },
+            )
+        return None
+    try:
+        result = run_analyst(args, sid, digest_path, prior_captures(sid))
+    except Exception as exc:  # noqa: BLE001
+        with lock:
+            append_ledger(
+                ledger_path,
+                {
+                    "session_id": sid,
+                    "last_time_updated": s["time_updated"],
+                    "digest_sha256": digest_sha,
+                    "status": "analyst_failed",
+                    "error": truncate(str(exc), 200),
+                    "candidate_ids": [],
+                    "attempts": ledger_attempts(ledger_path, sid) + 1,
+                },
+            )
+        return None
+    candidates = [c for c in (result.get("candidates") or []) if valid_candidate(c)]
+    obligations = result.get("obligations") or []
+    with lock:
+        with open(cands_path, "a") as fh:
+            fh.write(json.dumps({"session_id": sid, "candidates": candidates}, ensure_ascii=False) + "\n")
+        append_ledger(
+            ledger_path,
+            {
+                "session_id": sid,
+                "last_time_updated": s["time_updated"],
+                "digest_sha256": digest_sha,
+                "status": "analyzed" if candidates else "no_candidates",
+                "obligations": obligations if isinstance(obligations, list) else [],
+                "candidate_ids": [],
+                "attempts": 1,
+                "runner": "quota",
+            },
+        )
+    return None
+
+
+def cmd_quota_sweep(args) -> None:
+    """Opportunistic parallel backlog drain inside the pre-reset quota window."""
+    state = zai_window_state(args.probe_cmd)
+    if not in_quota_window(state, args.window_min_min, args.window_min_max, args.usage_ceiling):
+        print(
+            f"quota-sweep: no window (state={state}, window {args.window_min_min}-{args.window_min_max}min, ceiling {args.usage_ceiling}%); exiting"
+        )
+        return
+    print(f"quota-sweep: window active (state={state})")
+
+    state_dir = Path(args.state_dir)
+    (state_dir / "digests").mkdir(parents=True, exist_ok=True)
+    Path(args.workdir).mkdir(parents=True, exist_ok=True)
+    ledger_path = args.ledger or str(state_dir / "ledger.jsonl")
+    lock = threading.Lock()
+
+    import io
+    from concurrent.futures import ThreadPoolExecutor
+    from contextlib import redirect_stdout
+
+    launched = 0
+    all_candidates_path = state_dir / f"quota-candidates-{int(time.time())}.jsonl"
+    active_units: list = []
+
+    while launched < args.max_batch:
+        # Re-probe between waves; stop when the window closes or headroom is gone.
+        state = zai_window_state(args.probe_cmd)
+        if not in_quota_window(state, args.window_min_min, args.window_min_max, args.usage_ceiling):
+            print(f"quota-sweep: window closed mid-run (state={state})")
+            break
+
+        select_args = argparse.Namespace(
+            db=args.db,
+            ledger=ledger_path,
+            stale_hours=args.stale_hours,
+            limit=args.max_batch - launched,
+            workdir=args.workdir,
+        )
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            cmd_select(select_args)
+        sessions = [
+            json.loads(line)
+            for line in buf.getvalue().splitlines()
+            if line.strip() and not json.loads(line).get("covered_by")
+        ]
+        if not sessions:
+            print("quota-sweep: backlog drained")
+            break
+        # Finish-before-reset estimate: concurrency * minutes left / avg per-run.
+        fit = max(1, int(state["reset_min"] / args.avg_min * args.concurrency))
+        batch = sessions[: min(len(sessions), fit, args.max_batch - launched)]
+        print(
+            f"quota-sweep: wave of {len(batch)} (fit={fit}, reset_in={state['reset_min']:.0f}min, used={state['used']}%)"
+        )
+        with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+            futures = [
+                pool.submit(_quota_analyze_task, args, s, str(all_candidates_path), ledger_path, lock)
+                for s in batch
+            ]
+            for fut in futures:
+                fut.result()
+        launched += len(batch)
+
+    if args.dry_run or launched == 0 or not all_candidates_path.exists():
+        print(f"quota-sweep: done (launched={launched}, dry_run={args.dry_run})")
+        return
+
+    # Rank + write with the opportunistic caps.
+    rank_args = argparse.Namespace(
+        candidates=str(all_candidates_path),
+        global_cap=args.global_cap,
+        per_session_cap=args.per_session_cap,
+    )
+    rbuf = io.StringIO()
+    with redirect_stdout(rbuf):
+        cmd_rank(rank_args)
+    ranking = json.loads(rbuf.getvalue())
+    written = proposals = write_failures = 0
+    for item in ranking["selected"]:
+        sid = item["session_id"]
+        cand = item["candidate"]
+        tags = ["session-learning", cand.get("type") or "fact"]
+        if cand.get("route") == "proposal":
+            tags.append(f"proposal:{cand.get('proposal_kind', 'policy')}")
+        cmd = [
+            WISDOM_CLOSEOUT,
+            "--no-supersede",
+            "--scope",
+            "system",
+            "--type",
+            cand.get("type") or "fact",
+            "--tags",
+            ",".join(tags),
+            "--session-id",
+            sid,
+            "--source",
+            "closeout:quota-sweep",
+            "--content",
+            cand["claim"],
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode == 0:
+            new_id = proc.stdout.strip().splitlines()[-1] if proc.stdout.strip() else ""
+            if cand.get("route") == "proposal":
+                proposals += 1
+            else:
+                written += 1
+            with lock:
+                ledger_bump_candidates(ledger_path, sid, new_id)
+        else:
+            write_failures += 1
+    summary = (
+        f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} "
+        f"quota-sweep launched={launched} written={written} proposals={proposals} "
+        f"write_failures={write_failures} selected={ranking['counts']['selected']} "
+        f"dropped={ranking['counts']['dropped']}"
+    )
+    with open(args.log, "a") as fh:
+        fh.write(summary + "\n")
+    print(summary)
+
+
 def ledger_attempts(ledger_path: str, session_id: str) -> int:
     return load_ledger(ledger_path).get(session_id, {}).get("attempts", 0)
 
@@ -850,10 +1108,6 @@ def ledger_bump_candidates(ledger_path: str, session_id: str, new_id: str) -> No
             row["candidate_ids"] = ids
         rows_out.append(json.dumps(row, ensure_ascii=False))
     p.write_text("\n".join(rows_out) + ("\n" if rows_out else ""))
-
-
-# ---------------------------------------------------------------- cli
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -902,6 +1156,27 @@ def main() -> None:
     p_sweep.add_argument("--subagent-agents", default="oracle,Momus,general")
     p_sweep.add_argument("--dry-run", action="store_true")
     p_sweep.set_defaults(func=cmd_sweep)
+
+    p_quota = sub.add_parser("quota-sweep")
+    common(p_quota)
+    p_quota.add_argument("--state-dir", default=DEFAULT_STATE_DIR)
+    p_quota.add_argument("--workdir", default=DEFAULT_WORKDIR)
+    p_quota.add_argument("--log", default=DEFAULT_LOG)
+    p_quota.add_argument("--model", default=DEFAULT_MODEL)
+    p_quota.add_argument("--stale-hours", type=float, default=6)
+    p_quota.add_argument("--global-cap", type=int, default=12)
+    p_quota.add_argument("--per-session-cap", type=int, default=2)
+    p_quota.add_argument("--analyst-timeout", type=int, default=900)
+    p_quota.add_argument("--analyst-cmd", default="opencode run")
+    p_quota.add_argument("--probe-cmd", default=QUOTAS_SH + " --json")
+    p_quota.add_argument("--window-min-min", type=float, default=30)
+    p_quota.add_argument("--window-min-max", type=float, default=120)
+    p_quota.add_argument("--usage-ceiling", type=int, default=90)
+    p_quota.add_argument("--concurrency", type=int, default=5)
+    p_quota.add_argument("--max-batch", type=int, default=30)
+    p_quota.add_argument("--avg-min", type=float, default=2.0)
+    p_quota.add_argument("--dry-run", action="store_true")
+    p_quota.set_defaults(func=cmd_quota_sweep)
 
     args = parser.parse_args()
     args.func(args)
