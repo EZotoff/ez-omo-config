@@ -28,12 +28,11 @@ export type OperatorViewCard = {
   readonly severity: "A" | "B" | "C" | "D"
   /** Hosting is resolved renderer-side; the publisher always offers the jump. */
   readonly jumpAvailable: true
-  /** Queue Action vocabulary (e.g. ESCALATE); always present. */
-  readonly actionClass: string
-  /** Absolute project root path — enables consumers' correlated reply targeting. */
-  readonly root: string
-  /** Escalation class; absent = non-escalation (key omitted, never undefined). */
-  readonly escalationKind?: "DECISION" | "INFORMATION" | "APPROVAL"
+  /** Queue Action vocabulary (e.g. ESCALATE); the publisher always sets it, pre-amendment images may lack it. */
+  readonly actionClass?: string | undefined
+  /** Absolute project root path (reply targeting); the publisher always sets it, pre-amendment images may lack it. */
+  readonly root?: string | undefined
+  readonly escalationKind?: "DECISION" | "INFORMATION" | "APPROVAL" | undefined
 }
 
 export type OperatorView = {

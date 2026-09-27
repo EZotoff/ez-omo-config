@@ -159,8 +159,8 @@ describe("operator-view acceptance", () => {
       expect(raw.includes("escalationKind")).toBe(false)
       const view = JSON.parse(raw) as { cards: Array<Record<string, unknown>> }
       expect(Object.prototype.hasOwnProperty.call(view.cards[0], "escalationKind")).toBe(false)
-      expect(view.cards[0]!.actionClass).toBe("ESCALATE")
-      expect(view.cards[0]!.root).toBe("/home/user/proj")
+      expect(view.cards[0]!["actionClass"]).toBe("ESCALATE")
+      expect(view.cards[0]!["root"]).toBe("/home/user/proj")
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
