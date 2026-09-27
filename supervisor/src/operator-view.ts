@@ -28,6 +28,12 @@ export type OperatorViewCard = {
   readonly severity: "A" | "B" | "C" | "D"
   /** Hosting is resolved renderer-side; the publisher always offers the jump. */
   readonly jumpAvailable: true
+  /** Queue Action vocabulary (e.g. ESCALATE); always present. */
+  readonly actionClass: string
+  /** Absolute project root path — enables consumers' correlated reply targeting. */
+  readonly root: string
+  /** Escalation class; absent = non-escalation (key omitted, never undefined). */
+  readonly escalationKind?: "DECISION" | "INFORMATION" | "APPROVAL"
 }
 
 export type OperatorView = {
@@ -91,6 +97,9 @@ function toCard(item: AttentionQueueItem, nowMs: number): OperatorViewCard {
     ageSeconds: Math.max(0, Math.floor((nowMs - Date.parse(item.priority.createdAt)) / 1000)),
     severity: bandOf(item, new Date(nowMs).toISOString()),
     jumpAvailable: true,
+    actionClass: item.actionClass,
+    root: item.target.root,
+    ...(item.escalationKind === undefined ? {} : { escalationKind: item.escalationKind }),
   }
 }
 

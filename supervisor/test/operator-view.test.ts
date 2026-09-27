@@ -138,6 +138,34 @@ describe("operator-view acceptance", () => {
     expect(withBurst.view.lastSeq).toBe(without.view.lastSeq)
   })
 
+  test("(5b) card carries actionClass/root/escalationKind for an ESCALATE/DECISION item", () => {
+    const { view } = buildOperatorView({ items: [fixtureItem({ id: nextID() })], ledgerSeq: 5, generation: 1, nowMs: T0 })
+    expect(view.cards.length).toBe(1)
+    const card = view.cards[0]!
+    expect(card.actionClass).toBe("ESCALATE")
+    expect(card.root).toBe("/home/user/proj")
+    expect(card.escalationKind).toBe("DECISION")
+  })
+
+  test("(5c) item without escalationKind yields card WITHOUT the key (no undefined serialization)", async () => {
+    const withKind = fixtureItem({ id: nextID() })
+    const { escalationKind: _omitted, ...withoutKind } = withKind
+    const dir = await mkdtemp(join(tmpdir(), "operator-view-omit-"))
+    try {
+      const path = join(dir, "operator-view.json")
+      const publisher = new OperatorViewPublisher({ path, items: () => [withoutKind], ledgerSeq: () => 5, nowMs: () => T0 })
+      await publisher.publish()
+      const raw = await readFile(path, "utf8")
+      expect(raw.includes("escalationKind")).toBe(false)
+      const view = JSON.parse(raw) as { cards: Array<Record<string, unknown>> }
+      expect(Object.prototype.hasOwnProperty.call(view.cards[0], "escalationKind")).toBe(false)
+      expect(view.cards[0]!.actionClass).toBe("ESCALATE")
+      expect(view.cards[0]!.root).toBe("/home/user/proj")
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   test("(6) quiet period — 10 simulated minutes, cards stay live (fresh producedAt), never grey", async () => {
     const dir = await mkdtemp(join(tmpdir(), "operator-view-quiet-"))
     try {
