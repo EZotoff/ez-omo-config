@@ -324,6 +324,14 @@ orca-transition Task 2) and Orca/omo-pulse consumers (Tasks 3, 12) implement to 
 - A wall-clock jump beyond **±5 seconds** (backward or forward) MUST force a fresh read rather than
   extending validity of the current image.
 
+Amendment 2026-09-25 (additive, `schemaVersion` stays 1): operator-view cards additionally carry optional
+`escalationKind` (`"DECISION"|"INFORMATION"|"APPROVAL"`, absent = non-escalation), `actionClass` (the queue
+Action vocabulary: ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE), and `root` (absolute project root
+path, enabling consumers' correlated reply targeting) as additive card fields. Consumers MUST tolerate their
+absence (pre-amendment publisher images remain valid). The APPROVAL/DECISION push-filter decision and the
+Beacon reply funnel reference these fields; `escalationKind` is the filter key — absence or an unknown value
+fails toward exclusion (fail-safe silence).
+
 #### Required test cases
 
 29/31-second ages; +6-second future `producedAt`; restart with an old snapshot on disk; missing
