@@ -210,6 +210,33 @@ describe("operator-view reader edge cases", () => {
     }
   })
 
+  test("(c7b) additive fields — absence tolerated, presence surfaced, unknown field still rejected", async () => {
+    // (a) view WITHOUT the new fields parses live (pre-amendment image).
+    const plain = snapshot()
+    const without = await readerFor(() => plain, () => T0, () => 0).read()
+    expect(without.state).toBe("live")
+    if (without.state === "live") expect(without.view.cards[0]?.actionClass).toBeUndefined()
+
+    // (b) view WITH the fields parses live and values surface.
+    const enriched = snapshot({
+      cards: [{ ...card("att_1"), actionClass: "ESCALATE", root: "/home/user/proj", escalationKind: "DECISION" }],
+    })
+    const withFields = await readerFor(() => enriched, () => T0, () => 0).read()
+    expect(withFields.state).toBe("live")
+    if (withFields.state === "live") {
+      expect(withFields.view.cards[0]?.actionClass).toBe("ESCALATE")
+      expect(withFields.view.cards[0]?.root).toBe("/home/user/proj")
+      expect(withFields.view.cards[0]?.escalationKind).toBe("DECISION")
+    }
+
+    // (c) an unknown fourth field still fails validation (strictness preserved).
+    const rogue = snapshot({ cards: [{ ...card("att_1"), actionClass: "ESCALATE", root: "/home/user/proj", escalationKind: "DECISION", rogueField: "x" }] })
+    expect(parseOperatorView(rogue)).toBeUndefined()
+    const rejected = await readerFor(() => rogue, () => T0, () => 0).read()
+    expect(rejected.state).toBe("frozen")
+    if (rejected.state === "frozen") expect(rejected.reason).toBe("invalid-schema")
+  })
+
   test("(c8) atomic replace — reader rereads on rename, never a cached image", async () => {
     const dir = await mkdtemp(join(tmpdir(), "operator-view-reader-rename-"))
     try {

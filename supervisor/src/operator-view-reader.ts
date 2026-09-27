@@ -29,6 +29,9 @@ const cardSchema = z
     ageSeconds: z.number().finite().nonnegative(),
     severity: z.enum(["A", "B", "C", "D"]),
     jumpAvailable: z.literal(true),
+    actionClass: z.string().optional(),
+    root: z.string().optional(),
+    escalationKind: z.enum(["DECISION", "INFORMATION", "APPROVAL"]).optional(),
   })
   .strict()
 
