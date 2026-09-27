@@ -255,6 +255,7 @@ Backups are retained indefinitely — clean old ones periodically (`rm -rf ~/.ez
 | Patch index | [docs/patches.md](docs/patches.md) |
 | Live deployment verification | [docs/live-deployment-verification.md](docs/live-deployment-verification.md) |
 | Observability (non-wisdom) | [docs/non-wisdom-observability.md](docs/non-wisdom-observability.md) |
+| Usage & efficiency metrics plan | [docs/usage-metrics-plan.md](docs/usage-metrics-plan.md) |
 | Compatibility debt | [docs/COMPATIBILITY-DEBT.md](docs/COMPATIBILITY-DEBT.md) |
 | Worktree state schema | [docs/worktree-state-schema.md](docs/worktree-state-schema.md) |
 | OMO v4.x config reference (vendored) | [docs/omo-config-reference.md](docs/omo-config-reference.md) |
