@@ -105,7 +105,7 @@
       "patch_id": "opencode--stream-stall-watchdog",
       "required": true,
       "implementation_commits": [
-        "e1497c444f"
+        "e1497c444f9fc1ed68af396fb45d6c41bb30e5c8"
       ],
       "commit_resolution_note": "fix(session): retry stalled LLM streams via inactivity watchdog \u2014 processor.ts raceFirst watchdog, branch fix/v1.18.31-p3-integration (= update/v1.18.31 + watchdog + declared-timeout regression 5b108741fb), pushed to fork and fast-forwarded to fork/update/v1.18.31 tip 5b108741fb."
     }

@@ -782,6 +782,11 @@ import glob, json, os
 snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
 have = {s['id'] for s in snap.get('sessions', [])}
 nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
+# Known leak: OMO's consumption detection can leave wakes in
+# dispatched-awaiting-output forever after the session continued fine (280 such
+# files as of 2026-09-28). Union only FRESH wakes, or every restart re-prompts
+# the whole backlog — the replay bomb the wake-stall debate warned about (F4).
+MAX_WAKE_AGE_SECONDS = 6 * 3600
 added = 0
 for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
     for wf in glob.glob(os.path.join(d, '.omo', 'run-continuation', 'wakes', '*.json')):
@@ -791,6 +796,12 @@ for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
             continue
         sid = w.get('sessionID')
         if not sid or w.get('state') not in nonterminal or sid in have:
+            continue
+        try:
+            age = __import__('time').time() - os.path.getmtime(wf)
+        except OSError:
+            continue
+        if age > MAX_WAKE_AGE_SECONDS:
             continue
         snap['sessions'].append({
             'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
