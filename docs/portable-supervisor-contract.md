@@ -338,3 +338,28 @@ fails toward exclusion (fail-safe silence).
 updates; clock jumps under a fake clock; a 10-minute quiet period (no escalations → cards remain
 live, never grey — gates the panel); and the probe-noise burst case above.
 
+
+### Worker-prompt lifecycle and Orca authority boundary (Amendment 2026-09-28)
+
+Source: factory buy-vs-make tournament rounds 1–2 (2026-09-27/28),
+`.sisyphus/debates/factory-buy-vs-make-20260927/` in the factory repo; ADOPTED verdicts both rounds.
+
+1. **Reply-router scope.** The supervisor reply-router is the OPERATOR ingress: it correlates
+   operator replies (Vox, Beacon, console) to attention-queue events. It does not own
+   worker-session prompts. The Factory owns the worker-prompt lifecycle:
+   prompt persisted → wake durably scheduled → response correlated → premise revalidated,
+   including defer and crash cases. A defer retries the wake only while the prompt remains current.
+   No second prompt owner is introduced.
+
+2. **Orca orchestration authority boundary.** Orca's orchestration subsystem (Runs, Dispatches,
+   coordinator inboxes, gates) is agent-local convenience. Factory work MUST enter only through
+   the Factory-owned queue and PostgreSQL admission. A conformance test MUST attempt to originate
+   Factory work through Orca orchestration and confirm it cannot bypass queue entry, admission,
+   or escalation. If the boundary cannot be enforced and tested, orchestration is disabled in
+   Factory contexts (not fork-wide).
+
+3. **Attention vocabulary unchanged.** `DEMANDING`/`AMBIENT`, `escalationKind`, `priority`, and
+   the stale-freeze rules remain the only authority/notification dimensions. The gascity-style
+   actionable/watch/unavailable taxonomy was considered and rejected (no demonstrated decision
+   benefit; drift risk across five surfaces). Unavailable-host presentation derives from the
+   existing stale-freeze behavior — readers already must not render stale state as healthy.
