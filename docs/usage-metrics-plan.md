@@ -1,6 +1,7 @@
 # Usage & Efficiency Metrics — Design Proposal
 
-**Status:** Proposal (2026-09-27) · Episode: `.omo/episodes/usage-metrics-expansion/`
+**Status:** Superseded (2026-09-28) by the structured-pipeline outcome — see `.omo/plans/usage-metrics.md` (executable work plan, Momus-reviewed) and the debate record `.sisyphus/debates/usage-metrics-20260928-121500/` (collect → Metis analyse → Oracle proposal → Mephistopheles critique → revision → judge panel verdict ADOPT). Key changes from this v1 proposal: v1's usage-collector plugin + hash-chained ledger + aggregator were RETRACTED as over-engineered for a single operator — the adopted plan is DB-only, with live collection gated behind a named future decision; human latency uses a residual non-machine model (two labeled series, no attributed-human category). This document remains as the survey/evidence baseline (§§1-2) and the original v1 design (§§3-5).
+**Episode:** `.omo/episodes/usage-metrics-expansion/`
 **Goal:** Collect durable usage/performance/efficiency stats across the OpenCode+OMO fleet: (A) agent efficiency — token/cost consumption per model/provider/agent type; (B) human efficiency — session idle time and human-response latency, correctly excluding machine-originated turns; plus forward-looking metrics for the attention queue and Vox.
 
 ## 1. What already exists (survey findings)
