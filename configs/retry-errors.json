@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "version": 1,
   "description": "Registry of retryable error patterns for provider-connect-retry plugin. Fallback on exhaustion is resolved from the failing session's agent fallback_models chain in oh-my-openagent.json (unified fallback); rules no longer carry a per-rule fallback_model. Compaction-mode failures use the dedicated top-level compaction_fallback_models chain and re-dispatch via POST /session/{id}/summarize.",
+  "stats_note": "Per-rule fire stats (last_fired / fire_count_97d / dormant) were measured from retry-plugin.log over the 97-day window 2026-06-23..2026-09-28 (3,538 matched error events, 0 unmatched) and annotated 2026-09-28; metadata only — the plugin ignores unknown fields and re-reads the registry per error.",
   "compaction_fallback_models": [
     "ollama-cloud/deepseek-v4.1-flash",
     "opencode-go/deepseek-v4.1-flash",
@@ -22,7 +23,9 @@
       "retry_after_tool_execution": false,
       "description": "LLM SSE stream read timeout \u2014 transient network/provider issue",
       "added_by": "seed",
-      "added_at": "2026-03-16"
+      "added_at": "2026-03-16",
+      "last_fired": "2026-09-24T16:07:36.911Z",
+      "fire_count_97d": 333
     },
     {
       "id": "provider-connect-error",
@@ -37,7 +40,11 @@
       "retry_after_tool_execution": false,
       "description": "Provider connection failure \u2014 original hardcoded error from provider-connect-retry.mjs",
       "added_by": "seed",
-      "added_at": "2026-03-16"
+      "added_at": "2026-03-16",
+      "last_fired": null,
+      "fire_count_97d": 0,
+      "dormant": true,
+      "dormant_rationale": "intentional: rare provider-connection-failure class kept by design — 0 firings in 97d does not mean the pattern is dead"
     },
     {
       "id": "rate-limit-no-endpoints",
@@ -52,7 +59,11 @@
       "retry_after_tool_execution": false,
       "description": "Provider backend rate throttle \u2014 transient capacity issue, not a Google API error",
       "added_by": "sisyphus",
-      "added_at": "2026-04-08"
+      "added_at": "2026-04-08",
+      "last_fired": null,
+      "fire_count_97d": 0,
+      "dormant": true,
+      "dormant_rationale": "intentional: rare backend-throttle class kept by design — 0 firings in 97d does not mean the pattern is dead"
     },
     {
       "id": "glm-invalid-api-parameter",
@@ -69,7 +80,9 @@
       "retry_after_tool_execution": false,
       "description": "GLM API parameter validation error \u2014 transient Z.AI API issue, retry before falling back via the agent's fallback chain",
       "added_by": "sisyphus",
-      "added_at": "2026-04-09"
+      "added_at": "2026-04-09",
+      "last_fired": "2026-07-23T13:01:52.521Z",
+      "fire_count_97d": 2
     },
     {
       "id": "glm-check-documentation",
@@ -86,7 +99,11 @@
       "retry_after_tool_execution": false,
       "description": "GLM documentation-check error variant \u2014 retries generic doc-check failures but explicitly excludes deterministic 'messages parameter is illegal' request errors",
       "added_by": "sisyphus",
-      "added_at": "2026-04-09"
+      "added_at": "2026-04-09",
+      "last_fired": null,
+      "fire_count_97d": 0,
+      "dormant": true,
+      "dormant_rationale": "intentional: rare GLM doc-check variant kept by design — 0 firings in 97d does not mean the pattern is dead"
     },
     {
       "id": "glm-server-error",
@@ -103,7 +120,9 @@
       "retry_after_tool_execution": false,
       "description": "Generic server errors from any provider \u2014 retry with backoff before falling back via the agent's fallback chain",
       "added_by": "sisyphus",
-      "added_at": "2026-04-09"
+      "added_at": "2026-04-09",
+      "last_fired": "2026-06-24T22:05:16.611Z",
+      "fire_count_97d": 2
     },
     {
       "id": "glm-unknown-api-rejection",
@@ -145,7 +164,9 @@
       },
       "description": "Empty response / zero tokens / finish reason 'other' \u2014 sends escalating nudge prompts to break the model out of stall before falling back. Near-empty completions (1..min_output_tokens output tokens) on child sessions are also retried; set min_output_tokens to 0 to disable the near-empty branch.",
       "added_by": "sisyphus",
-      "added_at": "2026-04-17"
+      "added_at": "2026-04-17",
+      "last_fired": "2026-09-24T16:07:44.063Z",
+      "fire_count_97d": 2017
     },
     {
       "id": "provider-header-timeout",
@@ -160,7 +181,11 @@
       "retry_after_tool_execution": false,
       "description": "Provider response headers timeout \u2014 provider did not send initial response headers within configured headerTimeout window. Fired by OpenCode's custom fetch wrapper (provider.ts timeoutController).",
       "added_by": "sisyphus",
-      "added_at": "2026-06-23"
+      "added_at": "2026-06-23",
+      "last_fired": null,
+      "fire_count_97d": 0,
+      "dormant": true,
+      "dormant_rationale": "intentional: rare headers-timeout class kept by design — headerTimeout is rarely exceeded; 0 firings in 97d does not mean the pattern is dead"
     },
     {
       "id": "model-token-limit-exceeded",
@@ -173,7 +198,9 @@
       "retry_after_tool_execution": false,
       "description": "Request size exceeds the current model's context window (e.g. 262144 limit on kimi-for-coding / Kimi K2.7 Code, the default coding-plan model id; the k3 model id reaches 1048576 on Allegretto+ tiers). Immediately falls back via the agent's fallback chain \u2014 operators should ensure a large-context model (e.g., openai/gpt-6-sol at 1.05M) is reachable in each agent's chain so the session can continue while OpenCode/OMO context management compacts or prunes history.",
       "added_by": "sisyphus",
-      "added_at": "2026-06-24"
+      "added_at": "2026-06-24",
+      "last_fired": "2026-09-24T16:07:36.911Z",
+      "fire_count_97d": 554
     },
     {
       "id": "provider-usage-limit-reached",
@@ -186,7 +213,9 @@
       "retry_after_tool_execution": false,
       "description": "Provider monthly/quota usage limit exhausted (opencode-go gateway, Codex OAuth, or Kimi OAuth). Non-transient \u2014 retrying the same provider is pointless, so fall back immediately via the failing agent's fallback_models chain (the resolver skips the failing provider, so self-fallback is impossible). Matches 'The usage limit has been reached' (openai), 'Monthly usage limit reached' (opencode-go gateway), and Kimi quota-exhaustion messages. provider-connect-retry.mjs handles child sessions by calling session.abort() then session.promptAsync() directly.",
       "added_by": "sisyphus",
-      "added_at": "2026-07-15"
+      "added_at": "2026-07-15",
+      "last_fired": "2026-09-25T13:09:08.797Z",
+      "fire_count_97d": 541
     }
   ]
 }
