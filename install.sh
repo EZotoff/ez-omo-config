@@ -539,3 +539,5 @@ main() {
 }
 
 main "$@"
+
+    "commands|commands/workflow.md|$HOME/.config/opencode/command/workflow.md"

@@ -87,7 +87,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 
 | Category | Count | Contents |
 |---|---|---|
-| **Commands** | 11 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate), episode checkpoint |
+| **Commands** | 12 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate), episode checkpoint, full codified workflow loop (design→debate→plan→review→implement→review→closeout) |
 | **Configs** | 49 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 25 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 23 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, closeout, acceptance-boundary skills, … |
