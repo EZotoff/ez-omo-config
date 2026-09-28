@@ -172,7 +172,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service — 4 `ExecStart`s: verify-live-patches (3-state provenance verdicts) + check-live-config-drift + check-remote-presence + check-provenance (receipt/generation/smoke-freshness audit) | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 36 paired regression tests (72 files total) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 39 paired regression tests (78 files total) | Required |
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016; helpers module import since 018) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 60 | `test_patch_entries.sh` | (repo only) | `tests/` | (repo only) | Patch-entry schema gate (frontmatter completeness: surfaces, runtime_effective, target_file) | Required |
@@ -272,7 +272,7 @@ ez-omo-config/
 │   ├── configs.md             # Config-layer system documentation with Non-Wisdom Observability Contract
 │   ├── COMPATIBILITY-DEBT.md  # Shim inventory with deletion criteria and removal milestones
 │   ├── live-deployment-verification.md  # Live Deployment Verification Gate documentation
-├── tests/                  # Bash verification suite, 36-pair regression corpus, and harnesses
+├── tests/                  # Bash verification suite, 39-pair regression corpus, and harnesses
 ├── scripts/                # Wisdom scripts, worktree scripts, and audit utilities
 │   └── audit-wisdom-first.sh  # Validates no contradictory dual-system language remains
 ├── install.sh              # Bootstrap installer
@@ -290,7 +290,7 @@ ez-omo-config/
 - **Skills**: managed skill directories. `playwright`, `frontend-ui-ux`, and `github-triage` ship with OMO upstream and are intentionally NOT vendored here. `worktree-coordinator` removed (was a doc index, not a skill). `knowledge/` removed (deprecated Wisdom compat shim).
 - **Scripts**: wisdom shell scripts, worktree hooks, live deployment verification, the rewritten patch verifier, the runtime watcher, smoke-boot gate, the OpenCode session archiver, Python operator helpers, the episode receipt script `scripts/episode-receipt.sh` (append/verify/advance, `--checkpoint`; W1 lane), the plan-lifecycle tooling `scripts/plans-index.sh` / `scripts/plan-lifecycle-sweep.sh` / `scripts/execution-record-lint.sh` (W2 lane), and the lite-lane tooling `scripts/workorder-lint.sh` / `scripts/agent-lease.sh` / `scripts/spawn-health-check.sh` (W3 lane).
 - **Systemd**: 19 user units — patch watcher, integrity-check service + timer, integrity-failure alert, Project Supervisor, interactive attach daemon + 1-min keeper timer, dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer, weekly session-archive service + timer, and the parked FLARE-4B server.
-- **Tests**: active repo verification scripts (148 tracked files), the 36-pair regression corpus (72 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
+- **Tests**: active repo verification scripts (148 tracked files), the 39-pair regression corpus (78 files), their harnesses, and retired DCP test scripts (`.retired` suffix, kept for historical reference).
 - **Extras**: 1 file (ocx.jsonc)
 
 ### External Artifacts (Not in install.sh)

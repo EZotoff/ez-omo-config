@@ -34,7 +34,7 @@ usage() {
 Usage: wisdom-search.sh QUERY [OPTIONS]
 
 Arguments:
-  QUERY                  Search string (required, case-insensitive substring match on body)
+  QUERY                  Search string (case-insensitive; whole-string substring or any-word match across title, body, tags; ranked by matched-word coverage)
 
 Options:
   --scope SCOPE          system|project|plan|all (default: all)
@@ -378,11 +378,19 @@ fi
 
 # --------------------------------------------------------------------------
 # Build jq filter for matching entries
-# --------------------------------------------------------------------------
-# Build jq select filter using safe --arg for query (literal substring matching)
-# If query is empty, select all entries
+# Matching is tokenized multi-field: an entry matches if the whole query is a
+# case-insensitive substring of the body, OR any whitespace-separated query
+# term appears (case-insensitive) in title+body+tags. Results are ranked by
+# matched-term coverage (see relevance_score below).
 if [[ -n "$QUERY" ]]; then
-    JQ_FILTER="select(.body | ascii_downcase | contains(\$q | ascii_downcase))"
+    JQ_FILTER='
+        . as $e
+        | (($e.title // "") + " " + ($e.body // "") + " " + (($e.tags // []) | (if type == "array" then join(" ") else tostring end))) as $hay
+        | ($q | ascii_downcase | [splits("\\s+") | select(length > 0)]) as $terms
+        | select(
+            (($e.body // "") | ascii_downcase | contains($q | ascii_downcase))
+            or ([$terms[] | . as $t | select($hay | ascii_downcase | contains($t))] | length) > 0
+          )'
 else
     JQ_FILTER="."
 fi
@@ -443,9 +451,15 @@ for store_file in "${STORE_FILES[@]}"; do
         fi
 
         relevance_score=$(printf '%s' "$normalized_entry" | jq -r --arg q "$QUERY" '
-            if ($q | length) == 0 then 0
-            else ((.body // "" | ascii_downcase | split($q | ascii_downcase) | length) - 1)
-            end
+            . as $e
+            | (($e.title // "") + " " + ($e.body // "") + " " + (($e.tags // []) | (if type == "array" then join(" ") else tostring end))) as $hay
+            | ($hay | ascii_downcase) as $hay
+            | ($q | ascii_downcase | [splits("\\s+") | select(length > 0)] | unique) as $terms
+            | if ($q | length) == 0 then 0
+              else
+                ([$terms[] | . as $t | select($hay | contains($t))] | length)
+                + (if ($hay | contains($q | ascii_downcase)) then 5 else 0 end)
+              end
         ')
 
         entry_with_meta=$(printf '%s' "$normalized_entry" | jq -c \

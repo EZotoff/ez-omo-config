@@ -123,6 +123,8 @@ wisdom-search.sh QUERY [OPTIONS]
 
 **Default retrieval**: searches only `active` and `stale` entries. `superseded` and `retracted` stay hidden unless explicitly included with `--include-status`.
 
+**Matching (tokenized, multi-field)**: an entry matches QUERY if the whole query string is a case-insensitive substring of the body, OR any whitespace-separated query term appears (case-insensitive) in the combined `title + body + tags` text. Results are ranked by matched-term coverage (number of distinct query terms matched, plus a bonus for whole-query body substring), then by canonical ranking (status, authority, review due, timestamps). Single-term queries therefore also hit title/tag matches, which the pre-tokenization body-only substring matcher missed (2026-09-28 zero-hit diagnosis: 82.7% of recorded searches returned no results; replay showed 96.7% of distinct zero-hit queries hit under the tokenized matcher, ~5% residual is queries whose terms are genuinely absent from the stores).
+
 **Canonical ranking**: results are ordered by query relevance, then status (`active > stale`), authority (`published > verified > candidate`), review freshness, `verified_at`, `created`, and `id`.
 
 **Conflict handling**: if the top two non-superseded matches are equally ranked, share the same normalized topic key, have the same status/authority, carry different bodies, and mutually reference each other in `contradicts`, search returns `UNKNOWN` instead of guessing.
