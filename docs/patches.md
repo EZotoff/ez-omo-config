@@ -23,6 +23,8 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 | `opencode--tui-subagent-spinner` — Sessions dialog shows the spinner on a parent row while any of its (hidden) sub-agent child sessions is busy/retry; children aggregated from the unfiltered sync list (browse/search are `roots:true`); live A/B verified 2026-09-17 | active | true | [entry](../.sisyphus/patches/opencode--tui-subagent-spinner.md) |
 | `opencode--plugin-engine-prerelease` — plugin `engines.opencode` ranges match prerelease-suffixed (`-p<N>` provenance) host builds; fixes `Plugin … skipped` toast on patched binaries; strace A/B verified | active | true | [entry](../.sisyphus/patches/opencode--plugin-engine-prerelease.md) |
 
+**Pending, not installed or registered:** source commit `48eedf9406` excludes in-flight question-family tool calls from the stream-stall deadline. The `1.18.31-p2` candidate binary contains the new marker, but the live binary does not. The provenance-checked build/install path rejects an unpushed source head and this task forbids pushing. The paired [structural regression](../tests/regressions/2026-09-28-question-stream-stall.sh) and [kill check](../tests/regressions/2026-09-28-question-stream-stall.kill.sh) do not prove that an actual unanswered question survives the stall window; register the patch and perform a real question wait after a compliant installation.
+
 ## OMO fork patches (fork base v4.19.2 at `~/oh-my-openagent-v4.19.2`)
 
 Source patches (carried as fork commits) and dist-level patches (applied to the built `dist/index.js` bundle) are distinguished in each entry's `target_file`/reapply section.
