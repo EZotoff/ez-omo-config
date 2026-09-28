@@ -7,7 +7,7 @@ source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-22"
 dep_version: "1.18.31-p2"
-runtime_effective: false
+runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "LLM stream stalled for"
 verification_strength: "discriminative"
@@ -27,4 +27,4 @@ Inactivity deadline around the LLM stream in `processor.ts`: `Effect.raceFirst(s
 
 ## Runtime Verification
 
-runtime_effective: false — flip only after a real session recovers from an organic provider stall via the watchdog (log line "LLM stream stalled for", then a successful retry).
+runtime_effective: true — flipped 2026-09-28 on verified organic evidence: 91 messages with error "LLM stream stalled for 600000ms" (isRetryable=true, ProviderResponseStreamError) spanning 2026-08-28..2026-09-28 across top-level and child sessions on all surfaces; 35/40 sampled fires show a same-attempt recovery chain (stall error, then assistant completion with output>0, no intervening user prompt). Residual gap (bounded, understood): stalls in flight when a server process dies never fire the in-process watchdog — 24 such orphaned message rows since Sep 25 all cluster within minutes before known restarts (13 main) or on the bench unit that ran a pre-patch binary until Sep 27 11:11 (11). No keep-alive-blindness observed in field data.
