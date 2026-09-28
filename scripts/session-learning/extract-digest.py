@@ -580,6 +580,7 @@ def run_analyst(args, session_id: str, digest_path: str, prior: list) -> dict:
     )
     cmd = [
         "timeout",
+        str(getattr(args, "analyst_timeout", 900)),
         *getattr(args, "analyst_cmd", "opencode run").split(),
         "--dir",
         args.workdir,
