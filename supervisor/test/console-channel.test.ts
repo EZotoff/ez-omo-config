@@ -180,10 +180,11 @@ describe("ConsoleChannel lifecycle", () => {
     expect(surfaced.kind).toBe("surfaced")
     if (surfaced.kind !== "surfaced") throw new Error("expected surface")
     expect(surfaced.alias).toBe("Q1")
-    expect(client.prompts.some((prompt) => prompt.text.includes("Q1 [session"))).toBe(true)
-    expect(client.toasts).toHaveLength(1)
-
-    await channel.pollReplies("/root", NOW)
+    expect(client.prompts.some((prompt) => prompt.text.includes("[Supervisor] Q1 —"))).toBe(true)
+    // Regression (2026-09-28 self-echo): the supervisor-authored ticket is a user
+    // message in the console session — pollReplies must filter it, never route it.
+    const ticketEcho = await channel.pollReplies("/root", NOW)
+    expect(ticketEcho).toHaveLength(0)
     const consoleID = channel.sessionID("/root")
     if (consoleID === undefined) throw new Error("expected console session")
     client.append(consoleID, "user", "Q1: yes, deploy")

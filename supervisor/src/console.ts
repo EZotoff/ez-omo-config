@@ -218,8 +218,12 @@ export function formatTicket(alias: string, item: AttentionQueueItem): string {
   const citations = item.origin.citations
     .map((citation) => `${citation.session}/${citation.messageID}: ${citation.quote.slice(0, 80)}`)
     .join("; ")
+  // First line MUST carry the [Supervisor] tag: the ticket is written into the
+  // console session as a user message, and pollReplies filters supervisor-authored
+  // turns by that prefix. Un-tagged tickets are read back as operator replies and
+  // propagated into worker sessions (2026-09-28 self-echo regression).
   return [
-    `${alias} — ${session} [${project}]`,
+    `[Supervisor] ${alias} — ${session} [${project}]`,
     glanceHeadline(item.question),
     "",
     item.question,
@@ -582,7 +586,7 @@ export class ConsoleChannel {
       const item = this.queue.items.find((entry) => entry.id === id)
       return `${index + 1}. ${item?.question ?? id}`
     })
-    await this.client.promptAsync(consoleID, reply.root, `Ambiguous reply — which item? Reply with Q<n>:\n${lines.join("\n")}`)
+    await this.client.promptAsync(consoleID, reply.root, `[Supervisor] Ambiguous reply — which item? Reply with Q<n>:\n${lines.join("\n")}`)
   }
 
   private async assignAlias(root: string, itemID: QueueItemID): Promise<string> {
