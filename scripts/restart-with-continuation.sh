@@ -131,18 +131,22 @@ else
 fi
 # --- Hook API budget (F1 re-audit remediation) --------------------------
 # A hook (hook-snapshot / hook-resume) must never spend more than
-# SNAPSHOT_BUDGET_SECONDS (~15s default) of wall clock in TOTAL: the hook
+SNAPSHOT_BUDGET_SECONDS (~60s default) of wall clock in TOTAL: the hook
 # block zeroes SECONDS at its start, so "budget - SECONDS" is the time left
 # for the whole hook and every api()/wait_ready/injection call is capped by
 # it. Checkpoint mode keeps the fixed 5s max-time (timer-driven, not a
-# stop/start hook).
+# stop/start hook). 60s default: a busy server routinely needs >15s to answer
+# /session/status (2026-09-27 23:39 incident: 15s budget exhausted at the
+# stop-preflight, rc=28, zero sessions snapshotted, executor lost); systemd
+# TimeoutStopSec=90s bounds the hook from above, so 60s + a 10s per-call cap
+# still leaves the stop itself ~30s of margin.
 hook_budget_active() { [[ "$HOOK_MODE" == hook-snapshot || "$HOOK_MODE" == hook-resume ]]; }
 hook_budget_start() { # absolute epoch deadline — set ONCE per hook invocation, never reset
-  HOOK_DEADLINE_EPOCH=$(( $(date +%s) + ${SNAPSHOT_BUDGET_SECONDS:-15} ))
+  HOOK_DEADLINE_EPOCH=$(( $(date +%s) + ${SNAPSHOT_BUDGET_SECONDS:-60} ))
 }
 hook_deadline_rem() { # seconds left under the hook budget; 0 when exhausted
   local rem=$(( ${HOOK_DEADLINE_EPOCH:-0} - $(date +%s) ))
-  [[ -z "${HOOK_DEADLINE_EPOCH:-}" ]] && rem=$(( ${SNAPSHOT_BUDGET_SECONDS:-15} - SECONDS ))
+  [[ -z "${HOOK_DEADLINE_EPOCH:-}" ]] && rem=$(( ${SNAPSHOT_BUDGET_SECONDS:-60} - SECONDS ))
   (( rem < 0 )) && rem=0
   printf '%s\n' "$rem"
 }
@@ -154,6 +158,7 @@ api() { # api <method> <path> [json-body]
       hook_log "api budget exhausted ($method $path); call skipped"
       return 28
     fi
+    max_time=10  # busy servers answer slowly; the 60s budget bounds the total, not each call
     (( rem < max_time )) && max_time=$rem
     (( max_time < 1 )) && max_time=1
   fi
