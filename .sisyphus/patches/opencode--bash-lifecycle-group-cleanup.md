@@ -7,7 +7,7 @@ source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-22"
 dep_version: "1.18.31-p2"
-runtime_effective: false
+runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "escaped-observed"
 verification_strength: "discriminative"
@@ -17,7 +17,7 @@ surfaces: "server-api, cli-run, tui-interactive"
 
 ## Runtime Verification
 
-NOT YET RUNTIME-EFFECTIVE. 2026-09-22 evidence: the prior live binary (1.18.31-p2, same commit lineage) carried this patch's markers but a bash call `sleep 55; ...` with declared timeout 70000ms stayed status=running for 2h+ (vk_music session ses_f3cbe6066ffe, wedged 13:35 local) — pattern presence without runtime effect. Rebuilt (build SHA ae7e1d1c, receipted) from update/v1.18.31 superset incl. timeout-cap commit — version string 1.18.31-p2, distinct SHA from the superseded same-string binary (backup opencode.backup-1.18.31-p2-bashwedge-*) + declared-timeout regression test `packages/opencode/test/bash-lifecycle-repro.test.ts` case (h). Flip runtime_effective to true ONLY after a live session exercises the vk shape (declared-timeout bash call returns within timeout + grace).
+RUNTIME-EFFECTIVE 2026-09-28: smoke `bash-lifecycle-group-cleanup` PASS on binary ae7e1d1c (2026-09-22T20:34:57Z, `~/.local/share/opencode/smoke-results/ae7e1d1c056ade120fec4791837e2be732f3629b3a9f2743e5f40b1988e6d184.json`) — regression `bash-group-cleanup-timeout.sh` drives the live binary with the declared-timeout wedge shape; verifier verdict RUNTIME-VERIFIED. Historical context: 2026-09-22 evidence: the prior live binary (1.18.31-p2, same commit lineage) carried this patch's markers but a bash call `sleep 55; ...` with declared timeout 70000ms stayed status=running for 2h+ (vk_music session ses_f3cbe6066ffe, wedged 13:35 local) — pattern presence without runtime effect. Rebuilt (build SHA ae7e1d1c, receipted) from update/v1.18.31 superset incl. timeout-cap commit — version string 1.18.31-p2, distinct SHA from the superseded same-string binary (backup opencode.backup-1.18.31-p2-bashwedge-*) + declared-timeout regression test `packages/opencode/test/bash-lifecycle-repro.test.ts` case (h). Flip runtime_effective to true ONLY after a live session exercises the vk shape (declared-timeout bash call returns within timeout + grace).
 
 # OpenCode bash lifecycle process-group cleanup
 
