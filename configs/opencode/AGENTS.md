@@ -52,19 +52,33 @@ When a fix doesn't work, your model of the system is the suspect — not just
 the fix. Before trying a second approach, re-read the source that governs
 the behavior you're trying to change.
 
-## Long-running job monitoring (2026-09-18 lesson)
+## Long-running job monitoring (2026-09-18 lesson; rewritten 2026-09-28 after the unbound-probe audit)
 
-Never launch a long-running batch (benchmarks, migrations, training, bulk
-operations) and walk away. The launching agent monitors it actively: first
-probe ~2 minutes in (catches crash-at-the-end bugs while only one unit of work
-is lost), then probes with exponential backoff (30s → 60s → 120s → 240s, cap
-~8 min), one fast probe per tool call — never sleep >60s inside a call. Any
-failure (non-zero exit, missing output artifact, repeated empty replies) is
-diagnosed and fixed immediately, not at the next status ping. Batches must
-abort on repeated identical failures (circuit breaker); the agent's monitoring
-is what makes the diagnosis arrive in minutes. This rule was added after an
-operator had to request it three times while ~$2 of compute and ~6 hours were
-invalidated by failures that ran to completion unobserved.
+**A turn-based agent has no clock. Ending your turn cancels every probe you announced.**
+Nothing re-kicks an idle session — no timer, no scheduler. "I'll check again in ~60s" as a
+parting sentence is a promise to do nothing. Monitoring a long-running batch (benchmarks,
+migrations, training, bulk operations) is therefore only legal in one of two forms:
+
+1. **Hold the turn**: stay in-turn with bounded waits (single tool-call sleep ≤60s,
+waits repeated in separate calls, each call producing observable progress — a status
+check, a log read, a decision). Never one giant sleep; never a sleep with no probe attached.
+2. **Arm a wake trigger**: delegate monitoring to a `run_in_background` subagent that
+holds its OWN turn, sleep-loop-probes the job, and returns the verdict — its completion
+notification genuinely wakes you. The watcher must emit tool activity at least every
+10–15 minutes (background sessions die on the ~30-minute inactivity window) and the
+watched job must be idempotent/re-dispatchable via a STATE file so a killed watcher can
+be relaunched losslessly.
+
+What is ILLEGAL: ending the turn on "I'll probe/monitor/track" without a wake trigger.
+Preflight probe rules below still apply: first probe ~2 minutes into the job (catches
+crash-at-the-end bugs while only one unit of work is lost), then backoff (30s → 60s →
+120s → 240s, cap ~8 min). Any failure (non-zero exit, missing output artifact, repeated
+empty replies) is diagnosed and fixed immediately, not at the next status ping. Batches
+must abort on repeated identical failures (circuit breaker). History: the 2026-09-18
+incident (operator requested monitoring three times while ~$2 of compute and ~6 hours
+were invalidated by failures that ran to completion unobserved) and the 2026-09-26/28
+audit (agents in ez-omo-bench/veran ended turns on probe promises that never fired;
+the operator returned with the outcome every time).
 
 
 **No unbound promises (2026-09-23 lesson).** Commit to future action only after arming a wake trigger and recording a durable handle: an owned background task with a deadline and task ID, or a continuation hook owning this session plus its state file. An operator handoff ends responsibility, not a trigger. If arming can't be verified, say "needs your input" and give current state. Promises are bounded: "observed until <deadline> via <handle>". On any wake, reconcile from durable state before acting.
