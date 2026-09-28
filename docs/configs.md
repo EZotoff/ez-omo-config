@@ -268,6 +268,13 @@ The top-level object contains an `errors` array. Each entry is an object with th
 | `description` | string | No | Human-readable explanation |
 | `added_by` | string | No | Who created the rule |
 | `added_at` | string | No | ISO date of creation |
+| `last_fired` | string \| null | No | Measured ISO timestamp of the rule's most recent firing (or null if never) from retry-plugin.log |
+| `fire_count_97d` | integer | No | Measured firing count over the annotated 97-day log window |
+| `dormant` | boolean | No | `true` = zero firings in the measured window; informational only — the plugin never reads it |
+| `dormant_rationale` | string | No | One-line note explaining why a dormant rule is kept (rare-by-design classes) |
+
+**Dormancy annotations (2026-09-28)**: per-rule fire stats were measured over the 97-day window 2026-06-23..2026-09-28 (3,538 matched error events, 0 unmatched). Active: model-token-limit-exceeded (554), provider-usage-limit-reached (541), sse-read-timeout (333), glm-unknown-api-rejection (2,017 via the empty-response path), glm-server-error (2), glm-invalid-api-parameter (2). Dormant (0 firings, kept by design — rare classes): provider-header-timeout, rate-limit-no-endpoints, glm-check-documentation, provider-connect-error. Re-measure with `scripts/retry-registry-stats.sh`.
+| `added_at` | string | No | ISO date of creation |
 
 **Extending the Registry**:
 

@@ -372,6 +372,7 @@ These Python helpers and config files support stack health, drift detection, and
 | `scripts/bench-campaign` | Benchmark campaign runner; routes case launches to the dedicated bench instance via `BENCH_SERVER_URL` (default `http://127.0.0.1:3040`) + `opencode run --attach`, lifting only `OPENCODE_SERVER_USERNAME`/`OPENCODE_SERVER_PASSWORD` from `serve-bench.env` |
 | `scripts/source-identity-check.py` | Report package and git identity for a source checkout |
 | `scripts/legacy-name-classifier.py` | Classify legacy OpenCode/OMO naming occurrences in the config repo |
+| `scripts/retry-registry-stats.sh` | Per-rule fire counts (matcher + empty-response paths) and last-fired timestamps from `retry-plugin.log`; read-only log analysis for retry-registry dormancy audits |
 
 ## Dependency Clusters
 
