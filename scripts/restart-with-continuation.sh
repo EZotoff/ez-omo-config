@@ -131,7 +131,7 @@ else
 fi
 # --- Hook API budget (F1 re-audit remediation) --------------------------
 # A hook (hook-snapshot / hook-resume) must never spend more than
-SNAPSHOT_BUDGET_SECONDS (~60s default) of wall clock in TOTAL: the hook
+# SNAPSHOT_BUDGET_SECONDS (~60s default) of wall clock in TOTAL: the hook
 # block zeroes SECONDS at its start, so "budget - SECONDS" is the time left
 # for the whole hook and every api()/wait_ready/injection call is capped by
 # it. Checkpoint mode keeps the fixed 5s max-time (timer-driven, not a
