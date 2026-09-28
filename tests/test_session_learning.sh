@@ -290,7 +290,7 @@ ok "dry-run sweep wrote ledger rows"
 
 # Regression guard (2026-09-28): both analyst-cmd sources must carry the 'run'
 # subtoken — the quota flag default AND the nightly getattr fallback.
-grep -q 'analyst-cmd\\", default=\\"opencode run\\"' "$EXTRACT" || fail "quota analyst-cmd default lost 'run'"
-grep -q 'getattr(args, \"analyst_cmd\", \"opencode run\")' "$EXTRACT" || fail "nightly analyst-cmd fallback lost 'run'"
+grep -q 'analyst-cmd", default="opencode run"' "$EXTRACT" || fail "quota analyst-cmd default lost 'run'"
+grep -q 'getattr(args, "analyst_cmd", "opencode run")' "$EXTRACT" || fail "nightly analyst-cmd fallback lost 'run'"
 ok "analyst-cmd defaults carry the run subtoken (both paths)"
 echo "PASS: $PASS checks passed"
