@@ -21,6 +21,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 1i | dual-review.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
 | 1j | escalate.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (review preset) | Optional |
 | 1k | episode.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (episode checkpoint; documents `scripts/episode-receipt.sh append --checkpoint` invocation — W1 lane) | Optional |
+| 1l | workflow.md | `~/.config/opencode/command/` | `commands/` | `$HOME/.config/opencode/command/` | Slash Commands (the codified full loop: design→debate→plan→review→implement→review→closeout; --lite variant → workorder lane) | Optional |
 | 2 | opencode.json | `~/.config/opencode/` | `configs/opencode/` | `$HOME/.config/opencode/` | Core Config | Required |
 | 3 | opencode.jsonc | `~/.opencode/` | `configs/opencode/` | `$HOME/.opencode/` | Core Config | Required |
 | 3b | dcp.jsonc.retired | `configs/opencode/` | `configs/opencode/` | (not installed) | RETIRED 2026-06-23 — DCP retired; Magic Context currently disabled | Archived |
