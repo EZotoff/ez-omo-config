@@ -4,7 +4,14 @@
 # with a busy session, falsely declare idle, and permit the stop this gate prevents.
 # The bench server uses serve-bench.env; if it does not exist, probe 3040 without auth.
 # Overrides for isolated tests: GATE_DB_PATH, GATE_URL_3021/3030/3040,
-# GATE_AUTH_ENV_3021/3030/3040, GATE_BUDGET_SECONDS (default 120).
+# GATE_AUTH_ENV_3021/3030/3040, GATE_BUDGET_SECONDS (explicit override).
+# Default budget after discovery: clamp(ceil(directories * 3 / 12), 120, 900)s.
+# KNOWN LIMITATION: stale/nonexistent directories take ~2.5-4s server-side
+# (recent directories ~0.4s); 8-parallel waves can hit the 4s curl cap.
+# A 892-directory DB needs ~19min, beyond the 900s cap: idle sweeps fail closed.
+# Operators may set GATE_BUDGET_SECONDS, prune the session DB, or consciously --force.
+# Full sweeps probe three servers per directory; measured throughput is 15-20/s,
+# so 12/s leaves headroom where a fixed 120s exhausted before finishing.
 # CAMPAIGN_LIVE=1: opt-in live test with 3030 real and the other URLs stubbed;
 # never enabled by this script or its default verification.
 
@@ -23,7 +30,8 @@ if [[ ! "$budget" =~ ^[1-9][0-9]*$ ]]; then
   printf 'GATE_BUDGET_SECONDS must be a positive integer\n' >&2
   exit 2
 fi
-deadline=$(( $(date +%s) + budget ))
+started=$(date +%s)
+deadline=$(( started + budget ))
 db="${GATE_DB_PATH:-$HOME/.local/share/opencode/opencode.db}"
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
@@ -44,6 +52,13 @@ elif [[ ! -s "$tmp/dirs" ]]; then
   printf 'cannot establish idleness: no session directories in DB\n' >&2
   failed=true
 else
+  if [[ -z "${GATE_BUDGET_SECONDS+x}" ]]; then
+    n_dirs=$(tr -cd '\000' < "$tmp/dirs" | wc -c)
+    budget=$(( (n_dirs * 3 + 11) / 12 ))
+    if (( budget < 120 )); then budget=120; fi
+    if (( budget > 900 )); then budget=900; fi
+    deadline=$(( started + budget ))
+  fi
   probe() {
     local server="$1" url="$2" auth_env="$3" directory="$4"
     local username=opencode password='' line status
