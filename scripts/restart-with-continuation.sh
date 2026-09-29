@@ -555,7 +555,7 @@ for s in cands.get("sessions", []):
         continue
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
-    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(5, int(rem2)))), "-u", auth, "-X", "POST",
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
                         base + "/session/" + sid + "/prompt_async" + q],
                        capture_output=True, text=True)
@@ -704,7 +704,7 @@ for s in ckpt.get("sessions", []):
         continue
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
-    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(5, int(rem2)))), "-u", auth, "-X", "POST",
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
                         base + "/session/" + sid + "/prompt_async" + q],
                        capture_output=True, text=True)
