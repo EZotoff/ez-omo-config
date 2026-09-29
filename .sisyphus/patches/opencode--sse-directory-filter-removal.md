@@ -1,97 +1,46 @@
 ---
 patch_id: "opencode--sse-directory-filter-removal"
 dependency: "opencode"
-target_file: "opencode"
-target_install_path: "/home/ezotoff/src/opencode"
+target_file: "packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts"
+target_install_path: "/home/ezotoff/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts"
+surfaces: "server-api"
+verification_strength: "weak"
+required_evidence: "runtime"
 status: "active"
 applied_date: "2026-06-26"
-dep_version: "1.17.9-local"
+dep_version: "1.18.31-p2"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/35913"
-verification_pattern: "location\?\.workspaceID===void 0\|\|"
-runtime_effective: false
-runtime_effective_note: "NOT DEPRECATED (investigation 2026-08-06). workspaceID system exists in schema (Location.Ref.workspaceID: optional) but is NEVER POPULATED — 0 of 2107 live sessions have workspace_id set. Every Location.Ref.make() call passes only { directory }. Therefore the SSE ternary's workspaceID branch is never taken; ALL events fall through to directory check. The original worktree-events problem PERSISTS on v1.18.5. The patch is still needed but must be reimplemented for the rewritten event.ts (Effect/Stream migration)."
-
+verification_pattern: "location\\?\\.workspaceID===void 0\\|\\|"
+runtime_effective: true
+runtime_effective_note: "Verified live 2026-09-29 ~20:15 CEST on 1.18.31-p2 (build 3787fd6b): V2 — `curl -N /event?directory=<bench>` on 3030 delivered 84 KB of message.part/tool events in 8s including 19 events originating from OTHER directories (pre-fix: only server.connected); V4 — attach TUI in a git worktree received +35 KB of streamed events during a turn in its worktree. Base 48eedf9406 +2 commits, merged to fork/fix/v1.18.31-question-stall-watchdog @ 633fc201b9 (pushed)."
 ---
 
-# OpenCode SSE event stream directory filter removal
+# OpenCode SSE event stream directory filter removal (v1.18.x Effect/Stream reimplementation)
 
 ## Problem
-The SSE event handler in `event.ts` filtered events by `event.location?.directory === instance.directory`. This prevented worktree-based sessions from receiving events from their own workspace because the `directory` field in event locations does not always match the instance's configured directory (e.g., when running inside a worktree with a different path). Sessions in worktrees would miss real-time updates — tool completions, message parts, permission prompts — breaking the TUI's live-render for worktree development.
+The instance `/event` route filtered events by `event.location?.directory === instance.directory`. Events are published with the originating instance's directory, so any subscriber attached to a different directory — worktree sessions, external observers (OMO supervisor, dashboards) — received nothing but `server.connected`. This starved external consumers and forced them into heavyweight HTTP transcript polling (measured 17.6 MiB/s of loopback from the supervisor's 20s full-transcript polls on 2026-09-29).
 
 ## Patch Description
-Removed the `directory === instance.directory` condition from the `Stream.filter` in `eventResponse()`. The workspaceID filter is retained. Also added `?.` to the `workspaceID` access for null-safety since the directory guard that previously implied `location` is defined is gone.
+In `eventResponse()`'s `Stream.filter`, drop the `event.location?.directory === instance.directory &&` conjunct; keep the workspaceID clause with `?.` null-safety. Broadcast semantics as on the v1.17.9-patched line.
 
-Before:
-```typescript
-event.location?.directory === instance.directory &&
-(event.location.workspaceID === undefined || event.location.workspaceID === workspaceID),
-```
 After:
 ```typescript
-event.location?.workspaceID === undefined || event.location.workspaceID === workspaceID,
+Stream.filter(
+  (event) =>
+    event.location?.workspaceID === undefined || event.location.workspaceID === workspaceID,
+),
 ```
 
-Committed as `c73249fe1` on branch `fix/sse-directory-filter-v1.17.9`.
+## Runtime Verification
+1. `curl -sN -u opencode:<pw> 'http://127.0.0.1:3030/event?directory=<dir-with-active-session>'` while a session streams → expect message.part/tool events including events from other directories.
+2. Attach a TUI in a git worktree, run a turn from the main checkout → live-render updates (data-level: socket byte delta > 0 on the attach process).
 
-## Verification
-```bash
-# The post-fix line uses ?. on workspaceID (the pre-fix version did not)
-grep -n "location?\.workspaceID === undefined || event.location.workspaceID" \
-  /home/ezotoff/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts
+## History
+- v1.17.9 version removed the filter in the pre-Effect event.ts (commit c73249fe1, branch fix/sse-directory-filter-v1.17.9).
+- 2026-08-06 investigation: upstream's workspaceID fix never populated (0/2107 sessions); patch still required, needed reimplementation for the rewritten event.ts.
+- 2026-09-29: reimplemented on 1.18.31-p2, verified live (see runtime_effective_note).
 
-# Confirm the removed directory filter is absent
-! grep -q "directory === instance.directory" \
-  /home/ezotoff/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts
-```
-
-Binary verification (built binary contains the fix):
-```bash
-# The worktreeID concept (which the directory filter relied on) should be absent
-grep -a -c "worktreeID" ~/.opencode/bin/opencode  # expect 0
-```
-
-## Deprecation Investigation (2026-08-06)
-
-**Verdict: NOT DEPRECATED — patch still needed, needs v1.18.5 reimplementation.**
-
-Investigated whether the v1.18.5 upstream SSE filter rewrite resolves the original worktree-events problem. Findings:
-
-1. **New upstream code** (`event.ts`): uses a ternary `workspaceID !== undefined ? workspaceID match : directory fallback` instead of the old conjunction `directory match && (workspaceID match)`.
-2. **workspaceID is never populated**: the `Location.Ref` schema has `workspaceID: optional(WorkspaceID)`, but every `Location.Ref.make()` call passes only `{ directory }`. The `WorkspaceContext` (AsyncLocalStorage) is not set during normal session/event creation.
-3. **Empirical evidence**: `SELECT COUNT(*) FROM session WHERE workspace_id IS NOT NULL` returns 0 out of 2107 sessions.
-4. **Consequence**: the SSE ternary's `workspaceID !== undefined` branch is NEVER taken. All events evaluate to `event.location?.directory === instance.directory` — the original buggy filter. Worktree sessions with a directory mismatch still miss events.
-5. **Root cause persists**: in the `opencode serve` model, the server publishes events with `serviceLocation.directory` (the server's project directory), but a TUI client connected from a worktree has `instance.directory` set to the worktree path. The mismatch filters out the client's own events.
-
-The workspaceID system was intended to solve this but is not wired up in v1.18.5. The patch must be reimplemented for the new `event.ts` structure.
-
-## Reapply Instructions
-### v1.18.5+ (Effect/Stream migration)
-
-The `event.ts` file was completely rewritten for the Effect/Stream architecture. The old instructions do not apply.
-
-1. Open `packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts`.
-2. In `eventResponse()`, find the `Stream.filter` callback (around line 36-39):
-   ```typescript
-   Stream.filter(
-     (event) =>
-       event.location?.workspaceID !== undefined
-         ? event.location.workspaceID === workspaceID
-         : event.location?.directory === instance.directory,
-   ),
-   ```
-3. Remove the directory fallback. Replace the entire filter predicate with:
-   ```typescript
-   Stream.filter(
-     (event) =>
-       event.location?.workspaceID === undefined ||
-       event.location.workspaceID === workspaceID,
-   ),
-   ```
-   This accepts events with no workspaceID (the common case — workspaceID is never populated in v1.18.5) AND events with matching workspaceID. Only events with a DIFFERENT workspaceID are filtered.
-4. Rebuild: `cd packages/opencode && OPENCODE_VERSION="$(~/.opencode/bin/opencode --version)" PATH=~/.bun/bin:$PATH ~/.bun/bin/bun run script/build.ts --single --skip-install --skip-embed-web-ui`.
-5. Back up `~/.opencode/bin/opencode`, atomically replace with `packages/opencode/dist/opencode-linux-x64/bin/opencode`, restart `omo-tg.service` and `opencode.service`.
-6. Verify: start a worktree session, trigger a tool call, confirm the TUI receives the event in real-time (no missed renders).
-
-## Durable Alternative
-Upstream PR to opencode removing the directory filter for worktree sessions. The fix is small and general — worktree-based development is a first-class opencode feature and the directory filter breaks it.
-Status: not-yet-pursued
+## Notes
+- The TUI's own route `/global/event` streams from GlobalBus (already unfiltered) — unaffected.
+- The verification pattern is shared with the minified old form; the distinguishing signal is the ABSENT `directory === instance.directory` source text plus runtime evidence.
+- Related upstream: issues #35917, #49861; fork PR #49963. No upstream fix through v2.0.11.
