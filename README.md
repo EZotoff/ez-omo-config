@@ -75,7 +75,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 - **Output Shaper** — terseness injection + reasoning-effort dialing on resume turns
 - **Skill Nudger** — ephemeral skill suggestions when tool signals match the catalog
 - **Safe update pipeline** — guided OpenCode/OMO updates with approval gate, patch preservation, rollback, evidence-state discipline
-- **Patch-preservation infrastructure** — regression corpus (39 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
+- **Patch-preservation infrastructure** — regression corpus (41 pairs), patch verifier, inotify watcher, 30-min integrity timer, and OnFailure alerting
 - **Live-config guard** — plugin blocking writes to the live OpenCode/OMO config surface from sessions outside this repo (2026-09-10/12 sandbox-leak incidents) + 30-min config-drift detection
 - **Deployment mandate** — every session loads the global `AGENTS.md`, requiring the `/deployment` skill before binding ports
 - **Project Supervisor P0** *(machine-local)* — read-only shadow observer for top-level sessions, hash-chained local ledger
@@ -94,7 +94,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Scripts** | 84 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, bench campaign runner, episode receipt + plan-lifecycle tooling (plans index, stale-plan sweep, execution-record lint), lite-lane tooling (workorder lint, agent leases, spawn health check), operator tools |
 | **Supervisor** | 61 files | Bun + strict-TypeScript read-only observer service, status CLI, journal→ledger continuation bridge, OC Beacon reply-inbox channel, tests |
 | **Systemd** | 23 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer (crash-class resume), weekly session-archive service + timer (30-day retention), nightly session-learning service + timer (03:30 closeout sweep) + quota-opportunistic service + 30-min probe timer (Z.AI pre-reset backlog drain), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
-| **Tests** | 163 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning closeout + quota-sweep + execution-record lint + workorder/agent-lifecycle suites + regression corpus (paired .sh/.kill.sh) |
+| **Tests** | 167 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning closeout + quota-sweep + execution-record lint + workorder/agent-lifecycle suites + regression corpus (paired .sh/.kill.sh) |
 | **Docs** | 18 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 

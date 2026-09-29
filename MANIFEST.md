@@ -172,7 +172,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 56 | `opencode-patch-integrity-check.service` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | Periodic integrity check service — 4 `ExecStart`s: verify-live-patches (3-state provenance verdicts) + check-live-config-drift + check-remote-presence + check-provenance (receipt/generation/smoke-freshness audit) | Optional |
 | 57 | `opencode-patch-integrity-check.timer` | `~/.config/systemd/user/` | `systemd/user/` | `$HOME/.config/systemd/user/` | 30-minute periodic timer | Optional |
 | 58 | `run_regressions.sh` | (repo only) | `tests/` | (repo only) | Regression corpus harness | Required |
-| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 39 paired regression tests (78 files total) | Required |
+| 59 | `regressions/` | (repo only) | `tests/` | (repo only) | 41 paired regression tests (82 files total; includes `2026-09-29-diff-context-bound` and `2026-09-29-track-skip-unchanged` source-only pairs) | Required |
 | 59a | `harness.ts` | (repo only) | `tests/review-enforcer/` | (repo only) | Behavioral harness for review-enforcer gating (drives regression pairs 014/015/016; helpers module import since 018) | Required |
 | 59b | `harness.mjs` | (repo only) | `tests/worktree-reclaim/` | (repo only) | Integration harness for worktree reclaim: target resolution, merged-delete, unmerged-keep, dirty-salvage, no-empty-snapshot | Required |
 | 60 | `test_patch_entries.sh` | (repo only) | `tests/` | (repo only) | Patch-entry schema gate (frontmatter completeness: surfaces, runtime_effective, target_file) | Required |
