@@ -44,7 +44,7 @@ except Exception:
   echo "${out:-$fallback}"
 }
 
-probe() { curl -s -o /dev/null --connect-timeout 2 --max-time 5 "$1"; }
+probe() { curl -s -o /dev/null --connect-timeout 2 --max-time 15 "$1"; }
 
 for entry in "${UNITS[@]}"; do
   IFS='|' read -r unit fallback service_key <<<"$entry"
@@ -62,6 +62,11 @@ for entry in "${UNITS[@]}"; do
   sleep 4
   if probe "$url"; then
     echo "keeper: :${port} probe #1 failed, probe #2 OK (transient) — no action"
+    continue
+  fi
+  sleep 10
+  if probe "$url"; then
+    echo "keeper: :${port} probe #2 failed, probe #3 OK (slow under load) — no action"
     continue
   fi
 
