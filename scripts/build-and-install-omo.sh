@@ -6,7 +6,7 @@
 #   build [--dry-run]              validate fork ancestry per config/omo-lockfile.json,
 #                                  then bun install && bun run build; write receipt
 #                                  ~/.local/share/opencode/builds/omo-<dist-sha256>.json
-#   install [dist] [--dry-run]     gate on receipt + dist verification_patterns,
+#   install [dist] [--dry-run] [--force] gate on receipt + dist verification_patterns,
 #                                  node --check, backup, restart services
 #   verify [--bootstrap]           receipt + generation + dist pattern check for the
 #                                  current dist; --bootstrap writes the one-time
@@ -16,6 +16,7 @@
 #   OMO_DIST_OVERRIDE   verify a specific dist file instead of the live dist
 #   OMO_RUNTIME_PATH    OMO runtime dir (default ~/oh-my-openagent-v4.19.2)
 #   OMO_LOCKFILE        lockfile path (default <repo>/config/omo-lockfile.json)
+#   REQUIRE_IDLE_GATE   idle-session gate (default <script-dir>/require-idle-opencode.sh)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -186,10 +187,11 @@ cmd_build() {
 }
 
 cmd_install() {
-    local dist="" dry_run=0 arg
+    local dist="" dry_run=0 force=0 arg
     for arg in "$@"; do
         case "$arg" in
             --dry-run) dry_run=1 ;;
+            --force) force=1 ;;
             *) [[ -z "$dist" ]] && dist="$arg" || usage ;;
         esac
     done
@@ -211,6 +213,9 @@ cmd_install() {
         return 0
     fi
     [[ -z "${OMO_DIST_OVERRIDE:-}" ]] || die "refusing real install with OMO_DIST_OVERRIDE set (testing override)"
+    local -a gate_args=()
+    if (( force )); then gate_args+=(--force); fi
+    "${REQUIRE_IDLE_GATE:-$SCRIPT_DIR/require-idle-opencode.sh}" "${gate_args[@]}" || exit 1
     local backup="$OMO_DIST.backup-$(date -u +%Y%m%dT%H%M%SZ)"
     cp "$OMO_DIST" "$backup"
     cp "$dist" "$OMO_DIST"

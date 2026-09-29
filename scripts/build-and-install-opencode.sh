@@ -16,6 +16,7 @@
 #
 # Exit codes (verify): 0 verified / 1 drift / 2 unverifiable.
 # Exit codes (build/install): 0 ok / 1 refusal or failure / 2 usage.
+# REQUIRE_IDLE_GATE overrides <script-dir>/require-idle-opencode.sh for isolated tests.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -45,8 +46,8 @@ usage() {
 cat >&2 <<'USAGE'
 usage:
   build-and-install-opencode.sh build [--dry-run]
-build-and-install-opencode.sh install <binary> [--recovery-from <backup>]
-[--reason "<text>"] [--dry-run]
+  build-and-install-opencode.sh install <binary> [--recovery-from <backup>]
+[--reason "<text>"] [--dry-run] [--force]
 build-and-install-opencode.sh verify [binary] [--bootstrap] [--source-head <sha>]
 USAGE
 exit 2
@@ -180,12 +181,13 @@ PYEOF
 
 # --------------------------------------------------------------- install ----
 cmd_install() {
-    local binary="" recovery_from="" reason="" dry_run=0
+    local binary="" recovery_from="" reason="" dry_run=0 force=0
     while (( $# )); do
         case "$1" in
             --recovery-from) recovery_from="${2:?}"; shift 2 ;;
             --reason) reason="${2:?}"; shift 2 ;;
             --dry-run) dry_run=1; shift ;;
+            --force) force=1; shift ;;
             -*) usage ;;
             *) [[ -z "$binary" ]] || usage; binary="$1"; shift ;;
         esac
@@ -250,6 +252,9 @@ cmd_install() {
         return 0
     fi
 
+    local -a gate_args=()
+    if (( force )); then gate_args+=(--force); fi
+    "${REQUIRE_IDLE_GATE:-$REPO/scripts/require-idle-opencode.sh}" "${gate_args[@]}" || exit 1
     local backup
     backup="$LIVE_BIN.backup-$runtime_ver-$GEN_INT-$(date +%Y%m%d-%H%M%S)"
     cp -a "$LIVE_BIN" "$backup"
