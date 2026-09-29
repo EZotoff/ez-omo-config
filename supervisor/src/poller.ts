@@ -12,6 +12,10 @@ export type WatchState = {
   readonly completed: boolean
   /** A stall was already reported for this episode; reset on message growth. */
   stallFired: boolean
+  /** Session-listing updated timestamp last seen for this session (cheap signal). */
+  lastUpdatedMs?: number
+  /** Whether the expensive full-transcript classification fetch has run. */
+  fetched: boolean
 }
 
 const EMPTY_STATE: WatchState = { messageCount: 0, completed: false, stallFired: false }
@@ -52,15 +56,39 @@ export async function pollRootOnce(
   const signals: PollSignal[] = []
   const next = new Map<string, WatchState>()
   for (const session of sessions) {
+    const updated = session.timeUpdatedMs
+    const prior = previous.get(session.id)
+    // Activity detection from the CHEAP session listing: an advancing updated
+    // timestamp means the session is producing — no transcript fetch needed.
+    // The expensive listMessages runs ONLY on quiescence, to classify idle
+    // (assistant completed) vs stalled. Pulling full transcripts for every
+    // hot session every tick was the loopback firehose (17.6 MiB/s measured
+    // 2026-09-29: multi-MB bench transcripts re-downloaded every 20s).
+    const advanced = prior?.lastUpdatedMs !== undefined && updated !== undefined && updated > prior.lastUpdatedMs
+    if (prior !== undefined && advanced) {
+      next.set(session.id, {
+        messageCount: prior.messageCount,
+        completed: false,
+        stallFired: false, // activity resets the stall episode
+        lastUpdatedMs: updated,
+        fetched: prior.fetched,
+      })
+      signals.push({ kind: "busy", sessionID: session.id })
+      if (updated !== undefined) {
+        signals.push({ kind: "activity", sessionID: session.id, lastUpdatedMs: updated })
+      }
+      continue
+    }
     const messages = await client.listMessages(session.id, root)
     const last = messages.at(-1)
     const state: WatchState = {
       messageCount: messages.length,
       completed: last !== undefined && last.role === "assistant" && last.time.completed !== undefined,
       stallFired: previous.get(session.id)?.stallFired ?? false,
+      lastUpdatedMs: updated,
+      fetched: true,
     }
     next.set(session.id, state)
-    const prior = previous.get(session.id)
     if (prior === undefined) {
       // First observation: an already-completed session idles immediately;
       // an in-flight one is busy. (A completion that happened before we started
