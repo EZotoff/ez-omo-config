@@ -149,3 +149,7 @@ patches; 0 pattern matches in src and dist). RESTORED 2026-09-30 (hand-reapplied
 diverged at 3cd78e823. Restore via merge + `build-and-install-omo.sh` +
 receipted install during an idle window. Tracked in post-fix-integrity-audit
 follow-ups.
+
+## Re-reapplied (2026-09-30, self-congestion transcript-limit task)
+
+Hand-reapplied to dist sha256=6990a043209c990dd3c0558712915fce084f54154ff699287bf74f5d1d6ba05d (rebuilt from branch `agent/sisyphus/tui-label-transcript-limit` = ae73e27cd + bounded last-agent transcript fetch; superset of canonical ref 3d507e2de). All verification_pattern gates pass; bootstrap receipt omo-6990a043....json (generation omo-4.19.2-patches.1).
