@@ -4,6 +4,7 @@ dependency: "oh-my-openagent"
 target_file: "dist/index.js"
 target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
 status: "active"
+implementation_kind: "acknowledged-drift"
 applied_date: "2026-08-05"
 dep_version: "4.19.2"
 upstream_issue: "none"
@@ -138,3 +139,12 @@ This is a dist-level patch on a minified bundle, not a source patch. Identify th
 A config option in `oh-my-openagent.json` (e.g. `log_dir` or `log.path`) that `defaultLogFilePath` consults before falling back to the env/home path would let operators relocate logs without a dist patch. The env override (`OMO_LOG_DIR`) already added by this patch is a partial step in that direction, but the home-logs fallback is still a code change.
 
 Status: not-yet-pursued — no upstream config option exists for log location in OMO v4.19.2. An upstream issue/PR could propose `oh-my-openagent.json#log_dir` (or a `OMO_LOG_DIR` env check upstreamed into `defaultLogFilePath`) to eliminate this patch entirely.
+
+## Acknowledged drift (2026-09-30)
+
+Implementation absent from the live dist (rebuilt out-of-flow without these
+patches; 0 pattern matches in src and dist). RECOVERABLE: commits live on
+`origin/fix/custom-patches-v4.19.2` (oh-my-openagent fork) — local HEAD
+diverged at 3cd78e823. Restore via merge + `build-and-install-omo.sh` +
+receipted install during an idle window. Tracked in post-fix-integrity-audit
+follow-ups.

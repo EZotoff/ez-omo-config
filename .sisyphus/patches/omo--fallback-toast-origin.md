@@ -4,6 +4,7 @@ dependency: "oh-my-openagent"
 target_file: "dist/index.js"
 target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
 status: "active"
+implementation_kind: "acknowledged-drift"
 applied_date: "2026-08-05"
 dep_version: "4.19.2"
 upstream_issue: "none"
@@ -139,3 +140,12 @@ This is a dist-level patch on a minified bundle, not a source patch. Identify th
 A config option in `oh-my-openagent.json` (e.g. `runtime_fallback.toast_label_template` or `runtime_fallback.include_session_in_toast: true`) that the upstream `dispatchFallbackRetry` consults when building the toast message would let operators enable origin labeling without a dist patch. Upstreaming the agent/session tag into the stock toast message (always on, or behind a config flag) is the cleanest fix and would make this patch disappear on the next OMO version that includes it.
 
 Status: not-yet-pursued — no upstream config option exists for toast labeling in OMO v4.19.2. An upstream issue/PR could propose appending the resolved agent + session suffix to the fallback toast message directly in `dispatchFallbackRetry` (or behind a `runtime_fallback.toast_label_template` config field) to eliminate this patch.
+
+## Acknowledged drift (2026-09-30)
+
+Implementation absent from the live dist (rebuilt out-of-flow without these
+patches; 0 pattern matches in src and dist). RECOVERABLE: commits live on
+`origin/fix/custom-patches-v4.19.2` (oh-my-openagent fork) — local HEAD
+diverged at 3cd78e823. Restore via merge + `build-and-install-omo.sh` +
+receipted install during an idle window. Tracked in post-fix-integrity-audit
+follow-ups.

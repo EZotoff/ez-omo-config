@@ -5,6 +5,7 @@ target_file: "dist/index.js"
 target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
 source_repo: ""
 status: "active"
+implementation_kind: "acknowledged-drift"
 applied_date: "2026-08-16"
 dep_version: "4.19.2"
 runtime_effective: true
@@ -95,3 +96,12 @@ Dist-level patch on the OMO bundle. The v4.19.2 bundle is NOT minified (identifi
 Upstream fix in OMO source: `packages/omo-opencode/src/tools/look-at/look-at-session-runner.ts` (and/or `look-at-session-waiter.ts`) — teach the waiter that an empty assistant outcome is not a conclusion while a runtime-fallback may still land (e.g. require non-empty text to conclude under `allowStableIdleWithoutActivity`, or subscribe to `session.status` retry/fallback events). The runtime-fallback hook (`runtime-fallback-abort:session.status.retry-signal`) and the look_at waiter live in the same package; coordinating them upstream removes this patch.
 
 Status: not-yet-pursued
+
+## Acknowledged drift (2026-09-30)
+
+Implementation absent from the live dist (rebuilt out-of-flow without these
+patches; 0 pattern matches in src and dist). RECOVERABLE: commits live on
+`origin/fix/custom-patches-v4.19.2` (oh-my-openagent fork) — local HEAD
+diverged at 3cd78e823. Restore via merge + `build-and-install-omo.sh` +
+receipted install during an idle window. Tracked in post-fix-integrity-audit
+follow-ups.
