@@ -243,6 +243,7 @@
       "name": "Codex",
       "whitelist": [
         "gpt-6-sol",
+        "gpt-6.1-sol",
         "gpt-5.6-terra",
         "gpt-6-luna"
       ],
@@ -258,6 +259,55 @@
         "headerTimeout": 300000
       },
       "models": {
+        "gpt-6.1-sol": {
+          "name": "GPT 6.1 Sol (OAuth)",
+          "options": {
+            "reasoningEffort": "high",
+            "reasoningSummary": "detailed",
+            "textVerbosity": "medium"
+          },
+          "limit": {
+            "context": 1050000,
+            "input": 922000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "reasoningEffort": "low",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "medium": {
+              "reasoningEffort": "medium",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            },
+            "max": {
+              "reasoningEffort": "max",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            }
+          }
+        },
         "gpt-6-sol": {
           "name": "GPT 6 Sol (OAuth)",
           "limit": {
