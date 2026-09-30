@@ -90,9 +90,11 @@ export class OpencodeClient {
     })
   }
 
-  async listMessages(sessionID: string, directory: string): Promise<readonly Message[]> {
+  async listMessages(sessionID: string, directory: string, limit?: number): Promise<readonly Message[]> {
     const raw = z.array(messageEnvelopeSchema).parse(
-      await this.request(`/session/${encodeURIComponent(sessionID)}/message?directory=${encodeURIComponent(directory)}`),
+      await this.request(
+        `/session/${encodeURIComponent(sessionID)}/message?directory=${encodeURIComponent(directory)}${limit === undefined ? "" : `&limit=${limit}`}`,
+      ),
     )
     return raw.map(({ info, parts }) => ({
       id: info.id,

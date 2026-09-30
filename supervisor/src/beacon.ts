@@ -150,12 +150,17 @@ export class BeaconChannel {
   async poll(root: string, now: ISO8601): Promise<readonly ReplyEvent[]> {
     const inboxID = await this.ensureInbox(root)
     if (inboxID === undefined) return []
-    const messages = await this.client.listMessages(inboxID, root)
-    const last = messages.at(-1)
+    // Tail-fetch (limit 50): same firehose rationale as console.pollReplies.
+    let messages = await this.client.listMessages(inboxID, root, 50)
+    let last = messages.at(-1)
     const watermark = this.state.watermarks[inboxID]
     if (watermark === undefined) {
       if (last !== undefined) await this.setWatermark(inboxID, last.id)
       return []
+    }
+    if (!messages.some((message) => message.id === watermark)) {
+      messages = await this.client.listMessages(inboxID, root)
+      last = messages.at(-1)
     }
     const start = messages.findIndex((message) => message.id === watermark)
     const fresh = start === -1 ? messages : messages.slice(start + 1)

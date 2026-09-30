@@ -4,7 +4,7 @@ dependency: "opencode"
 target_file: "packages/opencode/src/session/processor.ts"
 target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
-status: "active"
+status: "superseded"
 applied_date: "2026-09-28"
 dep_version: "1.18.31-p2"
 runtime_effective: false
@@ -44,3 +44,15 @@ Pattern (necessary, NOT sufficient): `grep -ac 'mcp_question' /home/ezotoff/.ope
 ## Durable Alternative
 
 The watchdog is inside the binary's stream processor and has no plugin/config hook for identifying inline question waits. Upstreaming this guard would remove the local rebuild requirement. Status: not-yet-pursued.
+
+## Supersession (2026-09-30)
+
+REVERTED by commit 4d8d4713fa (fix/v1.18.31-question-stall-watchdog): the
+suspension suspended the stall watchdog FOREVER while any question-family
+tool was in flight — orphaned permission dialogs created immortal busy
+sessions holding transcripts/streams in RAM (the parallel-session death
+spiral amplifier). Additionally, ANY modification to that watchdog block
+miscompiles under the Bun bundler (TDZ ReferenceError 'de' in production;
+silent stream hangs 0/3 in scratch A/B). Deletion-only revert restores the
+Sep-27-known-good timeout+retry semantics. Do NOT re-patch this region
+without addressing the bundler miscompile first.

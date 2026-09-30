@@ -79,6 +79,16 @@ export async function pollRootOnce(
       }
       continue
     }
+    // Quiescent session: fetch the transcript ONLY if it changed since the last
+    // classification (or was never fetched). Re-fetching an unchanged multi-MB
+    // transcript every tick was the residual firehose (6.5 MiB/5s measured).
+    if (prior?.fetched && prior.lastUpdatedMs === updated) {
+      next.set(session.id, { ...prior })
+      if (updated !== undefined) {
+        signals.push({ kind: "activity", sessionID: session.id, lastUpdatedMs: updated })
+      }
+      continue
+    }
     const messages = await client.listMessages(session.id, root)
     const last = messages.at(-1)
     const state: WatchState = {

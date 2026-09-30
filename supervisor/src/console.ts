@@ -406,12 +406,19 @@ export class ConsoleChannel {
   async pollReplies(root: string, now: ISO8601): Promise<readonly ReplyEvent[]> {
     const consoleID = this.state.consoles[root]
     if (consoleID === undefined) return []
-    const messages = await this.client.listMessages(consoleID, root)
-    const last = messages.at(-1)
+    // Tail-fetch (limit 50): console transcripts grow forever; re-pulling the
+    // full list every tick was a multi-MB/s loopback firehose. Full fetch only
+    // as fallback when the watermark is older than the tail.
+    let messages = await this.client.listMessages(consoleID, root, 50)
+    let last = messages.at(-1)
     const watermark = this.state.watermarks[consoleID]
     if (watermark === undefined) {
       if (last !== undefined) await this.setWatermark(consoleID, last.id)
       return []
+    }
+    if (watermark !== undefined && !messages.some((message) => message.id === watermark)) {
+      messages = await this.client.listMessages(consoleID, root)
+      last = messages.at(-1)
     }
     const start = messages.findIndex((message) => message.id === watermark)
     const fresh = start === -1 ? messages : messages.slice(start + 1)
