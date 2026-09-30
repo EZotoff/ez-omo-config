@@ -144,7 +144,7 @@ Status: not-yet-pursued — no upstream config option exists for toast labeling 
 ## Acknowledged drift (2026-09-30)
 
 Implementation absent from the live dist (rebuilt out-of-flow without these
-patches; 0 pattern matches in src and dist). RECOVERABLE: commits live on
+patches; 0 pattern matches in src and dist). RESTORED 2026-09-30 (hand-reapplied to dist 25b522b5, receipted bootstrap). Original loss was from
 `origin/fix/custom-patches-v4.19.2` (oh-my-openagent fork) — local HEAD
 diverged at 3cd78e823. Restore via merge + `build-and-install-omo.sh` +
 receipted install during an idle window. Tracked in post-fix-integrity-audit
