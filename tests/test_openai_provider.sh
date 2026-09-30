@@ -97,7 +97,9 @@ print('PASS: opencode-openai-codex-auth plugin entry exists')
 expected_agent_models = {
     'sisyphus': 'zai-coding-plan/glm-5.3-flash',
     'hephaestus': 'openai/gpt-6-sol',
-    'oracle': 'openai/gpt-6-sol',
+    'oracle': 'openai/gpt-6.1-sol',
+    'explore': 'openai/gpt-6.1-sol',
+    'librarian': 'openai/gpt-6.1-sol',
     'prometheus': 'kimi-for-coding-oauth/k3',
     'metis': 'openai/gpt-6-sol',
     'multimodal-looker': 'zai-coding-plan/glm-5.3-flash',
@@ -118,7 +120,6 @@ expected_gemini_routes = {
 }
 
 expected_opencode_go_routes = {
-    ('agents', 'explore'): 'ollama-cloud/minimax-m3',
     ('categories', 'writing'): 'google/gemini-3.8-flash',
 }
 
@@ -132,11 +133,12 @@ print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
     'sisyphus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6-sol'],
-    'oracle': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
+    'oracle': ['openai/gpt-6-sol', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
     'prometheus': ['zai-coding-plan/glm-5.3', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6-sol'],
     'metis': ['zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
     'momus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
-    'explore': ['opencode-go/minimax-m3', 'openai/gpt-6-luna'],
+    'explore': ['openai/gpt-6-sol', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
+    'librarian': ['openai/gpt-6-sol', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
 }
 
 for name, expected in expected_agent_models.items():
