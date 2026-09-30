@@ -87,11 +87,7 @@
     },
     {
       "patch_id": "opencode--sse-directory-filter-removal",
-      "required": false,
-      "implementation_kind": "acknowledged-drift",
-      "superseded_commits": [
-        "74ffcd4d5f319167f6c530626d7156f28aed4a9a"
-      ],
+      "required": true,
       "implementation_commits": [
         "72d910ea6a859172ed12acae4195cbfcea37ec7d",
         "fcd72c7d55"

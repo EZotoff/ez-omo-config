@@ -5,6 +5,7 @@ target_file: "packages/opencode/src/server/routes/instance/httpapi/handlers/even
 target_install_path: "/home/ezotoff/src/opencode/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts"
 surfaces: "server-api"
 verification_strength: "weak"
+note: "lockfile required:true since 2026-09-30 (was acknowledged-drift before the 1.18.31-p2 re-apply)"
 required_evidence: "runtime"
 status: "active"
 applied_date: "2026-06-26"
