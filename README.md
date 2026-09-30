@@ -94,7 +94,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | **Scripts** | 84 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, bench campaign runner, episode receipt + plan-lifecycle tooling (plans index, stale-plan sweep, execution-record lint), lite-lane tooling (workorder lint, agent leases, spawn health check), operator tools |
 | **Supervisor** | 61 files | Bun + strict-TypeScript read-only observer service, status CLI, journal→ledger continuation bridge, OC Beacon reply-inbox channel, tests |
 | **Systemd** | 23 files | patch watcher, integrity check service + timer, integrity triage (auto-remediation gate) + integrity-failure alert, supervisor, interactive attach daemon + 1-min keeper timer (auto-recovery after agent-killed-daemon incidents), dedicated bench server (:3040) + continuation drop-in, 5-min continuation-checkpoint service + timer (crash-class resume), weekly session-archive service + timer (30-day retention), nightly session-learning service + timer (03:30 closeout sweep) + quota-opportunistic service + 30-min probe timer (Z.AI pre-reset backlog drain), parked FLARE-4B server, continuation hook drop-ins for both OpenCode servers (auto-resume busy sessions on restart) |
-| **Tests** | 167 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + session-learning closeout + quota-sweep + execution-record lint + workorder/agent-lifecycle suites + regression corpus (paired .sh/.kill.sh) |
+| **Tests** | 175 files | config/plugin/update/computer-use contracts (incl. live-config-guard harness) + analysis-agent routing + session-learning closeout + quota-sweep + execution-record lint + workorder/agent-lifecycle suites + regression corpus (paired .sh/.kill.sh) |
 | **Docs** | 18 active | see [Documentation](#documentation); dated material in `docs/history/` |
 | **Extras / Docker** | 1 + 2 | ocx registry; worktree compose template + guide |
 
@@ -164,12 +164,12 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 | prometheus | `kimi-for-coding-oauth/k3` | high | glm-5.3 → ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
 | sisyphus | `zai-coding-plan/glm-5.3-flash` | high | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
 | sisyphus-junior | `zai-coding-plan/glm-5.3` | default | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
-| librarian | `zai-coding-plan/glm-5.3-flash` | high | glm-5.3 → ollama m3 → opencode-go m3 → gpt-5.6-terra |
-| explore | `ollama-cloud/minimax-m3` | default | opencode-go m3 → gpt-6-luna |
+| librarian | `openai/gpt-6.1-sol` | high | gpt-6-sol → glm-5.3 → k3 |
+| explore | `openai/gpt-6.1-sol` | high | gpt-6-sol → glm-5.3 → k3 |
 | frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
 | document-writer | `openai/gpt-5.6-terra` | default | glm-5.3 |
 | multimodal-looker | `zai-coding-plan/glm-5.3-flash` | high | gpt-5.6-terra → gemini-3.8-flash |
-| oracle | `openai/gpt-6-sol` | high | ollama dsv4.1-flash → opencode-go dsv4.1-flash → k3 → glm-5.3 |
+| oracle | `openai/gpt-6.1-sol` | high | gpt-6-sol → glm-5.3 → k3 |
 | metis | `openai/gpt-6-sol` | xhigh | glm-5.3 → k3 |
 | momus | `openai/gpt-6-sol` | xhigh | ollama dsv4.1-flash → opencode-go dsv4.1-flash |
 | hephaestus | `openai/gpt-6-sol` | xhigh | ollama dsv4.1-flash → opencode-go dsv4.1-flash |
