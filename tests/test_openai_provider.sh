@@ -58,7 +58,7 @@ if provider.get('openai', {}).get('name') != 'Codex':
 print('PASS: provider.openai exists and is labeled Codex')
 
 openai_models = provider.get('openai', {}).get('models', {})
-expected_models = ['gpt-6-sol', 'gpt-5.6-terra', 'gpt-6-luna']
+expected_models = ['gpt-6-sol', 'gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-6-luna']
 missing = [m for m in expected_models if m not in openai_models]
 if missing:
     print(f'FAIL: missing expected models: {missing}')
@@ -69,7 +69,13 @@ openai_whitelist = provider.get('openai', {}).get('whitelist')
 if openai_whitelist != expected_models:
     print(f'FAIL: provider.openai.whitelist expected {expected_models!r}, got {openai_whitelist!r}')
     sys.exit(1)
-print('PASS: OpenAI picker whitelist contains only Sol, Terra, and Luna')
+print('PASS: OpenAI picker whitelist contains only Sol, 6.1 Sol, Terra, and Luna')
+
+sol61 = openai_models.get('gpt-6.1-sol', {})
+if sol61.get('options', {}).get('reasoningEffort') != 'high':
+    print(f'FAIL: gpt-6.1-sol default reasoningEffort expected high, got %r' % sol61.get('options', {}).get('reasoningEffort'))
+    sys.exit(1)
+print('PASS: gpt-6.1-sol default reasoningEffort is high')
 
 google_models = provider.get('google', {}).get('models', {})
 if 'gemini-3.8-flash' not in google_models:
@@ -103,7 +109,7 @@ expected_category_models = {
     'quick': 'zai-coding-plan/glm-5.3-flash',
     'unspecified-low': 'ollama-cloud/deepseek-v4.1-flash',
     'unspecified-high': 'zai-coding-plan/glm-5.3',
-    'mephistopheles': 'openai/gpt-5.6-terra',
+    'mephistopheles': 'openai/gpt-6-sol',
     'visual-engineering': 'zai-coding-plan/glm-5.3-flash',
 }
 
@@ -113,7 +119,7 @@ expected_gemini_routes = {
 
 expected_opencode_go_routes = {
     ('agents', 'explore'): 'ollama-cloud/minimax-m3',
-    ('categories', 'writing'): 'zai-coding-plan/glm-5.3',
+    ('categories', 'writing'): 'google/gemini-3.8-flash',
 }
 
 agents = omo.get('agents', {})

@@ -147,7 +147,7 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 | Provider | Models | Notes |
 |----------|--------|-------|
 | **google** | Gemini 3.8 Flash, Gemini 3.1 Pro Preview | whitelisted; Antigravity entries remain declared but hidden |
-| **openai** (Codex OAuth) | GPT 6 Sol / 5.6 Terra / 6 Luna | OAuth: `opencode auth login openai`; whitelisted |
+| **openai** (Codex OAuth) | GPT 6.1 Sol / 6 Sol / 5.6 Terra / 6 Luna | OAuth: `opencode auth login openai`; whitelisted |
 | **opencode-go** | MiniMax M3, DeepSeek V4 Flash, V4 Flash Vision Exp, V4.1 Flash, Qwen 3.8 Flash, Qwen 3.8 Max | whitelisted to OMO fallback-chain models; Qwen 3.8 Flash added for benchmark evaluation; Qwen 3.8 Max added 2026-09-23 (1M ctx, $15/mo plan limit) |
 | **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
 | **zai-coding-plan** | GLM 5.3, GLM 5.3 Flash | Coding Plan API; whitelisted |
