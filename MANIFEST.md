@@ -156,6 +156,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 28k | test_default_agent_pin.sh | (repo only) | `tests/` | (repo only) | Default-Agent Pin (`default_agent: Sisyphus` in opencode.json; anti-regression for the 2026-09-05 OC Beacon build-default incident) | Required |
 | 28l | test_agent_default_guard.sh | (repo only) | `tests/` | (repo only) | Agent Default Guard plugin contract (build→default rewrite, fail-open paths, registry cache) | Required |
 | 28m | test_plugin_console_hygiene.sh | (repo only) | `tests/` | (repo only) | Plugin Console Hygiene (no console.* in config-layer plugins and plugin entry files; anti-regression for the 2026-09-06 stdout spam) | Required |
+| 28n | test_analysis_agent_routing.sh | (repo only) | `tests/` | (repo only) | Analysis-agent routing contract: explore/librarian/oracle use registered reasoning-grade primary and fallback models; rejects weak-route negative controls | Required |
 | 29 | live-deployment-verification.md | (repo only) | `docs/` | (repo only) | Documentation | Required |
 | 29b | patches.md | (repo only) | `docs/` | (repo only) | Documentation — patch index (thin index over `.sisyphus/patches/`) | Required |
 | 29c | reviews.md | (repo only) | `docs/` | (repo only) | Documentation — plan-review ledger spec (`.omo/plans/<plan>.reviews.md`; 4+2 budget, REJECT schema; enforced by `scripts/execution-record-lint.sh` — W2 lane) | Required |
