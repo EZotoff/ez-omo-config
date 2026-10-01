@@ -457,3 +457,38 @@ describe("pending propagation retry", () => {
     await rm(dir, { recursive: true, force: true })
   })
 })
+
+describe("open-item lifecycle sweep", () => {
+  test("aged non-approval item TTL-expires and resolves; a fresh item survives", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-console-sweep-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const channel = new ConsoleChannel({
+      client, queue, statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next },
+      probe: healthyProbe,
+    })
+    const aged = await channel.proposeEscalation(escalationRequest())
+    if (aged.kind !== "enqueued") throw new Error("expected enqueue")
+    // Age the item past the 24h class TTL (revalidate: age > TTL → expired).
+    const index = queue.items.findIndex((entry) => entry.id === aged.item.id)
+    const agedEntry = queue.items[index]
+    if (agedEntry === undefined) throw new Error("expected aged item")
+    ;(agedEntry as unknown as { priority: { createdAt: string } }).priority = {
+      ...agedEntry.priority, createdAt: "2026-09-01T00:00:00.000Z",
+    }
+    const fresh = await channel.proposeEscalation(escalationRequest({ sessionID: "ses-b", question: "Second decision?" }))
+    if (fresh.kind !== "enqueued") throw new Error("expected second enqueue")
+    const resolved = await channel.sweepOpenItems("/root", NOW)
+    expect(resolved).toBe(1)
+    const agedState = queue.items.find((item) => item.id === aged.item.id)
+    const freshState = queue.items.find((item) => item.id === fresh.item.id)
+    expect(agedState !== undefined && agedState.lifecycle.at(-1)?.state).toBe("resolved")
+    expect(freshState !== undefined && freshState.lifecycle.at(-1)?.state).not.toBe("resolved")
+    await rm(dir, { recursive: true, force: true })
+  })
+})
