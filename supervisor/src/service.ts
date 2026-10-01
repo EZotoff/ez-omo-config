@@ -265,6 +265,9 @@ export async function runService(signal: AbortSignal): Promise<void> {
   }
 
   const rootBackoff = new Map<string, { failures: number; nextAttemptAt: number }>()
+  const SWEEP_INTERVAL_MS = 5 * 60_000
+  const RESURFACE_MS = 6 * 60 * 60_000
+  const sweepState = new Map<string, { lastSweepMs: number; lastSurfaceMs: number }>()
   const reconcile = async (root: string): Promise<RootRuntime | undefined> => {
     const backoff = rootBackoff.get(root)
     if (backoff !== undefined && Date.now() < backoff.nextAttemptAt) {
@@ -658,6 +661,24 @@ rootConfig?.continue_writes?.enabled === true
           // Retry answered-but-undelivered propagations every tick (stuck-pending
           // fix): revalidate, then deliver the stored reply text or resolve.
           await consoles.retryPendingPropagations(new Date().toISOString())
+          // Open-item lifecycle sweep (2026-10-01 audit): unanswered items aged
+          // for days with nothing to trigger revalidation. Sweep revalidates on
+          // a 5-min cadence (resolving dead items frees the open-item cap);
+          // still-valid items are re-surfaced on a 6h dwell, not every sweep.
+          const sweepClock = sweepState.get(root.path) ?? { lastSweepMs: 0, lastSurfaceMs: Date.now() }
+          if (Date.now() - sweepClock.lastSweepMs >= SWEEP_INTERVAL_MS) {
+            sweepClock.lastSweepMs = Date.now()
+            const resolvedCount = await consoles.sweepOpenItems(root.path, new Date().toISOString())
+            if (resolvedCount > 0) {
+              ledger = await ledger.append("QUEUE_SWEPT", { root: root.path, resolved: resolvedCount })
+            }
+            const stillOpen = queue.items.some((item) => item.target.root === root.path && itemState(item) !== "resolved")
+            if (stillOpen && Date.now() - sweepClock.lastSurfaceMs >= RESURFACE_MS) {
+              sweepClock.lastSurfaceMs = Date.now()
+              await consoles.surfaceNext(root.path, new Date().toISOString())
+            }
+            sweepState.set(root.path, sweepClock)
+          }
           // OC Beacon reply-inbox ingestion (Seam 4, Amendment 2026-09-25) — same
           // tick cadence as the console channel; routing shares the reply-router.
           const beaconReplies = await beacon.poll(root.path, new Date().toISOString())

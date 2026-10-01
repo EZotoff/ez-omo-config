@@ -463,6 +463,28 @@ export class ConsoleChannel {
     return replies
   }
 
+  /** Background lifecycle sweep (2026-10-01 audit: unanswered items aged 3-9
+   *  days with no reply/retry event to trigger revalidation, while their open
+   *  state consumed the per-root open-item cap and suppressed fresh
+   *  escalations). Revalidates every open item; dead premises resolve
+   *  (freeing the cap). APPROVAL items never TTL-expire (revalidate rule). */
+  async sweepOpenItems(root: string, now: ISO8601): Promise<number> {
+    let resolved = 0
+    for (const item of [...this.queue.items]) {
+      if (item.target.root !== root) continue
+      const state = itemState(item)
+      if (state === "resolved" || state === "answered") continue
+      try {
+        const sources = await this.probe(item)
+        const result = await this.queue.revalidate(item.id, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (itemState(result.item) === "resolved") resolved += 1
+      } catch (error) {
+        this.setLedger(await this.ledger().append("ERROR", { itemID: item.id, error: `sweepOpenItems revalidate failed: ${error instanceof Error ? error.message : String(error)}` }))
+      }
+    }
+    return resolved
+  }
+
   /** Retry stuck pending propagations: answered items whose stored reply was
    *  never delivered (revalidation deferred the delivery, or the service died
    *  mid-route — 5 ledger items sat PROPOSED/pending forever before this).
