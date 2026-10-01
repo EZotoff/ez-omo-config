@@ -15,6 +15,8 @@ export type ScanManifest = {
   readonly startedAt: string
   readonly completedAt: string
   readonly complete: true
+  /** Sessions whose transcript fetch failed and are absent from `sessions` (degraded, not fatal). */
+  readonly fetchErrors: readonly { readonly sessionID: string; readonly error: string }[]
   readonly childSessionIDs: readonly string[]
   readonly sessions: readonly SessionScan[]
 }
@@ -71,20 +73,30 @@ export async function reconcileRoot(
   const inWindow = all.filter(
     (session) => !excludeIDs.has(session.id) && (session.timeUpdatedMs === undefined || session.timeUpdatedMs >= cutoff),
   )
-  const fetched = await mapPool(inWindow, options.fetchConcurrency, async (session): Promise<SessionScan> => {
-    const messages = await client.listMessages(session.id, root)
-    const watermark = messages.at(-1)?.id
-    return {
-      session,
-      messages,
-      turns: [],
-      ...(watermark === undefined ? {} : { watermark }),
+  const fetchErrors: { readonly sessionID: string; readonly error: string }[] = []
+  const fetched = await mapPool(inWindow, options.fetchConcurrency, async (session): Promise<SessionScan | undefined> => {
+    // Per-session isolation: one failing transcript fetch (after client retries)
+    // must degrade that session only — never kill the whole service (live crash
+    // 2026-09-30 18:12: single /session/<id>/message failure exited the process).
+    try {
+      const messages = await client.listMessages(session.id, root)
+      const watermark = messages.at(-1)?.id
+      return {
+        session,
+        messages,
+        turns: [],
+        ...(watermark === undefined ? {} : { watermark }),
+      }
+    } catch (error) {
+      fetchErrors.push({ sessionID: session.id, error: error instanceof Error ? error.message : String(error) })
+      return undefined
     }
   })
-  const childIDs = deriveChildSessionIDs(fetched.flatMap((scan) => scan.messages))
+  const scans = fetched.filter((scan): scan is SessionScan => scan !== undefined)
+  const childIDs = deriveChildSessionIDs(scans.flatMap((scan) => scan.messages))
   const top = new Set(topLevelSessions(inWindow, childIDs).map((session) => session.id))
-  const sessions = fetched
+  const sessions = scans
     .filter((scan) => top.has(scan.session.id))
     .map((scan) => ({ ...scan, turns: projectTurns(scan.messages, registry) }))
-  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, childSessionIDs: [...childIDs], sessions }
+  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, fetchErrors, childSessionIDs: [...childIDs], sessions }
 }

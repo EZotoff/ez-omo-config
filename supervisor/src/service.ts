@@ -278,6 +278,9 @@ export async function runService(signal: AbortSignal): Promise<void> {
         fetchConcurrency: config.fetch_concurrency,
       }, new Set([...consoles.allSessionIDs(), ...beacon.allSessionIDs()]))
       rootBackoff.delete(root)
+      if (manifest.fetchErrors.length > 0) {
+        ledger = await ledger.append("ERROR", { root, error: `reconcile degraded: ${manifest.fetchErrors.length} session fetch(es) failed`, fetchErrors: manifest.fetchErrors.slice(0, 10) })
+      }
     } catch (error) {
       const b = rootBackoff.get(root) ?? { failures: 0, nextAttemptAt: 0 }
       const failures = b.failures + 1
@@ -285,7 +288,9 @@ export async function runService(signal: AbortSignal): Promise<void> {
       rootBackoff.set(root, { failures, nextAttemptAt: Date.now() + delay })
       status.rootHealth = { ...status.rootHealth, [root]: { state: "failing", consecutiveFailures: failures, lastErrorAt: new Date().toISOString() } }
       try { await writeStatusSynced() } catch {}
-      throw error instanceof Error ? error : new Error(String(error))
+      ledger = await ledger.append("ERROR", { root, error: `root reconcile failed (root degraded, service continues): ${error instanceof Error ? error.message : String(error)}` })
+      await recordErrorTelemetry({ root })
+      return runtimes.get(root)
     }
     const previous = runtimes.get(root)
     const rootConfig = config.roots.find((r) => r.path === root)

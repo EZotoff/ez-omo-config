@@ -22,3 +22,23 @@ test("returns only sibling turns changed after the previous watermark", () => {
 test("returns no sibling delta when the watermark is current", () => {
   expect(changedTurnsSinceWatermark("a2", scan)).toEqual([])
 })
+
+test("reconcileRoot isolates a failing transcript fetch instead of throwing", async () => {
+  const { reconcileRoot } = await import("../src/reconcile")
+  const sessions: Session[] = [
+    { id: "ses-ok", directory: "/project", timeUpdatedMs: Date.now() },
+    { id: "ses-bad", directory: "/project", timeUpdatedMs: Date.now() },
+  ]
+  const client = {
+    listSessions: async () => sessions,
+    listMessages: async (sessionID: string) => {
+      if (sessionID === "ses-bad") throw new Error("transient API failure")
+      return [{ id: "u1", sessionID, role: "user", time: { created: 1 }, parts: [] }] as never
+    },
+  }
+  const manifest = await reconcileRoot(client as never, "/project", { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }, { initialWindowDays: 7, fetchConcurrency: 2 })
+  expect(manifest.complete).toBe(true)
+  expect(manifest.sessions.map((entry) => entry.session.id)).toEqual(["ses-ok"])
+  expect(manifest.fetchErrors).toHaveLength(1)
+  expect(manifest.fetchErrors[0]?.sessionID).toBe("ses-bad")
+})
