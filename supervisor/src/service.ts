@@ -20,7 +20,7 @@ import { BeaconChannel, BEACON_CHANNEL_ID } from "./beacon"
 import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
 import { ContinuationBridge, readJournalEntries } from "./journalbridge"
-import { AttentionQueue, itemState, type RevalidationSources } from "./queue"
+import { AttentionQueue, itemState, openItemsByRoot, type RevalidationSources } from "./queue"
 import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
 import { ProtectionRegistry } from "./protect"
 import { OperatorViewPublisher } from "./operator-view"
@@ -32,7 +32,6 @@ type RootRuntime = {
   readonly root: string
   readonly mode: "shadow" | "observe" | "full"
   manifest: ScanManifest
-  queueDepth: number
   scheduler?: SessionScheduler
   readonly states: Map<string, SessionState>
   readonly origin: AutonomousOriginConfig
@@ -285,7 +284,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       const delay = Math.min(2 ** Math.min(failures, 5) * 60_000, 1_800_000)
       rootBackoff.set(root, { failures, nextAttemptAt: Date.now() + delay })
       status.rootHealth = { ...status.rootHealth, [root]: { state: "failing", consecutiveFailures: failures, lastErrorAt: new Date().toISOString() } }
-      try { await writeStatus(statusPath, status) } catch {}
+      try { await writeStatusSynced() } catch {}
       throw error instanceof Error ? error : new Error(String(error))
     }
     const previous = runtimes.get(root)
@@ -295,7 +294,6 @@ export async function runService(signal: AbortSignal): Promise<void> {
       mode: (rootConfig?.mode ?? "shadow") as "shadow" | "observe" | "full",
       origin: rootConfig === undefined ? { pathGlobs: [], titlePrefixes: [] } : rootAutonomousOrigin(rootConfig),
       manifest,
-      queueDepth: 0,
       states: new Map<string, SessionState>(),
       continueWrites: { dateKey: continueCapKey(new Date()), count: 0 },
     }
@@ -303,12 +301,12 @@ export async function runService(signal: AbortSignal): Promise<void> {
     runtimes.set(root, runtime)
     status.rootHealth = { ...status.rootHealth, [root]: { state: "ok", consecutiveFailures: 0 } }
     status.lastReconcile = manifest.completedAt
-    status.queueDepths[root] = runtime.queueDepth
+    await writeStatusSynced()
     const turns = [...runtimes.values()].flatMap((entry) => entry.manifest.sessions.flatMap((scan) => scan.turns))
     status.unknownOriginRate = turns.length === 0 ? 0 : turns.filter((turn) => turn.origin === "unknown").length / turns.length
     status.machineMarkedRate = turns.length === 0 ? 0 : turns.filter((turn) => turn.origin === "machine-synthetic" || turn.origin === "machine-template").length / turns.length
     try {
-      await writeStatus(statusPath, status)
+      await writeStatusSynced()
     } catch (error) {
       ledger = await ledger.append("ERROR", { root, error: `writeStatus failed: ${error instanceof Error ? error.message : String(error)}` })
       await recordErrorTelemetry({})
@@ -333,7 +331,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       rationale: decision.rationale,
       now: new Date().toISOString(),
     })
-    await writeStatus(statusPath, status)
+    await writeStatusSynced()
     await publishOperatorView()
   }
 
@@ -551,10 +549,18 @@ export async function runService(signal: AbortSignal): Promise<void> {
         runtime.scheduler?.markTicked(sessionID)
       }
     } finally {
-      runtime.queueDepth = Math.max(0, runtime.queueDepth - 1)
-      status.queueDepths[runtime.root] = runtime.queueDepth
-      await writeStatus(statusPath, status)
+      await writeStatusSynced()
     }
+  }
+
+  /** queueDepths must mirror the attention queue (open = non-resolved items per
+   *  root), never a hand-incremented counter — the counter drifted from the
+   *  operator-view read model (0 vs 4 open cards, 2026-09-30 audit). */
+  const writeStatusSynced = async (): Promise<void> => {
+    for (const runtime of runtimes.values()) {
+      status.queueDepths[runtime.root] = openItemsByRoot(queue.items)[runtime.root] ?? 0
+    }
+    await writeStatus(statusPath, status)
   }
 
   const enqueueIdle = async (runtime: RootRuntime, sessionID: string): Promise<void> => {
@@ -563,9 +569,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       Date.now,
       (sid) => processIdle(runtime, sid),
     )
-    runtime.queueDepth += 1
-    status.queueDepths[runtime.root] = runtime.queueDepth
-    await writeStatus(statusPath, status)
+    await writeStatusSynced()
     void runtime.scheduler.enqueue(sessionID).catch(async (error) => {
       if (!(error instanceof Error)) throw error
       ledger = await ledger.append("ERROR", { root: runtime.root, sessionID, error: error.message })
@@ -609,7 +613,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
     const runtime0 = runtimes.get(root.path)
     if (runtime0 === undefined) continue
     status.modes = { ...status.modes, [root.path]: runtime0.mode }
-    await writeStatus(statusPath, status)
+    await writeStatusSynced()
     if (root.mode === "observe" || root.mode === "full") {
       void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
     }

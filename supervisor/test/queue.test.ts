@@ -239,3 +239,14 @@ describe("selectNext prioritization", () => {
     expect(selectNext({ items: [rootA, rootB], lease: undefined, surfaceLog, now: NOW })?.id).toBe("att_b")
   })
 })
+
+describe("openItemsByRoot", () => {
+  test("counts non-resolved items per root; resolved items excluded", async () => {
+    const { openItemsByRoot } = await import("../src/queue")
+    const open = (root: string, id: `att_${string}`) => makeItem({ id, target: { root, sessionID: "ses-a", userMessageID: "u1" }, lifecycle: [{ state: "proposed", at: NOW, actor: "tick" }] })
+    const resolved = (root: string, id: `att_${string}`) => makeItem({ id, target: { root, sessionID: "ses-a", userMessageID: "u1" }, lifecycle: [{ state: "resolved", at: NOW, disposition: "propagated", evidence: [] }] })
+    const items = [open("/root-a", "att_1"), open("/root-b", "att_2"), open("/root-a", "att_3"), resolved("/root-a", "att_4")]
+    expect(openItemsByRoot(items)).toEqual({ "/root-a": 1, "/root-b": 1 })
+    expect(openItemsByRoot([])).toEqual({})
+  })
+})

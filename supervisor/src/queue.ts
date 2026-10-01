@@ -579,3 +579,15 @@ export class AttentionQueue {
     await this.persist()
   }
 }
+
+/** Open (non-resolved) attention items per root — the only correct source for
+ *  `status.queueDepths`. Replaces the hand-incremented counter that drifted
+ *  from the operator-view read model (2026-09-30 audit: 0 vs 4 open cards). */
+export function openItemsByRoot(items: readonly AttentionQueueItem[]): Readonly<Record<string, number>> {
+  const depths: Record<string, number> = {}
+  for (const item of items) {
+    if (itemState(item) === "resolved") continue
+    depths[item.target.root] = (depths[item.target.root] ?? 0) + 1
+  }
+  return depths
+}
