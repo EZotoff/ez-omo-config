@@ -9,6 +9,7 @@ import { loadApiKey, loadConfig, loadProviderBaseURL, rootAutonomousOrigin } fro
 import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
 import { pollRootOnce, ActivityGate, type WatchState } from "./poller"
+import { truncateAtSentence } from "./text"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
@@ -229,8 +230,8 @@ export async function runService(signal: AbortSignal): Promise<void> {
     deliverPropagation: async (input) => {
       const rootConfig = config.roots.find((r) => r.path === input.root)
       if (rootConfig?.continue_writes?.enabled !== true) return false
-      await client.promptAsync(input.sessionID, input.root, `[supervisor] (operator answer) ${input.answer.slice(0, 500)}`)
-      ledger = await ledger.append("QUEUE_PROPAGATION_DELIVERED", { root: input.root, sessionID: input.sessionID, answer: input.answer.slice(0, 200) })
+      await client.promptAsync(input.sessionID, input.root, `[supervisor] (operator answer) ${truncateAtSentence(input.answer, 4000)}`)
+      ledger = await ledger.append("QUEUE_PROPAGATION_DELIVERED", { root: input.root, sessionID: input.sessionID, answer: truncateAtSentence(input.answer, 2000) })
       return true
     },
   })
