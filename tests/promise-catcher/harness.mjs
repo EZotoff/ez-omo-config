@@ -94,6 +94,31 @@ async function caseNoPromise() {
   assert(injections.length === 0, "no wake for a normal closing message");
 }
 
+async function caseSkipLogging() {
+  const { mod, logPath } = await setup();
+  const sid = "ses_pc16";
+  const msgs = [msg("user", "check with oracle"), msg("assistant", "I'll monitor — waiting on the Oracle notification.")];
+  const { ctx, injections } = mockCtx([session(sid)], msgs);
+  const plugin = await mod.default(ctx);
+  await idle(plugin, sid);
+  assert(injections.length === 0, "armed wait not woken");
+  const log = readLog(logPath);
+  assert(log.includes("SKIP") && log.includes("reason=armed-text"), "promise-present skip is logged with its reason");
+  assert(log.includes("promise present but not woken"), "skip log names the promise");
+}
+
+async function casePendingBgRecencyWindow() {
+  const { mod } = await setup();
+  const sid = "ses_pc17";
+  // bg spawn 45 messages back (beyond the 40-message window) with no completion
+  const filler = Array.from({ length: 44 }, (_, i) => msg(i % 2 ? "assistant" : "user", `filler ${i}`));
+  const msgs = [bgSpawnMsg("spawn_old"), ...filler, msg("assistant", "I'll keep monitoring.")];
+  const { ctx, injections } = mockCtx([session(sid)], msgs);
+  const plugin = await mod.default(ctx);
+  await idle(plugin, sid);
+  assert(injections.length === 1, "stale bg spawn beyond the window no longer suppresses wakes");
+}
+
 async function caseArmedText() {
   const { mod } = await setup();
   const sid = "ses_pc3";
@@ -262,6 +287,8 @@ async function caseEvaluatePure() {
 const cases = {
   "promise-detected": casePromiseDetected,
   "no-promise": caseNoPromise,
+  "skip-logging": caseSkipLogging,
+  "pending-bg-recency-window": casePendingBgRecencyWindow,
   "armed-text": caseArmedText,
   "pending-bg-task": casePendingBgTask,
   "completed-bg-task": caseCompletedBgTask,

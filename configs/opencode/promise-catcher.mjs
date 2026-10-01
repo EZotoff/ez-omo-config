@@ -114,15 +114,20 @@ function textOf(parts) {
     .join("\n");
 }
 
-// Count background tasks spawned in the transcript but not yet completed.
-// Completion = the bg_<id> appears in any LATER message's text (OMO's
-// [BACKGROUND TASK COMPLETED] system-reminder quotes the id). A spawn whose
-// output carries no trackable bg_ id counts as pending (conservative: assume
-// armed rather than false-wake a legitimately-waiting session).
+// Count background tasks spawned RECENTLY but not yet completed. Bounded to
+// the trailing window (last BG_WINDOW messages): long bench sessions
+// accumulate dozens of historical spawns, and a single stale never-completed
+// spawn must not suppress wakes forever (2026-10-01 dry-run audit: 7mJjPC,
+// 71 spawns). Completion = the bg_<id> appears in any LATER message's text
+// (OMO's [BACKGROUND TASK COMPLETED] system-reminder quotes the id). A spawn
+// whose output carries no trackable bg_ id counts as pending (conservative:
+// assume armed rather than false-wake a legitimately-waiting session).
+const BG_WINDOW = 40;
 function pendingBackgroundTasks(messages) {
+  const window = messages.slice(-BG_WINDOW);
   let pending = 0;
-  for (let i = 0; i < messages.length; i++) {
-    const parts = Array.isArray(messages[i]?.parts) ? messages[i].parts : [];
+  for (let i = 0; i < window.length; i++) {
+    const parts = Array.isArray(window[i]?.parts) ? window[i].parts : [];
     for (const part of parts) {
       if (part?.type !== "tool") continue;
       if (part?.state?.input?.run_in_background !== true) continue;
@@ -132,7 +137,7 @@ function pendingBackgroundTasks(messages) {
         pending += 1;
         continue;
       }
-      const laterText = messages
+      const laterText = window
         .slice(i + 1)
         .map((m) => textOf(m?.parts))
         .join("\n");
@@ -226,7 +231,15 @@ export const PromiseCatcher = async (ctx) => {
       }
 
       const verdict = evaluatePromise(msgs);
-      if (!verdict.ok) return;
+      if (!verdict.ok) {
+        // Observability (2026-10-01 dry-run audit): promise-present skips MUST
+        // be logged — silent skips made the first 13h of dry-run logs
+        // undiagnosable (zero WOULD-wake lines while real promises slipped by).
+        if (verdict.phrase) {
+          log("info", `SKIP session ${sessionID} reason=${verdict.reason}: promise present but not woken: "${verdict.phrase}"`);
+        }
+        return;
+      }
 
       const lastMsgId = (msgs[msgs.length - 1]?.info ?? msgs[msgs.length - 1])?.id;
       if (lastMsgId && wokenMsgIds.has(lastMsgId)) return;
