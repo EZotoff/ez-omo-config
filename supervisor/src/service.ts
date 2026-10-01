@@ -23,7 +23,7 @@ import { ContinuationBridge, readJournalEntries } from "./journalbridge"
 import { AttentionQueue, itemState, openItemsByRoot, type RevalidationSources } from "./queue"
 import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
 import { ProtectionRegistry } from "./protect"
-import { OperatorViewPublisher } from "./operator-view"
+import { OperatorViewPublisher, isProbeTarget } from "./operator-view"
 import type { Action, AttentionQueueItem, Decision, OriginRegistry, Session, Turn } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
@@ -498,11 +498,17 @@ export async function runService(signal: AbortSignal): Promise<void> {
             }
           }
         }
-        if (
-          decision.action === "CONTINUE" &&
-          runtime.mode === "observe" &&
-          rootConfig?.continue_writes?.enabled === true
+if (
+decision.action === "CONTINUE" &&
+runtime.mode === "observe" &&
+rootConfig?.continue_writes?.enabled === true
         ) {
+          // Evidence gate (2026-09 audit): never kick-start a probe/throwaway
+          // session — a bare "OK" on a compliance probe is DELIVERED work
+          // (live false positive 2026-09-22, kick K1).
+          if (scan !== undefined && isProbeTarget({ root: runtime.root, ...(scan.session.title === undefined ? {} : { sessionTitle: scan.session.title }) })) {
+            ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "continue write: probe/throwaway session — acknowledgment is delivery" })
+          } else {
           const today = continueCapKey(new Date())
           if (runtime.continueWrites.dateKey !== today) runtime.continueWrites = { dateKey: today, count: 0 }
           const gate = gateContinueWrite({
@@ -548,6 +554,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
                 rationale: decision.rationale,
               })
             }
+          }
           }
         }
         runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)

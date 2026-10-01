@@ -121,3 +121,7 @@ test("SessionScheduler defers throttled work instead of dropping it", async () =
   await new Promise((r) => setTimeout(r, 1_100))  // wait out the defer timer
   expect(ran).toBe(2)
 })
+
+test("decision prompt carries the kick-start evidence rule (audit 2026-09: K1/K3 false positives)", () => {
+  expect(POLICY.includes("kick_start requires EVIDENCE OF UNFINISHED WORK")).toBe(true)
+})

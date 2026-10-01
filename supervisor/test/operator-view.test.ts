@@ -217,3 +217,11 @@ describe("operator-view acceptance", () => {
     expect(OPERATOR_VIEW_HEARTBEAT_MS).toBeLessThanOrEqual(15_000)
   })
 })
+
+test("isProbeTarget: probe titles and scratch roots gate kick-starts; normal sessions do not", async () => {
+  const { isProbeTarget } = await import("../src/operator-view")
+  expect(isProbeTarget({ root: "/home/ezotoff/ez-omo-bench", sessionTitle: "PROBE-OK" })).toBe(true)
+  expect(isProbeTarget({ root: "/home/ezotoff/ez-omo-bench", sessionTitle: "Reply FINAL_OK confirmation" })).toBe(true)
+  expect(isProbeTarget({ root: `${await import("node:os").then((m) => m.tmpdir())}/probe.XYZ`, })).toBe(true)
+  expect(isProbeTarget({ root: "/home/ezotoff/ez-omo-bench", sessionTitle: "Storage discipline implementation" })).toBe(false)
+})
