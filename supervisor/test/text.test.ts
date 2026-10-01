@@ -28,3 +28,11 @@ describe("truncateAtSentence", () => {
     expect(cut.length).toBeLessThanOrEqual(4000)
   })
 })
+
+test("card trim bounds: MAX_TEXT_CHARS keeps a full sentence under the cap", async () => {
+  const { truncateAtSentence } = await import("../src/text")
+  const question = "The requested outcome — a read-only triage of the meeting notes — was fully delivered: every item was categorized. The lab-branch question was directly answered: no, pulling upstream would not help. A third sentence follows here."
+  const cut = truncateAtSentence(question, 200)
+  expect(cut.length).toBeLessThanOrEqual(200)
+  expect(cut.endsWith(".")).toBe(true)
+})

@@ -6,6 +6,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import type { Ledger } from "./ledger"
+import { truncateAtSentence } from "./text"
 import {
   AttentionQueue,
   DEFAULT_GRACE_MS,
@@ -246,7 +247,7 @@ export function formatTicket(alias: string, item: AttentionQueueItem): string {
     "",
     item.question,
     "",
-    `Why: ${item.rationale.slice(0, 400)}`,
+    `Why: ${truncateAtSentence(item.rationale, 400)}`,
     ...(citations === "" ? [] : [`Citations: ${citations}`]),
     "",
     `Reply in this session, e.g. "${alias}: <your answer>".`,

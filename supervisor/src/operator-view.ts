@@ -6,6 +6,7 @@ import { mkdir, open, rename } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname } from "node:path"
 import { bandOf, itemState } from "./queue"
+import { truncateAtSentence } from "./text"
 import type { AttentionQueueItem, ISO8601, Premise } from "./types"
 
 export const OPERATOR_VIEW_SCHEMA_VERSION = 1
@@ -91,8 +92,10 @@ function toCard(item: AttentionQueueItem, nowMs: number): OperatorViewCard {
     id: item.id,
     rootLabel: rootLabelOf(item.target.root),
     sessionLabel: item.target.sessionTitle ?? item.target.sessionID,
-    reasonText: item.question.slice(0, MAX_TEXT_CHARS),
-    premiseTexts: item.premises.slice(0, MAX_PREMISES).map((premise) => premiseSummary(premise).slice(0, MAX_PREMISE_CHARS)),
+    // Sentence-boundary trim: a hard slice cut cards mid-sentence on OC Beacon
+    // (operator-view is the binding live-card source — audit 2026-10-01).
+    reasonText: truncateAtSentence(item.question, MAX_TEXT_CHARS),
+    premiseTexts: item.premises.slice(0, MAX_PREMISES).map((premise) => truncateAtSentence(premiseSummary(premise), MAX_PREMISE_CHARS)),
     ageSeconds: Math.max(0, Math.floor((nowMs - Date.parse(item.priority.createdAt)) / 1000)),
     severity: bandOf(item, new Date(nowMs).toISOString()),
     jumpAvailable: true,

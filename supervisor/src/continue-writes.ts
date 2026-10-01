@@ -1,4 +1,5 @@
 import type { Decision } from "./types"
+import { truncateAtSentence } from "./text"
 
 type ContinueMode = "kick_start" | "approve" | null
 
@@ -93,5 +94,5 @@ export function gateSteerWrite(input: SteerWriteGateInput): ContinueWriteGate {
 }
 
 export function steerWriteText(decision: Pick<Decision, "rationale">): string {
-  return `[supervisor] (steer) ${decision.rationale.slice(0, 600)}`
+  return `[supervisor] (steer) ${truncateAtSentence(decision.rationale, 600)}`
 }
