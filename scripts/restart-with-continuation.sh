@@ -199,46 +199,66 @@ PYEOF
 
 # --- Snapshot -------------------------------------------------------------
 snapshot() {
-  local out dirs d tmpstatus tmpdir
-  # Wall-clock budget (F1 hardening): the per-dir loop issues two sequential API
-  # calls per directory, so cumulative collection time is otherwise unbounded.
-  # On deadline the snapshot FAILS via the caller's existing snapshot_failed
-  # path — a partial snapshot is never written. Hook mode starts SECONDS before
-  # the stop-preflight so this budget bounds the TOTAL hook-snapshot runtime,
-  # not just the collection loop.
-  # Wall-clock budget: HOOK modes only — standalone/checkpoint collection is
-  # unbounded (healthy-server full collection is allowed to take its time).
-  local budget i=0 st deadline_hit=0
-  if hook_budget_active; then budget="${SNAPSHOT_BUDGET_SECONDS:-15}"; else budget=2147483647; fi
+  local out dirs d tmpdir
+  # Wall-clock budget (hook modes only — standalone/checkpoint collection stays
+  # unbounded). Default 45s: the 2026-09-30 congested stop burned the old 15s
+  # budget walking 53 dirs sequentially and aborted BEFORE WRITING anything,
+  # losing 7 busy sessions. 45s keeps margin under systemd's 90s TimeoutStopSec,
+  # and on overrun the partial inventory is WRITTEN (partial: true), not
+  # discarded — resume consumes it like a full one.
+  local budget i=0 deadline_hit=0 concurrency pids=() p
+  if hook_budget_active; then budget="${SNAPSHOT_BUDGET_SECONDS:-45}"; else budget=2147483647; fi
+  concurrency="${SNAPSHOT_CONCURRENCY:-8}"
   dirs="$(discover_dirs)"
   [[ -n "$dirs" ]] || { echo "ERROR: no recently-active session directories found in DB" >&2; return 1; }
   mkdir -p "$STATE_DIR"
   out="${STATE_FILE:-$STATE_DIR/snapshot-$(date +%Y%m%d-%H%M%S).json}"
-  tmpstatus="$(mktemp)" tmpdir="$(mktemp -d)"
-  : > "$tmpstatus"
+  tmpdir="$(mktemp -d)"
+  collect_one() { # collect_one <dir> <idx> — runs as a background worker
+    local d="$1" idx="$2" enc st
+    enc="$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "$d")"
+    st="$(api GET "/session/status?directory=$enc" || true)"
+    [[ -n "$st" ]] && printf '%s' "$st" > "$tmpdir/status-$idx.json"   # write-as-found
+    (( SECONDS >= budget )) && return 0   # overruns skip the second call
+    api GET "/session?directory=$enc&limit=100" > "$tmpdir/sessions-$idx.json" 2>/dev/null || true
+  }
+  # Bounded-concurrency inventory: 8 dirs at a time instead of a sequential
+  # 2-call walk per directory (per-request timeout stays with api()).
   while IFS= read -r d; do
     [[ -n "$d" ]] || continue
     if (( SECONDS >= budget )); then deadline_hit=1; break; fi
     i=$((i + 1))
-    local enc="$d"
-    enc="$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1], safe=''))" "$d")"
-    st="$(api GET "/session/status?directory=$enc" || true)"
-    [[ -n "$st" ]] && printf '%s\n' "$st" >> "$tmpstatus"
-    if (( SECONDS >= budget )); then deadline_hit=1; break; fi
-    api GET "/session?directory=$enc&limit=100" > "$tmpdir/sessions-$i.json" 2>/dev/null || true
+    collect_one "$d" "$i" &
+    pids+=("$!")
+    if (( ${#pids[@]} >= concurrency )); then
+      for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
+      pids=()
+      if (( SECONDS >= budget )); then deadline_hit=1; break; fi
+    fi
   done <<< "$dirs"
-  if (( deadline_hit )); then
-    echo "ERROR: snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); no snapshot written" >&2
-    [[ -z "$HOOK_MODE" ]] || hook_log "snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); aborting before write"
+  for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
+  pids=()
+  (( SECONDS >= budget )) && deadline_hit=1
+  if (( deadline_hit )) && ! ls "$tmpdir"/status-*.json >/dev/null 2>&1; then
+    # Overrun with NOTHING collected: keep the old discard behavior so the
+    # hook-resume crash-class checkpoint fallback stays reachable.
+    echo "ERROR: snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); nothing collected, no snapshot written" >&2
+    [[ -z "$HOOK_MODE" ]] || hook_log "snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); nothing collected, no snapshot written"
+    rm -rf "$tmpdir"
     return 1
   fi
-  STATUS_FILE="$tmpstatus" SESSIONS_DIR="$tmpdir" OUT="$out" python3 - <<'PYEOF'
+  if (( deadline_hit )); then
+    echo "WARNING: snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); writing PARTIAL inventory" >&2
+    [[ -z "$HOOK_MODE" ]] || hook_log "snapshot budget exceeded (${SECONDS}s >= ${budget}s) after $i dir(s); writing PARTIAL inventory ($(ls "$tmpdir"/status-*.json 2>/dev/null | wc -l) probed)"
+  fi
+  PARTIAL="$deadline_hit" STATUS_DIR="$tmpdir" SESSIONS_DIR="$tmpdir" OUT="$out" python3 - <<'PYEOF'
 import glob, json, os, time
 merged = {}
-for line in open(os.environ["STATUS_FILE"]):
-    line = line.strip()
-    if line:
-        merged.update(json.loads(line))
+for f in sorted(glob.glob(os.path.join(os.environ["STATUS_DIR"], "status-*.json"))):
+    try:
+        merged.update(json.load(open(f)))
+    except (ValueError, OSError):
+        pass
 status = merged
 sessions = []
 for f in glob.glob(os.path.join(os.environ["SESSIONS_DIR"], "sessions-*.json")):
@@ -253,22 +273,32 @@ by_id = {s["id"]: s for s in sessions}
 top_level = []
 for sid in busy_ids:
     s = by_id.get(sid)
-    if s is None:
-        continue
-    if s.get("parentID"):          # skip subagent/child sessions
-        continue
-    if s.get("time", {}).get("archived"):
-        continue
-    top_level.append({
-        "id": sid,
-        "title": s.get("title"),
-        "directory": s.get("directory"),
-        "status": status[sid].get("type"),
-        "time_updated": s.get("time", {}).get("updated"),
-        "captured_at_ms": int(time.time() * 1000),
-        "resume_prompt_target": os.environ.get("OPENCODE_URL", ""),
-    })
+    if s is not None:
+        if s.get("parentID"):          # skip subagent/child sessions
+            continue
+        if s.get("time", {}).get("archived"):
+            continue
+        top_level.append({
+            "id": sid,
+            "title": s.get("title"),
+            "directory": s.get("directory"),
+            "status": status[sid].get("type"),
+            "time_updated": s.get("time", {}).get("updated"),
+            "captured_at_ms": int(time.time() * 1000),
+            "resume_prompt_target": os.environ.get("OPENCODE_URL", ""),
+        })
+    elif os.environ.get("PARTIAL") == "1":
+        # Partial inventory: /session metadata was not collected in time.
+        # Keep a best-effort entry so the busy session is not silently
+        # dropped; resume() degrades to a directory-less POST for it.
+        top_level.append({
+            "id": sid, "title": None, "directory": None,
+            "status": status[sid].get("type"), "time_updated": None,
+            "captured_at_ms": int(time.time() * 1000), "resume_prompt_target": "",
+        })
 snapshot = {"prompt_note": "inject via POST /session/<id>/prompt_async", "sessions": top_level}
+if os.environ.get("PARTIAL") == "1":
+    snapshot["partial"] = True
 with open(os.environ["OUT"], "w") as f:
     json.dump(snapshot, f, indent=1)
 print(f"{len(top_level)} active top-level session(s) captured -> {os.environ['OUT']}")
@@ -332,11 +362,22 @@ for s in snap.get("sessions", []):
     if s.get("directory"):
         from urllib.parse import quote
         q = "?directory=" + quote(s["directory"], safe="")
-    r = subprocess.run(
-        ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
-         "-H", "Content-Type: application/json", "-d", body,
-         f"{base}/session/{s['id']}/prompt_async{q}"],
-        capture_output=True, text=True)
+    cmd = ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
+           "-H", "Content-Type: application/json", "-d", body,
+           f"{base}/session/{s['id']}/prompt_async{q}"]
+    # Retry rc=7/timeout every 2s up to RESUME_RETRY_SECONDS (default 60s,
+    # capped by the hook API budget): a single knock on a still-starting
+    # server must not silently drop the resume (2026-09-30 :3030 give-up).
+    retry_secs = float(os.environ.get("RESUME_RETRY_SECONDS") or 60)
+    t_post = time.time()
+    while True:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0:
+            break
+        rem = budget_left()
+        if time.time() - t_post + 2 >= retry_secs or rem <= 0:
+            break
+        time.sleep(min(2, max(rem, 0.1)))
     if r.returncode == 0:
         print(f"resumed {s['id']}  ({s.get('title')})")
         ok += 1
@@ -503,7 +544,7 @@ PYEOF
     return 0
   fi
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
-  wait_ready 45 || { hook_log "server not ready in time; db fallback skipped"; return 0; }
+  wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; db fallback skipped"; return 0; }
   hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
   out="$(CANDS="$cands" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
@@ -652,7 +693,7 @@ latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1
       exit 0
     fi
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
-    wait_ready 45 || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
+    wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
     hook_log "no stop snapshot; crash-class resume from checkpoint $ckpt_uuid"
     ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
       OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
@@ -732,7 +773,7 @@ PYEOF
     exit 0
   fi
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
-  wait_ready 45 || { hook_log "server not ready in time; resume skipped"; exit 0; }
+  wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; resume skipped"; exit 0; }
   hook_log "resuming from $(basename "$latest")"
   resume "$latest" >> "$HOOKS_LOG" 2>&1 || true
   mv "$latest" "$STATE_DIR/consumed-$(basename "$latest")" 2>/dev/null || true
