@@ -38,6 +38,7 @@
     "librarian": {
       "model": "openai/gpt-6.1-sol",
       "variant": "high",
+      "prompt_append": "## Web search tool preference\nFor general web research prefer the `web_search_prime` MCP tool (Z.AI, included in the Coding Plan); its argument is `search_query`. Fall back to `websearch_web_search_exa` (keyless Exa; capped at roughly 50 requests/day/IP and throttling can surface as HTTP 200 with an empty body).\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.",
       "fallback_models": [
         "openai/gpt-6-sol",
         "zai-coding-plan/glm-5.3",

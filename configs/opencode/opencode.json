@@ -16,6 +16,7 @@
     "./skill-nudger.mjs",
     "./agent-default-guard.mjs",
     "./live-config-guard.mjs",
+    "./promise-catcher.mjs",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
@@ -42,7 +43,16 @@
     "tail_turns": 3
   },
   "experimental": {
-    "continue_loop_on_deny": true
+  },
+  "mcp": {
+    "web-search-prime": {
+      "type": "remote",
+      "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer {env:ZAI_WEB_SEARCH_API_KEY}"
+      },
+      "enabled": true
+    }
   },
   "provider": {
     "google": {

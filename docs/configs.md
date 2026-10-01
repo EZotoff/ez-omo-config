@@ -53,6 +53,7 @@ Auth is basic (`OPENCODE_SERVER_USERNAME`/`OPENCODE_SERVER_PASSWORD`) loaded fro
 - `small_model` — Lightweight model used by built-in OpenCode helper agents, including automatic session title generation (currently `ollama-cloud/deepseek-v4.1-flash`, moved from `ollama-cloud/deepseek-v4-flash:0731` on 2026-09-12 at the V4.1 Flash release; smoke-tested via `opencode run -m` before promotion; the `:0731` entry was removed from the ollama-cloud catalog the same day as redundant — v4.1-flash supersedes it; `:0731` had held the slot since 2026-08-27 when it moved from `opencode-go/deepseek-v4-flash`; a local FLARE-4B trial was parked 2026-08-15 — VRAM contention with ComfyUI)
 - `provider` — Provider definitions, model catalogs, endpoints, and options
 - `compaction` / `experimental` — Compaction behavior and feature flags
+- `mcp` — Remote MCP servers registered globally (added 2026-10-01): `web-search-prime` (Z.AI `web_search_prime`, billed to the existing GLM Coding Plan quota; auth via `Bearer {env:ZAI_WEB_SEARCH_API_KEY}` — that env var is machine-local in `serve.env` / `serve-interactive.env` / shell rc and must never be committed). API gotchas verified by probe 2026-10-01: tool name is `web_search_prime` (the docs' `webSearchPrime` returns `Tool not found`) and the argument is `search_query` (bare `query` returns `-400 search_query cannot be empty`). OMO's bundled keyless Exa websearch MCP remains active as fallback (50 req/day/IP keyless cap).
 
 **Install Target**: `$HOME/.config/opencode/opencode.json`
 
