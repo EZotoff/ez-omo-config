@@ -485,3 +485,42 @@ describe("CollectBudget", () => {
     expect(budget.allow("/root", "s1", day2)).toBe(true)
   })
 })
+
+describe("proxy forcing function (design §1 — was unreachable dead code, 2026-10-01 audit)", () => {
+  test("P-empty fires with no model needs → synthesized need opens the fork", async () => {
+    const { runner, calls } = stubRunner(gathered())
+    const decision = await runTickWithCollect(
+      forkRequest({
+        adapter: scriptedAdapter([decisionJson({ action: "ESCALATE", information_needs: [] }), decisionJson({ action: "ESCALATE", evidence_effect: "confirmed" })]),
+        executor: runner,
+        target: { ...target, assistantText: "", transcript: "USER: do the thing" },
+      }),
+    )
+    expect(calls.length).toBe(1)
+    const first = calls[0]?.[0]
+    if (first === undefined) throw new Error("expected synthesized need")
+    expect(first.scope).toBe("sessions")
+    expect(first.target).toBe("ses-target")
+    expect(first.why).toContain("P-empty")
+    expect(decision.action).toBe("ESCALATE")
+  })
+
+  test("no proxy, no model needs → fork stays closed (back-compat)", async () => {
+    const { runner, calls } = stubRunner(gathered())
+    await runTickWithCollect(forkRequest({ adapter: scriptedAdapter([decisionJson({ information_needs: [] })]), executor: runner }))
+    expect(calls.length).toBe(0)
+  })
+
+  test("P-contra fires for CONTINUE against contradiction words", async () => {
+    const { runner, calls } = stubRunner(gathered())
+    await runTickWithCollect(
+      forkRequest({
+        adapter: scriptedAdapter([decisionJson({ action: "CONTINUE", information_needs: [] }), decisionJson({ action: "ESCALATE" })]),
+        executor: runner,
+        target: { ...target, userText: "stop and wait for me first" },
+      }),
+    )
+    expect(calls.length).toBe(1)
+    expect(calls[0]?.[0]?.why).toContain("P-contra")
+  })
+})

@@ -4,6 +4,7 @@ import type { Decision, Turn } from "./types"
 import type { ReasoningAdapter } from "./adapter"
 import type { AssembledContext } from "./assembler"
 import {
+  type ProxySignals,
   DEFAULT_COLLECT_BOUNDS,
   collectEligible,
   detectProxies,
@@ -336,6 +337,25 @@ export async function runTickWithCollect(request: CollectForkRequest): Promise<T
   return result.decision
 }
 
+/** Proxy-synthesized collect needs (design §1 forcing function): each fired
+ *  proxy reason becomes one concrete retrievable need so the fork can open
+ *  even when the model emitted information_needs: []. Max 3 (schema bound). */
+function proxyNeeds(proxies: ProxySignals, sessionID: string): readonly InformationNeed[] {
+  const needs: InformationNeed[] = []
+  for (const reason of proxies.reasons) {
+    if (reason === "P-empty") {
+      needs.push({ question: "The target reply has no assistant text — what does the session transcript show around the empty turn?", scope: "sessions", target: sessionID, why: "P-empty proxy: an empty reply is ambiguous (wedged stream vs delivered silence)", expected_effect: "Recent transcript distinguishes a wedge (CONTINUE) from completed work (ACCEPT)" })
+    } else if (reason === "P-cross") {
+      needs.push({ question: "What open operator decisions or sibling findings bear on this cross-session escalation?", scope: "cards", target: "root", why: "P-cross proxy: STEER/ESCALATE cites only target-session evidence", expected_effect: "A sibling card or finding can confirm or flip the action" })
+    } else if (reason === "P-ref") {
+      needs.push({ question: "Which earlier decisions or tickets does the rationale reference?", scope: "ledger", target: "root", why: "P-ref proxy: rationale references prior context absent from the assembled context", expected_effect: "The referenced ledger record settles whether the reference is real" })
+    } else if (reason === "P-contra") {
+      needs.push({ question: "Does the user turn contain an explicit stop/wait/contradiction the CONTINUE decision is overriding?", scope: "sessions", target: sessionID, why: "P-contra proxy: CONTINUE decided against contradiction words in the user turn", expected_effect: "An explicit stop instruction flips CONTINUE to ABSTAIN or ESCALATE" })
+    }
+  }
+  return needs.slice(0, 3)
+}
+
 async function runCollectFork(request: CollectForkRequest): Promise<TickDecision> {
   if (request.context.truncated) return abstain("context exceeded token budget")
   const header = `TARGET SESSION ${request.target.sessionID} MESSAGE ${request.target.userMessageID}`
@@ -347,12 +367,18 @@ async function runCollectFork(request: CollectForkRequest): Promise<TickDecision
   }
   const d1 = parseDecision(raw1, request.confidenceFloor, { provisional: true })
   if (d1.action === "ABSTAIN") return d1
-  const needs = d1.information_needs
-  if (needs.length === 0) return applyFinalGates(d1, request.confidenceFloor)
 
   const now = request.nowMs()
   const budgetAvailable = request.budget.allow(request.root, request.target.sessionID, now)
   const proxies = detectProxies({ decision: d1, target: request.target, context: request.context, hasSiblings: request.hasSiblings })
+  // Deterministic forcing function (design §1): when the model named no needs,
+  // proxies synthesize the collect trigger. The empty-needs early return used to
+  // precede proxy detection — the forcing function was unreachable dead code and
+  // collect telemetry stayed attempts=0 across every decision since launch
+  // (2026-10-01 audit).
+  const needs = d1.information_needs.length > 0 ? d1.information_needs : proxyNeeds(proxies, request.target.sessionID)
+  if (needs.length === 0) return applyFinalGates(d1, request.confidenceFloor)
+
   const eligible = collectEligible({ action: d1.action, needs, healthAmbiguous: request.healthAmbiguous, proxyFired: proxies.fired, budgetAvailable })
   if (!eligible) {
     request.onCollect?.({ needs, outcome: budgetAvailable ? "ineligible" : "budget-blocked", tokens: 0, changed: false, evidenceEffect: "inconclusive" })
