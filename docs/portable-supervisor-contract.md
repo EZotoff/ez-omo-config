@@ -215,6 +215,26 @@ correlation order as specified, routing through the shared reply-router with
 `channelID: "beacon"`. Runtime observation on a live beacon reply is still pending
 (status: repo_implemented + tests_passed). The contract shape above remains binding.
 
+#### Console reply ingestion — operator-stand-in rulings (Amendment 2026-10-01)
+
+The per-root `[Supervisor]` console session is an agent session: a surfaced
+ticket (a user message) triggers the console's operator-stand-in agent, whose
+ruling arrives as an **assistant-role** turn with a leading `Q<n>:` marker
+(markdown bold tolerated). `pollReplies` ingests BOTH roles: user-role turns
+remain human operator replies (with the `[Supervisor]` self-echo filter,
+2026-09-28), and assistant-role turns are ingested **only** when they match the
+ruling marker — chatter and tool noise are ignored. Correlation is unchanged
+(§5: `Q<n>` alias first). Rationale: pre-amendment, the ticket itself was
+consumed as the reply (self-echo, 2026-09-28 fix) and afterwards nothing was
+consumed — every propagated "operator answer" was the ticket text and workers
+correctly ignored it (2026-09 steering-loop audit: 0 of 9 propagations conveyed
+a ruling).
+
+Related repair in the same pass: `status.json#queueDepths` is derived from the
+attention queue (open = non-resolved items per root), never a hand-incremented
+counter; propagation retries run every poll cycle for answered-but-undelivered
+items with the reply text persisted before delivery is attempted.
+
 ### Vox as a consumer (never the queue owner)
 
 - `surface()` maps an item to a Seam 2 `show` frame + `contextTag`; `collectReply()` converts speech/choices/confirmations into **correlated reply events** (`ReplyEvent`, `reply_<id>`) — never direct writes into worker sessions.
