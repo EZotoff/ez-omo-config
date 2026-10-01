@@ -20,7 +20,18 @@
 #  11. msg excerpt with literal trailing newline → verify passes (base64 framing)
 #  12. advance to current phase refused; advance backwards to a done phase refused
 #
+#  13. --closeout: without closeout.md → exit 1, nothing written; with closeout.md →
+#      kind=closeout receipt, closeout_status set, closeout phase auto-created,
+#      manifest status closed + closed_at
+#  14. lint: closed-without-closeout-receipt flagged; closed-with-receipt ok;
+#      active all-phases-done-without-closeout flagged
+#  15. --status without --closeout → usage error; --closeout with invalid status →
+#      usage error; --closeout with --checkpoint → usage error
+#  16. verify passes on a closed manifest carrying a closeout receipt (extended
+#      schema round-trip)
+#
 # No network, no ports. Temp dirs tracked and removed via EXIT trap.
+
 
 set -euo pipefail
 
@@ -324,7 +335,116 @@ s12() {
     ok "S12 advance forward-only: current refused, backwards-to-done refused"
 }
 
-s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; s12
+# --- Scenario 13: --closeout requires closeout.md; writes closeout receipt + closes manifest ---
+s13() {
+    local d; new_tmpdir d
+    echo "work evidence" > "$d/ev.txt"
+    fixture_manifest "$d/ep"
+    run_isolated append "$d/ep" --phase design --claims '["work done"]' --evidence "$d/ev.txt" >/dev/null
+
+    # (a) missing closeout.md → usage error (exit 1), nothing written
+    local rc=0
+    run_isolated append "$d/ep" --closeout --status degraded --claims '["closed with gaps"]' >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S13a missing-md append exit=$rc (want 1)"; return; }
+    jq -e '.status == "active" and ([.phases[].receipts[]] | length) == 1' "$d/ep/manifest.yaml" >/dev/null \
+        || { bad "S13a state mutated despite refusal"; return; }
+
+    # (b) with closeout.md → closeout receipt + closed manifest
+    printf '# Closeout\n\ncomplete.\n\ncloseout.status: degraded\n' > "$d/ep/closeout.md"
+    rc=0
+    run_isolated append "$d/ep" --closeout --status degraded --claims '["closed with gaps"]' >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S13b closeout append exit=$rc"; return; }
+    local mp="$d/ep/manifest.yaml"
+    jq -e '(
+        .status == "closed"
+        and .closeout_status == "degraded"
+        and (.closed_at | type == "string" and length > 0)
+        and ([.phases[] | select(.name == "closeout")] | length == 1)
+        and ([.phases[] | select(.name == "closeout")][0].status == "done")
+        and ([.phases[].receipts[] | select(.kind == "closeout")] | length == 1)
+        and ([.phases[].receipts[] | select(.kind == "closeout")][0].closeout_status == "degraded")
+        and ([.phases[].receipts[] | select(.kind == "closeout")][0].evidence | length >= 1)
+        and ([.phases[].receipts[] | select(.kind == "closeout")][0].evidence[0].path | endswith("closeout.md"))
+    )' "$mp" >/dev/null || { bad "S13b closeout manifest shape wrong"; return; }
+    ok "S13 --closeout: md required (loud refusal), receipt kind=closeout, manifest closed+outcome"
+}
+
+# --- Scenario 14: lint rules (c) closed-without-receipt, (d) finished-but-never-closed ---
+s14() {
+    local d; new_tmpdir d
+    echo "s14 evidence" > "$d/ev.txt"
+
+    # (a) closed manifest WITHOUT closeout receipt → flagged
+    fixture_manifest "$d/fake-closed"
+    run_isolated append "$d/fake-closed" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null
+    jq '.status = "closed"' "$d/fake-closed/manifest.yaml" > "$d/fake-closed/manifest.yaml.tmp" \
+        && mv "$d/fake-closed/manifest.yaml.tmp" "$d/fake-closed/manifest.yaml"
+    local rc=0
+    run_isolated lint "$d/fake-closed" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S14a closed-without-receipt lint exit=$rc (want 1)"; return; }
+
+    # (b) closed WITH closeout receipt → ok
+    mkdir -p "$d/real-closeout"
+    printf '# Closeout\n\nAll phases verified.\n\ncloseout.status: complete\n' > "$d/real-closeout/closeout.md"
+    fixture_manifest "$d/real-closeout"
+    run_isolated append "$d/real-closeout" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null
+    run_isolated append "$d/real-closeout" --closeout --status complete --claims '["closed"]' >/dev/null \
+        || { bad "S14b closeout append failed"; return; }
+    rc=0
+    run_isolated lint "$d/real-closeout" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S14b closed-with-receipt lint exit=$rc (want 0)"; return; }
+
+    # (c) active, ALL phases done, no closeout receipt → flagged (finished-but-never-closed)
+    fixture_manifest "$d/limbo"
+    run_isolated append "$d/limbo" --phase design --claims '["c"]' --evidence "$d/ev.txt" --checkpoint >/dev/null
+    jq '(.phases[].status) = "done"' "$d/limbo/manifest.yaml" > "$d/limbo/manifest.yaml.tmp" \
+        && mv "$d/limbo/manifest.yaml.tmp" "$d/limbo/manifest.yaml"
+    rc=0
+    run_isolated lint "$d/limbo" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S14c finished-never-closed lint exit=$rc (want 1)"; return; }
+    ok "S14 lint: closed-without-receipt flagged, closed-with-receipt ok, finished-never-closed flagged"
+}
+
+# --- Scenario 15: flag pairing/enum usage errors ---
+s15() {
+    local d; new_tmpdir d
+    fixture_manifest "$d/ep"
+    local rc=0
+    run_isolated append "$d/ep" --status complete --claims '["c"]' >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S15a --status without --closeout exit=$rc (want 1)"; return; }
+    rc=0
+    run_isolated append "$d/ep" --closeout --status banana --claims '["c"]' >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S15b invalid status exit=$rc (want 1)"; return; }
+    rc=0
+    run_isolated append "$d/ep" --closeout --checkpoint --status complete --claims '["c"]' >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S15c --closeout with --checkpoint exit=$rc (want 1)"; return; }
+    rc=0
+    run_isolated append "$d/ep" --closeout --claims '["c"]' >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 1 ]] || { bad "S15d --closeout without --status exit=$rc (want 1)"; return; }
+    ok "S15 closeout flag pairing/enum usage errors all refused"
+}
+
+# --- Scenario 16: verify round-trip on closed manifest with closeout receipt ---
+s16() {
+    local d; new_tmpdir d
+    echo "s16 work" > "$d/ev.txt"
+    fixture_manifest "$d/ep"
+    run_isolated append "$d/ep" --phase design --claims '["c"]' --evidence "$d/ev.txt" >/dev/null
+    printf '# Closeout\n\nDone.\n\ncloseout.status: complete\n' > "$d/ep/closeout.md"
+    run_isolated append "$d/ep" --closeout --status complete --claims '["closed cleanly"]' >/dev/null \
+        || { bad "S16 closeout append failed"; return; }
+    local rc=0
+    run_isolated verify "$d/ep" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 0 ]] || { bad "S16 verify on closed manifest exit=$rc (want 0)"; return; }
+    # tamper closeout.md → digest-mismatch, exit 2
+    echo "tampered" >> "$d/ep/closeout.md"
+    rc=0
+    run_isolated verify "$d/ep" >/dev/null 2>&1 || rc=$?
+    [[ $rc -eq 2 ]] || { bad "S16 tampered closeout.md verify exit=$rc (want 2)"; return; }
+    ok "S16 verify round-trip on closed manifest; tampered closeout.md → exit 2"
+}
+
+s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; s12; s13; s14; s15; s16
 
 echo "----------------------------------------"
 echo "episode-receipt tests: Pass: $PASS | Fail: $FAIL"

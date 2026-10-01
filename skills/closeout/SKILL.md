@@ -32,7 +32,7 @@ Every terminal path MUST invoke this skill (it references and enforces closeout;
 1. **Verify receipts first**: run `scripts/episode-receipt.sh verify` (from the episode's project root) against the manifest. Closeout consumes validated receipts only. Record the exit code.
 2. **Read** the manifest, receipts, and linked artifacts listed above.
 3. **Write the closeout** to `.omo/episodes/<slug>/closeout.md` with the four output sections below.
-4. **Emit the terminal receipt** as the final line block of `closeout.md` and (when the lane supports it) append a closeout receipt to the manifest via `scripts/episode-receipt.sh append`.
+4. **Emit the terminal receipt** as the final line block of `closeout.md`, then close the episode: `scripts/episode-receipt.sh append <episode_dir> --closeout --status <complete|degraded|failed>` (the command hashes `closeout.md` as evidence and sets the manifest to closed). This step is NOT optional — without it the episode stays open and lint flags it. If `closeout.md` cannot be produced, record why and close with `--status failed`.
 5. **Disposition learnings** (from `learnings[]`): mark each selected entry `promoted` (evidence + owner/scope → hand to `wisdom-write`), `duplicate`, or `discarded`. Unselected entries stay ephemeral — no diary.
 
 ## Output Sections (all four required, in order)

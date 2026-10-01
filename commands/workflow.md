@@ -30,7 +30,13 @@ Execute the TODOs via delegated lanes (never implement yourself if you are the o
 Run the F-wave: independent reviewers covering (a) requirements alignment, (b) code quality, (c) hands-on QA. Record verdicts as `F#n: APPROVE|REJECT — evidence` lines in the plan's `## Execution Record` (create it with `Execution baseline: <full HEAD SHA>` before the first dispatch). REJECT → one consolidated fix lane → one delta re-review (max 2 full cycles). Gate: all F-boxes approved AND `bash scripts/execution-record-lint.sh plan <file>` exits 0.
 
 ## Stage 7 — Closeout
-Load the `closeout` skill and produce the terminal summary from receipts only; append the closeout receipt; report `closeout.status`.
+Load the `closeout` skill and produce the terminal summary from receipts only, as `.omo/episodes/<slug>/closeout.md`. Then close the episode mechanically — the GATE is the receipt command, not the prose:
+
+```bash
+scripts/episode-receipt.sh append .omo/episodes/<slug> --closeout --status complete|degraded|failed
+```
+
+Gate: Stage 7 passes only on exit 0. The command refuses without `closeout.md` (loudly, naming the remedy) — skipping the skill therefore cannot silently drop the closeout. Report `closeout.status` from the manifest.
 
 ## --lite variant
 For bounded work, skip stages 1–4 (a workorder replaces the plan): create `.omo/workorders/<slug>-<date>.md` per `docs/workorders.md` (must pass `scripts/workorder-lint.sh`), run one lane, teardown receipt, post-hoc checklist. Escalate to the full loop on scope drift / budget 2x / blocking dependency.

@@ -49,6 +49,7 @@
 # Subcommands:
 #   append  <episode_dir> [--phase P] --claims '<json array>' [--evidence-refs p1,p2]
 #           [--session ses_x] [--checkpoint] [--intent T] [--resume-pointer '<text>']
+#           [--closeout --status complete|degraded|failed]
 #       Canonicalizes receipt JSON (jq -S), hashes evidence at append time,
 #       validates against schema v0.2, appends under flock on
 #       <episode_dir>/.lock, assigns monotonic seq. Atomic write (tmp + mv).
@@ -62,6 +63,15 @@
 #       single source of truth, no sidecar files. --intent required in that case.
 #       With --checkpoint, --phase defaults to "session"; on an existing manifest
 #       the (defaulted or given) phase must exist in phases[] as usual.
+#       --closeout: terminal receipt (kind "closeout"). Requires --status and
+#       forbids --checkpoint. Requires <episode_dir>/closeout.md to exist — it is
+#       hashed as mandatory evidence (tamper-evident binding between the receipt
+#       and the human-facing closeout artifact). Refusal is loud: the error names
+#       the remedy (run the closeout skill to write closeout.md, or record why it
+#       cannot be produced and use --status failed). Auto-creates a "closeout"
+#       phase (status done) if absent; --phase defaults to "closeout". Sets
+#       manifest status to "closed" and records closeout_status + closed_at.
+#       Re-closeout appends another closeout receipt (append-only; latest wins).
 #   verify  <episode_dir>
 #       Consumer-side check: manifest schema validity (incl. phase status values
 #       and learnings[]/follow_ups[] entry structure), full receipt schema
@@ -86,7 +96,11 @@
 #         (a) stale active episode: status active AND last activity
 #             (last_verify.ts or newest receipt ts, falling back to started)
 #             older than 7 days;
-#         (b) missing checkpoint: status active with no kind:"checkpoint" receipt.
+#         (b) missing checkpoint: status active with no kind:"checkpoint" receipt;
+#         (c) closed without closeout: status closed with no kind:"closeout"
+#             receipt;
+#         (d) finished but never closed: status active, ALL phases done, and no
+#             kind:"closeout" receipt.
 #
 # Exit codes:
 #   0  success (verify: all receipts verified; lint: no findings)
@@ -173,6 +187,9 @@ manifest_schema_errors() {
              and all((.id | type == "string" and length > 0)
                  and (.text | type == "string" and length > 0)
                  and (.mandatory | type == "boolean")))
+        and ((.closeout_status // null)
+             | (. == null or (["complete","degraded","failed"] | index(.)) != null))
+        and ((.closed_at // null) | (. == null or type == "string"))
     ' "$mp" >/dev/null 2>&1 && { echo ok; return 0; }
     echo "manifest fails schema v0.2: $mp"
     return 1
@@ -186,7 +203,7 @@ receipt_schema_errors() {
         | ($o.seq | type == "number")
         and ($o.ts | type == "string")
         and ($o.phase | type == "string" and length > 0)
-        and (["receipt","checkpoint"] | index($o.kind))
+        and (["receipt","checkpoint","closeout"] | index($o.kind))
         and ($o.claims | type == "array" and length > 0 and all(type == "string"))
         and ($o.evidence | type == "array"
              and all((.path | type == "string")
@@ -196,6 +213,11 @@ receipt_schema_errors() {
         and (($o.resume_pointer // null) | (. == null or type == "string"))
         and (($o.verified // null) | (. == null or type == "boolean"))
         and (($o.verified_reason // null) | (. == null or type == "string"))
+        and (($o.closeout_status // null)
+             | (. == null or (["complete","degraded","failed"] | index(.)) != null))
+        and (if $o.kind == "closeout"
+             then (["complete","degraded","failed"] | index($o.closeout_status)) != null
+             else true end)
     ' >/dev/null 2>&1 && return 0
     echo "receipt fails schema: $r"
     return 1
@@ -206,7 +228,7 @@ next_seq() {
 }
 
 cmd_append() {
-    local dir="" phase="" claims="" evidence="" session="" checkpoint=false intent="" resume=""
+    local dir="" phase="" claims="" evidence="" session="" checkpoint=false intent="" resume="" closeout=false closeout_status=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --phase) phase="${2:?}"; shift 2 ;;
@@ -215,15 +237,31 @@ cmd_append() {
             --session) session="${2:?}"; shift 2 ;;
             --intent) intent="${2:?}"; shift 2 ;;
             --checkpoint) checkpoint=true; shift ;;
+            --closeout) closeout=true; shift ;;
+            --status) closeout_status="${2:?}"; shift 2 ;;
             --resume-pointer) resume="${2:?}"; shift 2 ;;
             *) [[ -z "$dir" ]] || die_usage "unexpected arg: $1"; dir="$1"; shift ;;
         esac
     done
     [[ -n "$dir" ]] || die_usage "append <episode_dir> [--phase P] --claims '<json array>' [...]"
-    # --phase optional with --checkpoint: default 'session' (matches auto-created manifest)
+    # --closeout flag pairing/enum validation (loud refusals naming the remedy)
+    if [[ -n "$closeout_status" ]] && ! $closeout; then
+        die_usage "append: --status requires --closeout"
+    fi
+    if $closeout; then
+        $checkpoint && die_usage "append: --closeout and --checkpoint are mutually exclusive"
+        [[ -n "$closeout_status" ]] || die_usage "append: --closeout requires --status complete|degraded|failed"
+        [[ " complete degraded failed " == *" $closeout_status "* ]] \
+            || die_usage "append: --status must be complete|degraded|failed (got: $closeout_status)"
+    fi
+    # --phase optional with --checkpoint (default 'session') or --closeout (default 'closeout')
     if [[ -z "$phase" ]]; then
-        $checkpoint || die_usage "append: --phase required (or use --checkpoint for default 'session')"
-        phase="session"
+        if $closeout; then
+            phase="closeout"
+        else
+            $checkpoint || die_usage "append: --phase required (or use --checkpoint for default 'session')"
+            phase="session"
+        fi
     fi
     [[ -n "$claims" ]] || die_usage "append: --claims required"
     mkdir -p "$dir"
@@ -285,8 +323,20 @@ cmd_append() {
         unset IFS
     fi
 
+    # Closeout: bind the receipt to the human-facing artifact (loud refusal if absent)
+    if $closeout; then
+        [[ -f "$dir/closeout.md" ]] \
+            || die_usage "closeout requires $dir/closeout.md — run the closeout skill to write it; if it cannot be produced, record why in the episode notes and append --closeout --status failed with that note as a claim"
+        local mdigest
+        mdigest="$(sha256_of_stdin < "$dir/closeout.md")" || die_usage "failed to hash closeout.md"
+        [[ -n "$mdigest" ]] || die_usage "empty digest for closeout.md"
+        ev_json="$(printf '%s' "$ev_json" | jq -c --arg p "$(cd "$dir" && pwd)/closeout.md" --arg d "$mdigest" \
+            '. + [{path: $p, sha256: $d}]')" || die_usage "failed to encode closeout.md evidence"
+    fi
+
     local kind="receipt"
     $checkpoint && kind="checkpoint"
+    $closeout && kind="closeout"
 
     local seq
     seq="$(jq -r "$(next_seq)" "$mp")" || die_usage "failed to compute next seq in $mp"
@@ -301,28 +351,44 @@ cmd_append() {
         --argjson evidence "$ev_json" \
         --arg sess "${session:-}" \
         --arg res "${resume:-}" \
+        --arg cs "${closeout_status:-}" \
         '{
             seq: $seq, ts: $ts, phase: $phase, kind: $kind,
             claims: $claims, evidence: $evidence,
             session: (if ($sess | length) == 0 then null else $sess end),
-            resume_pointer: (if ($res | length) == 0 then null else $res end), verified: null, verified_reason: null
+            resume_pointer: (if ($res | length) == 0 then null else $res end),
+            closeout_status: (if ($cs | length) == 0 then null else $cs end),
+            verified: null, verified_reason: null
         }')" || die_usage "failed to build receipt JSON"
     receipt_schema_errors "$receipt" >/dev/null || die_usage "$(receipt_schema_errors "$receipt")"
+
+    # Closeout phase auto-create (before the legality check)
+    if $closeout && ! jq -e --arg p "$phase" '.phases | any(.name == $p)' "$mp" >/dev/null 2>&1; then
+        local ptmp="$mp.tmp"
+        jq --arg p "$phase" '.phases += [{name: $p, status: "done", receipts: [], sessions: []}]' "$mp" > "$ptmp" \
+            && mv "$ptmp" "$mp" || die_usage "failed to auto-create closeout phase in $mp"
+    fi
 
     # Phase-transition legality: receipt phase must exist in manifest phases[]
     jq -e --arg p "$phase" '.phases | any(.name == $p)' "$mp" >/dev/null \
         || die_usage "unknown phase '$phase' (not in manifest phases[])"
 
     local tmp="$mp.tmp"
-    jq --argjson r "$receipt" --arg s "${session:-}" '
+    jq --argjson r "$receipt" --arg s "${session:-}" \
+       --arg cs "$closeout_status" --argjson co "$closeout" --arg cat "$(now_iso)" '
         ($s | length) as $slen |
         if ($slen > 0 and ((.phases[] | select(.name == $r.phase) | .sessions | index($s)) == null)) then
             (.phases[] | select(.name == $r.phase) | .sessions) += [$s]
         else . end
         | (.phases[] | select(.name == $r.phase) | .receipts) += [$r]
+        | (if $co then (.phases[] | select(.name == $r.phase) | .status) = "done" else . end)
+        | (if $co then .status = "closed"
+                 | .closeout_status = $cs
+                 | .closed_at = $cat
+           else . end)
     ' "$mp" > "$tmp" && mv "$tmp" "$mp" || die_usage "failed to append receipt to $mp"
 
-    echo "appended seq=$seq phase=$phase kind=$kind"
+    echo "appended seq=$seq phase=$phase kind=$kind${closeout_status:+ status=$closeout_status}"
     release_lock
 }
 
@@ -547,6 +613,26 @@ cmd_lint() {
             || { echo "lint: failed to scan receipts in $mp"; return 1; }
         if [[ "$has_cp" != "true" ]]; then
             echo "lint: active episode has no checkpoint receipt: $dir"
+            findings=1
+        fi
+        # (d) finished but never closed: all phases done, no closeout receipt
+        local limbo
+        limbo="$(jq -r '.status == "active"
+            and ([.phases[] | select(.status != "done")] | length == 0)
+            and ([.phases[].receipts[] | select(.kind == "closeout")] | length == 0)' "$mp" 2>/dev/null)" \
+            || { echo "lint: failed to scan phases in $mp"; return 1; }
+        if [[ "$limbo" == "true" ]]; then
+            echo "lint: finished but never closed (all phases done, no closeout receipt): $dir"
+            findings=1
+        fi
+    fi
+    # (c) closed without closeout receipt
+    if jq -e '.status == "closed"' "$mp" >/dev/null 2>&1; then
+        local has_co
+        has_co="$(jq -r '[.phases[].receipts[] | select(.kind == "closeout")] | length > 0' "$mp" 2>/dev/null)" \
+            || { echo "lint: failed to scan receipts in $mp"; return 1; }
+        if [[ "$has_co" != "true" ]]; then
+            echo "lint: closed episode has no closeout receipt: $dir"
             findings=1
         fi
     fi
