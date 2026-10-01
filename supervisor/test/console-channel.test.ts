@@ -397,3 +397,63 @@ describe("stand-in ruling ingestion (assistant-role console turns)", () => {
     expect(standInRuling("")).toBeUndefined()
   })
 })
+
+describe("pending propagation retry", () => {
+  test("stuck answered item with stored reply is delivered on retry, then cleared", async () => {
+    const deliveries: string[] = []
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-console-retry-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const channel = new ConsoleChannel({
+      client, queue, statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next },
+      probe: healthyProbe,
+      deliverPropagation: async (input) => { deliveries.push(input.answer); return true },
+    })
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
+    const surfaced = await channel.surfaceNext("/root", NOW)
+    if (surfaced.kind !== "surfaced") throw new Error("expected surface")
+    const consoleID = channel.sessionID("/root")
+    if (consoleID === undefined) throw new Error("expected console session")
+    expect(await channel.pollReplies("/root", NOW)).toHaveLength(0) // first poll seeds the watermark
+    client.append(consoleID, "assistant", "**Q1: Approve option 2 and continue.**")
+    const replies = await channel.pollReplies("/root", NOW)
+    expect(replies).toHaveLength(1)
+    const route = await channel.handleReply(replies[0]!, NOW)
+    expect(route.kind).toBe("resolved")
+    expect(deliveries).toEqual(["Approve option 2 and continue.**"])
+    // Delivered answers are cleared: a later retry pass is a no-op.
+    expect(await channel.retryPendingPropagations(NOW)).toBe(0)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("recovered answered item without stored text never propagates a placeholder", async () => {
+    const deliveries: string[] = []
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-console-recov-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const channel = new ConsoleChannel({
+      client, queue, statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next },
+      probe: healthyProbe,
+      deliverPropagation: async (input) => { deliveries.push(input.answer); return true },
+    })
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
+    // Simulate a pre-fix crash: item answered WITHOUT pendingAnswers persisted.
+    await queue.markAnswered(proposed.item.id, "reply_lost", "console", NOW)
+    const recovered = await channel.recoverAnswered()
+    expect(recovered).toBe(1)
+    expect(deliveries).toHaveLength(0) // no placeholder into worker sessions
+    await rm(dir, { recursive: true, force: true })
+  })
+})

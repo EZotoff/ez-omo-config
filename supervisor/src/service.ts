@@ -655,6 +655,9 @@ rootConfig?.continue_writes?.enabled === true
           for (const reply of replies) {
             await consoles.handleReply(reply, new Date().toISOString())
           }
+          // Retry answered-but-undelivered propagations every tick (stuck-pending
+          // fix): revalidate, then deliver the stored reply text or resolve.
+          await consoles.retryPendingPropagations(new Date().toISOString())
           // OC Beacon reply-inbox ingestion (Seam 4, Amendment 2026-09-25) — same
           // tick cadence as the console channel; routing shares the reply-router.
           const beaconReplies = await beacon.poll(root.path, new Date().toISOString())

@@ -76,9 +76,13 @@ export type ConsoleState = {
   readonly watermarks: Readonly<Record<string, string>>
   readonly held?: { readonly root: string; readonly itemID: QueueItemID }
   readonly dnd?: boolean
+  /** Answered-but-undelivered operator replies (itemID -> normalized text).
+   *  Survives restarts so a crash between markAnswered and propagation never
+   *  loses the reply, and stuck pending propagations can be retried. */
+  readonly pendingAnswers?: Readonly<Record<string, string>>
 }
 
-const EMPTY: ConsoleState = { consoles: {}, counters: {}, aliases: {}, watermarks: {} }
+const EMPTY: ConsoleState = { consoles: {}, counters: {}, aliases: {}, watermarks: {}, pendingAnswers: {} }
 
 export type EscalationRequest = {
   readonly root: string
@@ -458,6 +462,47 @@ export class ConsoleChannel {
     return replies
   }
 
+  /** Retry stuck pending propagations: answered items whose stored reply was
+   *  never delivered (revalidation deferred the delivery, or the service died
+   *  mid-route — 5 ledger items sat PROPOSED/pending forever before this).
+   *  Idempotent: queue resolve keys and pendingAnswers clearing guard re-entry. */
+  async retryPendingPropagations(now: ISO8601): Promise<number> {
+    if (this.deliverPropagation === undefined) return 0
+    let retried = 0
+    for (const [itemID, answer] of Object.entries(this.state.pendingAnswers ?? {}) as [QueueItemID, string][]) {
+      const item = this.queue.items.find((entry) => entry.id === itemID)
+      if (item === undefined || itemState(item) !== "answered") {
+        const { [itemID]: _gone, ...remaining } = this.state.pendingAnswers ?? {}
+        this.state = { ...this.state, pendingAnswers: remaining }
+        await this.persist()
+        continue
+      }
+      try {
+        const sources = await this.probe(item)
+        const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (outcome.kind === "retired-by-evidence") {
+          await this.queue.resolve(itemID, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
+        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+          await this.queue.resolve(itemID, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
+        } else if (outcome.kind === "expired") {
+          await this.queue.resolve(itemID, { disposition: "expired", evidence: [], now, reason: outcome.reason })
+        } else if (outcome.kind === "valid") {
+          const delivered = await this.deliverPropagation({ root: item.target.root, sessionID: item.target.sessionID, answer, ticketID: itemID })
+          if (delivered) {
+            const { [itemID]: _ok, ...remaining } = this.state.pendingAnswers ?? {}
+            this.state = { ...this.state, pendingAnswers: remaining }
+            await this.persist()
+            await this.queue.resolve(itemID, { disposition: "propagated", evidence: [], now, reason: "operator answer delivered to worker session (retry)" })
+          }
+        }
+        retried += 1
+      } catch (error) {
+        this.setLedger(await this.ledger().append("ERROR", { itemID, error: `retryPendingPropagations failed: ${error instanceof Error ? error.message : String(error)}` }))
+      }
+    }
+    return retried
+  }
+
   /** Crash recovery: items left in `answered` (service killed mid-routing) re-enter
    *  the router's tail: revalidate → resolve or propagation-pending. Idempotent. */
   async recoverAnswered(): Promise<number> {
@@ -475,13 +520,20 @@ export class ConsoleChannel {
         } else if (outcome.kind === "expired") {
           await this.queue.resolve(item.id, { disposition: "expired", evidence: [], now, reason: outcome.reason })
         } else {
-          this.setLedger(await this.ledger().append("QUEUE_PROPAGATION_PROPOSED", {
-            itemID: item.id,
-            target: item.target,
-            answer: "(recovered after restart — reply was applied before the crash)",
-            mode: "pending",
-            reason: "reason" in outcome ? outcome.reason : "still relevant",
-          }))
+          const stored = (this.state.pendingAnswers ?? {})[item.id]
+          if (stored === undefined) {
+            // The reply text was never persisted (pre-fix crash window): resolve
+            // WITHOUT propagation — a placeholder must never reach a worker.
+            await this.queue.resolve(item.id, { disposition: "expired", evidence: [], now, reason: "reply text not persisted before crash — resolved without propagation" })
+          } else {
+            this.setLedger(await this.ledger().append("QUEUE_PROPAGATION_PROPOSED", {
+              itemID: item.id,
+              target: item.target,
+              answer: stored.slice(0, 200),
+              mode: "pending",
+              reason: "reason" in outcome ? outcome.reason : "still relevant",
+            }))
+          }
         }
         recovered += 1
       } catch (error) {
@@ -520,6 +572,10 @@ export class ConsoleChannel {
     const disposition = parseDisposition(reply.normalizedText)
     if (disposition !== undefined) return this.applyDisposition(disposition, itemID, reply, now)
     const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
+    // Persist the reply text BEFORE any delivery attempt: a crash between
+    // markAnswered and propagation must be recoverable, never lose the answer.
+    this.state = { ...this.state, pendingAnswers: { ...this.state.pendingAnswers, [itemID]: reply.normalizedText } }
+    await this.persist()
     const lease = this.queue.lease
     if (lease !== undefined && lease.itemID === itemID) await this.queue.defer(lease.presentationID, now, now)
     const sources = await this.probe(answered)
@@ -545,6 +601,9 @@ export class ConsoleChannel {
         ticketID: itemID,
       })
       if (delivered) {
+        const { [itemID]: _delivered, ...remaining } = this.state.pendingAnswers ?? {}
+        this.state = { ...this.state, pendingAnswers: remaining }
+        await this.persist()
         const item = await this.queue.resolve(itemID, { disposition: "propagated", evidence: [], now, reason: "operator answer delivered to worker session" })
         return { kind: "resolved", disposition: "propagated", item }
       }
