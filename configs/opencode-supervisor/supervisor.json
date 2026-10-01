@@ -99,7 +99,16 @@
         "autonomous_credentialed_actions": false
       },
       "autonomous_path_globs": [],
-      "autonomous_title_prefixes": []
+      "autonomous_title_prefixes": [],
+      "continue_writes": {
+        "enabled": true,
+        "daily_cap": 5,
+        "kick_start_only": true
+      },
+      "steer_writes": {
+        "enabled": true,
+        "daily_cap": 3
+      }
     },
     {
       "path": "/home/ezotoff/ez-omo-config",
@@ -109,7 +118,16 @@
         "autonomous_credentialed_actions": false
       },
       "autonomous_path_globs": [],
-      "autonomous_title_prefixes": []
+      "autonomous_title_prefixes": [],
+      "continue_writes": {
+        "enabled": true,
+        "daily_cap": 5,
+        "kick_start_only": true
+      },
+      "steer_writes": {
+        "enabled": true,
+        "daily_cap": 3
+      }
     },
     {
       "path": "/home/ezotoff/omo-hub",
@@ -133,6 +151,115 @@
     },
     {
       "path": "/home/ezotoff/AI_projects/accounting",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/ComfyUI",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": [],
+      "continue_writes": {
+        "enabled": true,
+        "daily_cap": 5,
+        "kick_start_only": true
+      },
+      "steer_writes": {
+        "enabled": true,
+        "daily_cap": 3
+      }
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/llm-review",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/cognitive_coprocessor",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/personal_site",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/tau20",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/ESM",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/typography",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/present",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/vk_music",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/veran/apps/web",
       "mode": "observe",
       "trust": {
         "autonomous_deploy": false,
