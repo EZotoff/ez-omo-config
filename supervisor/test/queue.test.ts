@@ -246,7 +246,7 @@ describe("openItemsByRoot", () => {
     const open = (root: string, id: `att_${string}`) => makeItem({ id, target: { root, sessionID: "ses-a", userMessageID: "u1" }, lifecycle: [{ state: "proposed", at: NOW, actor: "tick" }] })
     const resolved = (root: string, id: `att_${string}`) => makeItem({ id, target: { root, sessionID: "ses-a", userMessageID: "u1" }, lifecycle: [{ state: "resolved", at: NOW, disposition: "propagated", evidence: [] }] })
     const items = [open("/root-a", "att_1"), open("/root-b", "att_2"), open("/root-a", "att_3"), resolved("/root-a", "att_4")]
-    expect(openItemsByRoot(items)).toEqual({ "/root-a": 1, "/root-b": 1 })
+    expect(openItemsByRoot(items)).toEqual({ "/root-a": 2, "/root-b": 1 })
     expect(openItemsByRoot([])).toEqual({})
   })
 })
