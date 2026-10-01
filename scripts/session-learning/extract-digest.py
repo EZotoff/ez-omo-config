@@ -590,12 +590,20 @@ def run_analyst(args, session_id: str, digest_path: str, prior: list) -> dict:
         f"{ANALYST_TITLE_PREFIX} analyze {session_id}",
         message,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
+    # Parallel `opencode run` startups contend on shared state and occasionally
+    # exit 1 silently right after the project-id line (~27% at concurrency 5).
+    # One retry after a short backoff absorbs the transient class.
+    last_error = ""
+    for attempt in range(2):
+        if attempt:
+            time.sleep(10)
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode == 0:
+            break
         output = (proc.stderr or "") + (proc.stdout or "")
-        raise RuntimeError(
-            f"analyst exit {proc.returncode}: {truncate(output.strip()[-400:], 300)}"
-        )
+        last_error = f"analyst exit {proc.returncode}: {truncate(output.strip()[-400:], 300)}"
+    if proc.returncode != 0:
+        raise RuntimeError(last_error)
     obj = extract_json_object(proc.stdout)
     if obj is None:
         raise RuntimeError("analyst produced no parseable JSON object")
@@ -1172,7 +1180,7 @@ def main() -> None:
     p_quota.add_argument("--window-min-min", type=float, default=30)
     p_quota.add_argument("--window-min-max", type=float, default=120)
     p_quota.add_argument("--usage-ceiling", type=int, default=90)
-    p_quota.add_argument("--concurrency", type=int, default=5)
+    p_quota.add_argument("--concurrency", type=int, default=3)
     p_quota.add_argument("--max-batch", type=int, default=30)
     p_quota.add_argument("--avg-min", type=float, default=2.0)
     p_quota.add_argument("--dry-run", action="store_true")
