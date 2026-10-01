@@ -12,6 +12,8 @@ export function truncateAtSentence(text: string, limit: number): string {
   const sentence = Math.max(head.lastIndexOf("."), head.lastIndexOf("!"), head.lastIndexOf("?"), head.lastIndexOf("\n"))
   if (sentence >= Math.floor(limit * 0.5)) return text.slice(0, sentence + 1)
   const space = head.lastIndexOf(" ")
-  if (space > 0) return text.slice(0, space)
-  return head
+  const cut = space > 0 ? text.slice(0, space) : head.slice(0, limit - 1)
+  // No sentence boundary in range: mark the cut explicitly — a silent mid-sentence
+  // clip looks like a rendering bug on OC Beacon cards and session injections.
+  return `${cut}…`
 }

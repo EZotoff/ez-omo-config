@@ -13,14 +13,14 @@ describe("truncateAtSentence", () => {
     expect(cut.endsWith(".")).toBe(true)
     expect(cut).not.toMatch(/\w$/) // never ends mid-word
   })
-  test("text with no sentence terminator before the limit cuts at whitespace", () => {
+  test("text with no sentence terminator before the limit cuts at whitespace with an ellipsis marker", () => {
     const text = "word ".repeat(2000)
     const cut = truncateAtSentence(text, 4000)
     expect(cut.length).toBeLessThanOrEqual(4000)
-    expect(cut.endsWith("word") || cut.endsWith(" ")).toBe(true)
+    expect(cut.endsWith("…")).toBe(true)
   })
   test("single uninterrupted run is hard-cut at the limit", () => {
-    expect(truncateAtSentence("x".repeat(9000), 4000)).toBe("x".repeat(4000))
+    expect(truncateAtSentence("x".repeat(9000), 4000)).toBe(`${"x".repeat(3999)}…`)
   })
   test("boundary far below half the limit is not used (prefers whitespace over a tiny stub)", () => {
     const text = "One short sentence. " + "y".repeat(6000).replace(/y{5}/g, "yyyyy ")
