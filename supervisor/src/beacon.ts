@@ -22,7 +22,7 @@ const PROCESSED_CAP = 1000
  */
 export type BeaconClient = {
   listSessions(directory: string): Promise<readonly Session[]>
-  listMessages(sessionID: string, directory: string): Promise<readonly Message[]>
+  listMessages(sessionID: string, directory: string, limit?: number): Promise<readonly Message[]>
 }
 
 /** Envelope shape per the contract (Amendment 2026-09-25, `v: 1`). */

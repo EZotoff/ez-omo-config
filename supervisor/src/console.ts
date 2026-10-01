@@ -39,7 +39,7 @@ const MAX_OPEN_ITEMS_PER_ROOT = 5
 export type ConsoleClient = {
   createSession(directory: string, title: string): Promise<{ id: string; directory: string }>
   promptAsync(sessionID: string, directory: string, text: string): Promise<void>
-  listMessages(sessionID: string, directory: string): Promise<readonly Message[]>
+  listMessages(sessionID: string, directory: string, limit?: number): Promise<readonly Message[]>
   toast(message: string, title: string): Promise<void>
 }
 

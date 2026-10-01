@@ -18,7 +18,7 @@ export type WatchState = {
   fetched: boolean
 }
 
-const EMPTY_STATE: WatchState = { messageCount: 0, completed: false, stallFired: false }
+const EMPTY_STATE: WatchState = { messageCount: 0, completed: false, stallFired: false, fetched: false }
 
 const RECENT_ACTIVITY_MS = 15 * 60_000
 
@@ -47,12 +47,14 @@ export async function pollRootOnce(
   nowMs: number,
   stallAfterMs = 15 * 60_000,
 ): Promise<readonly PollSignal[]> {
-  const sessions = (await client.listSessions(root)).filter(
-    (session: Session) =>
-      session.parentID === undefined &&
-      !childIDs.has(session.id) &&
-      (session.timeUpdatedMs === undefined || session.timeUpdatedMs >= nowMs - RECENT_ACTIVITY_MS),
-  )
+  // Tracked sessions stay pollable even outside the recent-activity window:
+  // an incomplete turn quiescent past the threshold is exactly the stall case
+  // and must not become invisible (2026-09-30 regression from the window filter).
+  const eligible = (session: Session): boolean =>
+    session.parentID === undefined &&
+    !childIDs.has(session.id) &&
+    (previous.has(session.id) || session.timeUpdatedMs === undefined || session.timeUpdatedMs >= nowMs - RECENT_ACTIVITY_MS)
+  const sessions = (await client.listSessions(root)).filter(eligible)
   const signals: PollSignal[] = []
   const next = new Map<string, WatchState>()
   for (const session of sessions) {
@@ -83,7 +85,18 @@ export async function pollRootOnce(
     // classification (or was never fetched). Re-fetching an unchanged multi-MB
     // transcript every tick was the residual firehose (6.5 MiB/5s measured).
     if (prior?.fetched && prior.lastUpdatedMs === updated) {
-      next.set(session.id, { ...prior })
+      // Unchanged session: no re-fetch, but the stall check must still run —
+      // quiescence is precisely the no-change case (dead-code regression:
+      // the short-circuit skipped the stall branch entirely).
+      let state = { ...prior }
+      if (!prior.completed && !prior.stallFired) {
+        const quiescentFor = nowMs - (updated ?? nowMs)
+        if (quiescentFor >= stallAfterMs) {
+          state = { ...prior, stallFired: true }
+          signals.push({ kind: "stalled", sessionID: session.id })
+        }
+      }
+      next.set(session.id, state)
       if (updated !== undefined) {
         signals.push({ kind: "activity", sessionID: session.id, lastUpdatedMs: updated })
       }
@@ -95,7 +108,7 @@ export async function pollRootOnce(
       messageCount: messages.length,
       completed: last !== undefined && last.role === "assistant" && last.time.completed !== undefined,
       stallFired: previous.get(session.id)?.stallFired ?? false,
-      lastUpdatedMs: updated,
+      ...(updated === undefined ? {} : { lastUpdatedMs: updated }),
       fetched: true,
     }
     next.set(session.id, state)
