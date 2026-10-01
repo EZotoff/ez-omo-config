@@ -100,6 +100,46 @@
       },
       "autonomous_path_globs": [],
       "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/ez-omo-config",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/omo-hub",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/factory",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
+    },
+    {
+      "path": "/home/ezotoff/AI_projects/accounting",
+      "mode": "observe",
+      "trust": {
+        "autonomous_deploy": false,
+        "autonomous_credentialed_actions": false
+      },
+      "autonomous_path_globs": [],
+      "autonomous_title_prefixes": []
     }
   ]
 }

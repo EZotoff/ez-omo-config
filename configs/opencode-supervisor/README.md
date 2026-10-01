@@ -20,7 +20,7 @@ The bundled `supervisor.json` installs to `$HOME/.config/opencode-supervisor/sup
 | `token_budget` | Hard input cap (40000) — approximate tokens via characters ÷ 4 |
 | `tier_budgets` | Per-tier context budgets (target_history 15000, hot 8000, warm 6000, cool 4000, cold 2000); overflow degrades COLD→COOL→WARM then trims L1 oldest — never ABSTAIN-by-truncation unless L0 alone overflows |
 | `confidence_floor` | Decisions below this confidence become `ABSTAIN` |
-| `roots[].mode` | `off`, `shadow`, `observe`, or `full` per root (all six roots currently `observe`) |
+| `roots[].mode` | `off`, `shadow`, `observe`, or `full` per root (all ten roots currently `observe` — the six originals plus ez-omo-config, omo-hub, factory, accounting since 2026-10-01) |
 | `roots[].trust` | Per-root trust block: `autonomous_deploy`, `autonomous_credentialed_actions` (both false everywhere) |
 | `roots[].autonomous_path_globs` / `autonomous_title_prefixes` | Autonomous-origin classification keys (origin via `origins.ts`; autonomous origins are exempt from some intervention gating) |
 | `roots` | Project paths supervised by the service |
