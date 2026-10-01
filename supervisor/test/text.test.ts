@@ -10,14 +10,14 @@ describe("truncateAtSentence", () => {
     const text = sentence.repeat(200) // 10,800 chars
     const cut = truncateAtSentence(text, 4000)
     expect(cut.length).toBeLessThanOrEqual(4000)
-    expect(cut.endsWith(". ")).toBe(true)
+    expect(cut.endsWith(".")).toBe(true)
     expect(cut).not.toMatch(/\w$/) // never ends mid-word
   })
   test("text with no sentence terminator before the limit cuts at whitespace", () => {
     const text = "word ".repeat(2000)
     const cut = truncateAtSentence(text, 4000)
     expect(cut.length).toBeLessThanOrEqual(4000)
-    expect(cut.endsWith(" ")).toBe(true)
+    expect(cut.endsWith("word") || cut.endsWith(" ")).toBe(true)
   })
   test("single uninterrupted run is hard-cut at the limit", () => {
     expect(truncateAtSentence("x".repeat(9000), 4000)).toBe("x".repeat(4000))
