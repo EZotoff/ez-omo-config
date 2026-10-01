@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "dry_run": true,
+  "max_wakes_per_session": 2,
+  "exempt_sessions": [],
+  "exempt_directories": []
+}
