@@ -128,6 +128,20 @@ const messageText = (message: Message): string =>
 const isSupervisorMessage = (text: string): boolean =>
   text.startsWith("[Supervisor]") || /^Q\d+ \[session /.test(text)
 
+/** Operator-stand-in ruling marker: an assistant turn in the console session
+ *  answering a ticket with a leading `Q<n>:` (markdown bold tolerated — the
+ *  stand-in writes "**Q4: DEFER …**"). Tool noise and chatter do not match. */
+const STAND_IN_RULING = /^(\*{0,2})\s*(Q\d+)\s*:/i
+
+/** If `text` is a stand-in ruling, return it with the marker normalized to a
+ *  bare `Q<n>:` prefix (so correlateReply resolves the alias); else undefined. */
+export function standInRuling(text: string): string | undefined {
+  const match = STAND_IN_RULING.exec(text.trim())
+  if (match === null) return undefined
+  if (match[1] === "") return text.trim()
+  return text.trim().replace(STAND_IN_RULING, "$2:")
+}
+
 /** Remove only a recognized leading ticket prefix, preserving the answer body. */
 export function stripTicketPrefix(text: string): string {
   return text.replace(TICKET_PREFIX, "").trim()
@@ -424,10 +438,21 @@ export class ConsoleChannel {
     const fresh = start === -1 ? messages : messages.slice(start + 1)
     const replies: ReplyEvent[] = []
     for (const message of fresh) {
-      if (message.role !== "user") continue
       const text = messageText(message)
-      if (text === "" || isSupervisorMessage(text)) continue
-      replies.push(this.buildReply(root, text, now))
+      if (text === "") continue
+      if (message.role === "user") {
+        if (isSupervisorMessage(text)) continue
+        replies.push(this.buildReply(root, text, now))
+        continue
+      }
+      if (message.role === "assistant") {
+        // Operator-stand-in rulings arrive as ASSISTANT turns: the ticket (a user
+        // message) triggers the console session's agent, whose ruling IS the reply.
+        // Pre-b51e71c the ticket itself was consumed (self-echo); after it, nothing
+        // was — rulings must be ingested here, correlated by their Q<n>: marker.
+        const ruling = standInRuling(text)
+        if (ruling !== undefined) replies.push(this.buildReply(root, ruling, now))
+      }
     }
     if (last !== undefined && last.id !== watermark) await this.setWatermark(consoleID, last.id)
     return replies

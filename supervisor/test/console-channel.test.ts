@@ -362,3 +362,38 @@ test("ticket and toast use human-oriented naming (title + project, not raw IDs)"
   expect(ticket).toContain("Q2 — supervisor live queue cycle test [veran]")
   expect(ticket).not.toContain("ses_f3fb18caff")
 })
+
+describe("stand-in ruling ingestion (assistant-role console turns)", () => {
+  test("ingests a Q<n>:-marked assistant ruling, correlates it, never re-consumes it", async () => {
+    const { channel, client, dir } = await setup()
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
+    const surfaced = await channel.surfaceNext("/root", NOW)
+    if (surfaced.kind !== "surfaced") throw new Error("expected surface")
+    expect(await channel.pollReplies("/root", NOW)).toHaveLength(0) // ticket echo filtered
+    const consoleID = channel.sessionID("/root")
+    if (consoleID === undefined) throw new Error("expected console session")
+    // Stand-in chatter (no ruling marker) is ignored
+    client.append(consoleID, "assistant", "Backlog numbering has advanced to BB-017.")
+    // The ruling: markdown-bold Q<n> marker, as the console agent writes it
+    client.append(consoleID, "assistant", "**Q1: DEFER the rerun to the operator — recommendation on record.**")
+    const replies = await channel.pollReplies("/root", NOW)
+    expect(replies).toHaveLength(1)
+    const reply = replies[0]
+    if (reply === undefined) throw new Error("expected reply")
+    expect(reply.correlation).toEqual({ status: "matched", itemID: surfaced.item.id })
+    expect(reply.normalizedText).toContain("DEFER the rerun")
+    expect(reply.normalizedText.startsWith("Q1:")).toBe(false) // ticket prefix stripped
+    // Watermark advanced past the ruling: not re-consumed
+    expect(await channel.pollReplies("/root", NOW)).toHaveLength(0)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("standInRuling normalizes the marker and rejects non-rulings", async () => {
+    const { standInRuling } = await import("../src/console")
+    expect(standInRuling("**Q4: DEFER to the operator.**")).toBe("Q4: DEFER to the operator.**")
+    expect(standInRuling("Q7: skip the rerun")).toBe("Q7: skip the rerun")
+    expect(standInRuling("Backlog numbering has advanced.")).toBeUndefined()
+    expect(standInRuling("")).toBeUndefined()
+  })
+})
