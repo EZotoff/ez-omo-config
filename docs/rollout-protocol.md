@@ -90,8 +90,8 @@ quota:
   passing vacuously — "nothing happened" is not "it works".
 - Gates always require a minimum activation count in addition to zero errors:
   zero errors over zero activations proves nothing (class A hides exactly there).
-- Conversely, quota met early may advance a round early — evidence outranks
-  the calendar.
+- Rounds never advance early on evidence alone: the calendar gap still applies
+  (the gap is also recovery time for the system under observation).
 
 ## 6. Gates
 
@@ -101,12 +101,18 @@ A gate is a named unlock attached to ladder position:
 {
   "name": "enable-write-path-B",
   "after_round": 4,
-  "requires": { "max_new_errors": 0, "min_activations": 3, "min_ladder_resets_at_or_below": 1 },
+  "requires": { "max_new_errors": 0, "min_activations": 3 },
   "action": ["config", "set", "feature.B", "enabled"]
 }
 ```
 
-Rules: one capability per gate; gates are evaluated only at round completion;
+Rules: one capability per gate; gates are evaluated only at round completion and
+only on genuine pass rounds (a vacuous round blocks every gate); error-tail
+sources must be monotonic/append-only (a sliding window that drops old lines
+resets the watermark rather than re-counting ghosts — prefer full unit logs or
+anchored queries over `--since` windows);
+
+Rules continued:
 an executed gate is recorded durably (idempotent on restart); a ladder reset
 after a gate un-locks nothing automatically but requires an explicit operator
 decision to re-earn or roll back.

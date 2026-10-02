@@ -395,3 +395,7 @@ Besides the installed (user-scoped) skills above, the repo carries skills that l
 ### typography stack (external)
 
 `/fresh-explain` is hand-managed (no `install.sh` ITEMS row — the live file at `~/.config/opencode/command/fresh-explain.md` is edited directly, not vendored), and carries the prose-mechanics hook: when deliverable-bound prose quality matters, it loads `typographic-writing` while keeping the command's own method and ground rules authoritative over the skill's stylistic defaults.
+
+## rollout-watch (project skill, repo-only)
+
+OMO/opencode adapter for the feature rollout protocol (`docs/rollout-protocol.md` + `scripts/rollout-monitor.py`). Arms the monitoring ladder as a systemd transient unit (`Restart=on-failure`) — never as an agent monitoring promise — wires evidence sources (journalctl, ledgers, `opencode.db`, status JSON) to the protocol detectors, and executes gates as committed config-flip scripts with `restart-with-continuation`. Use when deploying or enabling any new harness capability.

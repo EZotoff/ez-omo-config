@@ -1,0 +1,125 @@
+// configs/opencode/aspect-dynamics/config.mjs
+// Stub config loader for aspect-dynamics plugin
+
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { logInfo, logWarn } from "./logging.mjs";
+
+const DEFAULT_CONFIG = {
+  enabled: true,
+  logLevel: "warn",
+  heuristicPreFilter: false,
+  contextWindowTurns: 10,
+  // Deferred fields — accepted but inert in MVP (zero network calls)
+  scoringModel: null,
+  polishingModel: null,
+  dreamAgent: null,
+};
+
+const LOG_LEVELS = { silent: 4, error: 3, warn: 2, info: 1 };
+
+const OMO_CONFIG_PATH = join(homedir(), ".config", "opencode", "oh-my-openagent.json");
+
+// Test override — set by harness to inject custom config values
+// Uses a mutable object so ESM importers can reassign the .value property
+export const __testConfigOverride = { value: null };
+
+function validateConfig(candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    logWarn("Invalid config: aspectDynamics must be an object");
+    return false;
+  }
+
+  if (candidate.activeSets !== undefined && !Array.isArray(candidate.activeSets)) {
+    logWarn(`Invalid config: activeSets must be an array, got ${typeof candidate.activeSets}`);
+    return false;
+  }
+
+  if (candidate.heuristicPreFilter !== undefined && typeof candidate.heuristicPreFilter !== "boolean") {
+    logWarn(
+      `[aspect-dynamics] Invalid config: heuristicPreFilter must be boolean, got ${typeof candidate.heuristicPreFilter}`
+    );
+    return false;
+  }
+
+  if (
+    candidate.contextWindowTurns !== undefined
+    && (!Number.isFinite(candidate.contextWindowTurns) || candidate.contextWindowTurns <= 0)
+  ) {
+    logWarn(
+      `[aspect-dynamics] Invalid config: contextWindowTurns must be a positive number, got ${candidate.contextWindowTurns}`
+    );
+    return false;
+  }
+
+  if (candidate.logLevel !== undefined && !(candidate.logLevel in LOG_LEVELS)) {
+    logWarn(
+      `[aspect-dynamics] Invalid config: logLevel must be one of ${Object.keys(LOG_LEVELS).join(", ")}, got ${candidate.logLevel}`
+    );
+    return false;
+  }
+
+  return true;
+}
+
+function shouldLogInfo(config) {
+  return LOG_LEVELS.info >= LOG_LEVELS[config.logLevel ?? DEFAULT_CONFIG.logLevel];
+}
+
+function logDeferredFields(config) {
+  const deferred = [];
+  if (config.scoringModel) deferred.push("scoringModel");
+  if (config.polishingModel) deferred.push("polishingModel");
+  if (config.dreamAgent) deferred.push("dreamAgent");
+  if (deferred.length > 0 && shouldLogInfo(config)) {
+    logInfo(`Deferred fields present (inert in MVP): ${deferred.join(", ")}`);
+  }
+}
+
+export async function loadConfig() {
+  if (__testConfigOverride.value) {
+    if (!validateConfig(__testConfigOverride.value)) {
+      return { ...DEFAULT_CONFIG, enabled: false };
+    }
+
+    const testConfig = { ...DEFAULT_CONFIG, ...__testConfigOverride.value };
+    logDeferredFields(testConfig);
+    return testConfig;
+  }
+
+  let raw;
+  try {
+    raw = readFileSync(OMO_CONFIG_PATH, "utf8");
+  } catch (err) {
+    logWarn(`aspectDynamics config not found at ${OMO_CONFIG_PATH}: ${err.message}`);
+    return null;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    logWarn(`Failed to parse ${OMO_CONFIG_PATH}: ${err.message}`);
+    return null;
+  }
+
+  const aspectDynamics = parsed?.aspectDynamics;
+  if (!aspectDynamics || typeof aspectDynamics !== "object" || Array.isArray(aspectDynamics)) {
+    logWarn(`Missing aspectDynamics block in ${OMO_CONFIG_PATH}`);
+    return null;
+  }
+
+  if (!validateConfig(aspectDynamics)) {
+    return { ...DEFAULT_CONFIG, enabled: false };
+  }
+
+  const config = { ...DEFAULT_CONFIG, ...aspectDynamics };
+  logDeferredFields(config);
+
+  return config;
+}
+
+export function mergeConfig(base, override) {
+  return { ...base, ...override };
+}

@@ -24,9 +24,12 @@ transient unit**, not a background subagent and not a `nohup &`:
 
 ```bash
 systemd-run --user --unit="rollout-<feature>" \
+  -p Restart=on-failure -p RestartSec=15 \
   python3 ~/ez-omo-config/scripts/rollout-monitor.py \
     --config ~/.local/state/opencode-rollout/<feature>.rollout.json
-# daemon mode sleeps ≤600s between due-checks; Restart=always by default for transient units.
+# daemon mode sleeps ≤600s between due-checks. Restart=on-failure (NOT always):
+# the monitor exits 0 on ladder completion/stopped — an always-restart would
+# respawn-churn a finished rollout.
 ```
 
 Check arming: `systemctl --user status rollout-<feature>`. State + rounds log
@@ -70,13 +73,17 @@ If the feature lives in the opencode binary/plugins, a gate additionally owes a
   "plateau_gap_s": 43200,
   "max_ladder_resets": 3,
   "checks": [{"name": "unit-active", "cmd": ["systemctl", "--user", "is-active", "opencode-supervisor.service"]}],
-  "error_tail": {"cmd": ["journalctl", "--user", "-u", "opencode-supervisor.service", "--since", "-1h", "--no-pager"],
+  "error_tail": {"cmd": ["journalctl", "--user", "-u", "opencode-supervisor.service", "--no-pager"],
                  "pattern": "ERROR"},
+  // NOTE: error sources must be monotonic/append-only — avoid --since windows
+  // (a sliding window resets the watermark; protocol §6). Full unit logs only.
   "evidence": {"cmd": ["sh", "-c", "jq -s '[.[]|select(.type==\"INTERVENTION_SENT\" and .mode==\"steer\")]|length' ~/.local/state/opencode-supervisor/ledger.jsonl"],
                "min_per_round": [0, 1, 1, 3, 3, 3, 3, 3], "max_extends": 8},
   "gates": [{"name": "unlock-next-write-path", "after_round": 4,
-             "requires": {"min_activations": 3},
-             "action": ["sh", "-c", "<config flip + restart-with-continuation + commit>"]}],
+             "requires": {"min_activations": 3, "max_new_errors": 0},
+             "action": ["bash", "~/ez-omo-config/scripts/<feature>-gate-unlock.sh"]}],
+  // gate actions point at a COMMITTED script (config flip + restart-with-
+  // continuation + docs sync) — never an inline sh -c pipeline.
   "state_path": "~/.local/state/opencode-rollout/supervisor-steer-writes.state.json",
   "log_path": "~/.local/state/opencode-rollout/supervisor-steer-writes.rounds.jsonl"
 }
