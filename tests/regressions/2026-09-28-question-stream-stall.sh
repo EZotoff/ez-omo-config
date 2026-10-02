@@ -4,6 +4,19 @@ set -euo pipefail
 source_file="${OPENCODE_PROCESSOR_SOURCE:-$HOME/src/opencode/packages/opencode/src/session/processor.ts}"
 [[ -f "$source_file" ]] || { printf 'FAIL: missing processor source: %s\n' "$source_file" >&2; exit 1; }
 
+# Status gate: structural greps only enforce while the patch entry is active.
+# Kill variants and explicit fixture runs set OPENCODE_PROCESSOR_SOURCE, so the
+# gate yields and the full assertion set (and its polarity) still runs.
+repo="$(cd "$(dirname "$0")/../.." && pwd)"
+if [[ -z "${OPENCODE_PROCESSOR_SOURCE:-}" ]]; then
+    entry="$repo/.sisyphus/patches/opencode--question-stream-stall-guard.md"
+    status="$(grep -m1 -oP '^status:\s*"\K[^"]+' "$entry" 2>/dev/null || true)"
+    if [[ "$status" != "active" ]]; then
+        printf 'SKIP (deferred): patch opencode--question-stream-stall-guard status=%s — structural greps re-arm when the entry flips to active\n' "${status:-unknown}"
+        exit 0
+    fi
+fi
+
 # Structural regression: the call ID must be tracked on invocation, removed on
 # either terminal event, and used to re-arm the same watchdog deadline.
 for required in \

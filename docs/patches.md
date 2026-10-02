@@ -26,7 +26,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 | `opencode--tui-subagent-spinner` — Sessions dialog shows the spinner on a parent row while any of its (hidden) sub-agent child sessions is busy/retry; children aggregated from the unfiltered sync list (browse/search are `roots:true`); live A/B verified 2026-09-17 | active | true | [entry](../.sisyphus/patches/opencode--tui-subagent-spinner.md) |
 | `opencode--plugin-engine-prerelease` — plugin `engines.opencode` ranges match prerelease-suffixed (`-p<N>` provenance) host builds; fixes `Plugin … skipped` toast on patched binaries; strace A/B verified | active | true | [entry](../.sisyphus/patches/opencode--plugin-engine-prerelease.md) |
 
-**Pending, not installed or registered:** source commit `48eedf9406` excludes in-flight question-family tool calls from the stream-stall deadline. The `1.18.31-p2` candidate binary contains the new marker, but the live binary does not. The provenance-checked build/install path rejects an unpushed source head and this task forbids pushing. The paired [structural regression](../tests/regressions/2026-09-28-question-stream-stall.sh) and [kill check](../tests/regressions/2026-09-28-question-stream-stall.kill.sh) do not prove that an actual unanswered question survives the stall window; register the patch and perform a real question wait after a compliant installation.
+**Superseded 2026-09-30:** source commit `48eedf9406` (question-tool stall suppression, built as `1.18.31-p2`) was reverted by `4d8d4713fa` — orphaned permission dialogs created immortal busy sessions plus a Bun bundler miscompile in the watchdog block. Registry row 45 (`opencode--question-stream-stall-guard`, superseded). The paired [structural regression](../tests/regressions/2026-09-28-question-stream-stall.sh) and [kill check](../tests/regressions/2026-09-28-question-stream-stall.kill.sh) are status-gated on the entry and re-arm if it flips to active.
 
 ## OMO fork patches (fork base v4.19.2 at `~/oh-my-openagent-v4.19.2`)
 
@@ -59,6 +59,7 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 | `omo--writing-routing-to-document-writer` — sisyphus docs routing → document-writer subagent; writing category dormant (fork commit 87bae6856 + config description override) | active | true | [entry](../.sisyphus/patches/omo--writing-routing-to-document-writer.md) |
 | `omo--task-hygiene-close-before-turn-end` — sisyphus glm-5-2 tasks-section rule: close every task before turn end (fork commit ff320aa04) | active | true | [entry](../.sisyphus/patches/omo--task-hygiene-close-before-turn-end.md) |
 | `omo--gpt6-hephaestus-registration` — accept GPT-6 models for hephaestus registration + sisyphus-native detection; fixes ghost-hephaestus hijack on gpt-6-sol (fork commit 8822e6b2e) | active | false | [entry](../.sisyphus/patches/omo--gpt6-hephaestus-registration.md) |
+| `omo--wake-journal-outbox` (v3) — durable per-wake journal (queued→dispatching→dispatched-awaiting-output→consumed\|dead-letter), crash-safe re-dispatch; runtime flip 2026-10-02: reply-wakes consume live (65/65 post-rebuild), admit-only (`shouldReply=false`) wakes linger awaiting-output by design — canary-tracked | active | true | [entry](../.sisyphus/patches/omo--wake-journal-outbox.md) |
 
 ## Provenance gates (2026-09-18 patch-loss incidents)
 
