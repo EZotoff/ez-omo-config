@@ -14,7 +14,7 @@ import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
-import { continueCapKey, continueWriteText, gateContinueWrite } from "./continue-writes"
+import { continueCapKey, continueWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
 import { BeaconChannel, BEACON_CHANNEL_ID } from "./beacon"
 import { Blackboard, parseTickDecided } from "./blackboard"
@@ -36,6 +36,8 @@ type RootRuntime = {
   readonly states: Map<string, SessionState>
   readonly origin: AutonomousOriginConfig
   continueWrites: { dateKey: string; count: number }
+  steerWrites: { dateKey: string; count: number }
+  reformulateWrites: { dateKey: string; count: number }
 }
 
 class ConcurrencyGate {
@@ -304,6 +306,8 @@ export async function runService(signal: AbortSignal): Promise<void> {
       manifest,
       states: new Map<string, SessionState>(),
       continueWrites: { dateKey: continueCapKey(new Date()), count: 0 },
+      steerWrites: { dateKey: continueCapKey(new Date()), count: 0 },
+      reformulateWrites: { dateKey: continueCapKey(new Date()), count: 0 },
     }
     runtime.manifest = manifest
     runtimes.set(root, runtime)
@@ -558,6 +562,48 @@ rootConfig?.continue_writes?.enabled === true
               })
             }
           }
+          }
+        }
+        // STEER write path (2026-10-02: gate/text existed with tests but were never
+        // wired — the action was a schema ghost; 3 historical STEER decisions were
+        // silently dropped).
+        if (decision.action === "STEER" && runtime.mode === "observe" && rootConfig?.steer_writes?.enabled === true) {
+          const today = continueCapKey(new Date())
+          if (runtime.steerWrites.dateKey !== today) runtime.steerWrites = { dateKey: today, count: 0 }
+          const gate = gateSteerWrite({
+            decision,
+            config: { enabled: rootConfig.steer_writes.enabled, dailyCap: rootConfig.steer_writes.daily_cap },
+            capUsedToday: runtime.steerWrites.count,
+            lastMessageID: scan?.messages.at(-1)?.id,
+            target: { ...(target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID }), sessionID },
+            sessionProtected: protectedSession(sessionID),
+          })
+          if (!gate.allowed) {
+            ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `steer write: ${gate.reason}` })
+          } else {
+            await client.promptAsync(sessionID, runtime.root, steerWriteText(decision))
+            runtime.steerWrites.count += 1
+            ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "steer", text: "[supervisor] (steer)", rationale: decision.rationale })
+          }
+        }
+        // REFORMULATE write path (2026-10-02: same ghost — never wired; the
+        // operator-facing "ask for a fresh explain" capability).
+        if (decision.action === "REFORMULATE" && runtime.mode === "observe" && rootConfig?.reformulate_writes?.enabled === true) {
+          const today = continueCapKey(new Date())
+          if (runtime.reformulateWrites.dateKey !== today) runtime.reformulateWrites = { dateKey: today, count: 0 }
+          const gate = gateReformulateWrite({
+            config: { enabled: rootConfig.reformulate_writes.enabled, dailyCap: rootConfig.reformulate_writes.daily_cap },
+            capUsedToday: runtime.reformulateWrites.count,
+            lastMessageID: scan?.messages.at(-1)?.id,
+            target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
+            sessionProtected: protectedSession(sessionID),
+          })
+          if (!gate.allowed) {
+            ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `reformulate write: ${gate.reason}` })
+          } else {
+            await client.promptAsync(sessionID, runtime.root, reformulateWriteText({ rationale: decision.rationale }))
+            runtime.reformulateWrites.count += 1
+            ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "reformulate", text: "[supervisor] (reformulate)", rationale: decision.rationale })
           }
         }
         runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)

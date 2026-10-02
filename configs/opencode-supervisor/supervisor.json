@@ -55,6 +55,10 @@
       "steer_writes": {
         "enabled": true,
         "daily_cap": 3
+      },
+      "reformulate_writes": {
+        "enabled": true,
+        "daily_cap": 3
       }
     },
     {
@@ -108,6 +112,10 @@
       "steer_writes": {
         "enabled": true,
         "daily_cap": 3
+      },
+      "reformulate_writes": {
+        "enabled": true,
+        "daily_cap": 3
       }
     },
     {
@@ -125,6 +133,10 @@
         "kick_start_only": true
       },
       "steer_writes": {
+        "enabled": true,
+        "daily_cap": 3
+      },
+      "reformulate_writes": {
         "enabled": true,
         "daily_cap": 3
       }
@@ -174,6 +186,10 @@
         "kick_start_only": true
       },
       "steer_writes": {
+        "enabled": true,
+        "daily_cap": 3
+      },
+      "reformulate_writes": {
         "enabled": true,
         "daily_cap": 3
       }

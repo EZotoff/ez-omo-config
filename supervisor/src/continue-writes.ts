@@ -96,3 +96,29 @@ export function gateSteerWrite(input: SteerWriteGateInput): ContinueWriteGate {
 export function steerWriteText(decision: Pick<Decision, "rationale">): string {
   return `[supervisor] (steer) ${truncateAtSentence(decision.rationale, 6000)}`
 }
+
+/** REFORMULATE write text: per POLICY rule 258/265 — demand a standalone account
+ *  rebuilt from first principles, relying on nothing from the session's interior. */
+export function reformulateWriteText(input: { readonly rationale: string }): string {
+  return `[supervisor] (reformulate) Your reply cannot be evaluated from the transcript alone. Re-state the outcome as a standalone account: define the terms, state what changed and why it matters, rebuilt from first principles — a competent reader with NO access to this session must be able to evaluate it. Unresolved: ${truncateAtSentence(input.rationale, 6000)}`
+}
+
+export type ReformulateGateInput = {
+  readonly config: { readonly enabled: boolean; readonly dailyCap: number }
+  readonly capUsedToday: number
+  readonly lastMessageID: string | undefined
+  readonly target: { readonly assistantMessageID?: string }
+  readonly sessionProtected: boolean
+}
+
+/** Gate for REFORMULATE writes: enabled, unprotected, under cap, premise intact. */
+export function gateReformulateWrite(input: ReformulateGateInput): { allowed: true } | { allowed: false; reason: string } {
+  if (!input.config.enabled) return { allowed: false, reason: "reformulate writes disabled" }
+  if (input.sessionProtected) return { allowed: false, reason: "session protected" }
+  if (input.capUsedToday >= input.config.dailyCap) return { allowed: false, reason: "daily cap reached" }
+  if (input.target.assistantMessageID !== undefined && input.lastMessageID !== undefined && input.lastMessageID !== input.target.assistantMessageID) {
+    return { allowed: false, reason: "premise changed: newer message after target reply" }
+  }
+  if (input.lastMessageID === undefined) return { allowed: false, reason: "no last message" }
+  return { allowed: true }
+}

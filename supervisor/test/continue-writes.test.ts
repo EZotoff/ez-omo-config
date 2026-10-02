@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { continueCapKey, continueWriteText, gateContinueWrite, gateSteerWrite, steerWriteText } from "../src/continue-writes"
+import { continueCapKey, continueWriteText, gateContinueWrite, gateReformulateWrite, gateSteerWrite, reformulateWriteText, steerWriteText } from "../src/continue-writes"
 
 const base = {
   config: { enabled: true, dailyCap: 5, kickStartOnly: true },
@@ -155,4 +155,27 @@ test("poller does not stall healthy completed sessions", async () => {
   } finally {
     globalThis.fetch = origFetch
   }
+})
+
+describe("reformulate gate + text (2026-10-02: fresh-explain capability wired)", () => {
+  const base = {
+    config: { enabled: true, dailyCap: 3 },
+    capUsedToday: 0,
+    lastMessageID: "a1",
+    target: { assistantMessageID: "a1" },
+    sessionProtected: false,
+  }
+  test("allows when premises hold", () => expect(gateReformulateWrite(base)).toEqual({ allowed: true }))
+  test("blocks disabled, protected, capped, premise-changed", () => {
+    expect(gateReformulateWrite({ ...base, config: { ...base.config, enabled: false } }).allowed).toBe(false)
+    expect(gateReformulateWrite({ ...base, sessionProtected: true }).allowed).toBe(false)
+    expect(gateReformulateWrite({ ...base, capUsedToday: 3 }).allowed).toBe(false)
+    expect(gateReformulateWrite({ ...base, lastMessageID: "newer" }).allowed).toBe(false)
+  })
+  test("write text demands a standalone first-principles account", () => {
+    const t = reformulateWriteText({ rationale: "all jargon, no stated impact" })
+    expect(t.startsWith("[supervisor] (reformulate)")).toBe(true)
+    expect(t).toContain("first principles")
+    expect(t).toContain("all jargon")
+  })
 })

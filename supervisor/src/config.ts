@@ -25,6 +25,10 @@ const rootSchema = z.object({
     enabled: z.boolean().default(false),
     daily_cap: z.number().int().positive().default(3),
   }).strict().optional(),
+  reformulate_writes: z.object({
+    enabled: z.boolean().default(false),
+    daily_cap: z.number().int().positive().default(3),
+  }).strict().optional(),
   autonomous_title_prefixes: z.array(z.string().min(1)).default([]),
 }).strict()
 const tierBudgetsSchema = z.object({
