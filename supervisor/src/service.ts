@@ -466,8 +466,14 @@ export async function runService(signal: AbortSignal): Promise<void> {
           onSuppressed: (reason) => { suppressedReason = reason },
         }))
         await recordDecision(decision, target, runtime.root)
+        assertDispatchHandlesEveryAction(decision.action)
+        // Funnel invariant (2026-10-02 postmortem): every non-terminal action must
+        // end this tick with an effect or an explicit skip — an unhandled dispatch
+        // is a schema ghost and gets a ledger ERROR instead of silence.
+        let actionOutcome: "effect" | "skip" | "unhandled" = "unhandled"
         if (suppressedReason !== undefined) {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: suppressedReason })
+          actionOutcome = "skip"
         }
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
           const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${clipFragment(c.quote, 800)}`).join("; ")
@@ -498,7 +504,9 @@ export async function runService(signal: AbortSignal): Promise<void> {
           if (proposed.kind === "deduped" || proposed.kind === "capped") {
             const reason = proposed.kind === "deduped" ? "escalation deduped by decision key" : proposed.reason
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason })
+            actionOutcome = "skip"
           } else {
+            actionOutcome = "effect"
             const surfaced = await consoles.surfaceNext(runtime.root, new Date().toISOString())
             if (surfaced.kind === "resolved") {
               ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `escalation ${surfaced.disposition}: ${surfaced.reason}` })
@@ -515,6 +523,7 @@ rootConfig?.continue_writes?.enabled === true
           // (live false positive 2026-09-22, kick K1).
           if (scan !== undefined && isProbeTarget({ root: runtime.root, ...(scan.session.title === undefined ? {} : { sessionTitle: scan.session.title }) })) {
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "continue write: probe/throwaway session — acknowledgment is delivery" })
+            actionOutcome = "skip"
           } else {
           const today = continueCapKey(new Date())
           if (runtime.continueWrites.dateKey !== today) runtime.continueWrites = { dateKey: today, count: 0 }
@@ -532,6 +541,7 @@ rootConfig?.continue_writes?.enabled === true
           })
           if (!gate.allowed) {
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `continue write: ${gate.reason}` })
+            actionOutcome = "skip"
           } else {
             // Final premise re-check against live state immediately before the write.
             const fresh = await client.listMessages(sessionID, runtime.root)
@@ -549,9 +559,11 @@ rootConfig?.continue_writes?.enabled === true
             })
             if (!liveGate.allowed) {
               ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `continue write: ${liveGate.reason}` })
+            actionOutcome = "skip"
             } else {
               await client.promptAsync(sessionID, runtime.root, continueWriteText(decision))
               runtime.continueWrites.count += 1
+              actionOutcome = "effect"
               ledger = await ledger.append("INTERVENTION_SENT", {
                 root: runtime.root,
                 sessionID,
@@ -580,9 +592,11 @@ rootConfig?.continue_writes?.enabled === true
           })
           if (!gate.allowed) {
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `steer write: ${gate.reason}` })
+            actionOutcome = "skip"
           } else {
             await client.promptAsync(sessionID, runtime.root, steerWriteText(decision))
             runtime.steerWrites.count += 1
+            actionOutcome = "effect"
             ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "steer", text: "[supervisor] (steer)", rationale: decision.rationale })
           }
         }
@@ -600,11 +614,27 @@ rootConfig?.continue_writes?.enabled === true
           })
           if (!gate.allowed) {
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `reformulate write: ${gate.reason}` })
+            actionOutcome = "skip"
           } else {
             await client.promptAsync(sessionID, runtime.root, reformulateWriteText({ rationale: decision.rationale }))
             runtime.reformulateWrites.count += 1
+            actionOutcome = "effect"
             ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "reformulate", text: "[supervisor] (reformulate)", rationale: decision.rationale })
           }
+        }
+        if (decision.action !== "ACCEPT" && decision.action !== "ABSTAIN" && actionOutcome === "unhandled") {
+          ledger = await ledger.append("ERROR", { root: runtime.root, sessionID, reason: "action funnel violation", action: decision.action })
+          await recordErrorTelemetry({ root: runtime.root })
+        }
+        const funnel = status.actionFunnel ?? {}
+        const entry = funnel[decision.action] ?? { decided: 0, effect: 0, skipped: 0 }
+        status.actionFunnel = {
+          ...funnel,
+          [decision.action]: {
+            decided: entry.decided + 1,
+            effect: entry.effect + (actionOutcome === "effect" ? 1 : 0),
+            skipped: entry.skipped + (actionOutcome === "skip" ? 1 : 0),
+          },
         }
         runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)
         runtime.scheduler?.markTicked(sessionID)
@@ -742,4 +772,26 @@ rootConfig?.continue_writes?.enabled === true
   }
 
   await new Promise<void>((resolveDone) => signal.addEventListener("abort", () => resolveDone(), { once: true }))
+}
+
+/** Compile-time exhaustiveness for the tick dispatch (2026-10-02 postmortem:
+ *  STEER/REFORMULATE existed in the action schema for 10+ days with zero call
+ *  sites — "schema ghosts" that green tests could not see). Adding a member to
+ *  ACTIONS without updating the dispatch handling fails tsc at the never-default
+ *  below. Structural bijection is additionally enforced at gate time by
+ *  tests/test_supervisor_dispatch.sh. */
+function assertDispatchHandlesEveryAction(action: Action): void {
+  switch (action) {
+    case "ACCEPT":
+    case "ABSTAIN":
+    case "CONTINUE":
+    case "ESCALATE":
+    case "STEER":
+    case "REFORMULATE":
+      return
+    default: {
+      const unhandled: never = action
+      throw new Error(`tick action has no dispatch handling: ${String(unhandled)}`)
+    }
+  }
 }

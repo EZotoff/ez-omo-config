@@ -29,6 +29,11 @@ export const statusSchema = z.object({
     lastErrorAt: z.string().optional(),
   })).optional(),
   machineMarkedRate: z.number().min(0).max(1),
+  actionFunnel: z.record(z.string(), z.object({
+    decided: z.number().int().nonnegative(),
+    effect: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+  }).strict()).optional(),
   collect: collectTelemetrySchema.optional(),
 }).strict()
 export type SupervisorStatus = z.infer<typeof statusSchema>

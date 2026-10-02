@@ -4,7 +4,7 @@ import type { InformationNeed, TickDecision } from "./tick"
 import type { Action, LedgerRecord, Message, Session, Turn } from "./types"
 
 /**
- * Collect-vs-decide fork executor (design: collect-vs-decide-design.md).
+ * Collect-vs-decide fork executor (design: supervisor/collect-vs-decide-design.md).
  *
  * Three primitives, all routed through the top-level U/A projection — the
  * epistemic boundary is enforced HERE, in code, not in the prompt:
