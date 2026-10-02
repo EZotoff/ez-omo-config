@@ -58,7 +58,7 @@ grep -a -c 'shouldApplySessionEvent\|session_directory_filter_enabled' /home/ezo
 ```
 
 Authoritative evidence for this patch is provenance: build receipt
-`14d3a5836956e3a83ed1472ac96f2e4d0c05e69f4ac764e333f43df41975de7e` binds binary
+`97f4ee2e38b144ef93760988bce7ab1b098ca42c15c54309872109de2b170f38` binds binary
 sha256 → source head `5dd34e7199` via the lockfile ancestry chain
 (`build-and-install-opencode.sh build`).
 
