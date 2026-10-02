@@ -4,7 +4,7 @@
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey)](https://github.com/sponsors/EZotoff)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/ezotoff)
 
-> Personal, **locally patched** OpenCode + Oh-My-OpenAgent configuration: 7 enabled providers, 13 specialized agents, git-safety and worktree plugins, one-command install with automatic backups.
+> Personal, **locally patched** OpenCode + Oh-My-OpenAgent configuration: 8 enabled providers, 13 specialized agents, git-safety and worktree plugins, one-command install with automatic backups.
 
 This is a working production setup you can fork and adapt — not a turnkey universal distribution. Some capabilities depend on local runtime patches (see [The OMO runtime fork](#the-omo-runtime-fork-primary-machine) and [docs/patches.md](docs/patches.md)). The repo contains reusable presets, plugins, skills, and scripts; the full artifact inventory with install targets lives in [MANIFEST.md](MANIFEST.md) (the single source of truth — this README carries only the category summary).
 
@@ -140,7 +140,7 @@ Commands install to `~/.config/opencode/command/` (e.g. `/models-preset`).
 
 ## Configuration Highlights
 
-### 7 Enabled Providers
+### 8 Enabled Providers
 
 Pruned to the models used by OMO role assignments plus select extras via per-provider `whitelist` (registry-backed providers otherwise merge their full models.dev catalog into the TUI/OC Beacon model picker). 7 further provider blocks (`deepseek`, `uni-lux`, `ollama-local`, `qwen-tunnel`, `gsq-rco`, `openrouter`, `anthropic`) remain in the config parked — removed from `enabled_providers`, one line to re-enable.
 
@@ -153,8 +153,9 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 | **zai-coding-plan** | GLM 5.3, GLM 5.3 Flash | Coding Plan API; whitelisted |
 | **inception** | Mercury 2.5 (260k ctx) | replaces Mercury 2 (Sep 2026); also OMO Aspect Dynamics scoring/polishing model |
 | **ollama-cloud** | DeepSeek V4.1 Flash, MiniMax M3 | ollama.com OpenAI-compatible API; whitelisted (catalog has 24 models) |
+| **mimo** | MiMo v2.6 Pro, MiMo v2.6 Flash | Xiaomi MiMo Token Plan (Europe endpoint); 1M ctx, no OMO assignments yet |
 
-`auth.json.example` carries 9 provider entries (7 API keys + 2 OAuth). Model-limit details, reasoning-effort variants, and per-model caveats: [docs/configs.md](docs/configs.md).
+`auth.json.example` carries 10 provider entries (8 API keys + 2 OAuth). Model-limit details, reasoning-effort variants, and per-model caveats: [docs/configs.md](docs/configs.md).
 
 ### 13 Agent Model Assignments
 
@@ -208,7 +209,7 @@ For complex multi-step work, prometheus produces an HTML proposal packet for hum
 | **bash >= 4.3** | Required (wisdom namerefs) | macOS: `brew install bash`; Linux: preinstalled |
 | **inotify-tools** | Required (patch watcher) | `sudo apt install -y inotify-tools` |
 | **Docker** | Optional (worktree isolation) | [docker.com](https://docker.com) |
-| **API keys** | Required | `auth.json.example` (9 providers); verify with `./scripts/check-prerequisites.sh` |
+| **API keys** | Required | `auth.json.example` (10 providers); verify with `./scripts/check-prerequisites.sh` |
 
 The installer places configuration files; it does not install OpenCode CLI, bun, Docker, inotify-tools, or OMO. Binary/bundle patches are documented in [docs/patches.md](docs/patches.md) and are **not** auto-applied by `install.sh`.
 

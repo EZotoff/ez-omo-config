@@ -6,6 +6,7 @@
     "kimi-for-coding-oauth",
     "zai-coding-plan",
     "inception",
+    "mimo",
     "ollama-cloud",
     "local"
   ],
@@ -18,7 +19,7 @@
     "./live-config-guard.mjs",
     "./promise-catcher.mjs",
     "opencode-antigravity-auth@1.6.0",
-    "opencode-openai-codex-auth",
+    "oc-codex-multi-auth@6.27.0",
     "opencode-anthropic-auth",
     "@franlol/opencode-md-table-formatter@0.0.6",
     "opencode-kimi-full",
@@ -878,6 +879,57 @@
           "tool_call": true,
           "limit": {
             "context": 262144,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
+    "mimo": {
+      "name": "MiMo",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://token-plan-ams.xiaomimimo.com/v1"
+      },
+      "models": {
+        "mimo-v2.6-pro": {
+          "name": "MiMo v2.6 Pro",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 1048576,
+            "input": 917504,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "mimo-v2.6-flash": {
+          "name": "MiMo v2.6 Flash",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 1048576,
+            "input": 917504,
             "output": 131072
           },
           "modalities": {

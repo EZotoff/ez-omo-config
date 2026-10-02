@@ -46,5 +46,10 @@
   "ollama-cloud": {
     "type": "api",
     "key": "YOUR_OLLAMA_CLOUD_API_KEY"
+  },
+
+  "mimo": {
+    "type": "api",
+    "key": "YOUR_MIMO_TOKEN_PLAN_API_KEY"
   }
 }
