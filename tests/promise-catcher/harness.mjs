@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const PLUGIN_PATH = join(import.meta.dirname, "..", "..", "configs", "opencode", "promise-catcher.mjs");
+const HELPERS_PATH = join(import.meta.dirname, "..", "..", "configs", "opencode", "promise-catcher", "helpers.mjs");
 
 function assert(cond, msg) {
   if (!cond) throw new Error(`ASSERT FAILED: ${msg}`);
@@ -273,7 +274,7 @@ async function caseDisabled() {
 
 async function caseEvaluatePure() {
   const { mod } = await setup();
-  const { evaluatePromise } = mod;
+  const { evaluatePromise } = await import(HELPERS_PATH);
   assertEq(evaluatePromise([]).reason, "no-messages", "empty input");
   assertEq(evaluatePromise([msg("assistant", "plain text")]).reason, "no-promise", "plain text");
   assertEq(evaluatePromise([msg("assistant", "I'll track both metrics")]).ok, true, "track promise detected");

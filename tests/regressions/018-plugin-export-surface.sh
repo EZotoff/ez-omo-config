@@ -29,6 +29,12 @@ assert_grep 'from "\./review-enforcer/helpers"' "$REPO_ROOT/plugins/review-enfor
 # ...and the plugin entry must no longer export helpers directly.
 assert_no_grep '^export function' "$REPO_ROOT/plugins/review-enforcer.ts"
 
+# promise-catcher mirrors the review-enforcer layout: pure helpers in a
+# subdirectory, plugin entry imports them and exports only the plugin.
+assert_file_exists "$REPO_ROOT/configs/opencode/promise-catcher/helpers.mjs"
+assert_grep 'from "\./promise-catcher/helpers' "$REPO_ROOT/configs/opencode/promise-catcher.mjs"
+assert_no_grep '^export function' "$REPO_ROOT/configs/opencode/promise-catcher.mjs"
+
 # Loader-contract check across every plugin module (auto-discovered top-level
 # plugins/*.ts + config-array configs/opencode/*.mjs): each module's export
 # surface must contain only functions, and every named function export must be

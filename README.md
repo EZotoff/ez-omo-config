@@ -88,7 +88,7 @@ The OpenCode binary itself is also rebuilt from release tags with tracked patche
 | Category | Count | Contents |
 |---|---|---|
 | **Commands** | 12 files | Slash-command prompts: model presets, session utilities, handoff emit/resume, four review presets (design-review, option-compare, dual-review, escalate), episode checkpoint, full codified workflow loop (design→debate→plan→review→implement→review→closeout) |
-| **Configs** | 49 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
+| **Configs** | 71 files | OpenCode + OMO + Supervisor configs; retry registry; live-config guard, agent-default guard, Aspect Dynamics, Output Shaper, Skill Nudger modules |
 | **Plugins** | 25 files | worktree, git-safety, review-enforcer (+helpers), vscode, session-id/info, auto-checkpoint, clickable-links, agent-git-workflow, kdco-primitives |
 | **Skills** | 23 dirs | wisdom, debate, reader-report, patch-tracker, update-to-latest, patch-opencode, merge-agent, parallel-dev, deployment, closeout, acceptance-boundary skills, … |
 | **Scripts** | 85 files | wisdom suite, session-learning closeout extractor + nightly sweep (digest → analyst → capped wisdom candidates), worktree hooks, live-deployment verifier, patch verifier + watcher + config-drift check + integrity triage (agent-gated alerting), smoke-boot gate, OpenCode session archiver + throwaway-session sweeper, bench campaign runner, episode receipt + plan-lifecycle tooling (plans index, stale-plan sweep, execution-record lint), lite-lane tooling (workorder lint, agent leases, spawn health check), rollout monitoring ladder (`rollout-monitor.py`), operator tools |
