@@ -83,7 +83,7 @@
       "implementation_commits": [
         "a2e09f1a927d0d641aa8a333714f53bfeecb47fc"
       ],
-      "commit_resolution_note": "83fec4b8e is 'fix(bash): supervised process-group lifecycle with bounded drain' — the commit that introduced packages/core/src/process-group.ts and the sole bash-lifecycle implementation commit carried on fix/all-patches-v1.18.5. fix/bash-lifecycle-group-cleanup's tip 65c33b819 is the (later) tui-session-directory-scope commit, so the patch commit is its ancestor, not descendant."
+      "commit_resolution_note": "83fec4b8e is 'fix(bash): supervised process-group lifecycle with bounded drain' \u2014 the commit that introduced packages/core/src/process-group.ts and the sole bash-lifecycle implementation commit carried on fix/all-patches-v1.18.5. fix/bash-lifecycle-group-cleanup's tip 65c33b819 is the (later) tui-session-directory-scope commit, so the patch commit is its ancestor, not descendant."
     },
     {
       "patch_id": "opencode--sse-directory-filter-removal",
@@ -106,7 +106,7 @@
       "implementation_commits": [
         "e1497c444f9fc1ed68af396fb45d6c41bb30e5c8"
       ],
-      "commit_resolution_note": "fix(session): retry stalled LLM streams via inactivity watchdog — processor.ts raceFirst watchdog, branch fix/v1.18.31-p3-integration (= update/v1.18.31 + watchdog + declared-timeout regression 5b108741fb), pushed to fork and fast-forwarded to fork/update/v1.18.31 tip 5b108741fb."
+      "commit_resolution_note": "fix(session): retry stalled LLM streams via inactivity watchdog \u2014 processor.ts raceFirst watchdog, branch fix/v1.18.31-p3-integration (= update/v1.18.31 + watchdog + declared-timeout regression 5b108741fb), pushed to fork and fast-forwarded to fork/update/v1.18.31 tip 5b108741fb."
     },
     {
       "patch_id": "opencode--question-stream-stall-guard",
@@ -138,6 +138,13 @@
       "required": true,
       "implementation_commits": [
         "687ac6ea84995f89449fcf3ccff197e23d2761d6"
+      ]
+    },
+    {
+      "patch_id": "opencode--tui-error-toast-directory-scope",
+      "required": true,
+      "implementation_commits": [
+        "5dd34e7199bb2344163009bc248551d416463d1e"
       ]
     }
   ]
