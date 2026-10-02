@@ -17,3 +17,14 @@ export function truncateAtSentence(text: string, limit: number): string {
   // clip looks like a rendering bug on OC Beacon cards and session injections.
   return `${cut}…`
 }
+
+/** Clip a transcript fragment at a word boundary with an explicit ellipsis.
+ *  Citation quotes are mid-sentence fragments — sentence-boundary trimming does
+ *  not apply; a raw slice cuts words in half ("...for a lon"). */
+export function clipFragment(text: string, limit: number): string {
+  if (text.length <= limit) return text
+  const head = text.slice(0, limit)
+  const space = head.lastIndexOf(" ")
+  const cut = space > Math.floor(limit * 0.5) ? head.slice(0, space) : head.slice(0, limit - 1)
+  return `${cut}…`
+}

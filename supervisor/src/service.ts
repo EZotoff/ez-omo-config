@@ -9,7 +9,7 @@ import { loadApiKey, loadConfig, loadProviderBaseURL, rootAutonomousOrigin } fro
 import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
 import { pollRootOnce, ActivityGate, type WatchState } from "./poller"
-import { truncateAtSentence } from "./text"
+import { clipFragment, truncateAtSentence } from "./text"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
@@ -466,7 +466,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: suppressedReason })
         }
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
-          const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${c.quote.slice(0, 80)}`).join("; ")
+          const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${clipFragment(c.quote, 80)}`).join("; ")
           const proposed = await consoles.proposeEscalation({
             root: runtime.root,
             sessionID,

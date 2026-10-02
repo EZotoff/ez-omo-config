@@ -6,7 +6,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import type { Ledger } from "./ledger"
-import { truncateAtSentence } from "./text"
+import { clipFragment, truncateAtSentence } from "./text"
 import {
   AttentionQueue,
   DEFAULT_GRACE_MS,
@@ -235,7 +235,7 @@ export function formatTicket(alias: string, item: AttentionQueueItem): string {
   const session = sessionLabel(item)
   const project = projectBasename(item.target.root)
   const citations = item.origin.citations
-    .map((citation) => `${citation.session}/${citation.messageID}: ${citation.quote.slice(0, 80)}`)
+    .map((citation) => `${citation.session}/${citation.messageID}: ${clipFragment(citation.quote, 80)}`)
     .join("; ")
   // First line MUST carry the [Supervisor] tag: the ticket is written into the
   // console session as a user message, and pollReplies filters supervisor-authored
@@ -248,7 +248,9 @@ export function formatTicket(alias: string, item: AttentionQueueItem): string {
     item.question,
     "",
     `Why: ${truncateAtSentence(item.rationale, 400)}`,
-    ...(citations === "" ? [] : [`Citations: ${citations}`]),
+    // The escalation proposal sets rationale = citation evidence (service.ts), so
+  // Why: and Citations: would render byte-identical (2026-10-01 report). Show one.
+  ...(citations === "" || citations === item.rationale ? [] : [`Citations: ${citations}`]),
     "",
     `Reply in this session, e.g. "${alias}: <your answer>".`,
   ].join("\n")
@@ -450,7 +452,7 @@ export class ConsoleChannel {
         replies.push(this.buildReply(root, text, now))
         continue
       }
-      if (message.role === "assistant") {
+      if (message.role === "assistant" && message.time.completed !== undefined) {
         // Operator-stand-in rulings arrive as ASSISTANT turns: the ticket (a user
         // message) triggers the console session's agent, whose ruling IS the reply.
         // Pre-b51e71c the ticket itself was consumed (self-echo); after it, nothing
@@ -459,7 +461,12 @@ export class ConsoleChannel {
         if (ruling !== undefined) replies.push(this.buildReply(root, ruling, now))
       }
     }
-    if (last !== undefined && last.id !== watermark) await this.setWatermark(consoleID, last.id)
+    // Watermark may only advance past messages that are COMPLETE. An assistant
+    // ruling is streamed; a poll that catches it mid-generation sees partial text,
+    // fails the Q<n>: match, and — if the watermark moved on — the ruling is lost
+    // forever (live miss 2026-10-01 19:48: first ruling never ingested).
+    const lastComplete = [...messages].reverse().find((message) => message.role === "user" || message.time.completed !== undefined)
+    if (lastComplete !== undefined && lastComplete.id !== watermark) await this.setWatermark(consoleID, lastComplete.id)
     return replies
   }
 
@@ -724,7 +731,9 @@ export class ConsoleChannel {
   }
 
   private async persist(): Promise<void> {
-    const temporary = `${this.statePath}.tmp`
+    // Unique tmp name: a shared one races under concurrent persists (fleet rollout
+    // 2026-10-01: 11× ENOENT rename errors when 10 roots initialized consoles). 
+    const temporary = `${this.statePath}.tmp-${process.pid}-${randomUUID()}`
     await mkdir(dirname(this.statePath), { recursive: true })
     await writeFile(temporary, JSON.stringify(this.state, null, 2))
     await rename(temporary, this.statePath)

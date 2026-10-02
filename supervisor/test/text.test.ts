@@ -36,3 +36,14 @@ test("card trim bounds: MAX_TEXT_CHARS keeps a full sentence under the cap", asy
   expect(cut.length).toBeLessThanOrEqual(200)
   expect(cut.endsWith(".")).toBe(true)
 })
+
+describe("clipFragment", () => {
+  test("short fragment unchanged; long fragment cut at word boundary with ellipsis", async () => {
+    const { clipFragment } = await import("../src/text")
+    expect(clipFragment("short quote", 80)).toBe("short quote")
+    const cut = clipFragment("Why the fuck does stale swap not get automatically reclaimed if unused for a long", 80)
+    expect(cut.length).toBeLessThanOrEqual(81)
+    expect(cut.endsWith("…")).toBe(true)
+    expect(cut).not.toMatch(/\\w…/)
+  })
+})

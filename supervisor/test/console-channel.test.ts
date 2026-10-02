@@ -45,14 +45,14 @@ class StubClient implements ConsoleClient {
     this.toasts.push(message)
   }
 
-  append(sessionID: string, role: "user" | "assistant", text: string): void {
+  append(sessionID: string, role: "user" | "assistant", text: string, assistantCompleted = true): void {
     const list = this.messages.get(sessionID) ?? []
     const id = `msg_${sessionID}_${list.length}`
     list.push({
       id,
       sessionID,
       role,
-      time: { created: Date.now(), ...(role === "assistant" ? { completed: Date.now() } : {}) },
+      time: { created: Date.now(), ...(role === "assistant" && assistantCompleted ? { completed: Date.now() } : {}) },
       parts: [{ id: `${id}_p`, messageID: id, type: "text", text }],
     })
     this.messages.set(sessionID, list)
@@ -489,6 +489,44 @@ describe("open-item lifecycle sweep", () => {
     const freshState = queue.items.find((item) => item.id === fresh.item.id)
     expect(agedState !== undefined && agedState.lifecycle.at(-1)?.state).toBe("resolved")
     expect(freshState !== undefined && freshState.lifecycle.at(-1)?.state).not.toBe("resolved")
+    await rm(dir, { recursive: true, force: true })
+  })
+})
+
+describe("ticket duplication + streaming watermark (2026-10-01 night fixes)", () => {
+  test("formatTicket omits Citations when rationale is the same evidence string", async () => {
+    const { formatTicket } = await import("../src/console")
+    const evidence = "ses_a/m1: quote one; ses_b/m2: quote two"
+    const item = {
+      schemaVersion: 1, id: "att_dup1", version: 1, decisionKey: "k", kind: "decision",
+      origin: { tickID: "t1", ledgerSeq: 1, decision: { action: "ESCALATE", rationale: "r", citations: [{ session: "ses_a", messageID: "m1", quote: "quote one" }, { session: "ses_b", messageID: "m2", quote: "quote two" }], confidence: 0.9 }, citations: [], informationNeeds: [], contextDigest: "" },
+      target: { root: "/r", sessionID: "ses-a", userMessageID: "u1", sessionTitle: "dup test" },
+      actionClass: "ESCALATE", escalationKind: "DECISION", question: "Q?",
+      rationale: evidence, priority: { stakes: 3, urgency: 3, confidence: 0.9, freshness: 1, createdAt: "t" },
+      premises: [], relatedItemIDs: [], lifecycle: [], poisonCount: 0,
+    } as never
+    const ticket = formatTicket("Q1", item)
+    expect(ticket).toContain(`Why: ${evidence}`)
+    expect(ticket.match(/Citations:/g) ?? []).toHaveLength(0)
+  })
+
+  test("watermark does not advance past an in-flight (incomplete) assistant ruling", async () => {
+    const { channel, client, dir } = await setup()
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
+    const surfaced = await channel.surfaceNext("/root", NOW)
+    if (surfaced.kind !== "surfaced") throw new Error("expected surface")
+    expect(await channel.pollReplies("/root", NOW)).toHaveLength(0) // seed watermark
+    const consoleID = channel.sessionID("/root")
+    if (consoleID === undefined) throw new Error("expected console")
+    // In-flight ruling: assistant message with NO completed timestamp yet.
+    client.append(consoleID, "assistant", "**Q1: Approve option 2 now.**", false)
+    expect(await channel.pollReplies("/root", NOW)).toHaveLength(0) // partial/incomplete: skipped
+    // Turn completes (text finalized with the Q1 marker): next poll ingests it.
+    client.append(consoleID, "assistant", "**Q1: Approve option 2 now.**")
+    const replies = await channel.pollReplies("/root", NOW)
+    expect(replies).toHaveLength(1)
+    expect(replies[0]?.normalizedText).toContain("Approve option 2")
     await rm(dir, { recursive: true, force: true })
   })
 })
