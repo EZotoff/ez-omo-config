@@ -10,4 +10,5 @@ ExecStart=%h/ez-omo-config/scripts/check-live-config-drift.sh
 ExecStart=%h/ez-omo-config/scripts/check-remote-presence.sh
 ExecStart=%h/ez-omo-config/scripts/check-provenance.sh
 ExecStart=%h/ez-omo-config/scripts/check-plugin-load-health.sh
+ExecStart=%h/ez-omo-config/scripts/check-wake-journal-growth.sh
 Environment=EZ_OMO_CONFIG_REPO=%h/ez-omo-config

@@ -80,6 +80,8 @@ were invalidated by failures that ran to completion unobserved) and the 2026-09-
 audit (agents in ez-omo-bench/veran ended turns on probe promises that never fired;
 the operator returned with the outcome every time).
 
+Known duplicate nudges (2026-10-02): if a `[BACKGROUND TASK COMPLETED]` nudge arrives and `background_output` reports no new output, treat it as a known duplicate of an already-collected result and stop — do not re-do the completed work. (OMO parent-wake force-dispatch tail; measured ~1% of delivered wakes — 2026-10-02 wake-redundancy decision, Branch A.)
+
 
 **No unbound promises (2026-09-23 lesson).** Commit to future action only after arming a wake trigger and recording a durable handle: an owned background task with a deadline and task ID, or a continuation hook owning this session plus its state file. An operator handoff ends responsibility, not a trigger. If arming can't be verified, say "needs your input" and give current state. Promises are bounded: "observed until <deadline> via <handle>". On any wake, reconcile from durable state before acting.
 ### Benchmark campaign preflight
