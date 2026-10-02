@@ -196,6 +196,11 @@ log() { printf '[restart-continuation] %s\n' "$*"; }
 # the shared session DB (read-only). Only RECENTLY updated dirs are queried — a
 # busy/retry session is by definition recently updated, and sweeping stale bench/tmp
 # dirs is slow enough to race the very turns being snapshotted (2026-09-16 failure).
+# /tmp dirs are EXCLUDED entirely (2026-10-02/03 rc=28 storm): ~25 of 40 probed dirs
+# were throwaway probe dirs (crash-resume-once.*, codex-*, attachfanin-*) whose
+# timeouts burned the 45s snapshot budget; per the durable-workspaces policy
+# /tmp sessions are disposable and are not worth protecting in a restart snapshot.
+# dirs is slow enough to race the very turns being snapshotted (2026-09-16 failure).
 discover_dirs() {
   MAX_AGE="$MAX_AGE_SECONDS" python3 - <<'PYEOF'
 import os, sqlite3, time
@@ -204,7 +209,8 @@ con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
 cutoff = (time.time() - float(os.environ["MAX_AGE"])) * 1000
 rows = con.execute(
     "select distinct directory from session "
-    "where time_updated >= ? and time_archived is null and directory != ''", (cutoff,))
+    "where time_updated >= ? and time_archived is null and directory != '' "
+    "and directory not like '/tmp/%'", (cutoff,))
 print("\n".join(sorted(r[0] for r in rows)))
 PYEOF
 }
@@ -358,7 +364,7 @@ def budget_left():
 snap = json.load(open(os.environ["SESSIONS_FILE"]))
 base = os.environ["OPENCODE_URL"]
 auth = [os.environ["OPENCODE_SERVER_USERNAME"], os.environ["OPENCODE_SERVER_PASSWORD"]]
-ok = fail = budget_skipped = 0
+ok = fail = budget_skipped = dup = 0
 for s in snap.get("sessions", []):
     rem = budget_left()
     if rem <= 0:
@@ -380,8 +386,6 @@ for s in snap.get("sessions", []):
     # Retry rc=7/timeout every 2s up to RESUME_RETRY_SECONDS (default 60s,
     # capped by the hook API budget): a single knock on a still-starting
     # server must not silently drop the resume (2026-09-30 :3030 give-up).
-    retry_secs = float(os.environ.get("RESUME_RETRY_SECONDS") or 60)
-    dup = 0
     # Dedup guard: a fresh window marker means another pass/run/retry already
     # claimed this session's resume within the window (multi-injection fix).
     _statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
@@ -673,13 +677,26 @@ if [[ -n "$HOOK_MODE" ]]; then
     SECONDS=0   # legacy timer (wait_ready loop); hook budget uses HOOK_DEADLINE_EPOCH
     hook_budget_start
     preflight_st="$(api GET /session/status 2>/dev/null)" || rc=$?
+    if (( rc != 0 )) && (( "$(hook_deadline_rem)" > 0 )); then
+      # One bounded retry before declaring preflight_failed: the 2026-10-02/03
+      # rc=28 storm showed a degraded-but-alive server can answer on a second
+      # knock; the hook API budget bounds the total.
+      rc=0
+      sleep 2
+      preflight_st="$(api GET /session/status 2>/dev/null)" || rc=$?
+    fi
     if (( rc != 0 )); then
       hook_log "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk"
       journal_alert preflight_failed "$SERVICE_UNIT" "$rc" - - "stop preflight failed for $SERVICE_UNIT, rc=$rc — no snapshot will be taken; busy sessions at risk ($OPENCODE_URL)"
       exit 0
     fi
     sfc=0
-    STATE_FILE="$STATE_DIR/snapshot-$SERVICE_UNIT-$(date +%Y%m%d-%H%M%S).json" snapshot || sfc=$?
+    # Plain assignment, NOT a `STATE_FILE=... snapshot` prefix: prefix-scoped vars
+    # are restored after the function returns, so the outer `[[ ! -s $STATE_FILE ]]`
+    # check below saw an EMPTY value and flagged every clean snapshot as rc=1
+    # (snapshot_failed alert storm 2026-10-02/03, ledger seq 13270-13286).
+    STATE_FILE="$STATE_DIR/snapshot-$SERVICE_UNIT-$(date +%Y%m%d-%H%M%S).json"
+    snapshot || sfc=$?
     if (( sfc != 0 )) || [[ ! -s "$STATE_FILE" ]]; then
       (( sfc != 0 )) || sfc=1   # file missing but snapshot() masked the rc
       # Preflight succeeded but the snapshot write/collection failed while busy
@@ -698,8 +715,15 @@ except Exception:
     sys.exit(1)' 2>/dev/null || true)"
       fi
       [[ "$busy_count" =~ ^[0-9]+$ ]] || busy_count="-"
-      hook_log "snapshot failed (non-fatal) rc=$sfc; busy_count=$busy_count"
-      journal_alert snapshot_failed "$SERVICE_UNIT" "$sfc" - "$busy_count" "stop snapshot failed for $SERVICE_UNIT rc=$sfc (non-fatal); ${busy_count} busy session(s) at risk"
+      if [[ "$busy_count" == "0" ]]; then
+        # A partial/timed-out snapshot with ZERO busy sessions risks nothing:
+        # not a snapshot_failed condition (2026-10-02/03 alert storm — rc=28
+        # degradation + /tmp junk dirs burned the budget with the fleet idle).
+        hook_log "snapshot incomplete but busy_count=0; nothing at risk, no alert"
+      else
+        hook_log "snapshot failed (non-fatal) rc=$sfc; busy_count=$busy_count"
+        journal_alert snapshot_failed "$SERVICE_UNIT" "$sfc" - "$busy_count" "stop snapshot failed for $SERVICE_UNIT rc=$sfc (non-fatal); ${busy_count} busy session(s) at risk"
+      fi
     fi
     hook_log "snapshot done for $SERVICE_UNIT"
     exit 0
