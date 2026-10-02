@@ -20,8 +20,22 @@ done < "$AUTH_ENV"; }
 auth_args=(); [[ -n "$password" ]] && auth_args=(-u "$username:$password")
 
 cleanup() {
-  [[ -n "${SID:-}" && "${SID:-}" != "null" ]] && \
-    curl -s "${auth_args[@]}" -X DELETE "$URL/session/$SID?directory=$BUSY_DIR" -o /dev/null
+  # Abort the injected turn BEFORE deleting the session: a live DELETE orphans
+  # the in-flight message/part writes and FK-fails them (Error · New session
+  # toasts in the TUI/Beacon — 2026-10-02 incident). Bounded poll, never a bare
+  # sleep-loop without exit.
+  if [[ -n "${SID:-}" && "${SID:-}" != "null" ]]; then
+    curl -s "${auth_args[@]}" --max-time 3 -X POST \
+      "$URL/session/$SID/abort?directory=$BUSY_DIR" -o /dev/null || true
+    for _ in $(seq 1 60); do
+      busy="$(curl -s "${auth_args[@]}" --max-time 2 \
+        "$URL/session/status?directory=$BUSY_DIR" 2>/dev/null \
+        | jq -r --arg s "$SID" '.[$s].type // "idle"' 2>/dev/null)"
+      [[ "$busy" != "busy" && "$busy" != "retry" ]] && break
+      sleep 1
+    done
+    curl -s "${auth_args[@]}" -X DELETE "$URL/session/$SID?directory=$BUSY_DIR" -o /dev/null || true
+  fi
   pkill -f "attachfanin-mark" 2>/dev/null
 }
 trap cleanup EXIT
