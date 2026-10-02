@@ -15,9 +15,9 @@ export const OPERATOR_VIEW_HEARTBEAT_MS = 15_000
 
 // Bounded read-model caps (design §5: bounded active queue cards + capped text).
 export const MAX_CARDS = 20
-export const MAX_TEXT_CHARS = 400
+export const MAX_TEXT_CHARS = 4000
 export const MAX_PREMISES = 5
-export const MAX_PREMISE_CHARS = 160
+export const MAX_PREMISE_CHARS = 1600
 
 export type OperatorViewCard = {
   readonly id: string

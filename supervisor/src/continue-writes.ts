@@ -94,5 +94,5 @@ export function gateSteerWrite(input: SteerWriteGateInput): ContinueWriteGate {
 }
 
 export function steerWriteText(decision: Pick<Decision, "rationale">): string {
-  return `[supervisor] (steer) ${truncateAtSentence(decision.rationale, 600)}`
+  return `[supervisor] (steer) ${truncateAtSentence(decision.rationale, 6000)}`
 }

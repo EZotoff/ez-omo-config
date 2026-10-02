@@ -235,7 +235,7 @@ export function formatTicket(alias: string, item: AttentionQueueItem): string {
   const session = sessionLabel(item)
   const project = projectBasename(item.target.root)
   const citations = item.origin.citations
-    .map((citation) => `${citation.session}/${citation.messageID}: ${clipFragment(citation.quote, 80)}`)
+    .map((citation) => `${citation.session}/${citation.messageID}: ${clipFragment(citation.quote, 800)}`)
     .join("; ")
   // First line MUST carry the [Supervisor] tag: the ticket is written into the
   // console session as a user message, and pollReplies filters supervisor-authored
@@ -247,7 +247,7 @@ export function formatTicket(alias: string, item: AttentionQueueItem): string {
     "",
     item.question,
     "",
-    `Why: ${truncateAtSentence(item.rationale, 400)}`,
+    `Why: ${truncateAtSentence(item.rationale, 4000)}`,
     // The escalation proposal sets rationale = citation evidence (service.ts), so
   // Why: and Citations: would render byte-identical (2026-10-01 report). Show one.
   ...(citations === "" || citations === item.rationale ? [] : [`Citations: ${citations}`]),

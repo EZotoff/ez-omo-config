@@ -466,7 +466,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: suppressedReason })
         }
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
-          const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${clipFragment(c.quote, 80)}`).join("; ")
+          const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${clipFragment(c.quote, 800)}`).join("; ")
           const proposed = await consoles.proposeEscalation({
             root: runtime.root,
             sessionID,

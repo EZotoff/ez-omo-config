@@ -207,9 +207,9 @@ describe("operator-view acceptance", () => {
     const { view } = buildOperatorView({ items: many, ledgerSeq: 100, generation: 1, nowMs: T0 })
     expect(view.cards.length).toBeLessThanOrEqual(MAX_CARDS)
     for (const card of view.cards) {
-      expect(card.reasonText.length).toBeLessThanOrEqual(400)
+      expect(card.reasonText.length).toBeLessThanOrEqual(4000)
       expect(card.premiseTexts.length).toBeLessThanOrEqual(5)
-      for (const text of card.premiseTexts) expect(text.length).toBeLessThanOrEqual(160)
+      for (const text of card.premiseTexts) expect(text.length).toBeLessThanOrEqual(1600)
     }
   })
 
