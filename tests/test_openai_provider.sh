@@ -58,7 +58,7 @@ if provider.get('openai', {}).get('name') != 'Codex':
 print('PASS: provider.openai exists and is labeled Codex')
 
 openai_models = provider.get('openai', {}).get('models', {})
-expected_models = ['gpt-6-sol', 'gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-6-luna']
+expected_models = ['gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-6-luna']
 missing = [m for m in expected_models if m not in openai_models]
 if missing:
     print(f'FAIL: missing expected models: {missing}')
@@ -69,7 +69,7 @@ openai_whitelist = provider.get('openai', {}).get('whitelist')
 if openai_whitelist != expected_models:
     print(f'FAIL: provider.openai.whitelist expected {expected_models!r}, got {openai_whitelist!r}')
     sys.exit(1)
-print('PASS: OpenAI picker whitelist contains only Sol, 6.1 Sol, Terra, and Luna')
+print('PASS: OpenAI picker whitelist contains only 6.1 Sol, Terra, and Luna')
 
 sol61 = openai_models.get('gpt-6.1-sol', {})
 if sol61.get('options', {}).get('reasoningEffort') != 'high':
@@ -96,22 +96,22 @@ print('PASS: opencode-openai-codex-auth plugin entry exists')
 
 expected_agent_models = {
     'sisyphus': 'zai-coding-plan/glm-5.3-flash',
-    'hephaestus': 'openai/gpt-6-sol',
+    'hephaestus': 'openai/gpt-6.1-sol',
     'oracle': 'openai/gpt-6.1-sol',
-    'explore': 'openai/gpt-6.1-sol',
-    'librarian': 'openai/gpt-6.1-sol',
+    'explore': 'ollama-cloud/minimax-m3',
+    'librarian': 'ollama-cloud/minimax-m3',
     'prometheus': 'kimi-for-coding-oauth/k3',
-    'metis': 'openai/gpt-6-sol',
+    'metis': 'openai/gpt-6.1-sol',
     'multimodal-looker': 'zai-coding-plan/glm-5.3-flash',
     'frontend-ui-ux-engineer': 'zai-coding-plan/glm-5.3',
 }
 expected_category_models = {
     'ultrabrain': 'zai-coding-plan/glm-5.3',
-    'deep': 'openai/gpt-6-sol',
+    'deep': 'openai/gpt-6.1-sol',
     'quick': 'zai-coding-plan/glm-5.3-flash',
     'unspecified-low': 'ollama-cloud/deepseek-v4.1-flash',
     'unspecified-high': 'zai-coding-plan/glm-5.3',
-    'mephistopheles': 'openai/gpt-6-sol',
+    'mephistopheles': 'openai/gpt-6.1-sol',
     'visual-engineering': 'zai-coding-plan/glm-5.3-flash',
 }
 
@@ -132,13 +132,13 @@ if retired_provider in json.dumps(data) or retired_provider in json.dumps(omo):
 print('PASS: retired provider string absent from active JSON config')
 
 expected_agent_fallbacks = {
-    'sisyphus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6-sol'],
-    'oracle': ['openai/gpt-6-sol', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
-    'prometheus': ['zai-coding-plan/glm-5.3', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6-sol'],
+    'sisyphus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol'],
+    'oracle': ['zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
+    'prometheus': ['zai-coding-plan/glm-5.3', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol'],
     'metis': ['zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
     'momus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
-    'explore': ['openai/gpt-6-sol', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
-    'librarian': ['openai/gpt-6-sol', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
+    'explore': ['opencode-go/minimax-m3', 'openai/gpt-6-luna'],
+    'librarian': ['opencode-go/minimax-m3', 'openai/gpt-6-luna'],
 }
 
 for name, expected in expected_agent_models.items():
@@ -153,11 +153,11 @@ for name, expected in expected_agent_models.items():
             sys.exit(1)
 
 expected_category_fallbacks = {
-    'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-6-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-6.1-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
     'deep': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
     'quick': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
     'unspecified-low': ['opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3'],
-    'unspecified-high': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6-sol'],
+    'unspecified-high': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol'],
     'mephistopheles': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
     'visual-engineering': ['zai-coding-plan/glm-5.3', 'google/gemini-3.8-flash'],
 }
@@ -206,7 +206,7 @@ for (scope, name), expected in expected_opencode_go_routes.items():
 print('PASS: OpenCode Go routes use current Minimax and Kimi models')
 
 unspecified_high = categories.get('unspecified-high', {})
-if unspecified_high.get('fallback_models') != ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6-sol']:
+if unspecified_high.get('fallback_models') != ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol']:
     print(f'FAIL: categories.unspecified-high.fallback_models has unexpected order: {unspecified_high.get("fallback_models")!r}')
     sys.exit(1)
 
@@ -220,14 +220,14 @@ if meph.get('fallback_models') != ['ollama-cloud/deepseek-v4.1-flash', 'opencode
 print('PASS: unspecified-high, ultrabrain, and mephistopheles use requested GPT routing')
 
 dream_model = omo.get('aspectDynamics', {}).get('dreamAgent', {}).get('model', {})
-if dream_model != {'providerID': 'openai', 'modelID': 'gpt-6-sol'}:
+if dream_model != {'providerID': 'openai', 'modelID': 'gpt-6.1-sol'}:
     print(f'FAIL: aspectDynamics.dreamAgent.model has unexpected value: {dream_model!r}')
     sys.exit(1)
 print('PASS: aspectDynamics dream agent GPT route prefers openai')
 
 with open('$REPO_ROOT/configs/retry-errors.json') as f:
     retry_cfg = json.load(f)
-expected_chain = ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'openai/gpt-6-sol']
+expected_chain = ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'openai/gpt-6.1-sol']
 if retry_cfg.get('compaction_fallback_models') != expected_chain:
     print(f'FAIL: compaction_fallback_models expected {expected_chain!r}, got {retry_cfg.get("compaction_fallback_models")!r}')
     sys.exit(1)

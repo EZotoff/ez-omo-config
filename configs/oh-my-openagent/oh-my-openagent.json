@@ -6,7 +6,7 @@
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
-        "openai/gpt-6-sol"
+        "openai/gpt-6.1-sol"
       ],
       "skills": [
         "wisdom"
@@ -15,7 +15,7 @@
       "variant": "high"
     },
     "hephaestus": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "xhigh",
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
@@ -26,7 +26,6 @@
       "model": "openai/gpt-6.1-sol",
       "variant": "high",
       "fallback_models": [
-        "openai/gpt-6-sol",
         "zai-coding-plan/glm-5.3",
         "kimi-for-coding-oauth/k3"
       ],
@@ -36,22 +35,18 @@
       "prompt_append": "When answering questions that involve operational facts (deployment, config, infrastructure, design decisions), use the `wisdom` skill to check documented knowledge first.\nPrefer verified or published entries over candidate wisdom. Flag when design assumptions conflict with implementation reality.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## External-system premises\nWhen a design depends on an external system's behavior (provider API, library guarantee), require it to be backed by documentation or research \u2014 not a runtime probe or a theoretical guarantee. A probe samples; it does not characterize reliability. Flag load-bearing external-system premises presented as settled fact."
     },
     "librarian": {
-      "model": "openai/gpt-6.1-sol",
-      "variant": "high",
+      "model": "ollama-cloud/minimax-m3",
       "prompt_append": "## Web search tool preference\nFor general web research prefer the `web_search_prime` MCP tool (Z.AI, included in the Coding Plan); its argument is `search_query`. Fall back to `websearch_web_search_exa` (keyless Exa; capped at roughly 50 requests/day/IP and throttling can surface as HTTP 200 with an empty body).\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.",
       "fallback_models": [
-        "openai/gpt-6-sol",
-        "zai-coding-plan/glm-5.3",
-        "kimi-for-coding-oauth/k3"
+        "opencode-go/minimax-m3",
+        "openai/gpt-6-luna"
       ]
     },
     "explore": {
-      "model": "openai/gpt-6.1-sol",
-      "variant": "high",
+      "model": "ollama-cloud/minimax-m3",
       "fallback_models": [
-        "openai/gpt-6-sol",
-        "zai-coding-plan/glm-5.3",
-        "kimi-for-coding-oauth/k3"
+        "opencode-go/minimax-m3",
+        "openai/gpt-6-luna"
       ]
     },
     "multimodal-looker": {
@@ -69,7 +64,7 @@
         "zai-coding-plan/glm-5.3",
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
-        "openai/gpt-6-sol"
+        "openai/gpt-6.1-sol"
       ],
       "skills": [
         "wisdom"
@@ -77,7 +72,7 @@
       "prompt_append": "When creating plans, consult the `wisdom` skill for documented constraints, design decisions, and implementation patterns.\nUse wisdom-search.sh to ground architectural choices in verified facts. Capture design-relevant discoveries as wisdom entries.\n\nFor config/plugin/runtime work, distinguish repo_implemented, live_file_installed, active_config_registered, runtime_loaded, and real_project_behavior_proven. Do not claim working/deployed/active without evidence.\n\n## External-system premises\nWhen a plan's core design depends on an external system's behavior \u2014 a provider API's reliability, a library's guarantee, a service's contract \u2014 RESEARCH it (official docs + known issues + community reports) before treating it as settled. A runtime probe samples; it cannot characterize failure modes or rates, so a clean pass (e.g. 3/3) does not justify a \"guarantees X\" claim. If the behavior can't be documented, mark the premise as an UNVERIFIED RISK with a fallback \u2014 don't build on it as fact.\n\n## Pipeline Plans: Per-Stage Output Contracts + F-Wave Output Audit\n\nWhen a plan builds or modifies a data pipeline (stages whose outputs feed later stages \u2014 generation, retrieval, judging, scoring, aggregation):\n\n1. Every pipeline task's acceptance criteria must include a per-stage OUTPUT CONTRACT: schema of the stage artifact, expected cardinality, and non-degeneracy invariants (no empty outputs; more than one distinct value; scores must vary across arms/conditions designed to differ; join keys match at each boundary).\n2. The test task for judge/scorer/consumer stages must include degenerate-input negative controls: empty and garbage inputs must fail or floor, never produce passing scores (a judge that scores empty answers 5/5 will silently mask an upstream generation bug). Classify a plan as a pipeline on objective triggers: any stage produces records consumed by a later stage, or 3+ data-transforming stages.\n3. The Final Verification Wave must include an intermediary-output-audit reviewer (F5+): run the pipeline at fixture scale, READ representative (not convenient) outputs on every producer-consumer edge, plus at least one empty/malformed-input negative control per consumer stage, check the non-degeneracy invariants, and report CLEAN/SUSPICIOUS/BUG per stage with quoted evidence. F1\u2013F4 without this reviewer are not complete verification for a pipeline plan.\n4. Flag as an explicit plan risk any cross-cutting model-call convention (thinking-mode flags, JSON-mode params, timeout settings) that must hold at EVERY call site of a model \u2014 and require a task that enumerates and verifies all call sites, so a mid-run fix cannot be applied to one call path while siblings stay broken."
     },
     "metis": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "xhigh",
       "fallback_models": [
         "zai-coding-plan/glm-5.3",
@@ -88,7 +83,7 @@
       ]
     },
     "momus": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "xhigh",
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
@@ -105,7 +100,7 @@
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
-        "openai/gpt-6-sol",
+        "openai/gpt-6.1-sol",
         "kimi-for-coding-oauth/k3"
       ],
       "skills": [
@@ -118,7 +113,7 @@
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
-        "openai/gpt-6-sol"
+        "openai/gpt-6.1-sol"
       ],
       "skills": [
         "wisdom"
@@ -131,7 +126,7 @@
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
-        "openai/gpt-6-sol"
+        "openai/gpt-6.1-sol"
       ],
       "description": "Senior UI/UX engineer for COMPLEX frontend work: design system creation, multi-component refactors, accessibility audits, animation choreography, responsive layout architecture, component library design. Uses GLM 5.3 (high thinking) for strong reasoning and instruction-following on complex frontend work."
     },
@@ -157,7 +152,7 @@
       "variant": "max",
       "fallback_models": [
         "kimi-for-coding-oauth/k3",
-        "openai/gpt-6-sol",
+        "openai/gpt-6.1-sol",
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash"
       ]
@@ -169,7 +164,7 @@
         "zai-coding-plan/glm-5.3",
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
-        "openai/gpt-6-sol"
+        "openai/gpt-6.1-sol"
       ]
     },
     "quick": {
@@ -193,7 +188,7 @@
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
-        "openai/gpt-6-sol"
+        "openai/gpt-6.1-sol"
       ]
     },
     "writing": {
@@ -204,7 +199,7 @@
       ]
     },
     "deep": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "high",
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
@@ -214,7 +209,7 @@
       ]
     },
     "mephistopheles": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "fallback_models": [
         "ollama-cloud/deepseek-v4.1-flash",
         "opencode-go/deepseek-v4.1-flash",
@@ -283,7 +278,7 @@
       "lockStaleHours": 1,
       "model": {
         "providerID": "openai",
-        "modelID": "gpt-6-sol"
+        "modelID": "gpt-6.1-sol"
       }
     }
   },

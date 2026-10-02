@@ -10,13 +10,15 @@ import sys
 root = pathlib.Path(sys.argv[1])
 omo = json.loads((root / "configs/oh-my-openagent/oh-my-openagent.json").read_text())
 core = json.loads((root / "configs/opencode/opencode.json").read_text())
-strong = {"openai/gpt-6.1-sol", "openai/gpt-6-sol", "zai-coding-plan/glm-5.3", "kimi-for-coding-oauth/k3"}
+strong = {"openai/gpt-6.1-sol", "zai-coding-plan/glm-5.3", "kimi-for-coding-oauth/k3"}
 
 def problems(agent):
     routes = [agent["model"], *agent.get("fallback_models", [])]
     return [route for route in routes if route not in strong]
 
-for name in ("explore", "librarian", "oracle"):
+# 2026-10-01: explore/librarian reverted to cheap minimax-m3 routing by operator
+# directive (supersedes 4b4cce5); oracle keeps the reasoning-grade requirement.
+for name in ("oracle",):
     agent = omo["agents"][name]
     bad = problems(agent)
     assert not bad, f"{name}: analysis routes must not silently degrade to data-collection models: {bad}"

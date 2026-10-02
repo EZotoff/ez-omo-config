@@ -147,7 +147,7 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 | Provider | Models | Notes |
 |----------|--------|-------|
 | **google** | Gemini 3.8 Flash, Gemini 3.1 Pro Preview | whitelisted; Antigravity entries remain declared but hidden |
-| **openai** (Codex OAuth) | GPT 6.1 Sol / 6 Sol / 5.6 Terra / 6 Luna | OAuth: `opencode auth login openai`; whitelisted |
+| **openai** (Codex OAuth) | GPT 6.1 Sol / 5.6 Terra / 6 Luna | OAuth: `opencode auth login openai`; whitelisted |
 | **opencode-go** | MiniMax M3, DeepSeek V4 Flash, V4 Flash Vision Exp, V4.1 Flash, Qwen 3.8 Flash, Qwen 3.8 Max | whitelisted to OMO fallback-chain models; Qwen 3.8 Flash added for benchmark evaluation; Qwen 3.8 Max added 2026-09-23 (1M ctx, $15/mo plan limit) |
 | **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
 | **zai-coding-plan** | GLM 5.3, GLM 5.3 Flash | Coding Plan API; whitelisted |
@@ -160,19 +160,19 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 
 | Agent | Primary | Variant | Fallbacks |
 |-------|---------|---------|-----------|
-| atlas | `zai-coding-plan/glm-5.3-flash` | high | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol → k3 |
-| prometheus | `kimi-for-coding-oauth/k3` | high | glm-5.3 → ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
-| sisyphus | `zai-coding-plan/glm-5.3-flash` | high | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
-| sisyphus-junior | `zai-coding-plan/glm-5.3` | default | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
-| librarian | `openai/gpt-6.1-sol` | high | gpt-6-sol → glm-5.3 → k3 |
-| explore | `openai/gpt-6.1-sol` | high | gpt-6-sol → glm-5.3 → k3 |
-| frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6-sol |
+| atlas | `zai-coding-plan/glm-5.3-flash` | high | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6.1-sol → k3 |
+| prometheus | `kimi-for-coding-oauth/k3` | high | glm-5.3 → ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6.1-sol |
+| sisyphus | `zai-coding-plan/glm-5.3-flash` | high | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6.1-sol |
+| sisyphus-junior | `zai-coding-plan/glm-5.3` | default | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6.1-sol |
+| librarian | `ollama-cloud/minimax-m3` | default | opencode-go m3 → gpt-6-luna |
+| explore | `ollama-cloud/minimax-m3` | default | opencode-go m3 → gpt-6-luna |
+| frontend-ui-ux-engineer | `zai-coding-plan/glm-5.3` | max | ollama dsv4.1-flash → opencode-go dsv4.1-flash → gpt-6.1-sol |
 | document-writer | `openai/gpt-5.6-terra` | default | glm-5.3 |
 | multimodal-looker | `zai-coding-plan/glm-5.3-flash` | high | gpt-5.6-terra → gemini-3.8-flash |
-| oracle | `openai/gpt-6.1-sol` | high | gpt-6-sol → glm-5.3 → k3 |
-| metis | `openai/gpt-6-sol` | xhigh | glm-5.3 → k3 |
-| momus | `openai/gpt-6-sol` | xhigh | ollama dsv4.1-flash → opencode-go dsv4.1-flash |
-| hephaestus | `openai/gpt-6-sol` | xhigh | ollama dsv4.1-flash → opencode-go dsv4.1-flash |
+| oracle | `openai/gpt-6.1-sol` | high | glm-5.3 → k3 |
+| metis | `openai/gpt-6.1-sol` | xhigh | glm-5.3 → k3 |
+| momus | `openai/gpt-6.1-sol` | xhigh | ollama dsv4.1-flash → opencode-go dsv4.1-flash |
+| hephaestus | `openai/gpt-6.1-sol` | xhigh | ollama dsv4.1-flash → opencode-go dsv4.1-flash |
 
 For complex multi-step work, prometheus produces an HTML proposal packet for human review before the canonical Markdown plan in `.omo/plans/`. Simple work stays lean and autonomous.
 
