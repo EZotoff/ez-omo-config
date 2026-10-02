@@ -94,6 +94,7 @@ def load_state(path: Path, feature: str) -> dict:
         "ladder_resets": 0,
         "evidence_total": 0,
         "errors_seen": 0,
+        "errors_seen_at_reset": 0,
         "extends_used": 0,
         "gates_done": [],
         "completed": False,
@@ -218,6 +219,7 @@ def run_round(cfg: dict, state: dict) -> RoundRecord:
         state["round_index"] = 0
         state["extends_used"] = 0
         state["next_round_at"] = record.ended_at + ladder[0]
+        state["errors_seen_at_reset"] = state.get("errors_seen", 0)
         if state["ladder_resets"] > cfg.get("max_ladder_resets", 3):
             record.note += " | STOP: max ladder resets exceeded — redesign, do not grind"
             state["completed"] = True
@@ -239,7 +241,11 @@ def run_round(cfg: dict, state: dict) -> RoundRecord:
                     record.note = (record.note + " | " if record.note else "") + f"gate {gate['name']}: unknown requires keys ignored: {unknown}"
                 if state["evidence_total"] < req.get("min_activations", 0):
                     continue
-                if state.get("errors_cumulative", 0) > req.get("max_new_errors", 0):
+                # errors since the CURRENT ladder run began (post-reset) — a
+                # single self-healed transient before the reset must not block
+                # gates forever
+                errors_this_run = state.get("errors_seen", 0) - state.get("errors_seen_at_reset", 0)
+                if errors_this_run > req.get("max_new_errors", 0):
                     continue
                 rc, out = run_cmd(gate["action"], cfg.get("cmd_timeout_s", 300))
                 if rc == 0:
