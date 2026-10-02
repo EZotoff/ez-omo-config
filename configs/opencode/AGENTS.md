@@ -52,16 +52,22 @@ When a fix doesn't work, your model of the system is the suspect — not just
 the fix. Before trying a second approach, re-read the source that governs
 the behavior you're trying to change.
 
-## Long-running job monitoring (2026-09-18 lesson; rewritten 2026-09-28 after the unbound-probe audit)
+## Long-running job monitoring (2026-09-18 lesson; rewritten 2026-09-28 after the unbound-probe audit; 2026-10-02 backoff made escalation-first + mechanical)
 
 **A turn-based agent has no clock. Ending your turn cancels every probe you announced.**
 Nothing re-kicks an idle session — no timer, no scheduler. "I'll check again in ~60s" as a
 parting sentence is a promise to do nothing. Monitoring a long-running batch (benchmarks,
 migrations, training, bulk operations) is therefore only legal in one of two forms:
 
-1. **Hold the turn**: stay in-turn with bounded waits (single tool-call sleep ≤60s,
-waits repeated in separate calls, each call producing observable progress — a status
-check, a log read, a decision). Never one giant sleep; never a sleep with no probe attached.
+1. **Hold the turn**: stay in-turn with an **escalating** probe schedule — NEVER repeat
+the same interval; every probe must wait longer than the last (first probe ~2 min into
+the job, then roughly 30s → 60s → 120s → 240s, cap ~8 min). Keep each individual
+`sleep` ≤60s per tool call — chunk longer waits into repeated ≤60s sleeps inside one
+call and pass a raised tool timeout. Each wait must produce observable progress — a
+status check, a log read, a decision. Never one giant sleep; never a sleep with no probe
+attached. Where the repo provides a stateful backoff helper (e.g. `bin/watch-probe.sh`
+in ez-omo-bench), prefer it over hand-rolled sleeps — model memory does not keep a
+probe counter, scripts do.
 2. **Arm a wake trigger**: delegate monitoring to a `run_in_background` subagent that
 holds its OWN turn, sleep-loop-probes the job, and returns the verdict — its completion
 notification genuinely wakes you. The watcher must emit tool activity at least every
@@ -70,9 +76,9 @@ watched job must be idempotent/re-dispatchable via a STATE file so a killed watc
 be relaunched losslessly.
 
 What is ILLEGAL: ending the turn on "I'll probe/monitor/track" without a wake trigger.
-Preflight probe rules below still apply: first probe ~2 minutes into the job (catches
-crash-at-the-end bugs while only one unit of work is lost), then backoff (30s → 60s →
-120s → 240s, cap ~8 min). Any failure (non-zero exit, missing output artifact, repeated
+Fixed-interval polling is the second violation: if your last two probes waited the same
+time, the schedule is broken — escalate. The first-probe timing still applies (~2 minutes
+into the job, catching crash-at-the-end bugs while only one unit of work is lost). Any failure (non-zero exit, missing output artifact, repeated
 empty replies) is diagnosed and fixed immediately, not at the next status ping. Batches
 must abort on repeated identical failures (circuit breaker). History: the 2026-09-18
 incident (operator requested monitoring three times while ~$2 of compute and ~6 hours
