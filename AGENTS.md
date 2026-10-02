@@ -279,3 +279,13 @@ The bash tool owns each command's process group and kills the WHOLE group (nohup
 2. **Long-running work must NOT rely on `nohup ... &` or bare `&`.** The owned group is killed with the call — `nohup` does not escape this. Use the `opencode durable-run` subcommand (once available) or a `systemd-run --user` transient service for jobs that must outlive a tool call. `setsid cmd </dev/null >log 2>&1 &` is best-effort only: it escapes the group-kill but is unowned and unsupervised.
 3. **Launch and verify in separate short tool calls.** Start the job in one call; confirm it (status, PID, log) in the next. Raise the tool timeout only for bounded foreground work.
 4. **Enforcement note.** The patched binary enforces group cleanup on timeout/abort; these rules are guidance, not the cleanup authority. Rationale: the 2026-09-15/17 orphaned-sleep/rsync incidents — full analysis in `.sisyphus/debates/bash-lifecycle-orphan-wedge/`.
+
+## Completion Claims Discipline (2026-10-02 — schema-ghost postmortem)
+
+Incident: supervisor STEER/REFORMULATE shipped 2026-09-22 (c953be6) with gates, texts, config, README claims, and green tests — but zero dispatch call sites in service.ts. The gap survived every review until 2026-10-02 because verification (tsc + unit tests) cannot falsify a missing call site, and docs written by the same change asserted the feature live.
+
+Rules for agents claiming work done in this repo:
+1. **A completion claim names its evidence**: dispatch site, test name, or ledger/live event. Docs (README/MANIFEST) must not state a capability is live without one.
+2. **Scope changes get an artifact before the claim**: if you expand scope mid-session ("both rungs instead of one"), the delta lands in the commit message or a task doc FIRST — a plan saying X plus a claim saying Y with no recorded delta is a defect.
+3. **Enum-facing dispatch must be exhaustive**: any schema/enum an LLM or config emits that a dispatcher consumes gets a `switch` with a `never` default (see `assertDispatchHandlesEveryAction` in supervisor/src/service.ts) plus the structural bijection gate (`tests/test_supervisor_dispatch.sh`) when greppable.
+4. **The repo gate runs the unit suites**: `tests/run_all.sh` auto-discovers test scripts; new components with their own test suite must add a test_*.sh that runs them (bun test + tsc), not assume someone will run them manually.
