@@ -138,6 +138,17 @@ When searching for code or understanding codebase structure, use this vanilla di
 | File discovery — list files by pattern | `glob` | Use for path patterns such as `**/*.test.ts` or `docs/**/*.md`. |
 
 Prefer codegraph/LSP facts over memory. If a tool is unavailable or returns no useful result, fall back to the next appropriate vanilla tool without bootstrapping any repo-local search service.
+## Feature Rollout Protocol (2026-10-02)
+
+Any new harness capability — daemon, watcher, pipeline stage, or agent
+write-path — ships through the protocol in `docs/rollout-protocol.md`:
+instrument-first, observe mode, then partial enablement under a monitoring
+ladder (2m → 15m → 30m → 1h → 2h → 4h → 8h → 12h plateau) with evidence
+quotas, gates for capability unlocks, and ladder-restart-on-error. Arm the
+ladder with `scripts/rollout-monitor.py` as a systemd transient unit (see
+`.opencode/skill/rollout-watch/`) — never as an agent's monitoring promise.
+The base is harness-agnostic; keep opencode/OMO specifics in the skill layer.
+
 ## Documentation Sync Requirements
 
 Because this repo IS the live configuration, any change to config files, plugins, skills, scripts, or install targets must keep all repo documentation accurate. Agents making changes must:
