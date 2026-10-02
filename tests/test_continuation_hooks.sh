@@ -212,8 +212,41 @@ test_full_inventory_regression() {
   fi
 }
 
+# ================================================================= test 5
+test_resume_dedup() {
+  echo "--- test 5: second resume pass over the same session skips (no re-inject)"
+  make_scratch t5
+  trap cleanup_scratch RETURN
+  printf '%s\n' '{"sessions":[{"id":"sess-1","title":"T1","directory":"'"$HOME"'/d1","status":"busy"}]}' \
+    > "$STATE_DIR/snapshot-$UNIT-20261001-000000.json"
+  local rc1=0 rc2=0
+  # Incident shape (2026-10-02 16:58): the SAME session appears in TWO
+  # different snapshot generations — the one-shot consumption of gen A must
+  # not open the door for gen B to re-inject the same resume prompt.
+  bash "$SCRIPT" hook-resume "$UNIT" "http://127.0.0.1:1" "$AUTH_ENV" > "$SCRATCH/out1.txt" 2>&1 || rc1=$?
+  printf '%s\n' '{"sessions":[{"id":"sess-1","title":"T1","directory":"'"$HOME"'/d1","status":"busy"}]}' \
+    > "$STATE_DIR/snapshot-$UNIT-20261001-000100.json"
+  bash "$SCRIPT" hook-resume "$UNIT" "http://127.0.0.1:1" "$AUTH_ENV" > "$SCRATCH/out2.txt" 2>&1 || rc2=$?
+  local posts dupskips
+  posts="$(grep -c '^post:sess-1$' "$STUB_LOG" || true)"
+  local hlog; hlog="$(find "$SCRATCH" -name 'hooks.log' | head -1)"
+  dupskips="$(grep -c 'skip-dup' "$hlog" || true)"
+  if [[ $rc1 -eq 0 && $posts -ge 1 && $dupskips -ge 1 ]]; then
+    echo "PASS: first pass resumed, second pass skipped via dedup"
+    PASS=$((PASS+1))
+  else
+    echo "FAIL: rc1=$rc1 rc2=$rc2 posts=$posts dupskips=$dupskips"
+    echo "--- out1.txt ---"; cat "$SCRATCH/out1.txt" 2>/dev/null | tail -15
+    echo "--- out2.txt ---"; cat "$SCRATCH/out2.txt" 2>/dev/null | tail -8
+    echo "--- hooks.log ---"; find "$SCRATCH" -name 'hooks.log' -exec tail -15 {} \; 2>/dev/null
+    echo "--- stub.log ---"; cat "$STUB_LOG" 2>/dev/null | tail -5
+    FAIL=$((FAIL+1))
+  fi
+}
+
 test_partial_write_on_budget_overrun
 test_resume_retries
+test_resume_dedup
 test_bypass_regression
 test_full_inventory_regression
 

@@ -40,6 +40,18 @@
 
 set -euo pipefail
 
+
+# Cross-run resume dedup (2026-10-02 incident: a session received the SAME
+# continuation prompt 3x in one restart burst — multiple converged snapshot
+# generations + retry-loop re-POSTs against a starting server each delivered).
+# Every resume POST consults a per-session window marker BEFORE sending:
+# fresh marker => skip (already claimed this window). The marker is claimed
+# BEFORE the POST and released only on provable non-delivery (rc=7 refused).
+# Stale markers beyond the window are inert; they are empty dotfiles.
+RESUME_DEDUP_WINDOW="${RESUME_DEDUP_WINDOW:-180}"
+export RESUME_DEDUP_WINDOW
+export STATE_DIR
+
 STATE_DIR="${XDG_STATE_DIR:-$HOME/.local/share/opencode}/restart-continuations"
 DEFAULT_PROMPT="The OpenCode server was restarted for maintenance and your previous turn was interrupted. Continue exactly where you left off."
 WAKE_PROMPT_DEFAULT="A background-task wake notification was lost during a server restart. Re-check your background tasks via background_output(task_id=...) and continue the work."
@@ -369,11 +381,33 @@ for s in snap.get("sessions", []):
     # capped by the hook API budget): a single knock on a still-starting
     # server must not silently drop the resume (2026-09-30 :3030 give-up).
     retry_secs = float(os.environ.get("RESUME_RETRY_SECONDS") or 60)
+    dup = 0
+    # Dedup guard: a fresh window marker means another pass/run/retry already
+    # claimed this session's resume within the window (multi-injection fix).
+    _statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
+    marker = os.path.join(_statedir, ".resumed-win-" + s["id"])
+    window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    def dedup_fresh():
+        try:
+            return time.time() - os.path.getmtime(marker) < window
+        except OSError:
+            return False
+    if dedup_fresh():
+        print("skip-dup %s (resume already claimed this window)" % s["id"])
+        dup += 1
+        continue
+    with open(marker, "w") as mh:
+        mh.write(str(time.time()))
     t_post = time.time()
     while True:
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode == 0:
             break
+        if r.returncode == 7:  # connection refused: provably NOT delivered
+            try:
+                os.unlink(marker)
+            except OSError:
+                pass
         rem = budget_left()
         if time.time() - t_post + 2 >= retry_secs or rem <= 0:
             break
@@ -384,7 +418,7 @@ for s in snap.get("sessions", []):
     else:
         print(f"FAILED {s['id']}: {r.stderr.strip()}", file=sys.stderr)
         fail += 1
-print(f"resumed={ok} failed={fail} budget_skipped={budget_skipped}")
+print(f"resumed={ok} failed={fail} budget_skipped={budget_skipped} dup_skipped={dup}")
 sys.exit(1 if fail else 0)
 PYEOF
 }
@@ -594,6 +628,19 @@ for s in cands.get("sessions", []):
         print("skip-budget %s (hook api budget exhausted before prompt)" % sid)
         budget_skipped += 1
         continue
+    # Cross-run dedup guard (2026-10-02 multi-injection incident)
+    _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    try:
+        _fresh = time.time() - os.path.getmtime(_marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(_marker, "w") as _mh:
+        _mh.write(str(time.time()))
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
@@ -606,7 +653,7 @@ for s in cands.get("sessions", []):
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
         fail += 1
-print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d" % (ok, stale, fail, budget_skipped))
+print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d" % (ok, stale, fail, budget_skipped, dup))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
   # One-shot: consume the batch AFTER attempting every candidate, even on
@@ -710,6 +757,7 @@ auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVE
 prompt = os.environ["PROMPT"]
 ok = stale = fail = budget_skipped = 0
 dir_cache = {}
+dup = 0
 for s in ckpt.get("sessions", []):
     sid = s.get("id")
     if not sid:
@@ -743,6 +791,19 @@ for s in ckpt.get("sessions", []):
         print("skip-budget %s (hook api budget exhausted before prompt)" % sid)
         budget_skipped += 1
         continue
+    # Cross-run dedup guard (2026-10-02 multi-injection incident)
+    _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    try:
+        _fresh = time.time() - os.path.getmtime(_marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(_marker, "w") as _mh:
+        _mh.write(str(time.time()))
     body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
@@ -755,7 +816,7 @@ for s in ckpt.get("sessions", []):
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
         fail += 1
-print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d" % (ok, stale, fail, budget_skipped))
+print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d" % (ok, stale, fail, budget_skipped, dup))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
     # One-shot: consume the checkpoint AFTER attempting every listed session,
