@@ -12,6 +12,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="$SCRIPT_DIR/../scripts/restart-with-continuation.sh"
+REAL_HOME="$HOME"   # scratch root anchor — make_scratch re-exports HOME per test
 UNIT="test-unit.service"
 PASS=0; FAIL=0
 ok()  { echo "PASS: $1"; PASS=$((PASS+1)); }
@@ -77,8 +78,11 @@ STUB_EOF
 }
 
 # ------------------------------------------------------------- scratch setup --
-make_scratch() { # make_scratch <name>  -> sets SCRATCH STATE_DIR AUTH_ENV env
-  SCRATCH="$(mktemp -d "/tmp/opencode/cont-hooks-${1}.XXXXXX")"
+  make_scratch() { # make_scratch <name>  -> sets SCRATCH STATE_DIR AUTH_ENV env
+  # Scratch must live OUTSIDE /tmp: discover_dirs() deliberately excludes /tmp/%
+  # directories (2026-10-02/03 rc=28 probe-storm hardening), and a /tmp fixture
+  # silently filtered discovery — the exact regression this guards against.
+  SCRATCH="$(mktemp -d "${REAL_HOME:-$HOME}/.cache/cont-hooks-${1}.XXXXXX")"
   export SCRATCH
   export PYBIN="$(command -v python3)"
   export HOME="$SCRATCH/home"
