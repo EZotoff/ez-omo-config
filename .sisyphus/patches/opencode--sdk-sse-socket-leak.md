@@ -8,7 +8,7 @@ surfaces:
   - cli-run
 status: "active"
 applied_date: "2026-09-29"
-dep_version: "1.18.31-p2"
+dep_version: "1.18.31-p3"
 verification_pattern: "releaseLock"
 verification_strength: "weak"
 required_evidence: "runtime"

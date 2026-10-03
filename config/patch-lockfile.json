@@ -1,151 +1,159 @@
 {
-  "schema_version": 1,
-  "dependency": "opencode",
-  "upstream_version": "1.18.31",
-  "upstream_base": "014614d35b397775e5d397a490fc72368c894ec2",
-  "generation": "opencode-1.18.31-patches.2",
-  "canonical_ref": "refs/remotes/fork/fix/v1.18.31-question-stall-watchdog",
-  "patches": [
-    {
-      "patch_id": "opencode--turn-summary-timestamp",
-      "required": true,
-      "implementation_commits": [
-        "a9d00ad9638295f33512fd4be9376d37aefdd6a4",
-        "a4861cd5ebedb88676fcbb552a5da81806d4f1d5"
-      ]
-    },
-    {
-      "patch_id": "opencode--tui-subagent-spinner",
-      "required": true,
-      "implementation_commits": [
-        "e30a6c45dd6c3df8a2b3a229ecbacd428c9ed0ce",
-        "c19b1a3669568a5039becd427a34a061a093f39d"
-      ],
-      "commit_resolution_note": "Aggregate-branch cherry-picks of per-patch-branch originals 8ed46955979803e0fcebe1a1c79804cc4e39e986 and 8257e338ca9df34e27c43564392f8ed2331b8e58 (which are NOT ancestors of canonical_ref)."
-    },
-    {
-      "patch_id": "opencode--tui-pin-directory-guard",
-      "required": true,
-      "implementation_commits": [
-        "f1c866a77ca91bb9459c27ecb4527c70bdbf3785"
-      ],
-      "commit_resolution_note": "Aggregate-branch cherry-pick of per-patch-branch original ed579472de269d63f419c5e07964bf46c01096e2 (not an ancestor of canonical_ref)."
-    },
-    {
-      "patch_id": "opencode--tui-pinned-session-window",
-      "required": true,
-      "implementation_commits": [
-        "299dd78804de12de9b8ddbce1ac9a4a4d90288bd"
-      ],
-      "commit_resolution_note": "Aggregate-branch cherry-pick of per-patch-branch original e5e7152701d2c0b4082b42664cd7956832b8c926 (not an ancestor of canonical_ref)."
-    },
-    {
-      "patch_id": "opencode--tui-pinned-session-race",
-      "required": true,
-      "implementation_commits": [
-        "e97d373d3c69ab9f319ebc7db315fdfb50714522",
-        "66fdbfb548a655cd5a6818c111957b9e0f4f314a"
-      ],
-      "commit_resolution_note": "Aggregate-branch cherry-picks of per-patch-branch originals e7f5981eaf21b2d5d9ed11fd42982cf900535867 and e31c20ca39d5bf7e1b2a31a6869a3c1f011a49ee (not ancestors of canonical_ref)."
-    },
-    {
-      "patch_id": "opencode--link-click-wrapped-osc8",
-      "required": true,
-      "implementation_commits": [
-        "5101b61b2af69f7dc7b6e607d3a08ed94e518ab0",
-        "d4aa9439b455818f3ec54a736557e177fbcfa02a"
-      ]
-    },
-    {
-      "patch_id": "opencode--command-hook-cancellation",
-      "required": true,
-      "implementation_commits": [
-        "d44a21a147ffdca6748c55bb81c02a0a83e94332"
-      ]
-    },
-    {
-      "patch_id": "opencode--commit-policy-unblock",
-      "required": true,
-      "implementation_commits": [
-        "140ff564ae63a2c46b6630fc31a4aab3eccf1102"
-      ]
-    },
-    {
-      "patch_id": "opencode--tui-session-directory-scope",
-      "required": true,
-      "implementation_commits": [
-        "3e9b6ce954d124a5bd847877207c59c014254527"
-      ]
-    },
-    {
-      "patch_id": "opencode--bash-lifecycle-group-cleanup",
-      "required": true,
-      "implementation_commits": [
-        "a2e09f1a927d0d641aa8a333714f53bfeecb47fc"
-      ],
-      "commit_resolution_note": "83fec4b8e is 'fix(bash): supervised process-group lifecycle with bounded drain' \u2014 the commit that introduced packages/core/src/process-group.ts and the sole bash-lifecycle implementation commit carried on fix/all-patches-v1.18.5. fix/bash-lifecycle-group-cleanup's tip 65c33b819 is the (later) tui-session-directory-scope commit, so the patch commit is its ancestor, not descendant."
-    },
-    {
-      "patch_id": "opencode--sse-directory-filter-removal",
-      "required": true,
-      "implementation_commits": [
-        "72d910ea6a859172ed12acae4195cbfcea37ec7d",
-        "fcd72c7d55"
-      ]
-    },
-    {
-      "patch_id": "opencode--plugin-engine-prerelease",
-      "required": true,
-      "implementation_commits": [
-        "3b734b960d4f9604e9983cdc39fb7c1f5278c2b7"
-      ]
-    },
-    {
-      "patch_id": "opencode--stream-stall-watchdog",
-      "required": true,
-      "implementation_commits": [
-        "e1497c444f9fc1ed68af396fb45d6c41bb30e5c8"
-      ],
-      "commit_resolution_note": "fix(session): retry stalled LLM streams via inactivity watchdog \u2014 processor.ts raceFirst watchdog, branch fix/v1.18.31-p3-integration (= update/v1.18.31 + watchdog + declared-timeout regression 5b108741fb), pushed to fork and fast-forwarded to fork/update/v1.18.31 tip 5b108741fb."
-    },
-    {
-      "patch_id": "opencode--question-stream-stall-guard",
-      "required": true,
-      "implementation_commits": [
-        "48eedf9406659245bdf6af574bdcdd01766b15fc"
-      ]
-    },
-    {
-      "patch_id": "opencode--sdk-sse-socket-leak",
-      "required": true,
-      "implementation_commits": [
-        "54362a35fdadfb0d64621f7e0df52c6d87457870",
-        "d2e506bab9e34438e89cbcba0b7032fc3ef75455"
-      ]
-    },
-    {
-      "patch_id": "opencode--sse-queue-bounded",
-      "required": true,
-      "implementation_commits": [
-        "a86fcf3051552f0b6d91aa1e366e2514ebc46023",
-        "4d8d4713fac3fe3087991a8d6ceef61a3155ed7b",
-        "fcd72c7d55"
-      ],
-      "verification_pattern": "bufferSize:256"
-    },
-    {
-      "patch_id": "opencode--event-scope-attach-congestion",
-      "required": true,
-      "implementation_commits": [
-        "687ac6ea84995f89449fcf3ccff197e23d2761d6"
-      ]
-    },
-    {
-      "patch_id": "opencode--tui-error-toast-directory-scope",
-      "required": true,
-      "implementation_commits": [
-        "5dd34e7199bb2344163009bc248551d416463d1e"
-      ]
-    }
-  ]
+ "schema_version": 1,
+ "dependency": "opencode",
+ "upstream_version": "1.18.31",
+ "upstream_base": "014614d35b397775e5d397a490fc72368c894ec2",
+ "generation": "opencode-1.18.31-patches.3",
+ "canonical_ref": "refs/remotes/fork/fix/event-data-compression",
+ "patches": [
+  {
+   "patch_id": "opencode--turn-summary-timestamp",
+   "required": true,
+   "implementation_commits": [
+    "a9d00ad9638295f33512fd4be9376d37aefdd6a4",
+    "a4861cd5ebedb88676fcbb552a5da81806d4f1d5"
+   ]
+  },
+  {
+   "patch_id": "opencode--tui-subagent-spinner",
+   "required": true,
+   "implementation_commits": [
+    "e30a6c45dd6c3df8a2b3a229ecbacd428c9ed0ce",
+    "c19b1a3669568a5039becd427a34a061a093f39d"
+   ],
+   "commit_resolution_note": "Aggregate-branch cherry-picks of per-patch-branch originals 8ed46955979803e0fcebe1a1c79804cc4e39e986 and 8257e338ca9df34e27c43564392f8ed2331b8e58 (which are NOT ancestors of canonical_ref)."
+  },
+  {
+   "patch_id": "opencode--tui-pin-directory-guard",
+   "required": true,
+   "implementation_commits": [
+    "f1c866a77ca91bb9459c27ecb4527c70bdbf3785"
+   ],
+   "commit_resolution_note": "Aggregate-branch cherry-pick of per-patch-branch original ed579472de269d63f419c5e07964bf46c01096e2 (not an ancestor of canonical_ref)."
+  },
+  {
+   "patch_id": "opencode--tui-pinned-session-window",
+   "required": true,
+   "implementation_commits": [
+    "299dd78804de12de9b8ddbce1ac9a4a4d90288bd"
+   ],
+   "commit_resolution_note": "Aggregate-branch cherry-pick of per-patch-branch original e5e7152701d2c0b4082b42664cd7956832b8c926 (not an ancestor of canonical_ref)."
+  },
+  {
+   "patch_id": "opencode--tui-pinned-session-race",
+   "required": true,
+   "implementation_commits": [
+    "e97d373d3c69ab9f319ebc7db315fdfb50714522",
+    "66fdbfb548a655cd5a6818c111957b9e0f4f314a"
+   ],
+   "commit_resolution_note": "Aggregate-branch cherry-picks of per-patch-branch originals e7f5981eaf21b2d5d9ed11fd42982cf900535867 and e31c20ca39d5bf7e1b2a31a6869a3c1f011a49ee (not ancestors of canonical_ref)."
+  },
+  {
+   "patch_id": "opencode--link-click-wrapped-osc8",
+   "required": true,
+   "implementation_commits": [
+    "5101b61b2af69f7dc7b6e607d3a08ed94e518ab0",
+    "d4aa9439b455818f3ec54a736557e177fbcfa02a"
+   ]
+  },
+  {
+   "patch_id": "opencode--command-hook-cancellation",
+   "required": true,
+   "implementation_commits": [
+    "d44a21a147ffdca6748c55bb81c02a0a83e94332"
+   ]
+  },
+  {
+   "patch_id": "opencode--commit-policy-unblock",
+   "required": true,
+   "implementation_commits": [
+    "140ff564ae63a2c46b6630fc31a4aab3eccf1102"
+   ]
+  },
+  {
+   "patch_id": "opencode--tui-session-directory-scope",
+   "required": true,
+   "implementation_commits": [
+    "3e9b6ce954d124a5bd847877207c59c014254527"
+   ]
+  },
+  {
+   "patch_id": "opencode--bash-lifecycle-group-cleanup",
+   "required": true,
+   "implementation_commits": [
+    "a2e09f1a927d0d641aa8a333714f53bfeecb47fc"
+   ],
+   "commit_resolution_note": "83fec4b8e is 'fix(bash): supervised process-group lifecycle with bounded drain' \u2014 the commit that introduced packages/core/src/process-group.ts and the sole bash-lifecycle implementation commit carried on fix/all-patches-v1.18.5. fix/bash-lifecycle-group-cleanup's tip 65c33b819 is the (later) tui-session-directory-scope commit, so the patch commit is its ancestor, not descendant."
+  },
+  {
+   "patch_id": "opencode--sse-directory-filter-removal",
+   "required": true,
+   "implementation_commits": [
+    "72d910ea6a859172ed12acae4195cbfcea37ec7d",
+    "fcd72c7d55"
+   ]
+  },
+  {
+   "patch_id": "opencode--plugin-engine-prerelease",
+   "required": true,
+   "implementation_commits": [
+    "3b734b960d4f9604e9983cdc39fb7c1f5278c2b7"
+   ]
+  },
+  {
+   "patch_id": "opencode--stream-stall-watchdog",
+   "required": true,
+   "implementation_commits": [
+    "e1497c444f9fc1ed68af396fb45d6c41bb30e5c8"
+   ],
+   "commit_resolution_note": "fix(session): retry stalled LLM streams via inactivity watchdog \u2014 processor.ts raceFirst watchdog, branch fix/v1.18.31-p3-integration (= update/v1.18.31 + watchdog + declared-timeout regression 5b108741fb), pushed to fork and fast-forwarded to fork/update/v1.18.31 tip 5b108741fb."
+  },
+  {
+   "patch_id": "opencode--question-stream-stall-guard",
+   "required": true,
+   "implementation_commits": [
+    "48eedf9406659245bdf6af574bdcdd01766b15fc"
+   ]
+  },
+  {
+   "patch_id": "opencode--sdk-sse-socket-leak",
+   "required": true,
+   "implementation_commits": [
+    "54362a35fdadfb0d64621f7e0df52c6d87457870",
+    "d2e506bab9e34438e89cbcba0b7032fc3ef75455"
+   ]
+  },
+  {
+   "patch_id": "opencode--sse-queue-bounded",
+   "required": true,
+   "implementation_commits": [
+    "a86fcf3051552f0b6d91aa1e366e2514ebc46023",
+    "4d8d4713fac3fe3087991a8d6ceef61a3155ed7b",
+    "fcd72c7d55"
+   ],
+   "verification_pattern": "bufferSize:256"
+  },
+  {
+   "patch_id": "opencode--event-scope-attach-congestion",
+   "required": true,
+   "implementation_commits": [
+    "687ac6ea84995f89449fcf3ccff197e23d2761d6"
+   ]
+  },
+  {
+   "patch_id": "opencode--tui-error-toast-directory-scope",
+   "required": true,
+   "implementation_commits": [
+    "5dd34e7199bb2344163009bc248551d416463d1e"
+   ]
+  },
+  {
+   "patch_id": "opencode--event-data-compression",
+   "required": true,
+   "implementation_commits": [
+    "3e77f503993f95fb7c8014bdaa0011ad15cf6d1a"
+   ],
+   "note": "gz1 storage codec; commit also carries the stats hook (event.ts) and sql.ts customType seam"
+  }
+ ]
 }

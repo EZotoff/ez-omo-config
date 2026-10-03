@@ -43,7 +43,7 @@ PASS="regression-test-pass"
 
 # Scratch serve: isolated DB via OPENCODE_DB (absolute path per core/database flag),
 # codec default-on (no OPENCODE_EVENT_CODEC set).
-(cd "$WORK" && OPENCODE_SERVER_PASSWORD="$PASS" OPENCODE_DB="$WORK/test.db" setsid \
+(cd "$WORK" && env -u OPENCODE_EVENT_CODEC OPENCODE_SERVER_PASSWORD="$PASS" OPENCODE_DB="$WORK/test.db" setsid \
     "$OPENCODE_BIN" serve --hostname 127.0.0.1 --port "$PORT" \
     > "$WORK/serve.log" 2>&1 &)
 SERVER_PID=""

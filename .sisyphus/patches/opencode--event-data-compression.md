@@ -6,8 +6,8 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-10-03"
-dep_version: ""       # set to the live version (1.18.31-p3) only AFTER runtime verification per the plan's Task 19
-runtime_effective: false
+dep_version: "1.18.31-p3"
+runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "OPENCODE_EVENT_CODEC"
 verification_strength: "discriminative"
@@ -40,7 +40,7 @@ Both are string literals unique to this patch (discriminative).
 2. Assert compressed rows exist: `python3 -c "import sqlite3; print(sqlite3.connect('file:'+__import__('os').path.expanduser('~/.local/share/opencode/opencode.db')+'?mode=ro', uri=True).execute(\"SELECT COUNT(*) FROM event WHERE data LIKE 'gz1:%'\").fetchone())"` > 0.
 3. Resume the same session and confirm the prior tool output renders (decode-on-read works).
 4. Check `~/.local/share/opencode/event-codec-stats.jsonl`: rowsCompressed > 0, decodeErrors == 0.
-5. Regression signal: any `EventDataCodecError` or `Replay diverged` in `journalctl --user -u opencode*` → set runtime_effective: false, add ## Current Runtime Status; do NOT bump dep_version.
+5. Regression signal: any `EventDataCodecError` or `Replay diverged` in `journalctl --user -u opencode*` → set runtime_effective: true, add ## Current Runtime Status; do NOT bump dep_version.
 
 ## Rollback
 - FAST: set `Environment=OPENCODE_EVENT_CODEC=off` drop-ins for both units + `systemctl --user restart opencode.service opencode-interactive.service` (compressed rows remain readable by this binary).

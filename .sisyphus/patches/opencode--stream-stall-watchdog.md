@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-09-22"
-dep_version: "1.18.31-p2"
+dep_version: "1.18.31-p3"
 runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "LLM stream stalled for"

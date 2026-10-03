@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode-attachfix"
 status: "active"
 applied_date: "2026-09-30"
-dep_version: "1.18.31-p2"
+dep_version: "1.18.31-p3"
 runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "searchParams\\.get\\(\"scope\"\\)|session_directory_filter_enabled"
