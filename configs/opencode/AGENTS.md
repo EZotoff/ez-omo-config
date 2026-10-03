@@ -191,3 +191,14 @@ Supervisory data contracts: escalations come from the supervisor ledger (`~/.loc
 ## Platform support
 
 This config installs on **Linux (native)**, **macOS (native, Homebrew Bash 4.3+ required — stock `/bin/bash` is 3.2 and cannot run the wisdom scripts)**, and **Windows (via WSL only)**. OpenCode resolves config paths against `os.homedir()` on every OS, so install targets (`~/.config/opencode/`, `~/.opencode/`, `~/.local/share/opencode/`, `~/.sisyphus/`) never need platform-specific remapping. On macOS run `brew install bash bun jq python` first. On Windows run the installer **inside WSL** — Git Bash, Cygwin, and native PowerShell are not supported and `install.sh` will exit with a WSL setup link.
+
+## Measurement-subject fidelity (2026-10-02 bonsai-perf postmortem)
+
+When a task names a specific artifact/config/model as the subject of measurement or
+optimization, substituting an adjacent one (different quant, engine format, config,
+or comparison conditions) is a DECISION FORK, not a footnote: surface it to the
+operator at discovery time with options and a recommendation BEFORE proceeding.
+The same applies to any estimate offered where a measurement was required, and to
+any comparison table mixing conditions (spec-decoding on/off, decode vs e2e) —
+label conditions or don't pool. Recording a substitution as a "deviation" and
+continuing is the exact failure this rule prohibits.
