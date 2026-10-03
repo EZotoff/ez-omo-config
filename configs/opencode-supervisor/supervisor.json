@@ -59,6 +59,11 @@
       "reformulate_writes": {
         "enabled": true,
         "daily_cap": 3
+      },
+      "approve_writes": {
+        "enabled": true,
+        "daily_cap": 3,
+        "mode": "observe"
       }
     },
     {
@@ -116,6 +121,11 @@
       "reformulate_writes": {
         "enabled": true,
         "daily_cap": 3
+      },
+      "approve_writes": {
+        "enabled": true,
+        "daily_cap": 3,
+        "mode": "observe"
       }
     },
     {
@@ -139,6 +149,11 @@
       "reformulate_writes": {
         "enabled": true,
         "daily_cap": 3
+      },
+      "approve_writes": {
+        "enabled": true,
+        "daily_cap": 3,
+        "mode": "observe"
       }
     },
     {
@@ -192,6 +207,11 @@
       "reformulate_writes": {
         "enabled": true,
         "daily_cap": 3
+      },
+      "approve_writes": {
+        "enabled": true,
+        "daily_cap": 3,
+        "mode": "observe"
       }
     },
     {

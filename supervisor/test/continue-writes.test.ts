@@ -221,3 +221,29 @@ describe("between-poll turn completions (2026-10-02 bonsai-stall fix)", () => {
     expect(reArmed.state.kind).toBe("GRACE")
   })
 })
+
+describe("approve writes (2026-10-03 Option C, rollout-staged)", () => {
+  const base = {
+    config: { enabled: true, dailyCap: 3 },
+    capUsedToday: 0,
+    lastMessageID: "a1",
+    target: { assistantMessageID: "a1" },
+    sessionProtected: false,
+  }
+  test("gate: allows on premises; blocks disabled/protected/capped/premise-changed", () => {
+    const { gateApproveWrite } = require("../src/continue-writes")
+    expect(gateApproveWrite(base)).toEqual({ allowed: true })
+    expect(gateApproveWrite({ ...base, config: { ...base.config, enabled: false } }).allowed).toBe(false)
+    expect(gateApproveWrite({ ...base, sessionProtected: true }).allowed).toBe(false)
+    expect(gateApproveWrite({ ...base, capUsedToday: 3 }).allowed).toBe(false)
+    expect(gateApproveWrite({ ...base, lastMessageID: "newer" }).allowed).toBe(false)
+  })
+  test("text: grants carry the why, distinct from the stall nudge", () => {
+    const { approveWriteText, continueWriteText } = require("../src/continue-writes")
+    const t = approveWriteText({ rationale: "trivial in-scope sweep, evidence on record" })
+    expect(t.startsWith("[supervisor] (approve) Go-ahead granted:")).toBe(true)
+    expect(t).toContain("trivial in-scope sweep")
+    expect(continueWriteText({ rationale: "r" })).toContain("stalled mid-task")
+    expect(t).not.toContain("stalled")
+  })
+})

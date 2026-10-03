@@ -122,3 +122,33 @@ export function gateReformulateWrite(input: ReformulateGateInput): { allowed: tr
   if (input.lastMessageID === undefined) return { allowed: false, reason: "no last message" }
   return { allowed: true }
 }
+
+/** APPROVE write text: grants a worker's trivial in-scope "shall I?" (POLICY
+ *  rule 256: "A trivial in-scope request is APPROVE-CONTINUE, not ESCALATE").
+ *  Distinct from the kick-start stall nudge — this AUTHORIZES the proposed
+ *  next step, so the text must say so and carry the supervisor's why. */
+export function approveWriteText(input: { readonly rationale: string }): string {
+  return `[supervisor] (approve) Go-ahead granted: ${truncateAtSentence(input.rationale, 6000)}`
+}
+
+export type ApproveGateInput = {
+  readonly config: { readonly enabled: boolean; readonly dailyCap: number }
+  readonly capUsedToday: number
+  readonly lastMessageID: string | undefined
+  readonly target: { readonly assistantMessageID?: string }
+  readonly sessionProtected: boolean
+}
+
+/** Gate for APPROVE writes: enabled, unprotected, under cap, premise intact.
+ *  Same guard set as kick_start/reformulate; rollout observe/grant split lives
+ *  in the service dispatch, not here. */
+export function gateApproveWrite(input: ApproveGateInput): { allowed: true } | { allowed: false; reason: string } {
+  if (!input.config.enabled) return { allowed: false, reason: "approve writes disabled" }
+  if (input.sessionProtected) return { allowed: false, reason: "session protected" }
+  if (input.capUsedToday >= input.config.dailyCap) return { allowed: false, reason: "daily cap reached" }
+  if (input.lastMessageID === undefined) return { allowed: false, reason: "no last message" }
+  if (input.target.assistantMessageID !== undefined && input.lastMessageID !== input.target.assistantMessageID) {
+    return { allowed: false, reason: "premise changed: newer message after target reply" }
+  }
+  return { allowed: true }
+}

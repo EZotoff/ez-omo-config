@@ -14,7 +14,7 @@ import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
-import { continueCapKey, continueWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
+import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
 import { BeaconChannel, BEACON_CHANNEL_ID } from "./beacon"
 import { Blackboard, parseTickDecided } from "./blackboard"
@@ -38,6 +38,7 @@ type RootRuntime = {
   continueWrites: { dateKey: string; count: number }
   steerWrites: { dateKey: string; count: number }
   reformulateWrites: { dateKey: string; count: number }
+  approveWrites: { dateKey: string; count: number }
 }
 
 class ConcurrencyGate {
@@ -308,6 +309,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       continueWrites: { dateKey: continueCapKey(new Date()), count: 0 },
       steerWrites: { dateKey: continueCapKey(new Date()), count: 0 },
       reformulateWrites: { dateKey: continueCapKey(new Date()), count: 0 },
+      approveWrites: { dateKey: continueCapKey(new Date()), count: 0 },
     }
     runtime.manifest = manifest
     runtimes.set(root, runtime)
@@ -527,6 +529,43 @@ rootConfig?.continue_writes?.enabled === true
           } else {
           const today = continueCapKey(new Date())
           if (runtime.continueWrites.dateKey !== today) runtime.continueWrites = { dateKey: today, count: 0 }
+          // APPROVE sub-path (2026-10-03 operator decision, Option C, rollout-
+          // staged): a trivial in-scope "shall I?" gets counted (observe) or
+          // granted (grant) under approve_writes; without the block, the
+          // kick_start-only gate drops it as before.
+          if (decision.mode === "approve" && rootConfig?.approve_writes?.enabled === true) {
+            const approveCfg = rootConfig.approve_writes
+            const today = continueCapKey(new Date())
+            if (runtime.approveWrites.dateKey !== today) runtime.approveWrites = { dateKey: today, count: 0 }
+            status.approveWrites ??= { wouldGrant: 0, granted: 0, skipped: 0 }
+            if (approveCfg.mode === "observe") {
+              status.approveWrites.wouldGrant += 1
+              ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `approve write: WOULD-GRANT (observe): ${decision.rationale.slice(0, 160)}` })
+              actionOutcome = "skip"
+            } else {
+              const approveGate = gateApproveWrite({
+                config: { enabled: true, dailyCap: approveCfg.daily_cap },
+                capUsedToday: runtime.approveWrites.count,
+                lastMessageID: scan?.messages.at(-1)?.id,
+                target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
+                sessionProtected: protectedSession(sessionID),
+              })
+              if (!approveGate.allowed) {
+                status.approveWrites.skipped += 1
+                ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `approve write: ${approveGate.reason}` })
+                actionOutcome = "skip"
+              } else {
+                await client.promptAsync(sessionID, runtime.root, approveWriteText({ rationale: decision.rationale }))
+                runtime.approveWrites.count += 1
+                status.approveWrites.granted += 1
+                actionOutcome = "effect"
+                try {
+                  await client.toast(`Supervisor approved: ${decision.rationale.slice(0, 160)} (${sessionID.slice(-8)})`, `[Supervisor] ${runtime.root.split("/").pop() ?? runtime.root}`)
+                } catch {}
+                ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "approve", text: "[supervisor] (approve)", rationale: decision.rationale })
+              }
+            }
+          } else {
           const gate = gateContinueWrite({
             decision,
             config: {
@@ -575,6 +614,7 @@ rootConfig?.continue_writes?.enabled === true
             }
           }
           }
+          } // approve-writes else
         }
         // STEER write path (2026-10-02: gate/text existed with tests but were never
         // wired — the action was a schema ghost; 3 historical STEER decisions were

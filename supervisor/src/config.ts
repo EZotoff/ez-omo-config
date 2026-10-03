@@ -29,6 +29,13 @@ const rootSchema = z.object({
     enabled: z.boolean().default(false),
     daily_cap: z.number().int().positive().default(3),
   }).strict().optional(),
+  approve_writes: z.object({
+    enabled: z.boolean().default(false),
+    daily_cap: z.number().int().positive().default(3),
+    // Feature Rollout Protocol (2026-10-03 operator decision, Option C):
+    // "observe" counts and logs would-grants, grants nothing; "grant" delivers.
+    mode: z.enum(["observe", "grant"]).default("observe"),
+  }).strict().optional(),
   autonomous_title_prefixes: z.array(z.string().min(1)).default([]),
 }).strict()
 const tierBudgetsSchema = z.object({

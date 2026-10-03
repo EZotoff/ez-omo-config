@@ -34,6 +34,11 @@ export const statusSchema = z.object({
     effect: z.number().int().nonnegative(),
     skipped: z.number().int().nonnegative(),
   }).strict()).optional(),
+  approveWrites: z.object({
+    wouldGrant: z.number().int().nonnegative(),
+    granted: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+  }).strict().optional(),
   collect: collectTelemetrySchema.optional(),
 }).strict()
 export type SupervisorStatus = z.infer<typeof statusSchema>

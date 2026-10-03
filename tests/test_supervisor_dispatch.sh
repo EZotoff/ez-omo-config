@@ -24,6 +24,10 @@ ACTIONS=$(grep -o 'action: z.enum(\[[^]]*\])' "$TICK" | sed 's/.*\[//; s/\].*//;
 test -n "$ACTIONS" || { echo "FAIL: could not parse action enum from $TICK"; exit 1; }
 
 WRITE_PATH_ACTIONS="CONTINUE ESCALATE STEER REFORMULATE"
+# APPROVE is a CONTINUE sub-mode (decision.mode === "approve"), not an enum
+# member — structurally gated here instead (2026-10-03 Option C, rollout-staged).
+grep -q 'decision.mode === "approve"' "$SERVICE" || { echo "FAIL: approve write path missing dispatch site in service.ts (schema ghost)"; fail=1; }
+grep -q 'approveWriteText' "$SERVICE" || { echo "FAIL: approveWriteText never called in service.ts"; fail=1; }
 fail=0
 for action in $ACTIONS; do
   # Every action must appear in the compile-time exhaustiveness checker.
