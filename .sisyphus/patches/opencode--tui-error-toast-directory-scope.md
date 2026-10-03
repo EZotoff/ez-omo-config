@@ -74,3 +74,25 @@ Required before flipping `runtime_effective: true`:
    may appear for the foreign session.
 3. Fire an error in the TUI's OWN directory (e.g. invalid model in the current
    project) and confirm the toast still appears (regression guard).
+3. Fire an error in the TUI's OWN directory (e.g. invalid model in the current
+   project) and confirm the toast still appears (regression guard).
+
+## Install Deferral (2026-10-03 operator decision)
+
+Option B: the staged swap (receipt `97f4ee2e`, already in
+`~/src/opencode/packages/opencode/dist/`) is DEFERRED to the next idle window,
+shared with the Q3 install gate. The integrity-check RED (provenance
+ancestry-fail on commit `5dd34e7199` vs live binary receipt source_head
+`977b8a4d97`) is acknowledged fail-visible noise — all 38 patches remain
+grep-APPLIED. Idle-window sequence: (1) continuation-hook fixes verified via
+dry-run snapshot, (2) staged swap via continuation-safe procedure,
+(3) verify-live-patches GREEN + fresh hooks.log start. Standing exception:
+only an explicit operator "install it now" authorizes an immediate busy-session
+restart; repeated RED alerts do NOT constitute implicit urgency. If alert noise
+becomes a problem before the window opens, snooze the provenance alert instead
+of rushing the swap.
+
+Continuation-hook fix note: the resume retry loop's `retry_secs` NameError
+(crash on first retryable prompt_async failure, observed in hooks.log
+2026-10-03 09:20:39) was fixed 2026-10-03 — `RESUME_RETRY_SECONDS` env
+(default 60s), bash -n + py compile + dry-run snapshot verified.

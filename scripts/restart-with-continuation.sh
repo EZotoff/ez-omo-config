@@ -403,6 +403,7 @@ for s in snap.get("sessions", []):
     with open(marker, "w") as mh:
         mh.write(str(time.time()))
     t_post = time.time()
+    retry_secs = float(os.environ.get("RESUME_RETRY_SECONDS") or 60)
     while True:
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode == 0:
