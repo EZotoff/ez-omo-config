@@ -19,7 +19,7 @@
     "./live-config-guard.mjs",
     "./promise-catcher.mjs",
     "opencode-antigravity-auth@1.6.0",
-    "oc-codex-multi-auth@6.27.0",
+    "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
     "@franlol/opencode-md-table-formatter@0.0.6",
     "opencode-kimi-full",
