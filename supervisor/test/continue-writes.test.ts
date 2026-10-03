@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { rm } from "node:fs/promises"
 import { continueCapKey, continueWriteText, gateContinueWrite, gateReformulateWrite, gateSteerWrite, reformulateWriteText, steerWriteText } from "../src/continue-writes"
 
 const base = {
@@ -177,5 +181,43 @@ describe("reformulate gate + text (2026-10-02: fresh-explain capability wired)",
     expect(t.startsWith("[supervisor] (reformulate)")).toBe(true)
     expect(t).toContain("first principles")
     expect(t).toContain("all jargon")
+  })
+})
+
+describe("between-poll turn completions (2026-10-02 bonsai-stall fix)", () => {
+  test("poller: a turn that started and finished between polls emits idle, not busy", async () => {
+    const { pollRootOnce } = await import("../src/poller")
+    const { OpencodeClient } = await import("../src/client")
+    const c = new OpencodeClient("http://127.0.0.1:1", undefined)
+    let calls = 0
+    const env = (id: string, role: "user" | "assistant", text: string) => ({
+      info: { id, sessionID: "ses_gap", role, time: { created: 1_000_000, ...(role === "assistant" ? { completed: 1_000_001 } : {}) } },
+      parts: [{ id: `${id}_p`, messageID: id, type: "text", text }],
+    })
+    ;(globalThis as { fetch?: unknown }).fetch = (async (url: string) => {
+      calls += 1
+      if (String(url).includes("/message")) {
+        return new Response(JSON.stringify([env("u1", "user", "go"), env("a1", "assistant", "done")]), { status: 200 })
+      }
+      const updated = calls <= 1 ? 1_200_000 : 1_400_000
+      return new Response(JSON.stringify([{ id: "ses_gap", directory: "/root", time: { updated } }]), { status: 200 })
+    }) as unknown
+    const prev = new Map()
+    await pollRootOnce(c as never, "/root", new Set(), prev, 1_100_000, 15 * 60_000) // poll 1: first observation, complete turn
+    const s2 = await pollRootOnce(c as never, "/root", new Set(), prev, 1_500_000, 15 * 60_000) // poll 2: listing advanced → busy (cheap path)
+    expect(s2.filter((x) => x.sessionID === "ses_gap").map((x) => x.kind)).toContain("busy")
+    const s3 = await pollRootOnce(c as never, "/root", new Set(), prev, 1_700_000, 15 * 60_000) // poll 3: quiet → classification fetch → idle
+    const kinds3 = s3.filter((x) => x.sessionID === "ses_gap").map((x) => x.kind)
+    expect(kinds3).toContain("idle") // the completion must reach the tick pipeline
+    expect(s2.filter((x) => x.sessionID === "ses_gap").map((x) => x.kind)).not.toContain("idle")
+  })
+
+  test("statemachine: GRACE + idle re-arms GRACE (new completed turn re-arms the tick)", async () => {
+    const { transition, initialState } = await import("../src/statemachine")
+    const grace = transition(initialState, { type: "idle", at: 1 }).state
+    expect(grace.kind).toBe("GRACE")
+    const reArmed = transition(grace, { type: "idle", at: 2 })
+    expect(reArmed.illegal).toBe(false)
+    expect(reArmed.state.kind).toBe("GRACE")
   })
 })

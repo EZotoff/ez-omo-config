@@ -16,6 +16,12 @@ export type WatchState = {
   lastUpdatedMs?: number
   /** Whether the expensive full-transcript classification fetch has run. */
   fetched: boolean
+  /** Set by the cheap-listing advance path: the session moved but completion was
+   *  not yet classified from the transcript. The next quiet poll must bypass the
+   *  unchanged short-circuit ONCE to classify idle vs still-busy (2026-10-02
+   *  bonsai-stall fix: without this, between-poll completions were invisible
+   *  until the 15-minute stall escape, if polls succeeded at all). */
+  pendingClassification?: boolean
 }
 
 const EMPTY_STATE: WatchState = { messageCount: 0, completed: false, stallFired: false, fetched: false }
@@ -74,6 +80,7 @@ export async function pollRootOnce(
         stallFired: false, // activity resets the stall episode
         lastUpdatedMs: updated,
         fetched: prior.fetched,
+        pendingClassification: true,
       })
       signals.push({ kind: "busy", sessionID: session.id })
       if (updated !== undefined) {
@@ -84,7 +91,7 @@ export async function pollRootOnce(
     // Quiescent session: fetch the transcript ONLY if it changed since the last
     // classification (or was never fetched). Re-fetching an unchanged multi-MB
     // transcript every tick was the residual firehose (6.5 MiB/5s measured).
-    if (prior?.fetched && prior.lastUpdatedMs === updated) {
+    if (prior?.fetched && prior.pendingClassification !== true && prior.lastUpdatedMs === updated) {
       // Unchanged session: no re-fetch, but the stall check must still run —
       // quiescence is precisely the no-change case (dead-code regression:
       // the short-circuit skipped the stall branch entirely).
@@ -110,6 +117,7 @@ export async function pollRootOnce(
       stallFired: previous.get(session.id)?.stallFired ?? false,
       ...(updated === undefined ? {} : { lastUpdatedMs: updated }),
       fetched: true,
+      pendingClassification: false,
     }
     next.set(session.id, state)
     if (prior === undefined) {
@@ -118,7 +126,14 @@ export async function pollRootOnce(
       // watching can never "flip" otherwise.)
       signals.push(state.completed ? { kind: "idle", sessionID: session.id } : { kind: "busy", sessionID: session.id })
     } else if (state.messageCount > prior.messageCount) {
-      signals.push({ kind: "busy", sessionID: session.id })
+      // 2026-10-02 bonsai-stall fix: a growth poll whose last message is an
+      // already-completed assistant reply means the whole turn started AND
+      // finished between two polls. Emitting `busy` here (the old behavior)
+      // made the completion structurally invisible: the flip detector below
+      // requires prior.completed === false, so no idle signal ever fired, no
+      // GRACE re-entry, no tick — sessions silently dropped out of the tick
+      // pipeline for every such turn.
+      signals.push(state.completed ? { kind: "idle", sessionID: session.id } : { kind: "busy", sessionID: session.id })
       // Growth resets the stall episode.
       state.stallFired = false
     } else if (!prior.completed && state.completed) {

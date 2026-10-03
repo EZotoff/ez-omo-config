@@ -676,7 +676,11 @@ rootConfig?.continue_writes?.enabled === true
       ledger = await ledger.append("ERROR", { root: runtime.root, sessionID, reason: "illegal FSM transition", event: event.type })
       await recordErrorTelemetry({ root: runtime.root })
     }
-    return previous.kind !== "GRACE" && result.state.kind === "GRACE" && !result.illegal
+    // 2026-10-02 bonsai-stall fix: a fresh completion on an already-idle session
+    // re-arms the tick. The old rule (only non-GRACE → GRACE enqueues) meant each
+    // session ticked at most once per busy cycle — every later turn that completed
+    // between polls was ignored until the operator poked it manually.
+    return result.state.kind === "GRACE" && (previous.kind !== "GRACE" || event.type === "idle") && !result.illegal
   }
 
   const periodicReconcile = setInterval(() => {

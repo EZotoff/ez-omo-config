@@ -30,7 +30,7 @@ export function transition(state: SessionState, event: SessionEvent): Transition
         : { state, illegal: true }
     case "GRACE":
       if (event.type === "grace_elapsed") return { state: { kind: "TICK", since: event.at }, illegal: false }
-      if (event.type === "idle") return { state, illegal: false }
+      if (event.type === "idle") return { state: { kind: "GRACE", since: event.at }, illegal: false }
       return { state, illegal: true }
     case "TICK":
       return event.type === "decision_recorded"
