@@ -1,0 +1,44 @@
+{
+  "feature": "event-codec",
+  "ladder": [120, 900, 1800, 3600, 7200, 14400, 28800, 43200],
+  "plateau_gap_s": 43200,
+  "max_ladder_resets": 3,
+  "cmd_timeout_s": 240,
+  "state_path": "~/.local/state/opencode-rollout/event-codec.state.json",
+  "checks": [
+    {
+      "name": "daemons-active",
+      "cmd": ["systemctl", "--user", "is-active", "--quiet", "opencode.service", "opencode-interactive.service"]
+    },
+    {
+      "name": "codec-compressing",
+      "cmd": ["bash", "-c", "[ \"$(python3 ~/ez-omo-config/scripts/event-codec-stats.py --sum rowsCompressed)\" -ge 1 ]"]
+    },
+    {
+      "name": "decode-errors-zero",
+      "cmd": ["bash", "-c", "[ \"$(python3 ~/ez-omo-config/scripts/event-codec-stats.py --sum decodeErrors)\" -eq 0 ]"]
+    }
+  ],
+  "error_tail": {
+    "cmd": ["bash", "-c", "journalctl --user -u opencode.service -u opencode-interactive.service --since '-4h' --no-pager 2>/dev/null | grep -E 'EventDataCodecError|Replay diverged' || true"],
+    "pattern": "EventDataCodecError"
+  },
+  "evidence": {
+    "cmd": ["python3", "/home/ezotoff/ez-omo-config/scripts/event-codec-stats.py", "--sum", "rowsCompressed"],
+    "min_per_round": [1, 5, 15, 40, 100, 250, 500, 900],
+    "max_extends": 4
+  },
+  "semantic_check": {
+    "rounds": [2],
+    "cmd": ["bash", "/home/ezotoff/ez-omo-config/tests/regressions/032-event-data-compression.sh"]
+  },
+  "operator_review_rounds": [7],
+  "gates": [
+    {
+      "name": "growth-verdict",
+      "after_round": 7,
+      "requires": { "min_activations": 900, "max_new_errors": 0 },
+      "action": ["python3", "/home/ezotoff/ez-omo-config/scripts/event-codec-growth-gate.py"]
+    }
+  ]
+}
