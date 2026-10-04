@@ -121,7 +121,7 @@ codegraph, and tests are repo-scoped):
 | Real-voice dogfood → MANIFEST evidence upgrade | this repo | **unblocked 2026-09-28** — voice widget + proxy shipped (rows above); live `:4300` serves the build (F3-verified dist byte-identical); token-present → 101 upgrade observed, token-absent → designed 503 (external vb-token-persist prerequisite still in flight) |
 | Attention projection consumption (Seam 4 read → attention view) | omo-pulse | not started (schema defined above) |
 | Ledger-tailer → `QUEUE_*` projection upgrade (escalations from the queue, not raw TICK_DECIDED) | voice-bridge | not started |
-| OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon + ez-omo-config | **implementation done, runtime observation pending** — send path SHIPPED in oc-beacon (`0ab9780c`); supervisor-side `BeaconChannel` implemented in ez-omo-config (`supervisor/src/beacon.ts`, 2026-09-26): inbox discovery + watermark + envelope/plain-text + `clientMessageID` dedup + correlation (explicitItemID → contextTag → alias → §5) routed through the shared reply-router with `channelID: "beacon"`; repo_implemented + tests_passed, not yet observed on a live beacon reply |
+| OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon + ez-omo-config | **done + live-observed 2026-10-04** — send path SHIPPED in oc-beacon (`0ab9780c`); supervisor-side `BeaconChannel` in ez-omo-config (`supervisor/src/beacon.ts`): inbox discovery by EXACT title per root (Amendment 2026-10-04 — loose prefix adoption had cross-wired `…/veran/apps/web`'s inbox into the `…/veran` poll), first-observation backlog ingestion (the live first reply was swallowed by the watermark baseline and survived only via transport retransmit), v1-envelope parsing with `clientMessageID` dedup, correlation (explicitItemID → contextTag → alias → §5) through the shared reply-router with `channelID: "beacon"`. Live 2026-10-04: `QUEUE_REPLY_RECEIVED` seq 16670 routed via `explicitItemID`, item resolved `superseded` by revalidation. Remaining: crash-safety of `recordProcessed`-before-route (Amendment 2026-10-04 §4) |
 | OC Beacon walking-rung prep (spoken replies via Vox, small-screen polish) | oc-beacon + voice-bridge | not started |
 
 ## Seam 4 — Attention queue (Supervisor-owned)
@@ -161,11 +161,16 @@ console channel already polls.
 **Transport: per-root reply-inbox session.** OC Beacon sends each answer as one top-level
 `user` message (promptAsync) into a dedicated inbox session per target root, titled
 `[Beacon replies] <basename(root)>` (created on first reply if absent; the title prefix MUST
-NOT be `[Supervisor]`, which the supervisor excludes as its own chatter). The supervisor
-extends its existing `pollReplies` watermark pattern to observe inbox-session user turns —
-the same mechanism it uses for console replies — through a `BeaconChannel` (channel class
-AMBIENT/VISUAL per Addendum A; presents nothing, collects replies only). Inbox sessions are
-excluded from ordinary supervision, exactly like `[Supervisor]` console sessions.
+NOT be `[Supervisor]`, which the supervisor excludes as its own chatter). A root's channel
+adopts its inbox by **exact title match** (`[Beacon replies] <basename(root)>`) — never by
+title prefix alone: project-scoped session listings surface descendant directories' sessions,
+and prefix adoption cross-wired a sub-root's inbox into a parent root (live mis-binding
+2026-10-04: `[Beacon replies] web`, correctly created for target root `…/veran/apps/web`,
+was adopted by the `…/veran` poll). The supervisor extends its existing `pollReplies`
+watermark pattern to observe inbox-session user turns — the same mechanism it uses for
+console replies — through a `BeaconChannel` (channel class AMBIENT/VISUAL per Addendum A;
+presents nothing, collects replies only). Inbox sessions are excluded from ordinary
+supervision, exactly like `[Supervisor]` console sessions.
 
 **Message shape.** One reply per message, either:
 
@@ -178,11 +183,21 @@ excluded from ordinary supervision, exactly like `[Supervisor]` console sessions
   "text": "use Qdrant",                    // text / transcript; for choice: omit, use index
   "index": 1,                              // choice only, 0-based into the card's options
   "contextTag": "pres_…",                 // optional, from the surfaced presentation
-  "explicitItemID": "att_…" }              // optional, when the card names the item
+  "explicitItemID": "att_…",               // optional, when the card names the item
+  "question": "…",                         // optional (2026-10-04): the question text as shown on the card
+  "sessionTitle": "…",                     // optional (2026-10-04): the target session's title
+  "note": "…" }                            // optional (2026-10-04): fixed transport notice for the receiving session
 ```
 
 2. *Plain-text fallback* (no envelope): `Q<n>:`-prefixed answer, bare answer, or disposition
    keyword (SKIP / HOLD / DND) — parsed by the same normalizer as console replies.
+
+`question`, `sessionTitle`, and `note` are **comprehension metadata** (Amendment 2026-10-04):
+the inbox session is an ordinary OpenCode session and every reply prompt runs an agent turn
+there, so the envelope must let that session understand WHAT is being answered and that the
+message is transport, not instruction. They are correlation-irrelevant (correlation rides
+`explicitItemID`/`contextTag`/alias as below); consumers ignore unknown fields (v1 additive
+rule).
 
 **Correlation with the queue item.** Resolution order matches the queue spec §5:
 `explicitItemID` wins; then `contextTag` if it maps to the currently surfaced presentation;
@@ -201,19 +216,50 @@ Spoken replies are out of scope for this ingress (they ride the Vox channel); th
 **Idempotency and dedup.** Delivery is at-least-once: the client may retransmit after a
 timeout using the SAME `clientMessageID`. The supervisor records processed `clientMessageID`s
 and drops duplicates; the watermark on the inbox session prevents replay of already-observed
-messages; and the reply-router's transitions are idempotent by construction (transition key
+messages **only after adoption** — on first observation of an inbox the channel MUST ingest
+every `user` message already present, because the app creates the inbox WITH the first reply
+in it ("created on first reply if absent"): baseline-to-tail on first observation silently
+swallowed every newly-discovered inbox's first reply (live miss 2026-10-04 07:33Z, recovered
+only by a transport-level retransmit of the identical envelope). Envelope dedup by
+`clientMessageID` makes backlog processing idempotent; the reply-router's transitions are
+idempotent by construction (transition key
 `(itemID, itemVersion, fromState, eventID)`; a duplicate reply-event key returns the prior
 route result per the queue spec §7/§10). Late replies to terminal items are recorded, never
 re-routed.
 
-Implementation status (updated 2026-09-26): the OC Beacon send path is SHIPPED (oc-beacon
-commit `0ab9780c` — per-root reply-inbox sessions over the app's existing OpenCode
-connection). The supervisor-side `BeaconChannel` is implemented in ez-omo-config
-(`supervisor/src/beacon.ts` + `supervisor/test/beacon-channel.test.ts`): inbox discovery by
-title convention, watermark polling, v1-envelope parsing with `clientMessageID` dedup,
-correlation order as specified, routing through the shared reply-router with
-`channelID: "beacon"`. Runtime observation on a live beacon reply is still pending
-(status: repo_implemented + tests_passed). The contract shape above remains binding.
+Implementation status (updated 2026-10-04, first live observation): the OC Beacon send path
+is SHIPPED (oc-beacon commit `0ab9780c` — per-root reply-inbox sessions over the app's
+existing OpenCode connection). The supervisor-side `BeaconChannel` is implemented in
+ez-omo-config (`supervisor/src/beacon.ts` + `supervisor/test/beacon-channel.test.ts`).
+First live beacon reply observed 2026-10-04 07:33Z: delivered contract-shaped, but (a) the
+supervisor's first-observation watermark baseline swallowed it (recovered only by a
+transport-level retransmit; fixed same day — first-observation ingestion, see Amendment
+2026-10-04), and (b) the envelope carried correlation metadata only, so the receiving
+session's agent could not tell what was being answered (fixed same day — comprehension
+fields). The contract shape above remains binding.
+
+#### Beacon reply ingress — Amendment 2026-10-04 (comprehension fields, backlog ingestion, exact binding)
+
+1. **Comprehension fields (additive, `v` stays 1).** Envelopes SHOULD carry `question`
+   (the question text as shown on the card), `sessionTitle` (the target session's title),
+   and `note` (a fixed transport notice telling the receiving session this is a reply
+   envelope consumed by the supervisor's reply-router, not an instruction to act). The
+   supervisor does not consume them for correlation; the receiving session reads them.
+2. **First-observation ingestion.** `BeaconChannel.poll` MUST treat every `user` message
+   already present at first observation of an inbox as an unseen reply (parse → dedup →
+   route), then baseline the watermark. The former baseline-to-tail-and-skip semantics are
+   RETRACTED for this channel (they remain correct for `[Supervisor]` console sessions,
+   which are supervisor-created and full of pre-reply history).
+3. **Exact-title binding.** Inbox adoption is `session.title === inboxTitle(root)` for the
+   polled root only. Supervisor state written before this rule (`bindingVersion` < 2) may
+   hold loosely-adopted bindings; loaders migrate by dropping `inboxes`/`watermarks` and
+   re-adopting under exact titles, while PRESERVING `processedClientMessageIDs` so
+   already-routed backlog envelopes are not re-routed.
+4. **Known open item (crash-safety, recorded 2026-10-04, unfixed):** `recordProcessed`
+   runs in-poll before the route result is known — a crash between ingest and
+   `handleReply` marks a `clientMessageID` processed without a routed reply. Aligning
+   this with the router's "persist the reply text BEFORE any delivery attempt" rule is
+   future work (see `.builder-kit/audit/beacon-first-reply-race-2026-10-04.md`).
 
 #### Console reply ingestion — operator-stand-in rulings (Amendment 2026-10-01)
 
