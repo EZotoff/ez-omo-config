@@ -62,6 +62,7 @@ Source patches (carried as fork commits) and dist-level patches (applied to the 
 | `omo--task-hygiene-close-before-turn-end` — sisyphus glm-5-2 tasks-section rule: close every task before turn end (fork commit ff320aa04) | active | true | [entry](../.sisyphus/patches/omo--task-hygiene-close-before-turn-end.md) |
 | `omo--gpt6-hephaestus-registration` — accept GPT-6 models for hephaestus registration + sisyphus-native detection; fixes ghost-hephaestus hijack on gpt-6-sol (fork commit 8822e6b2e) | active | false | [entry](../.sisyphus/patches/omo--gpt6-hephaestus-registration.md) |
 | `omo--wake-journal-outbox` (v3) — durable per-wake journal (queued→dispatching→dispatched-awaiting-output→consumed\|dead-letter), crash-safe re-dispatch; runtime flip 2026-10-02: reply-wakes consume live (65/65 post-rebuild), admit-only (`shouldReply=false`) wakes linger awaiting-output by design — canary-tracked | active | true | [entry](../.sisyphus/patches/omo--wake-journal-outbox.md) |
+| `omo--config-loader-transient-miss-guard` — global config layer recovery: one fresh direct `existsSync` when layer detection returns none; self-heals the transient-`existsSync`-false + permanent-negative-cache flake that froze builtin agent registries for a server's whole uptime (2026-10-04 incident, 476 empty boots logged, 42 bench look_at losses); logs absence loudly when genuinely missing | active | false | [entry](../.sisyphus/patches/omo--config-loader-transient-miss-guard.md) |
 
 ## Provenance gates (2026-09-18 patch-loss incidents)
 
