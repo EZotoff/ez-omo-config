@@ -40,9 +40,20 @@ export type BeaconState = {
   readonly inboxes: Readonly<Record<string, string>>
   readonly watermarks: Readonly<Record<string, string>>
   readonly processedClientMessageIDs: readonly string[]
+  /**
+   * Binding semantics version. v1 state predates exact-title inbox binding
+   * (Amendment 2026-10-04): its `inboxes` entries may be loose-prefix adoptions
+   * bound to the wrong root, so load() migrates by dropping inboxes/watermarks
+   * (re-adopted under exact titles; first-observation ingestion re-reads their
+   * backlogs) while keeping processedClientMessageIDs so already-routed backlog
+   * envelopes are not re-routed.
+   */
+  readonly bindingVersion: number
 }
 
-const EMPTY: BeaconState = { inboxes: {}, watermarks: {}, processedClientMessageIDs: [] }
+export const BINDING_VERSION = 2
+
+const EMPTY: BeaconState = { inboxes: {}, watermarks: {}, processedClientMessageIDs: [], bindingVersion: BINDING_VERSION }
 
 export type BeaconChannelOptions = {
   readonly client: BeaconClient
@@ -121,15 +132,21 @@ export class BeaconChannel {
   }
 
   async load(): Promise<void> {
-    if (!existsSync(this.statePath)) return
+    if (!existsSync(this.statePath)) {
+      this.state = EMPTY
+      return
+    }
     const parsed = JSON.parse(await readFile(this.statePath, "utf8")) as Partial<BeaconState>
+    const staleBindings = parsed.bindingVersion !== BINDING_VERSION
     this.state = {
-      inboxes: parsed.inboxes ?? {},
-      watermarks: parsed.watermarks ?? {},
+      bindingVersion: BINDING_VERSION,
+      inboxes: staleBindings ? {} : (parsed.inboxes ?? {}),
+      watermarks: staleBindings ? {} : (parsed.watermarks ?? {}),
       processedClientMessageIDs: Array.isArray(parsed.processedClientMessageIDs)
         ? parsed.processedClientMessageIDs.filter((entry): entry is string => typeof entry === "string").slice(-PROCESSED_CAP)
         : [],
     }
+    if (staleBindings) await this.persist()
   }
 
   /** Inbox session IDs — consumed by the service to exclude them from supervision. */
@@ -146,7 +163,7 @@ export class BeaconChannel {
     return this.route(reply, now, { channelID: BEACON_CHANNEL_ID, promptChoice: false })
   }
 
-  /** Poll the root's reply-inbox session; first observation sets the watermark. */
+  /** Poll the root's reply-inbox session; the FIRST observation ingests the whole backlog. */
   async poll(root: string, now: ISO8601): Promise<readonly ReplyEvent[]> {
     const inboxID = await this.ensureInbox(root)
     if (inboxID === undefined) return []
@@ -154,15 +171,22 @@ export class BeaconChannel {
     let messages = await this.client.listMessages(inboxID, root, 50)
     let last = messages.at(-1)
     const watermark = this.state.watermarks[inboxID]
-    if (watermark === undefined) {
-      if (last !== undefined) await this.setWatermark(inboxID, last.id)
-      return []
-    }
-    if (!messages.some((message) => message.id === watermark)) {
+    if (watermark === undefined && last !== undefined) {
+      // The Beacon app creates the inbox WITH the first reply already in it
+      // (contract: "created on first reply if absent"), so pre-existing user
+      // messages ARE unseen replies — ingest the full backlog instead of
+      // baselining past it. Baseline-to-tail here swallowed the first reply of
+      // every newly-discovered inbox (live miss 2026-10-04 07:33Z; recovered
+      // only by a transport-level retransmit). clientMessageID dedup keeps
+      // backlog processing idempotent.
+      messages = await this.client.listMessages(inboxID, root)
+      last = messages.at(-1)
+    } else if (watermark !== undefined && !messages.some((message) => message.id === watermark)) {
       messages = await this.client.listMessages(inboxID, root)
       last = messages.at(-1)
     }
-    const start = messages.findIndex((message) => message.id === watermark)
+    // watermark === undefined ⇒ start === -1 ⇒ fresh = all messages (backlog ingest).
+    const start = watermark === undefined ? -1 : messages.findIndex((message) => message.id === watermark)
     const fresh = start === -1 ? messages : messages.slice(start + 1)
     const replies: ReplyEvent[] = []
     for (const message of fresh) {
@@ -226,12 +250,17 @@ export class BeaconChannel {
     }
   }
 
-  /** Find the root's inbox session by title convention (created by the app on first reply). */
+  /** Find the root's inbox session by EXACT title convention (created by the app on first reply). */
   private async ensureInbox(root: string): Promise<string | undefined> {
     const cached = this.state.inboxes[root]
     if (cached !== undefined) return cached
+    const expected = inboxTitle(root)
     const sessions = await this.client.listSessions(root)
-    const inbox = sessions.find((session) => session.title?.startsWith(INBOX_TITLE_PREFIX) === true)
+    // Exact title only: project-scoped listings surface descendant directories'
+    // sessions, and prefix adoption cross-wired a sub-root's inbox into a parent
+    // root (live mis-binding 2026-10-04: `[Beacon replies] web`, created for
+    // target root …/veran/apps/web, was adopted by the …/veran poll).
+    const inbox = sessions.find((session) => session.title === expected)
     if (inbox === undefined) return undefined
     this.state = { ...this.state, inboxes: { ...this.state.inboxes, [root]: inbox.id } }
     await this.persist()

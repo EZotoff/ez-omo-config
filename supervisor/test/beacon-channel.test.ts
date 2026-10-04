@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Ledger } from "../src/ledger"
@@ -51,11 +51,6 @@ class StubClient implements ConsoleClient {
     this.sessions.push({ id, directory, title })
     this.messages.set(id, [])
     return id
-  }
-
-  /** Seed the inbox so the first poll baselines the watermark (console semantics). */
-  seed(sessionID: string): void {
-    this.append(sessionID, "user", "(beacon session opened)")
   }
 
   append(sessionID: string, role: "user" | "assistant", text: string): void {
@@ -150,16 +145,34 @@ describe("BeaconChannel polling", () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  test("first observation sets the watermark; subsequent message is consumed", async () => {
+  test("first observation ingests the backlog: the reply that created the inbox is not swallowed", async () => {
     const { client, beacon, dir } = await setup()
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
     client.append(inbox, "user", "Q1: yes")
-    expect(await beacon.poll("/root", NOW)).toEqual([])
-    client.append(inbox, "user", "Q1: yes, deploy")
     const replies = await beacon.poll("/root", NOW)
     expect(replies).toHaveLength(1)
     expect(replies[0]?.channelID).toBe("beacon")
+    expect(await beacon.poll("/root", NOW)).toEqual([])
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("identical retransmits in the adoption backlog route once", async () => {
+    const { client, consoles, beacon, dir } = await setup()
+    const proposed = await consoles.proposeEscalation(escalationRequest())
+    if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
+    const inbox = client.addInbox("/root")
+    const envelope = JSON.stringify({ v: 1, clientMessageID: "cm-backlog", kind: "text", text: "yes", explicitItemID: proposed.item.id })
+    client.append(inbox, "user", envelope)
+    client.append(inbox, "user", envelope)
+    expect(await beacon.poll("/root", NOW)).toHaveLength(1)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("inbox binding is exact-title per root: a foreign title is never adopted", async () => {
+    const { client, beacon, dir } = await setup()
+    client.addInbox("/root", `${INBOX_TITLE_PREFIX}sub`)
+    expect(await beacon.poll("/root", NOW)).toEqual([])
+    expect(beacon.allSessionIDs().size).toBe(0)
     await rm(dir, { recursive: true, force: true })
   })
 
@@ -168,8 +181,6 @@ describe("BeaconChannel polling", () => {
     const proposed = await consoles.proposeEscalation(escalationRequest())
     if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
-    await beacon.poll("/root", NOW)
     client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-1", kind: "text", text: "yes, deploy", explicitItemID: proposed.item.id }))
     const replies = await beacon.poll("/root", NOW)
     expect(replies).toHaveLength(1)
@@ -195,8 +206,6 @@ describe("BeaconChannel polling", () => {
     const proposed = await consoles.proposeEscalation(escalationRequest())
     if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
-    await beacon.poll("/root", NOW)
     const envelope = JSON.stringify({ v: 1, clientMessageID: "cm-dup", kind: "text", text: "yes", explicitItemID: proposed.item.id })
     client.append(inbox, "user", envelope)
     expect(await beacon.poll("/root", NOW)).toHaveLength(1)
@@ -211,8 +220,6 @@ describe("BeaconChannel polling", () => {
     const surfaced = await consoles.surfaceNext("/root", NOW)
     if (surfaced.kind !== "surfaced") throw new Error("expected surface")
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
-    await beacon.poll("/root", NOW)
     client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-ctx", kind: "choice", index: 1, contextTag: surfaced.presentationID }))
     const replies = await beacon.poll("/root", NOW)
     const reply = replies[0]
@@ -230,8 +237,6 @@ describe("BeaconChannel polling", () => {
     if (surfaced.kind !== "surfaced") throw new Error("expected surface")
     expect(surfaced.alias).toBe("Q1")
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
-    await beacon.poll("/root", NOW)
     client.append(inbox, "user", "Q1: yes, ship it")
     const replies = await beacon.poll("/root", NOW)
     const reply = replies[0]
@@ -249,8 +254,6 @@ describe("BeaconChannel polling", () => {
       target: { root: "/root", sessionID: "ses-b", userMessageID: "msg-u2", assistantMessageID: "msg-a2" },
     }))
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
-    await beacon.poll("/root", NOW)
     client.append(inbox, "user", "yes")
     const replies = await beacon.poll("/root", NOW)
     const reply = replies[0]
@@ -268,8 +271,41 @@ describe("BeaconChannel polling", () => {
   test("inbox sessions are exposed for supervision exclusion", async () => {
     const { client, beacon, dir } = await setup()
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
     await beacon.poll("/root", NOW)
+    expect(beacon.allSessionIDs().has(inbox)).toBe(true)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("v1 state migrates: loose bindings are dropped, processed IDs survive", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-beacon-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const consoles = new ConsoleChannel({
+      client, queue,
+      statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current,
+      setLedger: (next) => { ledgerRef.current = next },
+      probe: healthyProbe,
+    })
+    await writeFile(
+      join(dir, "beacon.json"),
+      JSON.stringify({ inboxes: { "/root": "ses_loose" }, watermarks: { ses_loose: "msg_x" }, processedClientMessageIDs: ["cm-old"] }),
+    )
+    const beacon = new BeaconChannel({
+      client, queue,
+      statePath: join(dir, "beacon.json"),
+      aliases: () => consoles.aliasTable(),
+      route: (reply, now) => consoles.handleReply(reply, now, { channelID: "beacon", promptChoice: false }),
+    })
+    await beacon.load()
+    expect(beacon.allSessionIDs().size).toBe(0)
+    const inbox = client.addInbox("/root")
+    client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-old", kind: "text", text: "hello" }))
+    expect(await beacon.poll("/root", NOW)).toHaveLength(0)
     expect(beacon.allSessionIDs().has(inbox)).toBe(true)
     await rm(dir, { recursive: true, force: true })
   })
@@ -296,7 +332,6 @@ describe("BeaconChannel polling", () => {
       route: (reply, now) => consoles.handleReply(reply, now, { channelID: "beacon", promptChoice: false }),
     })
     const inbox = client.addInbox("/root")
-    client.seed(inbox)
     const first = makeBeacon()
     await first.load()
     await first.poll("/root", NOW)
@@ -314,5 +349,6 @@ describe("inbox title convention", () => {
   test("prefix must not collide with the supervisor console prefix", () => {
     expect(INBOX_TITLE_PREFIX.startsWith("[Supervisor]")).toBe(false)
     expect(inboxTitle("/home/ezotoff/AI_projects/veran")).toBe("[Beacon replies] veran")
+    expect(inboxTitle("/home/ezotoff/AI_projects/veran/apps/web")).toBe("[Beacon replies] web")
   })
 })
