@@ -41,6 +41,11 @@ export const statusSchema = z.object({
     skipped: z.number().int().nonnegative(),
   }).strict().optional(),
   collect: collectTelemetrySchema.optional(),
+  /** Sessions blocked on the operator's question-tool dialog (2026-10-05 awaiting-operator-input guard). */
+  awaitingOperator: z.object({
+    count: z.number().int().nonnegative(),
+    oldestQuestionStartMs: z.number().int().nonnegative().optional(),
+  }).strict().optional(),
 }).strict()
 export type SupervisorStatus = z.infer<typeof statusSchema>
 export type CollectTelemetry = z.infer<typeof collectTelemetrySchema>

@@ -1,4 +1,5 @@
 import { matchesMachineTemplate } from "./patterns"
+import { pendingQuestionPart, pendingQuestionText } from "./awaiting-input"
 import type { Message, Origin, OriginRegistry, Turn } from "./types"
 
 export function messageText(message: Message): string {
@@ -43,9 +44,7 @@ export function projectTurns(messages: readonly Message[], registry: OriginRegis
     const lastAssistant = assistantRun.at(-1)
     const machine = origin === "machine-synthetic" || origin === "machine-template" || origin === "supervisor"
     const label = origin === "unknown" ? " [origin: unknown]" : ""
-    const transcript = machine
-      ? ""
-      : `USER${label}: ${userText}${assistantText === "" ? "" : `\nASSISTANT: ${assistantText}`}`
+    const pendingQuestion = pendingQuestionPart(assistantRun)
     turns.push({
       sessionID: user.sessionID,
       userMessageID: user.id,
@@ -53,7 +52,10 @@ export function projectTurns(messages: readonly Message[], registry: OriginRegis
       origin,
       userText,
       assistantText,
-      transcript,
+      ...(pendingQuestion === undefined ? {} : { awaitingOperatorAnswer: true }),
+      transcript: machine
+        ? ""
+        : `USER${label}: ${userText}${assistantText === "" ? "" : `\nASSISTANT: ${assistantText}`}${pendingQuestion === undefined ? "" : `\nASSISTANT: [awaiting operator answer via question tool: ${pendingQuestionText(pendingQuestion)}]`}`,
     })
   }
   return turns

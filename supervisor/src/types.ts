@@ -44,6 +44,8 @@ export type Turn = {
   readonly userText: string
   readonly assistantText: string
   readonly transcript: string
+  /** True when the assistant run trails a RUNNING question-tool part — the session is blocked on the operator's dialog answer (2026-10-05 incident class). */
+  readonly awaitingOperatorAnswer?: boolean
 }
 
 export const ACTIONS = ["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"] as const
