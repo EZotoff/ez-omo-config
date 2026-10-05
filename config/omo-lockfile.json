@@ -64,6 +64,16 @@
         "ba8fc048ec13a270939675b312797bfbedd5ff12"
       ],
       "required": true
+    },
+    {
+      "patch_id": "omo--subagent-fallback-inplace",
+      "implementation_commits": [
+        "e014239076486b0da14c335acff8f43110e3746f",
+        "74ab94f978bb79550623c328477a8cb6ee48d4c5",
+        "a71b9b3455a65966f8c028edb9e614b56ffb25ba",
+        "24cf5f9b09318d5a37fe3ca5138c7b49f4b0a15a"
+      ],
+      "required": true
     }
   ],
   "dist_patches": [
