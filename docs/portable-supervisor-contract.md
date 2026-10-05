@@ -322,7 +322,7 @@ tomorrow) is the supervisor's state directory, in this priority order:
    `collect` telemetry, `queueDepths`.
 3. **`ledger.jsonl`** — append-only event stream (`QUEUE_ITEM_PROPOSED/REVALIDATED/SURFACED/
    RESOLVED`, `QUEUE_REPLY_RECEIVED/AMBIGUOUS`, `QUEUE_PROPAGATION_DELIVERED/PROPOSED`,
-   `INTERVENTION_SENT`, `TICK_DECIDED`, `TICK_SKIPPED`) for consumers that want history
+   `INTERVENTION_SENT`, `TICK_DECIDED`, `TICK_SKIPPED`, `CONSOLE_INITIALIZED/CONSOLE_EVICTED`) for consumers that want history
    rather than snapshot.
 
 Versioning: `schemaVersion` on items; v1 changes are ADDITIVE ONLY (consumers tolerate

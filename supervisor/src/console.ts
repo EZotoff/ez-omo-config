@@ -6,6 +6,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import type { Ledger } from "./ledger"
+import { ClientError } from "./client"
 import { clipFragment, truncateAtSentence } from "./text"
 import {
   AttentionQueue,
@@ -430,7 +431,9 @@ export class ConsoleChannel {
     // Tail-fetch (limit 50): console transcripts grow forever; re-pulling the
     // full list every tick was a multi-MB/s loopback firehose. Full fetch only
     // as fallback when the watermark is older than the tail.
-    let messages = await this.client.listMessages(consoleID, root, 50)
+    const tailed = await this.fetchConsoleMessages(root, consoleID, 50)
+    if (tailed === undefined) return []
+    let messages = tailed
     let last = messages.at(-1)
     const watermark = this.state.watermarks[consoleID]
     if (watermark === undefined) {
@@ -438,7 +441,9 @@ export class ConsoleChannel {
       return []
     }
     if (watermark !== undefined && !messages.some((message) => message.id === watermark)) {
-      messages = await this.client.listMessages(consoleID, root)
+      const full = await this.fetchConsoleMessages(root, consoleID)
+      if (full === undefined) return []
+      messages = full
       last = messages.at(-1)
     }
     const start = messages.findIndex((message) => message.id === watermark)
@@ -725,6 +730,28 @@ export class ConsoleChannel {
     return alias
   }
 
+  /** Stale-console eviction (2026-10-05 storm cure): a console session deleted
+   *  from opencode (db maintenance, cleanup) 404s on every poll forever unless
+   *  evicted here — ensure() re-creates the console on the next surface pass. */
+  private async fetchConsoleMessages(root: string, consoleID: string, limit?: number): Promise<readonly Message[] | undefined> {
+    try {
+      return await this.client.listMessages(consoleID, root, limit)
+    } catch (error) {
+      if (error instanceof ClientError && error.status === 404) {
+        await this.evictConsole(root, consoleID)
+        return undefined
+      }
+      throw error
+    }
+  }
+
+  private async evictConsole(root: string, consoleID: string): Promise<void> {
+    const { [root]: _evicted, ...consoles } = this.state.consoles
+    const { [consoleID]: _watermark, ...watermarks } = this.state.watermarks
+    this.state = { ...this.state, consoles, watermarks }
+    await this.persist()
+    this.setLedger(await this.ledger().append("CONSOLE_EVICTED", { root, sessionID: consoleID, reason: "console session not found (HTTP 404)" }))
+  }
   private async setWatermark(consoleID: string, messageID: string): Promise<void> {
     this.state = { ...this.state, watermarks: { ...this.state.watermarks, [consoleID]: messageID } }
     await this.persist()

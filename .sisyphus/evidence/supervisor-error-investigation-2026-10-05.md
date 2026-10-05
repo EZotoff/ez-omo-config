@@ -35,3 +35,7 @@ A concurrent agent session was committing an approve-writes epoch rework in this
 ## Rollout
 
 Monitor ladder `rollout-supervisor-error-investigation` (systemd transient unit `rollout-supervisor-error-investigation.service`, config `~/.local/state/opencode-rollout/supervisor-error-investigation.rollout.json`) — observation + evidence rounds, no unlock gates (single global flag, operator-authorized in-session).
+
+## Addendum — storm cured same day (stale-console eviction)
+
+The root cause itself (flagged as unfixed above) was fixed after the operator reported the peak >100 again (~19:28 CEST): `ClientError` now carries `status` (client.ts) and 4xx errors are non-retryable; `ConsoleChannel.pollReplies` evicts a console session on HTTP 404 (`fetchConsoleMessages`/`evictConsole`, `CONSOLE_EVICTED` ledger event, watermark dropped, `ensure()` re-creates on next surface). Suite: `supervisor/test/console-eviction.test.ts` (404 eviction + non-404 propagation + re-create).

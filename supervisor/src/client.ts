@@ -23,8 +23,10 @@ export type ServerEvent = z.infer<typeof eventSchema>
 
 export class ClientError extends Error {
   readonly name = "ClientError"
-  constructor(readonly operation: string, options?: ErrorOptions) {
+  readonly status?: number
+  constructor(operation: string, options?: ErrorOptions & { readonly status?: number | undefined }) {
     super(`opencode client failed: ${operation}`, options)
+    if (options?.status !== undefined) this.status = options.status
   }
 }
 
@@ -49,15 +51,21 @@ export class OpencodeClient {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         const response = await fetch(new URL(path, this.baseURL), { signal: AbortSignal.timeout(15_000), headers: this.authHeader() })
-        if (!response.ok) throw new ClientError(`${path} HTTP ${response.status}`)
+        if (!response.ok) {
+          // 4xx (except 429) is terminal: not-found/bad-request never heals on
+          // retry — retrying tripled every poll of a stale session for days
+          // (2026-10-02..05 ANIA storm).
+          throw new ClientError(`${path} HTTP ${response.status}`, { status: response.status })
+        }
         return await response.json()
       } catch (error) {
+        if (error instanceof ClientError && error.status !== undefined && error.status >= 400 && error.status < 500 && error.status !== 429) throw error
         if (!(error instanceof Error)) throw error
         lastError = error
         if (attempt < 2) await delay(250 * 2 ** attempt)
       }
     }
-    throw new ClientError(path, { cause: lastError })
+    throw new ClientError(path, { status: lastError instanceof ClientError ? lastError.status : undefined, cause: lastError })
   }
 
   async listSessions(directory: string): Promise<readonly Session[]> {
