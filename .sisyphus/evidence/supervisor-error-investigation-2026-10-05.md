@@ -20,9 +20,9 @@ Operator request (session in `ez-omo-config`): "Investigate what is causing [the
 
 ## Verification (evidence states)
 
-- `repo_implemented`: commit containing supervisor/src/investigation.ts + wiring (landed inside `2e077fe` — a concurrent agent's commit swept up this session's uncommitted work; see coordination note).
+- `repo_implemented`: commit containing supervisor/src/investigation.ts + wiring (landed inside `2e077fe` — a concurrent agent's commit swept up this session's uncommitted work; see coordination note); docs in `322b596`.
 - `tests_passed`: `bun test` 328 pass / 0 fail across 27 files; `tsc --noEmit` clean (both on combined HEAD after `2e077fe`); boot-path config parse verified via real `loadConfig`.
-- Not verified live at write time: `runtime_loaded`, `real_project_behavior_proven` — pending supervisor restart + first organic dispatch (storm should cross threshold ~4–5 min after restart at current ~2.4 errors/min).
+- `runtime_loaded` + `real_project_behavior_proven` (2026-10-05 08:22:31 CEST): supervisor restarted 08:17:20 with the feature live; the ongoing 404 storm drove `errorsLastHourPeak` to 10 and the dispatch fired — ledger seq **17745** `INTERVENTION_SENT {mode: "investigation", root: ANIA, sessionID: ses_ef54595abffe24vCs0Lsd5i4eS, count: 10, peak: 10, threshold: 10}`; session exists on the server titled `[Supervisor] error investigation (ANIA)` with the prompt delivered and its agent already producing root-cause analysis (traced the failing `listMessages` call and identified the deleted console session — convergent with Part 1). `status.json#errorInvestigations: 1`.
 
 ## Rollback
 
