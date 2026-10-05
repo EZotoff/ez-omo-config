@@ -108,6 +108,42 @@ an explicitly approved scratch-local OMO agent override) before a new observatio
 No alternate seam was silently substituted. Not verified live: in-place fallback
 handler invocation and real-project fallback behavior.
 
+### Blocker #2 — authorized workspace-model retry
+
+**2026-10-05 16:20-16:22:06 CEST: BLOCKED again; runtime_effective=false.**
+Exactly one new background task was spawned under the user-approved corrected
+mechanism. Preflight showed native `agent.general.model` is honored by the live
+`/agent` endpoint, but OMO's resolver supplies no fallback chain for `general`.
+Used the explicitly authorized equivalent: a NEW scratch workspace
+`/tmp/opencode/obs.HeQTi2`, with `agent.explore.model` in opencode.json and
+workspace `.opencode/oh-my-openagent.json` setting explore's primary to
+`fixture-provider/quota-test-model` and retaining the global chain
+`opencode-go/minimax-m3`, `openai/gpt-6-luna`.
+
+The exact HTTP-401 quota fixture ran at deployment-allocated port **18271**;
+manual POST returned 401. The live server's `/agent` returned explore's fixture
+model, and the durable log confirmed the workspace OMO override loaded. However:
+
+```text
+[2026-10-05T14:21:29.548Z] [resolveModelForDelegateTask] user primary model unreachable; promoting user fallback_models entry {"userPrimary":"fixture-provider/quota-test-model","selectedFallback":"opencode-go/minimax-m3"}
+[2026-10-05T14:21:29.548Z] [background-agent] launch() called with: {"agent":"explore","model":{"providerID":"opencode-go","modelID":"minimax-m3"},"description":"fixture fallback probe","parentSessionID":"ses_ef38f461dffeMswow0gNmXmJeZ"}
+```
+
+Task `bg_9a97a006`, child `ses_ef38f13afffe6KvSfVnwsc7Bl2`, completed with `OK`.
+Read-only persisted task metadata independently shows **opencode-go/minimax-m3**
+as the spawn model. This was pre-spawn model selection, NOT a runtime fallback.
+The parent's "passed" claim is rejected by this independent evidence. Zero
+per-hop retry-wake strings, zero `fell back` summary, zero EZ-PATCH runtime log
+lines; no fixture-model child or across-hop stability proof.
+
+Cleanup at 16:22:06 CEST: fixture unit stopped, `MainPID=0`,
+`LoadState=not-found`, `ActiveState=inactive`, no port-18271 listener; temporary
+reservation released. Global configs untouched; no service restarts or push.
+Evidence and learnings appended in the original main-repo locations.
+Next blocker is the delegate-task model-availability gate: an approved fixture
+must be admitted there before the provider rejection can reach the background
+fallback manager. No third task or availability/config workaround attempted.
+
 ## Reapply Instructions
 
 Source patch — reapply from fork commits (branch `fix/custom-patches-v4.19.2`):
