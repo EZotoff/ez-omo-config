@@ -56,6 +56,58 @@ Behavioral patch (not a rendering/monkey patch); `surfaces: ["server-api"]` — 
 4. Regression signal: a fresh child session spawned on hop 1, multiple parent wakes per chain, or a quota-failed task stuck in `running`.
 5. On observation, flip `runtime_effective: true` and record the timestamp in a `## Runtime Status` section.
 
+## Runtime Status
+
+**2026-10-05 16:08:39-16:12:14 CEST: BLOCKED; runtime_effective remains false.**
+One initial observation and exactly ONE diagnostic retry were performed. Neither
+reached the fixture provider, so neither proves an in-place fallback. No third
+attempt, provider substitution, global config edit, or service restart was made.
+
+- Existing live server: `http://127.0.0.1:3021`, PID 3031462, started
+  2026-10-05 16:03:45 CEST; interactive server PID 3038428 started 16:03:59.
+  OpenCode version unchanged: `1.18.31-p3`. Active config references
+  `../../oh-my-openagent-v4.19.2`; scratch instance plugin-entry log at
+  `2026-10-05T14:08:50.694Z` confirms OMO loaded on the live server. Bundle
+  timestamp: 2026-10-05 11:39:32 CEST, size 5647006 bytes.
+- Forced failure: exact plan HTTP fixture at `127.0.0.1:18270` (port registered
+  through deployment workflow), returning HTTP 401 with
+  `{"error":{"message":"you (fixture) have reached your weekly usage limit, upgrade for higher limits: https://example.com"},"code":"provider_usage_limit"}`.
+  `curl -X POST .../v1/chat/completions` returned **401**. Provider config was
+  scratch-local `.opencode/opencode.json`, exactly the plan's provider-only block.
+- CLI observation used the plan prompt plus `--attach http://127.0.0.1:3021`
+  to exercise the existing post-restart server rather than start a new server.
+  Parent: `ses_ef39aa6f0ffeVk4bomq6hhq83e` (created 14:08:50 UTC).
+  Initial task `bg_ca4334db`, child `ses_ef39a17eeffeICTUyTxDoXp4N0`
+  (14:09:27 UTC); diagnostic retry `bg_245d12b6`, child
+  `ses_ef398e556ffe1vtYegHobJMEsV` (14:10:46 UTC). Both replied `OK`
+  on **ollama-cloud/minimax-m3**, not fixture-provider/quota-test-model.
+- Transcript excerpt: "`model` is not a supported parameter of task() ...
+  this retry also ran on the explore agent's default model. The
+  fixture-provider/quota-test-model endpoint remains unexercised by both probes."
+  Read-only DB task metadata independently confirms both default-model launches;
+  persisted inputs have no `model`. Source `delegate-task/tools.ts:61-79`
+  defines no model argument. This is the fixture's blocking assumption, not
+  evidence that the fallback implementation failed.
+- Assertions: zero per-hop retry-wake strings; zero `fell back` summaries;
+  zero durable-log `EZ-PATCH: subagent-fallback-inplace` lines. No across-hop
+  child-session stability proof is possible because no hop happened.
+  The live `configs/` git status remained empty.
+- `bash scripts/verify-live-patches.sh`: this entry **APPLIED**; overall exit 1
+  due to unrelated existing STALE entries (gpt6-hephaestus-registration,
+  task-hygiene-close-before-turn-end, wake-journal-outbox,
+  tui-error-toast-directory-scope) and a worktree-relative MISSING-TARGET
+  (start-work-worktree-teardown). No unrelated repairs attempted.
+- Cleanup receipt at 16:12:14 CEST: `systemctl --user stop omo-fixture-obs`;
+  `MainPID=0`, `LoadState=not-found`, `ActiveState=inactive`; no port-18270
+  listener. Temporary port reservation released after cleanup.
+- Durable evidence: `/home/ezotoff/ez-omo-config/.omo/evidence/subagent-fallback-rework/task-8-observation.log`
+  (parent transcript, commands, model/session metadata, log excerpts, cleanup).
+
+**Next required decision:** correct the plan's model-selection seam (for example,
+an explicitly approved scratch-local OMO agent override) before a new observation.
+No alternate seam was silently substituted. Not verified live: in-place fallback
+handler invocation and real-project fallback behavior.
+
 ## Reapply Instructions
 
 Source patch — reapply from fork commits (branch `fix/custom-patches-v4.19.2`):
