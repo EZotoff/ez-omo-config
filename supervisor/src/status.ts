@@ -23,6 +23,7 @@ export const statusSchema = z.object({
   errorsSinceStart: z.number().int().nonnegative().optional(),
   errorsLastHour: z.number().int().nonnegative().optional(),
   errorsLastHourPeak: z.number().int().nonnegative().optional(),
+  errorInvestigations: z.number().int().nonnegative().optional(),
   rootHealth: z.record(z.string(), z.object({
     state: z.enum(["ok", "failing"]),
     consecutiveFailures: z.number().int().nonnegative(),

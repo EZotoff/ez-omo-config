@@ -10,9 +10,9 @@ const estimateTokens = (text: string): number => Math.ceil(text.length / 4)
 describe("POLICY rules 6-11 (intent, gloss, question-intent, deploy-default, memory)", () => {
   test("rule 6 — intent over literalism with the contradiction check", () => {
     expect(POLICY).toContain("Read operator messages for INTENT, not literal text")
-    expect(POLICY).toContain("outweighs its literal wording")
+    expect(POLICY).toContain("On a probable typo or contradiction")
     expect(POLICY).toContain("probable typo")
-    expect(POLICY).toContain("Never CONTINUE on a reading that rests on a probable typo or self-contradiction")
+    expect(POLICY).toContain("never CONTINUE on such a reading")
   })
 
   test("rule 7 — continue-vs-proceed gloss and the in-flight guard", () => {
@@ -23,7 +23,7 @@ describe("POLICY rules 6-11 (intent, gloss, question-intent, deploy-default, mem
   })
 
   test("rule 8 — question intent (thinking-prompt vs information request)", () => {
-    expect(POLICY).toContain("thinking-prompt, not an info request")
+    expect(POLICY).toContain("is a thinking-prompt")
   })
 
   test("rule 9 — deploy/credential default to ESCALATE", () => {

@@ -16,6 +16,7 @@ import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
 import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
+import { maybeDispatchErrorInvestigation } from "./investigation"
 import { BeaconChannel, BEACON_CHANNEL_ID } from "./beacon"
 import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
@@ -129,7 +130,7 @@ function eventSessionID(event: ServerEvent): string | undefined {
 }
 
 function emptyStatus(): SupervisorStatus {
-  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {}, errorsSinceStart: 0, errorsLastHour: 0, collect: { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 } }
+  return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {}, errorsSinceStart: 0, errorsLastHour: 0, errorInvestigations: 0, collect: { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 } }
 }
 
 export async function runService(signal: AbortSignal): Promise<void> {
@@ -152,23 +153,29 @@ export async function runService(signal: AbortSignal): Promise<void> {
   // in-memory counter silently zeroed on restart and contradicted the review
   // surface (2026-10-04 evaluation: status showed {} with 2 would-grants logged).
   {
+    // Epoch-scoped (Option 2, 2026-10-05): count only events at/after
+    // approve_writes.epoch_started_at on any root; before it is epoch-1 history.
+    const epochStartedAt = config.roots.find((r) => r.approve_writes?.epoch_started_at !== undefined)?.approve_writes?.epoch_started_at
+    const epochMs = epochStartedAt === undefined ? 0 : Date.parse(epochStartedAt)
     const rebuilt = { wouldGrant: 0, granted: 0, skipped: 0 }
     for (const record of ledger.records) {
+      if (Date.parse(record.timestamp) < epochMs) continue
       const payload = record.payload as { readonly reason?: string; readonly mode?: string }
       if (record.type === "TICK_SKIPPED" && (payload.reason ?? "").startsWith("approve write: WOULD-GRANT")) rebuilt.wouldGrant += 1
       else if (record.type === "TICK_SKIPPED" && (payload.reason ?? "").startsWith("approve write:")) rebuilt.skipped += 1
       else if (record.type === "INTERVENTION_SENT" && payload.mode === "approve") rebuilt.granted += 1
     }
-    if (rebuilt.wouldGrant + rebuilt.granted + rebuilt.skipped > 0) status.approveWrites = rebuilt
+    if (epochStartedAt !== undefined || rebuilt.wouldGrant + rebuilt.granted + rebuilt.skipped > 0) status.approveWrites = rebuilt
   }
 
-  const errorHour = { windowStart: Date.now(), count: 0, toasted: false }
+  const errorHour = { windowStart: Date.now(), count: 0, toasted: false, investigated: false }
   async function recordErrorTelemetry(payload: Record<string, unknown>): Promise<void> {
     status.errorsSinceStart = (status.errorsSinceStart ?? 0) + 1
     if (Date.now() - errorHour.windowStart > 3_600_000) {
       errorHour.windowStart = Date.now()
       errorHour.count = 0
       errorHour.toasted = false
+      errorHour.investigated = false
     }
     errorHour.count += 1
     status.errorsLastHour = errorHour.count
@@ -176,6 +183,19 @@ export async function runService(signal: AbortSignal): Promise<void> {
     if (errorHour.count >= 10 && !errorHour.toasted) {
       errorHour.toasted = true
       await client.toast(`Supervisor logged ${errorHour.count} errors in the last hour (check journald + ledger)`, "Supervisor error storm")
+    }
+    const outcome = await maybeDispatchErrorInvestigation({
+      client,
+      append: async (type, record) => { ledger = await ledger.append(type, record) },
+      config: config.error_investigation,
+      errorHour,
+      root: typeof payload["root"] === "string" ? payload["root"] : repoRoot,
+      count: errorHour.count,
+      peak: status.errorsLastHourPeak ?? errorHour.count,
+    })
+    if (outcome.dispatched) {
+      status.errorInvestigations = (status.errorInvestigations ?? 0) + 1
+      await client.toast(`Created session ${outcome.sessionID} to investigate the error peak (${errorHour.count} in the last hour)`, "Supervisor error investigation")
     }
   }
 
@@ -558,7 +578,7 @@ rootConfig?.continue_writes?.enabled === true
               actionOutcome = "skip"
             } else {
               const approveGate = gateApproveWrite({
-                config: { enabled: true, dailyCap: approveCfg.daily_cap },
+                config: { enabled: true, ...(approveCfg.daily_cap === undefined ? {} : { dailyCap: approveCfg.daily_cap }) },
                 capUsedToday: runtime.approveWrites.count,
                 lastMessageID: scan?.messages.at(-1)?.id,
                 target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },

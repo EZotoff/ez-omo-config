@@ -31,10 +31,15 @@ const rootSchema = z.object({
   }).strict().optional(),
   approve_writes: z.object({
     enabled: z.boolean().default(false),
-    daily_cap: z.number().int().positive().default(3),
+    // Absent = uncapped (operator directive 2026-10-05). Present = hard daily limit.
+    daily_cap: z.number().int().positive().optional(),
     // Feature Rollout Protocol (2026-10-03 operator decision, Option C):
     // "observe" counts and logs would-grants, grants nothing; "grant" delivers.
     mode: z.enum(["observe", "grant"]).default("observe"),
+    // Epoch boundary (Option 2, 2026-10-05): approveWrites counters count only
+    // ledger events at/after this timestamp; the tightened POLICY (approve-v1)
+    // is in force from here. Would-grant regimes separate by this timestamp.
+    epoch_started_at: z.string().datetime().optional(),
   }).strict().optional(),
   autonomous_title_prefixes: z.array(z.string().min(1)).default([]),
 }).strict()
@@ -52,6 +57,14 @@ const configSchema = z.object({
   initial_window_days: z.number().int().positive().default(7),
   fetch_concurrency: z.number().int().positive().default(8),
   stall_minutes: z.number().int().positive().default(15),
+  // Error-storm auto-investigation (2026-10-05): when the rolling 1-hour ERROR
+  // count reaches `threshold`, create an opencode session asking what is
+  // causing the errors. Once per hour window; global (not per-root) because it
+  // responds to supervisor-health telemetry, not per-root decisions.
+  error_investigation: z.object({
+    enabled: z.boolean().default(false),
+    threshold: z.number().int().positive().default(10),
+  }).strict().default({ enabled: false, threshold: 10 }),
   model: z.object({ provider: z.string().min(1), id: z.string().min(1) }).strict(),
   grace_period_s: z.number().int().nonnegative(),
   min_intervention_interval_s: z.number().int().nonnegative(),

@@ -115,7 +115,9 @@ export type ReformulateGateInput = {
 export function gateReformulateWrite(input: ReformulateGateInput): { allowed: true } | { allowed: false; reason: string } {
   if (!input.config.enabled) return { allowed: false, reason: "reformulate writes disabled" }
   if (input.sessionProtected) return { allowed: false, reason: "session protected" }
-  if (input.capUsedToday >= input.config.dailyCap) return { allowed: false, reason: "daily cap reached" }
+  const cap = input.config.dailyCap
+  if (cap !== undefined && input.capUsedToday >= cap) return { allowed: false, reason: "daily cap reached" }
+  if (input.config.dailyCap === undefined && input.capUsedToday >= 1000) return { allowed: false, reason: "sanity ceiling (1000) on uncapped approves" }
   if (input.target.assistantMessageID !== undefined && input.lastMessageID !== undefined && input.lastMessageID !== input.target.assistantMessageID) {
     return { allowed: false, reason: "premise changed: newer message after target reply" }
   }
@@ -132,7 +134,7 @@ export function approveWriteText(input: { readonly rationale: string }): string 
 }
 
 export type ApproveGateInput = {
-  readonly config: { readonly enabled: boolean; readonly dailyCap: number }
+  readonly config: { readonly enabled: boolean; readonly dailyCap?: number }
   readonly capUsedToday: number
   readonly lastMessageID: string | undefined
   readonly target: { readonly assistantMessageID?: string }
@@ -145,7 +147,9 @@ export type ApproveGateInput = {
 export function gateApproveWrite(input: ApproveGateInput): { allowed: true } | { allowed: false; reason: string } {
   if (!input.config.enabled) return { allowed: false, reason: "approve writes disabled" }
   if (input.sessionProtected) return { allowed: false, reason: "session protected" }
-  if (input.capUsedToday >= input.config.dailyCap) return { allowed: false, reason: "daily cap reached" }
+  const cap = input.config.dailyCap
+  if (cap !== undefined && input.capUsedToday >= cap) return { allowed: false, reason: "daily cap reached" }
+  if (cap === undefined && input.capUsedToday >= 1000) return { allowed: false, reason: "sanity ceiling (1000) on uncapped approves" }
   if (input.lastMessageID === undefined) return { allowed: false, reason: "no last message" }
   if (input.target.assistantMessageID !== undefined && input.lastMessageID !== input.target.assistantMessageID) {
     return { allowed: false, reason: "premise changed: newer message after target reply" }

@@ -247,3 +247,17 @@ describe("approve writes (2026-10-03 Option C, rollout-staged)", () => {
     expect(t).not.toContain("stalled")
   })
 })
+
+describe("approve writes epoch-2 (2026-10-05: uncapped + tightened POLICY applied)", () => {
+  test("gate: absent dailyCap is uncapped (past any old limit); explicit cap still enforced", () => {
+    const { gateApproveWrite } = require("../src/continue-writes")
+    const base = { enabled: true } as const
+    expect(gateApproveWrite({ config: base, capUsedToday: 50, lastMessageID: "a1", target: { assistantMessageID: "a1" }, sessionProtected: false })).toEqual({ allowed: true })
+    expect(gateApproveWrite({ config: { ...base, dailyCap: 3 }, capUsedToday: 3, lastMessageID: "a1", target: { assistantMessageID: "a1" }, sessionProtected: false }).allowed).toBe(false)
+  })
+  test("tightened rule is in POLICY", async () => {
+    const { POLICY } = await import("../src/tick")
+    expect(POLICY.includes("trivial ONLY for a verbatim-recent operator instruction")).toBe(true)
+    expect(POLICY.includes("NOT trivial: ESCALATE")).toBe(true)
+  })
+})

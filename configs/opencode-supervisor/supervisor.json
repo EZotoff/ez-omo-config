@@ -4,6 +4,10 @@
   "server_password_env": "OPENCODE_SERVER_PASSWORD",
   "initial_window_days": 7,
   "fetch_concurrency": 8,
+  "error_investigation": {
+    "enabled": true,
+    "threshold": 10
+  },
   "model": {
     "provider": "zai-coding-plan",
     "id": "glm-5.3"
@@ -62,8 +66,8 @@
       },
       "approve_writes": {
         "enabled": true,
-        "daily_cap": 3,
-        "mode": "observe"
+        "mode": "observe",
+        "epoch_started_at": "2026-10-05T06:10:51.000Z"
       }
     },
     {
@@ -124,8 +128,8 @@
       },
       "approve_writes": {
         "enabled": true,
-        "daily_cap": 3,
-        "mode": "observe"
+        "mode": "observe",
+        "epoch_started_at": "2026-10-05T06:10:51.000Z"
       }
     },
     {
@@ -152,8 +156,8 @@
       },
       "approve_writes": {
         "enabled": true,
-        "daily_cap": 3,
-        "mode": "observe"
+        "mode": "observe",
+        "epoch_started_at": "2026-10-05T06:10:51.000Z"
       }
     },
     {
@@ -210,8 +214,8 @@
       },
       "approve_writes": {
         "enabled": true,
-        "daily_cap": 3,
-        "mode": "observe"
+        "mode": "observe",
+        "epoch_started_at": "2026-10-05T06:10:51.000Z"
       }
     },
     {
