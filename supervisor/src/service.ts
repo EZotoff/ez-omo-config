@@ -148,6 +148,20 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const tickGate = new ConcurrencyGate(config.max_tick_concurrency)
   let ledger = await Ledger.open(ledgerPath)
   const status = emptyStatus()
+  // approveWrites counters are rebuilt from the durable ledger at boot — an
+  // in-memory counter silently zeroed on restart and contradicted the review
+  // surface (2026-10-04 evaluation: status showed {} with 2 would-grants logged).
+  {
+    const rebuilt = { wouldGrant: 0, granted: 0, skipped: 0 }
+    for (const record of ledger.records) {
+      const payload = record.payload as { readonly reason?: string; readonly mode?: string }
+      if (record.type === "TICK_SKIPPED" && (payload.reason ?? "").startsWith("approve write: WOULD-GRANT")) rebuilt.wouldGrant += 1
+      else if (record.type === "TICK_SKIPPED" && (payload.reason ?? "").startsWith("approve write:")) rebuilt.skipped += 1
+      else if (record.type === "INTERVENTION_SENT" && payload.mode === "approve") rebuilt.granted += 1
+    }
+    if (rebuilt.wouldGrant + rebuilt.granted + rebuilt.skipped > 0) status.approveWrites = rebuilt
+  }
+
   const errorHour = { windowStart: Date.now(), count: 0, toasted: false }
   async function recordErrorTelemetry(payload: Record<string, unknown>): Promise<void> {
     status.errorsSinceStart = (status.errorsSinceStart ?? 0) + 1
