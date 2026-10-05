@@ -19,9 +19,9 @@ Key config surface:
 - Per-root trust (`trust.autonomous_deploy`, `trust.autonomous_credentialed_actions`) plus autonomous-origin keys (`autonomous_path_globs`, `autonomous_title_prefixes`) classify autonomous sessions (`src/origins.ts`).
 - AttentionQueue (`src/queue.ts`, contract Seam 4): durable surfacing queue with dedupe/lease/prioritization; channels collect, ticks propose, only the queue surfaces. Console channel lifecycle in `src/console.ts`.
 
-The installer places the config at `$HOME/.config/opencode-supervisor/supervisor.json`. The service writes no OpenCode session data and binds no port. Its writes are the hash-chained ledger, atomic status snapshot, protection registry, and grading artifacts under `$HOME/.local/state/opencode-supervisor/`. The provider key remains in `$HOME/.local/share/opencode/auth.json` and is never persisted by the supervisor. Architecture authority: `docs/portable-supervisor-contract.md` (Seam 4 for queue terminology).
+The installer places the config at `$HOME/.config/opencode-supervisor/supervisor.json`. The service binds no port. Its OpenCode writes are the per-root `[Supervisor]` console sessions plus (2026-10-05, `error_investigation.enabled`) auto-created error-investigation sessions dispatched when the rolling 1-hour ERROR count reaches `error_investigation.threshold` — it never writes into worker sessions. Its other writes are the hash-chained ledger, atomic status snapshot, protection registry, and grading artifacts under `$HOME/.local/state/opencode-supervisor/`. The provider key remains in `$HOME/.local/share/opencode/auth.json` and is never persisted by the supervisor. Architecture authority: `docs/portable-supervisor-contract.md` (Seam 4 for queue terminology).
 
-Evidence state: `repo_implemented` + `tests_passed` (21 suites in `supervisor/test/`); `runtime_loaded` for the service and queue/status/protect CLI; console-channel live cycle in progress. Not verified live: `real_project_behavior_proven`.
+Evidence state: `repo_implemented` + `tests_passed` (27 suites in `supervisor/test/`); `runtime_loaded` for the service and queue/status/protect CLI; console-channel live cycle in progress. Not verified live: `real_project_behavior_proven`.
 
 ---
 

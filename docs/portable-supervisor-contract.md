@@ -318,7 +318,7 @@ tomorrow) is the supervisor's state directory, in this priority order:
    rationale, citations, target {root, sessionID, sessionTitle}, priority inputs, premises,
    lifecycle (append-only; current state = last event).
 2. **`status.json`** — operational telemetry: `modes` per root, `rootHealth` per root
-   (ok/failing + consecutive failures), `errorsSinceStart`/`errorsLastHour`/`errorsLastHourPeak`,
+   (ok/failing + consecutive failures), `errorsSinceStart`/`errorsLastHour`/`errorsLastHourPeak`/`errorInvestigations`,
    `collect` telemetry, `queueDepths`.
 3. **`ledger.jsonl`** — append-only event stream (`QUEUE_ITEM_PROPOSED/REVALIDATED/SURFACED/
    RESOLVED`, `QUEUE_REPLY_RECEIVED/AMBIGUOUS`, `QUEUE_PROPAGATION_DELIVERED/PROPOSED`,
