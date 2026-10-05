@@ -3,14 +3,14 @@ patch_id: "omo--subagent-fallback-inplace"
 dependency: "oh-my-openagent"
 target_file: "packages/omo-opencode/src/features/background-agent/fallback-retry-handler.ts, packages/omo-opencode/src/features/background-agent/attempt-lifecycle.ts, packages/omo-opencode/src/features/background-agent/manager.ts, packages/omo-opencode/src/features/background-agent/manager.test.ts, packages/omo-opencode/src/features/background-agent/fallback-retry-handler.test.ts, packages/omo-opencode/src/features/background-agent/error-classifier.ts, packages/omo-opencode/src/features/background-agent/atlas-subagent-fallback-retry.test.ts, packages/omo-opencode/src/features/background-agent/background-task-notification-template.ts, packages/omo-opencode/src/features/claude-code-session-state/state.ts, packages/omo-opencode/src/hooks/runtime-fallback/fallback-retry-dispatcher.ts, packages/omo-opencode/src/hooks/runtime-fallback/fallback-retry-dispatcher.test.ts, packages/omo-opencode/src/hooks/runtime-fallback/message-update-handler.ts, packages/omo-opencode/src/hooks/runtime-fallback/subagent-quota-abort.test.ts, packages/model-core/src/runtime-fallback-error-classifier.ts, packages/model-core/src/model-error-classifier.test.ts"
 target_install_path: "/home/ezotoff/oh-my-openagent-v4.19.2"
-status: "pending"
+status: "active"
 applied_date: "2026-10-05"
 dep_version: "4.19.2"
 upstream_issue: "none"
 verification_pattern: "EZ-PATCH: subagent-fallback-inplace"
 surfaces: ["server-api"]
 runtime_effective: false
-note: "Source patch, carried as fork commits e01423907, 74ab94f97, a71b9b345, 24cf5f9b0 (branch fix/custom-patches-v4.19.2). status: pending — flipped to active in a later task after dist rebuild + runtime observation (AGENTS.md rule 8: push before active). runtime_effective: false until the in-place hop is observed on a real fallback."
+note: "Source patch, carried as fork commits e01423907, 74ab94f97, a71b9b345, 24cf5f9b0 (branch fix/custom-patches-v4.19.2, pushed to EZotoff/oh-my-openagent 2026-10-05). status: active — dist rebuilt with the EZ-PATCH marker and the fork branch pushed before activation (AGENTS.md rule 8). runtime_effective: false until the in-place hop is observed on a real fallback (todo 8)."
 ---
 
 # Subagent Fallback Rework (in-place model fallback, terminal-only wakes, single-owner race guard, quota-abort pins)
