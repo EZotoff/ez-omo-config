@@ -10,6 +10,7 @@ const base = {
   capUsedToday: 0,
   lastMessageID: "a1" as string | undefined,
   sessionProtected: false,
+  awaitingOperatorInput: false,
 }
 const target = { assistantMessageID: "a1" }
 const dec = (mode: "kick_start" | "approve" | null) => ({ action: "CONTINUE" as const, mode, rationale: "stalled" })
@@ -35,6 +36,11 @@ describe("gateContinueWrite", () => {
       expect(gate.allowed).toBe(false)
       if (!gate.allowed) expect(gate.reason).toContain("kick_start")
     }
+  })
+  test("awaiting-operator session blocks", () => {
+    const gate = gateContinueWrite({ ...base, decision: dec("kick_start"), target, awaitingOperatorInput: true })
+    expect(gate.allowed).toBe(false)
+    if (!gate.allowed) expect(gate.reason).toContain("awaits operator")
   })
   test("kick_start-only=false permits approve mode", () => {
     const gate = gateContinueWrite({ ...base, config: { ...base.config, kickStartOnly: false }, decision: dec("approve"), target })
@@ -72,6 +78,7 @@ describe("gateSteerWrite", () => {
     lastMessageID: "a1",
     target: { assistantMessageID: "a1", sessionID: "ses_target" },
     sessionProtected: false,
+    awaitingOperatorInput: false,
   })
 
   test("allows STEER with a non-target citation and intact premise", () => {
@@ -91,6 +98,9 @@ describe("gateSteerWrite", () => {
   test("blocks on cap", () => {
     const gate = gateSteerWrite({ ...steer([{ session: "s", quote: "f" }]), capUsedToday: 3 })
     expect(gate.allowed).toBe(false)
+  })
+  test("awaiting-operator session blocks", () => {
+    expect(gateSteerWrite({ ...steer([{ session: "s", quote: "f" }]), awaitingOperatorInput: true }).allowed).toBe(false)
   })
   test("blocks when disabled or protected", () => {
     expect(gateSteerWrite({ ...steer([{ session: "s", quote: "f" }]), config: { enabled: false, dailyCap: 3 } }).allowed).toBe(false)
@@ -168,8 +178,12 @@ describe("reformulate gate + text (2026-10-02: fresh-explain capability wired)",
     lastMessageID: "a1",
     target: { assistantMessageID: "a1" },
     sessionProtected: false,
+    awaitingOperatorInput: false,
   }
   test("allows when premises hold", () => expect(gateReformulateWrite(base)).toEqual({ allowed: true }))
+  test("awaiting-operator session blocks", () => {
+    expect(gateReformulateWrite({ ...base, awaitingOperatorInput: true }).allowed).toBe(false)
+  })
   test("blocks disabled, protected, capped, premise-changed", () => {
     expect(gateReformulateWrite({ ...base, config: { ...base.config, enabled: false } }).allowed).toBe(false)
     expect(gateReformulateWrite({ ...base, sessionProtected: true }).allowed).toBe(false)
@@ -229,7 +243,12 @@ describe("approve writes (2026-10-03 Option C, rollout-staged)", () => {
     lastMessageID: "a1",
     target: { assistantMessageID: "a1" },
     sessionProtected: false,
+    awaitingOperatorInput: false,
   }
+  test("awaiting-operator session blocks", () => {
+    const { gateApproveWrite } = require("../src/continue-writes")
+    expect(gateApproveWrite({ ...base, awaitingOperatorInput: true }).allowed).toBe(false)
+  })
   test("gate: allows on premises; blocks disabled/protected/capped/premise-changed", () => {
     const { gateApproveWrite } = require("../src/continue-writes")
     expect(gateApproveWrite(base)).toEqual({ allowed: true })
@@ -252,8 +271,8 @@ describe("approve writes epoch-2 (2026-10-05: uncapped + tightened POLICY applie
   test("gate: absent dailyCap is uncapped (past any old limit); explicit cap still enforced", () => {
     const { gateApproveWrite } = require("../src/continue-writes")
     const base = { enabled: true } as const
-    expect(gateApproveWrite({ config: base, capUsedToday: 50, lastMessageID: "a1", target: { assistantMessageID: "a1" }, sessionProtected: false })).toEqual({ allowed: true })
-    expect(gateApproveWrite({ config: { ...base, dailyCap: 3 }, capUsedToday: 3, lastMessageID: "a1", target: { assistantMessageID: "a1" }, sessionProtected: false }).allowed).toBe(false)
+    expect(gateApproveWrite({ config: base, capUsedToday: 50, lastMessageID: "a1", target: { assistantMessageID: "a1" }, sessionProtected: false, awaitingOperatorInput: false })).toEqual({ allowed: true })
+    expect(gateApproveWrite({ config: { ...base, dailyCap: 3 }, capUsedToday: 3, lastMessageID: "a1", target: { assistantMessageID: "a1" }, sessionProtected: false, awaitingOperatorInput: false }).allowed).toBe(false)
   })
   test("tightened rule is in POLICY", async () => {
     const { POLICY } = await import("../src/tick")

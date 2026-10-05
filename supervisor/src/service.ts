@@ -10,6 +10,7 @@ import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
 import { pollRootOnce, ActivityGate, type WatchState } from "./poller"
 import { clipFragment, truncateAtSentence } from "./text"
+import { awaitingOperatorAnswer, createGuardedPrompt, pendingQuestionPart, pendingQuestionStartedAtMs, pendingQuestionText } from "./awaiting-input"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
@@ -271,6 +272,16 @@ export async function runService(signal: AbortSignal): Promise<void> {
       return true
     },
   })
+  // Write-time guard (2026-10-05 incident class): EVERY supervisor-authored
+  // intervention write routes through this — it re-fetches the target's
+  // messages and refuses delivery while a question-tool dialog is pending.
+  // The only permitted raw client.promptAsync in this file is the human
+  // operator-answer propagation above; tests/test_supervisor_awaiting_input.sh
+  // enforces that invariant structurally.
+  const guardedPrompt = createGuardedPrompt({
+    listMessages: (sessionID, root) => client.listMessages(sessionID, root),
+    promptAsync: (sessionID, root, text) => client.promptAsync(sessionID, root, text),
+  })
   await consoles.load()
   const recovered = await consoles.recoverAnswered()
   if (recovered > 0) {
@@ -417,6 +428,26 @@ export async function runService(signal: AbortSignal): Promise<void> {
         }
       }
       if (target !== undefined) {
+        // Awaiting-operator guard (2026-10-05 incident, ses_ef4ef9abaffe): a
+        // session whose last assistant message trails a RUNNING question-tool
+        // part is blocked on the operator's dialog answer. The projector drops
+        // tool parts, so the text-less reply reads as undelivered and the tick
+        // kick-starts the dialog. Suppress the WHOLE tick: no model call, no
+        // decision, no write — the only owed surface is the operator counter
+        // (status.awaitingOperator, computed in writeStatusSynced).
+        const awaitingInputAtDecision = scan !== undefined && awaitingOperatorAnswer(scan.messages)
+        if (awaitingInputAtDecision) {
+          const pending = scan === undefined ? undefined : pendingQuestionPart(scan.messages)
+          const sinceMs = pending === undefined ? undefined : pendingQuestionStartedAtMs(pending)
+          ledger = await ledger.append("TICK_SKIPPED", {
+            root: runtime.root,
+            sessionID,
+            reason: `awaiting-operator-input: question-tool dialog pending${sinceMs === undefined ? "" : ` since ${new Date(sinceMs).toISOString()}`}: ${pending === undefined ? "" : pendingQuestionText(pending, 140)}`,
+          })
+          runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)
+          runtime.scheduler?.markTicked(sessionID)
+          return
+        }
         // CONTINUE quiescence gate (T6): never kick-start a session that moved during grace.
         if (!activityGate.isQuiescent(sessionID, Date.now(), config.grace_period_s * 1000)) {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "activity gate: session moved during grace — not quiescent, tick suppressed" })
@@ -583,20 +614,27 @@ rootConfig?.continue_writes?.enabled === true
                 lastMessageID: scan?.messages.at(-1)?.id,
                 target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
                 sessionProtected: protectedSession(sessionID),
+                awaitingOperatorInput: awaitingInputAtDecision,
               })
               if (!approveGate.allowed) {
                 status.approveWrites.skipped += 1
                 ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `approve write: ${approveGate.reason}` })
                 actionOutcome = "skip"
               } else {
-                await client.promptAsync(sessionID, runtime.root, approveWriteText({ rationale: decision.rationale }))
-                runtime.approveWrites.count += 1
-                status.approveWrites.granted += 1
-                actionOutcome = "effect"
-                try {
-                  await client.toast(`Supervisor approved: ${decision.rationale.slice(0, 160)} (${sessionID.slice(-8)})`, `[Supervisor] ${runtime.root.split("/").pop() ?? runtime.root}`)
-                } catch {}
-                ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "approve", text: "[supervisor] (approve)", rationale: decision.rationale })
+                const sent = await guardedPrompt(sessionID, runtime.root, approveWriteText({ rationale: decision.rationale }))
+                if (!sent.sent) {
+                  status.approveWrites.skipped += 1
+                  ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `approve write: ${sent.reason}` })
+                  actionOutcome = "skip"
+                } else {
+                  runtime.approveWrites.count += 1
+                  status.approveWrites.granted += 1
+                  actionOutcome = "effect"
+                  try {
+                    await client.toast(`Supervisor approved: ${decision.rationale.slice(0, 160)} (${sessionID.slice(-8)})`, `[Supervisor] ${runtime.root.split("/").pop() ?? runtime.root}`)
+                  } catch {}
+                  ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "approve", text: "[supervisor] (approve)", rationale: decision.rationale })
+                }
               }
             }
           } else {
@@ -611,6 +649,7 @@ rootConfig?.continue_writes?.enabled === true
             lastMessageID: scan?.messages.at(-1)?.id,
             target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
             sessionProtected: protectedSession(sessionID),
+            awaitingOperatorInput: awaitingInputAtDecision,
           })
           if (!gate.allowed) {
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `continue write: ${gate.reason}` })
@@ -629,22 +668,32 @@ rootConfig?.continue_writes?.enabled === true
               lastMessageID: fresh.at(-1)?.id,
               target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
               sessionProtected: protectedSession(sessionID),
+              // Write-time awaiting check from the SAME fresh snapshot the
+              // premise re-check uses; guardedPrompt below re-fetches again as
+              // the final gate (two reads on a rare capped path is the price
+              // of a race-free write).
+              awaitingOperatorInput: awaitingOperatorAnswer(fresh),
             })
             if (!liveGate.allowed) {
               ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `continue write: ${liveGate.reason}` })
             actionOutcome = "skip"
             } else {
-              await client.promptAsync(sessionID, runtime.root, continueWriteText(decision))
-              runtime.continueWrites.count += 1
-              actionOutcome = "effect"
-              ledger = await ledger.append("INTERVENTION_SENT", {
-                root: runtime.root,
-                sessionID,
-                targetMessageID: target.userMessageID,
-                mode: decision.mode ?? null,
-                text: "[supervisor] (continue)",
-                rationale: decision.rationale,
-              })
+              const sent = await guardedPrompt(sessionID, runtime.root, continueWriteText(decision))
+              if (!sent.sent) {
+                ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `continue write: ${sent.reason}` })
+                actionOutcome = "skip"
+              } else {
+                runtime.continueWrites.count += 1
+                actionOutcome = "effect"
+                ledger = await ledger.append("INTERVENTION_SENT", {
+                  root: runtime.root,
+                  sessionID,
+                  targetMessageID: target.userMessageID,
+                  mode: decision.mode ?? null,
+                  text: "[supervisor] (continue)",
+                  rationale: decision.rationale,
+                })
+              }
             }
           }
           }
@@ -663,15 +712,21 @@ rootConfig?.continue_writes?.enabled === true
             lastMessageID: scan?.messages.at(-1)?.id,
             target: { ...(target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID }), sessionID },
             sessionProtected: protectedSession(sessionID),
+            awaitingOperatorInput: awaitingInputAtDecision,
           })
           if (!gate.allowed) {
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `steer write: ${gate.reason}` })
             actionOutcome = "skip"
           } else {
-            await client.promptAsync(sessionID, runtime.root, steerWriteText(decision))
-            runtime.steerWrites.count += 1
-            actionOutcome = "effect"
-            ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "steer", text: "[supervisor] (steer)", rationale: decision.rationale })
+            const sent = await guardedPrompt(sessionID, runtime.root, steerWriteText(decision))
+            if (!sent.sent) {
+              ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `steer write: ${sent.reason}` })
+              actionOutcome = "skip"
+            } else {
+              runtime.steerWrites.count += 1
+              actionOutcome = "effect"
+              ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "steer", text: "[supervisor] (steer)", rationale: decision.rationale })
+            }
           }
         }
         // REFORMULATE write path (2026-10-02: same ghost — never wired; the
@@ -685,15 +740,21 @@ rootConfig?.continue_writes?.enabled === true
             lastMessageID: scan?.messages.at(-1)?.id,
             target: target.assistantMessageID === undefined ? {} : { assistantMessageID: target.assistantMessageID },
             sessionProtected: protectedSession(sessionID),
+            awaitingOperatorInput: awaitingInputAtDecision,
           })
           if (!gate.allowed) {
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `reformulate write: ${gate.reason}` })
             actionOutcome = "skip"
           } else {
-            await client.promptAsync(sessionID, runtime.root, reformulateWriteText({ rationale: decision.rationale }))
-            runtime.reformulateWrites.count += 1
-            actionOutcome = "effect"
-            ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "reformulate", text: "[supervisor] (reformulate)", rationale: decision.rationale })
+            const sent = await guardedPrompt(sessionID, runtime.root, reformulateWriteText({ rationale: decision.rationale }))
+            if (!sent.sent) {
+              ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `reformulate write: ${sent.reason}` })
+              actionOutcome = "skip"
+            } else {
+              runtime.reformulateWrites.count += 1
+              actionOutcome = "effect"
+              ledger = await ledger.append("INTERVENTION_SENT", { root: runtime.root, sessionID, targetMessageID: target.userMessageID, mode: "reformulate", text: "[supervisor] (reformulate)", rationale: decision.rationale })
+            }
           }
         }
         if (decision.action !== "ACCEPT" && decision.action !== "ABSTAIN" && actionOutcome === "unhandled") {
@@ -725,6 +786,23 @@ rootConfig?.continue_writes?.enabled === true
     for (const runtime of runtimes.values()) {
       status.queueDepths[runtime.root] = openItemsByRoot(queue.items)[runtime.root] ?? 0
     }
+    // Safety valve for the awaiting-operator-input suppression: the operator-
+    // facing count of sessions blocked on their question-tool dialog. Suppression
+    // is never the wrong call for a blocked session (its next action is
+    // structurally impossible until the dialog is answered), but reminder duty
+    // belongs HERE — on the operator surface, not as a write into the session.
+    let awaitingCount = 0
+    let oldestQuestionStartMs: number | undefined
+    for (const runtime of runtimes.values()) {
+      for (const scan of runtime.manifest.sessions) {
+        const pending = pendingQuestionPart(scan.messages)
+        if (pending === undefined) continue
+        awaitingCount += 1
+        const start = pendingQuestionStartedAtMs(pending)
+        if (start !== undefined && (oldestQuestionStartMs === undefined || start < oldestQuestionStartMs)) oldestQuestionStartMs = start
+      }
+    }
+    status.awaitingOperator = { count: awaitingCount, ...(oldestQuestionStartMs === undefined ? {} : { oldestQuestionStartMs }) }
     await writeStatus(statusPath, status)
   }
 

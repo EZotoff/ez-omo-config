@@ -16,6 +16,8 @@ export type ContinueWriteGateInput = {
   readonly lastMessageID: string | undefined
   readonly target: { readonly assistantMessageID?: string }
   readonly sessionProtected: boolean
+  /** Layer-2 belt: true when the target trails a RUNNING question-tool part. */
+  readonly awaitingOperatorInput: boolean
 }
 
 export type ContinueWriteGate =
@@ -35,6 +37,7 @@ export type ContinueWriteGate =
 export function gateContinueWrite(input: ContinueWriteGateInput): ContinueWriteGate {
   if (!input.config.enabled) return { allowed: false, reason: "continue writes disabled for this root" }
   if (input.sessionProtected) return { allowed: false, reason: "session is operator-protected" }
+  if (input.awaitingOperatorInput) return { allowed: false, reason: "session awaits operator answer (question tool pending)" }
   if (input.decision.action !== "CONTINUE") return { allowed: false, reason: "action is not CONTINUE" }
   if (input.capUsedToday >= input.config.dailyCap) {
     return { allowed: false, reason: `daily continue cap reached (${input.config.dailyCap})` }
@@ -68,6 +71,8 @@ export type SteerWriteGateInput = {
   readonly lastMessageID: string | undefined
   readonly target: { readonly assistantMessageID?: string; readonly sessionID: string }
   readonly sessionProtected: boolean
+  /** Layer-2 belt: true when the target trails a RUNNING question-tool part. */
+  readonly awaitingOperatorInput: boolean
 }
 
 /**
@@ -79,6 +84,7 @@ export type SteerWriteGateInput = {
 export function gateSteerWrite(input: SteerWriteGateInput): ContinueWriteGate {
   if (!input.config.enabled) return { allowed: false, reason: "steer writes disabled for this root" }
   if (input.sessionProtected) return { allowed: false, reason: "session is operator-protected" }
+  if (input.awaitingOperatorInput) return { allowed: false, reason: "session awaits operator answer (question tool pending)" }
   if (input.decision.action !== "STEER") return { allowed: false, reason: "action is not STEER" }
   if (input.capUsedToday >= input.config.dailyCap) {
     return { allowed: false, reason: `daily steer cap reached (${input.config.dailyCap})` }
@@ -109,12 +115,15 @@ export type ReformulateGateInput = {
   readonly lastMessageID: string | undefined
   readonly target: { readonly assistantMessageID?: string }
   readonly sessionProtected: boolean
+  /** Layer-2 belt: true when the target trails a RUNNING question-tool part. */
+  readonly awaitingOperatorInput: boolean
 }
 
 /** Gate for REFORMULATE writes: enabled, unprotected, under cap, premise intact. */
 export function gateReformulateWrite(input: ReformulateGateInput): { allowed: true } | { allowed: false; reason: string } {
   if (!input.config.enabled) return { allowed: false, reason: "reformulate writes disabled" }
   if (input.sessionProtected) return { allowed: false, reason: "session protected" }
+  if (input.awaitingOperatorInput) return { allowed: false, reason: "session awaits operator answer (question tool pending)" }
   const cap = input.config.dailyCap
   if (cap !== undefined && input.capUsedToday >= cap) return { allowed: false, reason: "daily cap reached" }
   if (input.config.dailyCap === undefined && input.capUsedToday >= 1000) return { allowed: false, reason: "sanity ceiling (1000) on uncapped approves" }
@@ -139,6 +148,8 @@ export type ApproveGateInput = {
   readonly lastMessageID: string | undefined
   readonly target: { readonly assistantMessageID?: string }
   readonly sessionProtected: boolean
+  /** Layer-2 belt: true when the target trails a RUNNING question-tool part. */
+  readonly awaitingOperatorInput: boolean
 }
 
 /** Gate for APPROVE writes: enabled, unprotected, under cap, premise intact.
@@ -147,6 +158,7 @@ export type ApproveGateInput = {
 export function gateApproveWrite(input: ApproveGateInput): { allowed: true } | { allowed: false; reason: string } {
   if (!input.config.enabled) return { allowed: false, reason: "approve writes disabled" }
   if (input.sessionProtected) return { allowed: false, reason: "session protected" }
+  if (input.awaitingOperatorInput) return { allowed: false, reason: "session awaits operator answer (question tool pending)" }
   const cap = input.config.dailyCap
   if (cap !== undefined && input.capUsedToday >= cap) return { allowed: false, reason: "daily cap reached" }
   if (cap === undefined && input.capUsedToday >= 1000) return { allowed: false, reason: "sanity ceiling (1000) on uncapped approves" }
