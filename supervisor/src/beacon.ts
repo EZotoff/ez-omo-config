@@ -13,7 +13,6 @@ import type { ISO8601, Message, QueueItemID, Session } from "./types"
 
 export const BEACON_CHANNEL_ID = "beacon"
 export const INBOX_TITLE_PREFIX = "[Beacon replies] "
-const PROCESSED_CAP = 1000
 
 /**
  * Narrow structural view of the OpenCode client the channel needs (read-only:
@@ -41,6 +40,13 @@ export type BeaconState = {
   readonly watermarks: Readonly<Record<string, string>>
   readonly processedClientMessageIDs: readonly string[]
   /**
+   * Two-phase watermark (Amendment 2026-10-04 §4): envelopes are recorded
+   * pending BEFORE the reply is routed and promoted to processed only after
+   * the router resolves — a crash between poll and route re-delivers the
+   * pending envelope (at-least-once) instead of losing it past the watermark.
+   */
+  readonly pendingClientMessageIDs: readonly string[]
+  /**
    * Binding semantics version. v1 state predates exact-title inbox binding
    * (Amendment 2026-10-04): its `inboxes` entries may be loose-prefix adoptions
    * bound to the wrong root, so load() migrates by dropping inboxes/watermarks
@@ -53,7 +59,10 @@ export type BeaconState = {
 
 export const BINDING_VERSION = 2
 
-const EMPTY: BeaconState = { inboxes: {}, watermarks: {}, processedClientMessageIDs: [], bindingVersion: BINDING_VERSION }
+const PROCESSED_CAP = 1000
+const PENDING_CAP = 100
+
+const EMPTY: BeaconState = { inboxes: {}, watermarks: {}, processedClientMessageIDs: [], pendingClientMessageIDs: [], bindingVersion: BINDING_VERSION }
 
 export type BeaconChannelOptions = {
   readonly client: BeaconClient
@@ -145,6 +154,9 @@ export class BeaconChannel {
       processedClientMessageIDs: Array.isArray(parsed.processedClientMessageIDs)
         ? parsed.processedClientMessageIDs.filter((entry): entry is string => typeof entry === "string").slice(-PROCESSED_CAP)
         : [],
+      pendingClientMessageIDs: Array.isArray(parsed.pendingClientMessageIDs)
+        ? parsed.pendingClientMessageIDs.filter((entry): entry is string => typeof entry === "string").slice(-PENDING_CAP)
+        : [],
     }
     if (staleBindings) await this.persist()
   }
@@ -158,9 +170,24 @@ export class BeaconChannel {
     return this.state.inboxes[root]
   }
 
-  /** Correlate → route. Beacon adds nothing on top of the shared router. */
+  /** Correlate → route, then promote pending → processed (crash-safe ingest). */
   async handleReply(reply: ReplyEvent, now: ISO8601): Promise<RouteOutcome> {
-    return this.route(reply, now, { channelID: BEACON_CHANNEL_ID, promptChoice: false })
+    const outcome = await this.route(reply, now, { channelID: BEACON_CHANNEL_ID, promptChoice: false })
+    // ANY resolved outcome counts: ambiguous/terminal results are durably
+    // recorded by the router, so redelivery would be a benign no-op duplicate.
+    // A route throw never reaches here — the envelope stays pending and is
+    // re-delivered on the next poll.
+    const clientMessageID = reply.id.slice("reply_".length)
+    const pending = this.state.pendingClientMessageIDs
+    if (pending.includes(clientMessageID)) {
+      this.state = {
+        ...this.state,
+        pendingClientMessageIDs: pending.filter((entry) => entry !== clientMessageID),
+        processedClientMessageIDs: [...this.state.processedClientMessageIDs, clientMessageID].slice(-PROCESSED_CAP),
+      }
+      await this.persist()
+    }
+    return outcome
   }
 
   /** Poll the root's reply-inbox session; the FIRST observation ingests the whole backlog. */
@@ -181,13 +208,16 @@ export class BeaconChannel {
       // backlog processing idempotent.
       messages = await this.client.listMessages(inboxID, root)
       last = messages.at(-1)
-    } else if (watermark !== undefined && !messages.some((message) => message.id === watermark)) {
+    } else if (watermark !== undefined && (!messages.some((message) => message.id === watermark) || this.state.pendingClientMessageIDs.length > 0)) {
+      // Full refetch also when envelopes are still pending: they may sit behind
+      // the watermark and must be re-delivered until routed (at-least-once).
       messages = await this.client.listMessages(inboxID, root)
       last = messages.at(-1)
     }
     // watermark === undefined ⇒ start === -1 ⇒ fresh = all messages (backlog ingest).
     const start = watermark === undefined ? -1 : messages.findIndex((message) => message.id === watermark)
     const fresh = start === -1 ? messages : messages.slice(start + 1)
+    const freshIDs = new Set(fresh.map((message) => message.id))
     const replies: ReplyEvent[] = []
     for (const message of fresh) {
       if (message.role !== "user") continue
@@ -196,8 +226,21 @@ export class BeaconChannel {
       const envelope = parseEnvelope(text)
       if (envelope !== undefined) {
         if (this.state.processedClientMessageIDs.includes(envelope.clientMessageID)) continue
-        await this.recordProcessed(envelope.clientMessageID)
+        if (this.state.pendingClientMessageIDs.includes(envelope.clientMessageID)) continue
+        await this.recordPending(envelope.clientMessageID)
       }
+      replies.push(this.buildReply(root, text, envelope, now))
+    }
+    // Re-ingest pass: pending envelopes (polled but never routed — crash
+    // window) are re-delivered regardless of the watermark. Redelivery of an
+    // already-routed envelope cannot happen: promotion moved it to processed.
+    for (const message of messages) {
+      if (message.role !== "user" || freshIDs.has(message.id)) continue
+      const text = messageText(message)
+      if (text === "") continue
+      const envelope = parseEnvelope(text)
+      if (envelope === undefined) continue
+      if (!this.state.pendingClientMessageIDs.includes(envelope.clientMessageID)) continue
       replies.push(this.buildReply(root, text, envelope, now))
     }
     if (last !== undefined && last.id !== watermark) await this.setWatermark(inboxID, last.id)
@@ -237,7 +280,7 @@ export class BeaconChannel {
     }
     return {
       schemaVersion: 1,
-      id: `reply_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+      id: envelope !== undefined ? `reply_${envelope.clientMessageID}` : `reply_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
       receivedAt: now,
       channelID: BEACON_CHANNEL_ID,
       root,
@@ -267,9 +310,9 @@ export class BeaconChannel {
     return inbox.id
   }
 
-  private async recordProcessed(clientMessageID: string): Promise<void> {
-    const next = [...this.state.processedClientMessageIDs, clientMessageID].slice(-PROCESSED_CAP)
-    this.state = { ...this.state, processedClientMessageIDs: next }
+  private async recordPending(clientMessageID: string): Promise<void> {
+    const next = [...this.state.pendingClientMessageIDs, clientMessageID].slice(-PENDING_CAP)
+    this.state = { ...this.state, pendingClientMessageIDs: next }
     await this.persist()
   }
 

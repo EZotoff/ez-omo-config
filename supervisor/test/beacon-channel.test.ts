@@ -201,14 +201,16 @@ describe("BeaconChannel polling", () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  test("clientMessageID dedup: retransmitted envelope is dropped", async () => {
+  test("clientMessageID dedup: retransmitted envelope is dropped after routing", async () => {
     const { client, consoles, beacon, dir } = await setup()
     const proposed = await consoles.proposeEscalation(escalationRequest())
     if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
     const inbox = client.addInbox("/root")
     const envelope = JSON.stringify({ v: 1, clientMessageID: "cm-dup", kind: "text", text: "yes", explicitItemID: proposed.item.id })
     client.append(inbox, "user", envelope)
-    expect(await beacon.poll("/root", NOW)).toHaveLength(1)
+    const replies = await beacon.poll("/root", NOW)
+    expect(replies).toHaveLength(1)
+    await beacon.handleReply(replies[0] ?? (() => { throw new Error("expected reply") })(), NOW)
     client.append(inbox, "user", envelope)
     expect(await beacon.poll("/root", NOW)).toHaveLength(0)
     await rm(dir, { recursive: true, force: true })
@@ -334,13 +336,128 @@ describe("BeaconChannel polling", () => {
     const inbox = client.addInbox("/root")
     const first = makeBeacon()
     await first.load()
-    await first.poll("/root", NOW)
     client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-persist", kind: "text", text: "hello" }))
-    expect(await first.poll("/root", NOW)).toHaveLength(1)
+    const persisted = await first.poll("/root", NOW)
+    expect(persisted).toHaveLength(1)
+    await first.handleReply(persisted[0] ?? (() => { throw new Error("expected reply") })(), NOW)
 
     const second = makeBeacon()
     await second.load()
     expect(await second.poll("/root", NOW)).toHaveLength(0)
+    await rm(dir, { recursive: true, force: true })
+  })
+})
+
+describe("crash-safe reply ingest (at-least-once)", () => {
+  test("un-handled envelope is re-delivered on the next poll (crash between poll and route)", async () => {
+    const { client, beacon, dir } = await setup()
+    const inbox = client.addInbox("/root")
+    client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-a", kind: "text", text: "yes" }))
+    const first = await beacon.poll("/root", NOW)
+    expect(first).toHaveLength(1)
+    expect(first[0]?.id).toBe("reply_cm-a")
+    const second = await beacon.poll("/root", NOW)
+    expect(second).toHaveLength(1)
+    expect(second[0]?.id).toBe("reply_cm-a")
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("handled reply is promoted to processed and skipped on the next poll", async () => {
+    const { client, beacon, dir } = await setup()
+    const inbox = client.addInbox("/root")
+    client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-b", kind: "text", text: "yes" }))
+    const replies = await beacon.poll("/root", NOW)
+    expect(replies).toHaveLength(1)
+    await beacon.handleReply(replies[0] ?? (() => { throw new Error("expected reply") })(), NOW)
+    expect(await beacon.poll("/root", NOW)).toHaveLength(0)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("crash simulation: pending survives a fresh BeaconChannel on the same statePath", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-beacon-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const consoles = new ConsoleChannel({
+      client, queue,
+      statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current,
+      setLedger: (next) => { ledgerRef.current = next },
+      probe: healthyProbe,
+    })
+    const makeBeacon = (): BeaconChannel => new BeaconChannel({
+      client, queue,
+      statePath: join(dir, "beacon.json"),
+      aliases: () => consoles.aliasTable(),
+      route: (reply, now) => consoles.handleReply(reply, now, { channelID: "beacon", promptChoice: false }),
+    })
+    const inbox = client.addInbox("/root")
+    client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-c", kind: "text", text: "yes" }))
+    const crashed = makeBeacon()
+    await crashed.load()
+    expect(await crashed.poll("/root", NOW)).toHaveLength(1)
+    // crash: no handleReply — a new channel takes over the same durable state
+    const revived = makeBeacon()
+    await revived.load()
+    const replies = await revived.poll("/root", NOW)
+    expect(replies).toHaveLength(1)
+    expect(replies[0]?.id).toBe("reply_cm-c")
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("pending message behind an advanced watermark is still re-ingested", async () => {
+    const { client, beacon, dir } = await setup()
+    const inbox = client.addInbox("/root")
+    client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-d", kind: "text", text: "yes" }))
+    expect(await beacon.poll("/root", NOW)).toHaveLength(1)
+    // a later non-envelope message advances the watermark past the pending one
+    client.append(inbox, "user", "plain note")
+    const second = await beacon.poll("/root", NOW)
+    expect(second.map((reply) => reply.id)).toContain("reply_cm-d")
+    expect(second.some((reply) => reply.normalizedText === "plain note")).toBe(true)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("route throw leaves it pending; later success promotes and skips", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-beacon-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const consoles = new ConsoleChannel({
+      client, queue,
+      statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current,
+      setLedger: (next) => { ledgerRef.current = next },
+      probe: healthyProbe,
+    })
+    let failing = true
+    const beacon = new BeaconChannel({
+      client, queue,
+      statePath: join(dir, "beacon.json"),
+      aliases: () => consoles.aliasTable(),
+      route: async (reply, now, options) => {
+        if (failing) throw new Error("route crashed")
+        return consoles.handleReply(reply, now, options)
+      },
+    })
+    const inbox = client.addInbox("/root")
+    client.append(inbox, "user", JSON.stringify({ v: 1, clientMessageID: "cm-e", kind: "text", text: "yes" }))
+    const replies = await beacon.poll("/root", NOW)
+    expect(replies).toHaveLength(1)
+    const reply = replies[0] ?? (() => { throw new Error("expected reply") })()
+    await expect(beacon.handleReply(reply, NOW)).rejects.toThrow("route crashed")
+    // still pending → re-delivered, then a successful route promotes it
+    const redelivered = await beacon.poll("/root", NOW)
+    expect(redelivered).toHaveLength(1)
+    failing = false
+    await beacon.handleReply(redelivered[0] ?? (() => { throw new Error("expected reply") })(), NOW)
+    expect(await beacon.poll("/root", NOW)).toHaveLength(0)
     await rm(dir, { recursive: true, force: true })
   })
 })
