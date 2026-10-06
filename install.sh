@@ -95,6 +95,7 @@ ITEMS=(
     "skills|skills/web-typography|$HOME/.config/opencode/skills/web-typography"
     "skills|skills/dynamic-typography|$HOME/.config/opencode/skills/dynamic-typography"
     "skills|skills/closeout|$HOME/.config/opencode/skills/closeout"
+    "skills|skills/workflow|$HOME/.config/opencode/skills/workflow"
     "scripts|scripts/wisdom/wisdom-common.sh|$HOME/.sisyphus/scripts/wisdom-common.sh"
     "scripts|scripts/wisdom/knowledge-constants.sh|$HOME/.sisyphus/scripts/knowledge-constants.sh"
     "scripts|scripts/wisdom/wisdom-search.sh|$HOME/.sisyphus/scripts/wisdom-search.sh"

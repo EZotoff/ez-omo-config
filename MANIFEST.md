@@ -121,6 +121,7 @@ Complete inventory of repo-managed artifacts for ez-omo-config repository scaffo
 | 30g | inbound-triage/ | `~/.config/opencode/skills/inbound-triage/` | `skills/inbound-triage/` | `$HOME/.config/opencode/skills/` | Inbox Triage (selection-gated) | Optional |
 | 30h | add-provider/ (project-scoped) | (project-local) | `.opencode/skill/add-provider/` | not installed — OpenCode loads it from the repo when sessions run in this project | Provider/Model Onboarding (checklist + audit) | Required |
 | 30i | closeout/ | `~/.config/opencode/skills/closeout/` | `skills/closeout/` | `$HOME/.config/opencode/skills/` | Episode Closeout (terminal summary + status receipt; consumes `.omo/episodes/` manifests written by `scripts/episode-receipt.sh` — W1 lane) | Optional |
+| 30j | workflow/ | `~/.config/opencode/skills/workflow/` | `skills/workflow/` | `$HOME/.config/opencode/skills/` | Full codified workflow loop (Design→Debate→Plan→Review→Implement→Review→Closeout; skill twin of `commands/workflow.md` — commands are invisible to OMO agents at runtime, see 2026-10-06 discovery gap) | Optional |
 | 18 | wisdom-common.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 19 | wisdom-search.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |
 | 20 | wisdom-write.sh | `~/.sisyphus/scripts/` | `scripts/wisdom/` | `$HOME/.sisyphus/scripts/` | Wisdom Scripts | Required |

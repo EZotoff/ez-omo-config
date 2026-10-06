@@ -329,6 +329,13 @@ Standalone, idempotent episode closeout (workflow standardization, W1). Mandator
 
 **Install Method**: `install.sh --skills`
 
+### workflow/
+Skill twin of `commands/workflow.md` (added 2026-10-07). Runs the full codified loop — Design → Debate → Plan → Review → Implementation → Review → Closeout — with per-stage gates, the `--lite` workorder variant, and receipt-gated closeout. Exists because the OMO runtime never surfaces `~/.config/opencode/command/*.md` to agents (missing from the skill tool's `available_items` AND its execution lookup — verified live 2026-10-06), so the command was only usable by the human in the TUI. The command file is kept for direct TUI `/workflow` invocation; agents invoke via `skill(name="workflow")`.
+
+**Install Target**: `$HOME/.config/opencode/skills/workflow/`
+
+**Install Method**: `install.sh --skills`
+
 ### Review-preset commands
 Four visible, editable composition templates in `commands/`: `/design-review` (draft→critique→challenge), `/option-compare` (independent drafts → judge → adversarial check), `/dual-review` (functional + design lanes in parallel, conflicts stated), `/escalate` (binding three-judge panel with dissent and calibration note). All end at operator decisions; none dispatches autonomously.
 
@@ -363,6 +370,7 @@ postmortem-policy/ + handoff-relay/ + verify-built/ + inbound-triage/ → decisi
 | verify-built/ | Optional | `$HOME/.config/opencode/skills/verify-built/` | `install.sh` |
 | inbound-triage/ | Optional | `$HOME/.config/opencode/skills/inbound-triage/` | `install.sh` |
 | closeout/ | Optional | `$HOME/.config/opencode/skills/closeout/` | `install.sh` |
+| workflow/ | Optional | `$HOME/.config/opencode/skills/workflow/` | `install.sh` |
 | atlas-review-handler/ | Required | `$HOME/.config/opencode/skills/atlas-review-handler/` | `install.sh` |
 | review-protocol/ | Required | `$HOME/.config/opencode/skills/review-protocol/` | `install.sh` |
 | deployment/ | Optional | `$HOME/.config/opencode/skills/deployment/` | `install.sh` |
