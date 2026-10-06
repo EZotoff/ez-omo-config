@@ -342,9 +342,10 @@ if (( PROV_MODE )); then
             [[ -n "$smoke_id" ]] || continue
             if [[ "$smoke_result" == "PASS" ]]; then
                 SMOKE_PASS["$smoke_id"]=1
-            else
+            elif [[ "$smoke_result" == "FAIL" ]]; then
                 SMOKE_FAIL["$smoke_id"]=1
             fi
+            # SKIP: intentionally not executed — neither pass nor fail
         done < <(patchset_smoke_results "$SMOKE_RESULTS_DIR/$PROV_BIN_SHA.json")
     fi
 fi

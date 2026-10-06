@@ -4,7 +4,7 @@ dependency: "opencode"
 target_file: "packages/tui/src/app.tsx"
 target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
-status: "active"
+status: "superseded"
 applied_date: "2026-10-03"
 dep_version: "1.18.31-p3"
 runtime_effective: false
@@ -17,6 +17,8 @@ surfaces: ["tui-interactive"]
 ---
 
 # OpenCode TUI session.error toast directory scope
+
+> SUPERSEDED 2026-10-06: implemented in source as commit 5dd34e7199 (fix(tui): scope session.error toasts), which is an ancestor of the 1.18.31-p3 build (source_head 3e77f503). Confirmed in binary: session.error handler calls the scoped guard (minified `lg(...)`) with directory + sessionID args. The hand-patch and its verification_pattern are retired; provenance of 5dd34e7199 is the evidence.
 
 ## Problem
 
