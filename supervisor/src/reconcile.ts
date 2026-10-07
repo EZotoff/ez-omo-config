@@ -17,6 +17,10 @@ export type ScanManifest = {
   readonly complete: true
   /** Sessions whose transcript fetch failed and are absent from `sessions` (degraded, not fatal). */
   readonly fetchErrors: readonly { readonly sessionID: string; readonly error: string }[]
+  /** Sessions that entered fetch backoff during this scan (fires once per entry). */
+  readonly backoffEntered?: readonly string[]
+  /** Backoffed sessions whose fetch succeeded again during this scan (fires once per recovery). */
+  readonly backoffRecovered?: readonly string[]
   readonly childSessionIDs: readonly string[]
   readonly sessions: readonly SessionScan[]
 }
@@ -25,9 +29,53 @@ export type ReconcileOptions = {
   readonly initialWindowDays: number
   readonly fetchConcurrency: number
   readonly nowMs?: () => number
+  readonly sessionBackoff?: SessionBackoff
 }
 
 const DAY_MS = 86_400_000
+
+const BACKOFF_THRESHOLD = 3
+const BACKOFF_CAP_MS = 1_800_000
+
+type BackoffState = { failures: number; blockedUntilMs: number; enteredReported: boolean }
+
+/**
+ * Per-session fetch backoff: a session failing BACKOFF_THRESHOLD consecutive
+ * reconciles is skipped from fetching for an escalating delay (60s first,
+ * then 2^min(failures-3,5)×60s, capped at 30m — mirrors the root backoff
+ * formula in service.ts).
+ */
+export class SessionBackoff {
+  private readonly states = new Map<string, BackoffState>()
+
+  /** Records a failed fetch; returns true exactly once per entry into backoff. */
+  recordFailure(sessionID: string, nowMs: number): boolean {
+    const previous = this.states.get(sessionID) ?? { failures: 0, blockedUntilMs: 0, enteredReported: false }
+    const failures = previous.failures + 1
+    const blockedUntilMs = failures < BACKOFF_THRESHOLD
+      ? 0
+      : nowMs + Math.min(2 ** Math.min(failures - BACKOFF_THRESHOLD, 5) * 60_000, BACKOFF_CAP_MS)
+    const entered = blockedUntilMs > 0 && !previous.enteredReported
+    this.states.set(sessionID, { failures, blockedUntilMs, enteredReported: previous.enteredReported || entered })
+    return entered
+  }
+
+  /** Records a successful fetch; returns true when a backoffed session recovers. */
+  recordSuccess(sessionID: string): boolean {
+    const state = this.states.get(sessionID)
+    this.states.delete(sessionID)
+    return state !== undefined && state.failures >= BACKOFF_THRESHOLD
+  }
+
+  isBlocked(sessionID: string, nowMs: number): boolean {
+    const state = this.states.get(sessionID)
+    return state !== undefined && nowMs < state.blockedUntilMs
+  }
+
+  blockedUntil(sessionID: string): number | undefined {
+    return this.states.get(sessionID)?.blockedUntilMs
+  }
+}
 
 async function mapPool<T, R>(items: readonly T[], limit: number, operation: (item: T) => Promise<R>): Promise<readonly R[]> {
   const results = new Array<R>(items.length)
@@ -74,12 +122,22 @@ export async function reconcileRoot(
     (session) => !excludeIDs.has(session.id) && (session.timeUpdatedMs === undefined || session.timeUpdatedMs >= cutoff),
   )
   const fetchErrors: { readonly sessionID: string; readonly error: string }[] = []
-  const fetched = await mapPool(inWindow, options.fetchConcurrency, async (session): Promise<SessionScan | undefined> => {
+  const backoffEntered: string[] = []
+  const backoffRecovered: string[] = []
+  // Blocked sessions are skipped from FETCHING only — `inWindow` stays intact so
+  // topology (topLevelSessions) still sees them and their children do not get
+  // promoted to top-level while the parent is in backoff.
+  const sessionBackoff = options.sessionBackoff
+  const fetchPool = sessionBackoff === undefined
+    ? inWindow
+    : inWindow.filter((session) => !sessionBackoff.isBlocked(session.id, nowMs))
+  const fetched = await mapPool(fetchPool, options.fetchConcurrency, async (session): Promise<SessionScan | undefined> => {
     // Per-session isolation: one failing transcript fetch (after client retries)
     // must degrade that session only — never kill the whole service (live crash
     // 2026-09-30 18:12: single /session/<id>/message failure exited the process).
     try {
       const messages = await client.listMessages(session.id, root, 50)
+      if (options.sessionBackoff?.recordSuccess(session.id)) backoffRecovered.push(session.id)
       const watermark = messages.at(-1)?.id
       return {
         session,
@@ -88,6 +146,7 @@ export async function reconcileRoot(
         ...(watermark === undefined ? {} : { watermark }),
       }
     } catch (error) {
+      if (options.sessionBackoff?.recordFailure(session.id, nowMs)) backoffEntered.push(session.id)
       fetchErrors.push({ sessionID: session.id, error: error instanceof Error ? error.message : String(error) })
       return undefined
     }
@@ -98,5 +157,5 @@ export async function reconcileRoot(
   const sessions = scans
     .filter((scan) => top.has(scan.session.id))
     .map((scan) => ({ ...scan, turns: projectTurns(scan.messages, registry) }))
-  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, fetchErrors, childSessionIDs: [...childIDs], sessions }
+  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, fetchErrors, backoffEntered, backoffRecovered, childSessionIDs: [...childIDs], sessions }
 }

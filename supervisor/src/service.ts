@@ -7,7 +7,7 @@ import { classifyAutonomousOrigin, type AutonomousOriginConfig } from "./origins
 import { OpencodeClient, type ServerEvent } from "./client"
 import { loadApiKey, loadConfig, loadProviderBaseURL, rootAutonomousOrigin } from "./config"
 import { Ledger } from "./ledger"
-import { changedTurnsSinceWatermark, reconcileRoot, type ScanManifest } from "./reconcile"
+import { changedTurnsSinceWatermark, reconcileRoot, SessionBackoff, type ScanManifest } from "./reconcile"
 import { pollRootOnce, ActivityGate, type WatchState } from "./poller"
 import { clipFragment, truncateAtSentence } from "./text"
 import { awaitingOperatorAnswer, createGuardedPrompt, pendingQuestionPart, pendingQuestionStartedAtMs, pendingQuestionText } from "./awaiting-input"
@@ -17,7 +17,7 @@ import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
 import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
-import { maybeDispatchErrorInvestigation } from "./investigation"
+import { errorSignature, InvestigationMemory, maybeDispatchErrorInvestigation } from "./investigation"
 import { BeaconChannel, BEACON_CHANNEL_ID } from "./beacon"
 import { Blackboard, parseTickDecided } from "./blackboard"
 import { isAbortError, turnHealth } from "./health"
@@ -170,6 +170,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   }
 
   const errorHour = { windowStart: Date.now(), count: 0, toasted: false, investigated: false }
+  const investigationMemory = new InvestigationMemory(config.error_investigation.dedup_window_h)
   async function recordErrorTelemetry(payload: Record<string, unknown>): Promise<void> {
     status.errorsSinceStart = (status.errorsSinceStart ?? 0) + 1
     if (Date.now() - errorHour.windowStart > 3_600_000) {
@@ -185,6 +186,9 @@ export async function runService(signal: AbortSignal): Promise<void> {
       errorHour.toasted = true
       await client.toast(`Supervisor logged ${errorHour.count} errors in the last hour (check journald + ledger)`, "Supervisor error storm")
     }
+    // Dedup signature: the most recent ledger ERROR (payload error or reason).
+    const latestErrorPayload = ledger.records.findLast((record) => record.type === "ERROR")?.payload as { readonly error?: unknown; readonly reason?: unknown } | undefined
+    const latestErrorText = typeof latestErrorPayload?.error === "string" ? latestErrorPayload.error : typeof latestErrorPayload?.reason === "string" ? latestErrorPayload.reason : undefined
     const outcome = await maybeDispatchErrorInvestigation({
       client,
       append: async (type, record) => { ledger = await ledger.append(type, record) },
@@ -193,6 +197,9 @@ export async function runService(signal: AbortSignal): Promise<void> {
       root: typeof payload["root"] === "string" ? payload["root"] : repoRoot,
       count: errorHour.count,
       peak: status.errorsLastHourPeak ?? errorHour.count,
+      signature: latestErrorText === undefined ? undefined : errorSignature(latestErrorText),
+      dedupWindowH: config.error_investigation.dedup_window_h,
+      memory: investigationMemory,
     })
     if (outcome.dispatched) {
       status.errorInvestigations = (status.errorInvestigations ?? 0) + 1
@@ -282,6 +289,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
     listMessages: (sessionID, root) => client.listMessages(sessionID, root),
     promptAsync: (sessionID, root, text) => client.promptAsync(sessionID, root, text),
   })
+  await investigationMemory.load(join(stateDirectory, "investigations.json"))
   await consoles.load()
   const recovered = await consoles.recoverAnswered()
   if (recovered > 0) {
@@ -313,6 +321,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   }
 
   const rootBackoff = new Map<string, { failures: number; nextAttemptAt: number }>()
+  const sessionBackoff = new SessionBackoff()
   const SWEEP_INTERVAL_MS = 5 * 60_000
   const RESURFACE_MS = 6 * 60 * 60_000
   const sweepState = new Map<string, { lastSweepMs: number; lastSurfaceMs: number }>()
@@ -327,10 +336,17 @@ export async function runService(signal: AbortSignal): Promise<void> {
       manifest = await reconcileRoot(client, root, emptyRegistry, {
         initialWindowDays: config.initial_window_days,
         fetchConcurrency: config.fetch_concurrency,
+        sessionBackoff,
       }, new Set([...consoles.allSessionIDs(), ...beacon.allSessionIDs()]))
       rootBackoff.delete(root)
       if (manifest.fetchErrors.length > 0) {
         ledger = await ledger.append("ERROR", { root, error: `reconcile degraded: ${manifest.fetchErrors.length} session fetch(es) failed`, fetchErrors: manifest.fetchErrors.slice(0, 10) })
+      }
+      for (const sessionID of manifest.backoffEntered ?? []) {
+        ledger = await ledger.append("ERROR", { root, reason: "session fetch backoff entered", sessionID })
+      }
+      for (const sessionID of manifest.backoffRecovered ?? []) {
+        ledger = await ledger.append("ERROR", { root, reason: "session fetch backoff recovered", sessionID })
       }
     } catch (error) {
       const b = rootBackoff.get(root) ?? { failures: 0, nextAttemptAt: 0 }
