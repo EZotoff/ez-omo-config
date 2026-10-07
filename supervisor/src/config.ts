@@ -64,7 +64,8 @@ const configSchema = z.object({
   error_investigation: z.object({
     enabled: z.boolean().default(false),
     threshold: z.number().int().positive().default(10),
-  }).strict().default({ enabled: false, threshold: 10 }),
+    dedup_window_h: z.number().int().positive().default(6),
+  }).strict().default({ enabled: false, threshold: 10, dedup_window_h: 6 }),
   model: z.object({ provider: z.string().min(1), id: z.string().min(1) }).strict(),
   grace_period_s: z.number().int().nonnegative(),
   min_intervention_interval_s: z.number().int().nonnegative(),

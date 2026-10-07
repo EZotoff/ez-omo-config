@@ -1,4 +1,4 @@
-# Console 404 self-heal v1 — patch proposal (NOT applied; operator green-light required)
+# Console 404 self-heal v1 — APPLIED (Patches 2-3: a61c653, b733e38; Patch 1: shipped independently in c5b3595) — applied 2026-10-07
 
 Staged: 2026-10-05, post-incident. Authorizing console ruling: "(b) Recommended, operator
 green-light required. … once (a) executes, the storm is gone and deferring (b) costs nothing."
@@ -69,3 +69,15 @@ required before flipping any doc claim beyond `tests_passed`: one injected dead-
 (scratch state file) producing exactly one cleanup ERROR + a recreated binding, plus a live
 ledger window with zero repeat 404s. `status.json#errorInvestigations` should advance only on
 new signatures.
+
+## Applied (2026-10-07)
+
+- Patch 1 (404 → clear/recreate the console binding): shipped independently in `c5b3595`.
+- Patch 2 (per-session fetch-error backoff): `a61c653`.
+- Patch 3 (cross-hour investigation dedup): `b733e38`.
+- Live receipt: `.omo/evidence/console-404-selfheal/deploy-receipt.json` (written by the deploy step).
+
+Recorded deltas from this proposal:
+
+1. The dedup event is the typed ledger event `INVESTIGATION_DEDUPED` (registered in `LEDGER_TYPES`, `supervisor/src/types.ts`) rather than the proposal's `TICK_SKIPPED`-style reason string.
+2. The backoff recovery ERROR from the proposal IS implemented — one `ERROR` on entering backoff and one on recovery (`supervisor/src/reconcile.ts`).
