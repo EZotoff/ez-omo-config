@@ -79,7 +79,7 @@ export async function reconcileRoot(
     // must degrade that session only — never kill the whole service (live crash
     // 2026-09-30 18:12: single /session/<id>/message failure exited the process).
     try {
-      const messages = await client.listMessages(session.id, root)
+      const messages = await client.listMessages(session.id, root, 50)
       const watermark = messages.at(-1)?.id
       return {
         session,
