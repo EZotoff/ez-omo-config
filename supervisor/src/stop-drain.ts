@@ -1,35 +1,30 @@
-// Bounded stop-drain deadline (2026-10-07 shutdown hang, ses_ee91cf73 episode):
+// Bounded stop-drain (2026-10-07 shutdown hang, ses_ee91cf73 episode):
 // runService resolves on abort while the per-root poll loops (fire-and-forget)
 // and keep-alive sockets to the opencode server can hold the event loop open
 // indefinitely on a wedged connection — observed live as an ep_poll stall past
-// systemd's 5-min TimeoutStopUSec, SIGKILL required (pre-merge stop: ~60s).
-// The deadline timer is UNREF'D: it never keeps the process alive (a clean
-// drain exits naturally, faster), but fires if a wedged in-flight client call
-// would otherwise hold the process hostage. Budget must stay well inside the
-// unit's TimeoutStopUSec (300s) with margin above the observed normal drain
-// (~60-72s).
+// systemd\'s 5-min TimeoutStopUSec, SIGKILL required (pre-merge stop: ~60s).
+//
+// Attempt 1 (0d60c5a: unref\'d force-exit timer) FAILED live — an unref\'d timer
+// does not count toward the IO-poll timeout, so when every referenced handle
+// is blocked in a silent poll the due timer starves until an IO event arrives
+// (journal: SIGTERM 23:27:17, no fire, manual SIGKILL 23:32:09). The correct
+// primitive is a REFERENCED race: the drain-completion promise vs a real
+// Bun.sleep (referenced -> bounds the poll timeout -> always fires on time),
+// with process.exit(0) on either branch. Clean drains still exit at their own
+// pace (observed ~60-72s); wedged ones are cut at the deadline.
 
 /** Hard-exit budget after SIGTERM, in ms. */
 export const STOP_DRAIN_GRACE_MS = 120_000
 
-export type StopDrainIO = {
-  readonly error: (message: string) => void
-  readonly exit: (code: number) => void
-}
-
 /**
- * Arm the force-exit deadline. Call ONCE, after `runService` has resolved
- * (i.e. only on the abort/shutdown path) — arming at startup would kill a
- * healthy long-running service. Returns the timer for tests.
+ * Race the drain-completion promise against a referenced deadline sleep.
+ * Resolves "drained" when the drain wins, "deadline" when the budget elapses —
+ * the caller then force-exits (process.exit) so wedged fetches cannot hold the
+ * process past the unit\'s stop timeout.
  */
-export function armStopDrainDeadline(
+export async function boundedDrain(
+  drain: Promise<"drained">,
   graceMs: number = STOP_DRAIN_GRACE_MS,
-  io: StopDrainIO = { error: (message) => console.error(message), exit: (code) => process.exit(code) },
-): Timer {
-  const timer = setTimeout(() => {
-    io.error(`[supervisor] stop drain exceeded ${graceMs}ms — force exit (wedged in-flight client call holds the event loop; pending fetches are dropped, ledger writes are fs-complete)`)
-    io.exit(0)
-  }, graceMs)
-  timer.unref?.()
-  return timer
+): Promise<"drained" | "deadline"> {
+  return Promise.race([drain, Bun.sleep(graceMs).then(() => "deadline" as const)])
 }

@@ -11,6 +11,7 @@ import { changedTurnsSinceWatermark, reconcileRoot, SessionBackoff, type ScanMan
 import { pollRootOnce, ActivityGate, type WatchState } from "./poller"
 import { clipFragment, truncateAtSentence } from "./text"
 import { awaitingOperatorAnswer, createGuardedPrompt, pendingQuestionPart, pendingQuestionStartedAtMs, pendingQuestionText } from "./awaiting-input"
+import { boundedDrain, STOP_DRAIN_GRACE_MS } from "./stop-drain"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect } from "./tick"
@@ -866,12 +867,13 @@ rootConfig?.continue_writes?.enabled === true
   // Polling ingress (SSE is unusable on live 1.18.5 for project events — see poller.ts).
   const POLL_INTERVAL_MS = 20_000
   const activeRoots = config.roots.filter((root) => root.mode !== "off")
-  // Startup reconciles are independent per root — run them concurrently so a
-  // multi-root restart fits inside systemd's stop/start budget (was: 6 × 60-90s
-  // sequential, which caused the SIGKILL of 2026-09-20).
-  await Promise.all(activeRoots.map((root) => reconcile(root.path)))
-  await pollBridge()
-  await publishOperatorView()
+  // Bounded stop-drain tracking (2026-10-07 shutdown hang): each poll loop
+  // decrements activeLoops when it exits; when all loops have finished their
+  // in-flight iteration after abort, the drain is complete and the process may
+  // exit immediately (see boundedDrain at the end of runService).
+  let activeLoops = 0
+  let resolveDrainDone!: () => void
+  const drainDone = new Promise<"drained">((resolve) => { resolveDrainDone = () => resolve("drained") })
   for (const root of activeRoots) {
     const runtime0 = runtimes.get(root.path)
     if (runtime0 === undefined) continue
@@ -882,6 +884,8 @@ rootConfig?.continue_writes?.enabled === true
     }
     const watchStates = new Map<string, WatchState>()
     void (async () => {
+      activeLoops += 1
+      try {
       while (!signal.aborted) {
         await Bun.sleep(POLL_INTERVAL_MS)
         const runtime = runtimes.get(root.path)
@@ -940,10 +944,29 @@ rootConfig?.continue_writes?.enabled === true
           }
         }
       }
+      } finally {
+        activeLoops -= 1
+        if (activeLoops === 0 && signal.aborted) resolveDrainDone()
+      }
     })()
   }
 
   await new Promise<void>((resolveDone) => signal.addEventListener("abort", () => resolveDone(), { once: true }))
+  // Bounded drain (see stop-drain.ts): wait for the per-root loops to finish
+  // their in-flight iteration; force-exit at the deadline if a wedged client
+  // call would hold the process forever. Attempt 1's unref'd timer starved
+  // (it never counts toward the IO-poll timeout); a referenced Bun.sleep does
+  // fire — and process.exit drops any remaining wedged fetch.
+  const drainOutcome = await boundedDrain(drainDone, STOP_DRAIN_GRACE_MS)
+  if (drainOutcome === "deadline") {
+    try {
+      ledger = await ledger.append("ERROR", { reason: `stop drain exceeded ${STOP_DRAIN_GRACE_MS}ms — force exit (wedged in-flight client call holds the event loop; pending fetches dropped, ledger writes are fs-complete)` })
+    } catch (error) {
+      // no-excuse-ok: catch — shutdown boundary; stderr before exit
+      console.error("stop-drain ledger append failed:", error instanceof Error ? error.message : String(error))
+    }
+  }
+  process.exit(0)
 }
 
 /** Compile-time exhaustiveness for the tick dispatch (2026-10-02 postmortem:
