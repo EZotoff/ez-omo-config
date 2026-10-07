@@ -12,6 +12,10 @@
  * working in the same repo: when to branch, when to sync, how to handle
  * merge conflicts, or how to reclaim worktrees/branches when the unit is
  * done (allocation is automated; reclamation must be too, or worktrees leak).
+ * Nor did either say WHEN pushing is pre-authorized: a bare "ask first"
+ * gate (pre-2026-10-05) stranded 100+ unpushed commits per active repo.
+ * Push is backup; authorization is pre-granted by remote ownership +
+ * branch class (tiers below, amended 2026-10-05).
  *
  * Attribution (author identity, co-author trailers, footers) is intentionally
  * NOT handled here — owned by the active Git config and OMO git_master setting.
@@ -68,7 +72,15 @@ git branch -d <branch>            # lowercase -d ONLY (merged-safe); -D is block
 If the branch lives in a worktree, prefer the \`worktree_delete\` tool (optionally with a \`target\`) — it runs pre-delete hooks (port freeing, state cleanup) and snapshots uncommitted changes before removal.
 If a completed worktree is dirty: diff it against master first, port unique work into the merge or a branch, THEN remove — never silently discard uncommitted work. If the work is genuinely worthless, say so explicitly in the final report instead.
 Plain in-repo branches (no worktree): \`git checkout master && git merge --no-ff <branch> && git branch -d <branch>\`.
-Push to remote only when explicitly authorized by the user.
+
+### Push discipline (tiered, standing authorization)
+Push is backup — the operator PRE-AUTHORIZES pushes by remote ownership + branch class (2026-10-05). Do not ask per-push; do report what you pushed in your final report.
+
+- **Tier A — pre-authorized**: remotes the operator owns (URL owner matches the operator's GitHub account, e.g. \`EZotoff/*\`). Push \`agent/*\` and \`type/scope\` branches freely; push \`master\`/\`main\` only when fast-forwardable. A rejected non-fast-forward push means the branch diverged — report it, never force.
+- **Tier B — fork-only**: remotes owned by others (collaborator/upstream repos). Push agent branches to the operator's fork remote only; never push \`master\`/\`main\` to a remote the operator doesn't own.
+- **NEVER**: force-push (blocked by git-safety anyway); pushing secrets — \`auth.json\` and machine-local keys stay local.
+- **No remote?** Flag it in your final report ("commits here are machine-local — one disk failure from loss") instead of silently accumulating.
+- **Session-end rule**: after your final merge in any repo you worked in, push (Tier A/B) or state the unpushed commit count explicitly in your final report. Unpushed work that survives only on this machine is incomplete work.
 
 ### Out of scope (handled elsewhere)
 - **Idle-timeout safety-net commits**: auto-checkpoint plugin handles these (every ~5 min with \`checkpoint(agent):\` prefix). Don't duplicate.

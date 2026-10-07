@@ -1,0 +1,8 @@
+[Unit]
+Description=Git Hygiene Monitor — unpushed-work scan backing the tiered push discipline (observe mode; MODE=push unlock gated by docs/rollout-protocol.md)
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/ez-omo-config/scripts/git-hygiene.sh
+Environment=GIT_HYGIENE_MODE=observe

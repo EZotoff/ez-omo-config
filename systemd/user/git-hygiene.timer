@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Git Hygiene Monitor hourly (observe-mode reports; log at ~/.local/state/git-hygiene/)
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target
