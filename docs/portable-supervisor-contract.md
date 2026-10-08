@@ -59,7 +59,7 @@ Selection feedback (client → bridge): `{ "type": "selection", "contextTag": "c
 
 ## Seam 3 — Voice WSS client classes
 
-One bridge, two client classes, **one active voice client at a time** (last connect wins;
+One bridge, three client classes as of Amendment 2026-10-08 (below), **one active voice client at a time** (last connect wins;
 the previous is closed with `{type:"handoff"}`):
 
 | Client | Connects via | Audio | Control frames |
@@ -122,7 +122,7 @@ codegraph, and tests are repo-scoped):
 | Attention projection consumption (Seam 4 read → attention view) | omo-pulse | not started (schema defined above) |
 | Ledger-tailer → `QUEUE_*` projection upgrade (escalations from the queue, not raw TICK_DECIDED) | voice-bridge | not started |
 | OC Beacon answer capture (native tap/spoken reply → Seam 4 reply event) | oc-beacon + ez-omo-config | **done + live-observed 2026-10-04; crash-safety fixed 2026-10-06** — send path SHIPPED in oc-beacon (`0ab9780c`); supervisor-side `BeaconChannel` in ez-omo-config (`supervisor/src/beacon.ts`): inbox discovery by EXACT title per root (Amendment 2026-10-04 — loose prefix adoption had cross-wired `…/veran/apps/web`'s inbox into the `…/veran` poll), first-observation backlog ingestion (the live first reply was swallowed by the watermark baseline and survived only via transport retransmit), v1-envelope parsing with `clientMessageID` dedup, correlation (explicitItemID → contextTag → alias → §5) through the shared reply-router with `channelID: "beacon"`. Live 2026-10-04: `QUEUE_REPLY_RECEIVED` seq 16670 routed via `explicitItemID`, item resolved `superseded` by revalidation. Crash-safety of `recordProcessed`-before-route FIXED 2026-10-06 (two-phase pending/processed ingest, commit `63a2f11`, Amendment 2026-10-04 §4; activation pending supervisor restart) |
-| OC Beacon walking-rung prep (spoken replies via Vox, small-screen polish) | oc-beacon + voice-bridge | not started |
+| OC Beacon walking-rung prep (spoken replies via Vox, small-screen polish) | oc-beacon + voice-bridge | **design done 2026-10-08** (Seam 3 `client=beacon` amendment: transport via omo-pulse proxy, class gating, spoken replies via confirm-gated vocabulary); implementation pending — oc-beacon (voice client, native ShowView, view-context emitter, small-screen polish), voice-bridge (class gating), omo-pulse (proxy clientClass param) |
 
 ## Seam 4 — Attention queue (Supervisor-owned)
 
@@ -425,3 +425,65 @@ Source: factory buy-vs-make tournament rounds 1–2 (2026-09-27/28),
    actionable/watch/unavailable taxonomy was considered and rejected (no demonstrated decision
    benefit; drift risk across five surfaces). Unavailable-host presentation derives from the
    existing stale-freeze behavior — readers already must not render stale state as healthy.
+
+### Amendment 2026-10-08 — Native client class (`client=beacon`) for OC Beacon (Seam 3)
+
+Approved by operator directive (a) 2026-10-07 ("amendment first" for the Android walking
+test). Oracle-reviewed LAND-WITH-FIXES; all fixes incorporated. Scope: pins client class,
+transport, view enum, and the spoken-reply attribution path. No other seam changes.
+
+1. **Third client class**: `client=beacon` — the OC Beacon native Android app. Full-duplex
+   audio identical to the other classes (16 kHz PCM16 up / 24 kHz PCM16 down, bounded
+   buffers); send+receive control frames; `view-context` + `selection` like the dash class.
+   The **one active voice client** rule is unchanged and cross-class (last connect wins;
+   the previous is closed with `{type:"handoff"}`, never an error surface). Handoff policy:
+   after a handoff close the beacon does NOT auto-reconnect — it shows a "voice moved to
+   another surface" state and reconnects on the next explicit PTT press (prevents
+   reconnect flip-flop between surfaces).
+2. **Transport ruling**: the app NEVER connects to the bridge; the bridge stays
+   loopback-only (sibling-service invariant). The beacon connects to **omo-pulse's existing
+   `/api/voice-ws` proxy**, which gains a `clientClass` parameter (`dash` default, `beacon`
+   allowed; unknown values reject the upgrade with HTTP 400 — no silent fallback to
+   `dash`). The proxy forwards `?client=<class>` and keeps reading the per-boot token
+   server-side per connection attempt. Rationale: the token never enters the app; one
+   audited ingress; the phone already reaches omo-pulse over Tailscale/LAN. REJECTED:
+   exposing the bridge via Tailscale serve — violates the loopback-only bind invariant and
+   duplicates token handling.
+3. **Read-transport posture carve-out** (analogous to the 2026-09-25 answer-capture
+   carve-out): the voice WSS is a sanctioned NEW outbound client connection — to omo-pulse,
+   not the app's OpenCode connection. The posture invariant otherwise holds: no in-app
+   listener, daemon, bound port, or credential is added; the bridge token stays server-side
+   in omo-pulse.
+4. **View-context (Seam 1 extension)**: the beacon emits `view-context` on navigation
+   change, same frame shape, dedup/change-only discipline. Post-amendment `view` union
+   (explicit): `home|project|session|comparison|attention` (dash) ∪
+   `sessions|workspace|chat|supervisor` (beacon). The `session` (dash) vs `sessions`
+   (beacon) distinction is deliberate; Vox treats view as a hint only.
+5. **Show + selection (Seam 2 in native)**: the app renders all seven show views natively
+   with an unknown-view fallback and returns `{type:"selection", contextTag, index}`; stale
+   tags dropped by the bridge. This is voice-session presentation, NOT a queue read-model
+   surface — the beacon's queue-card screen remains bound to `operator-view.json`.
+6. **Spoken replies + channelID stamper (named)**: spoken replies ride the existing
+   confirm-gated vocabulary (`answer_question`/`propose_mutation`, human-legible readback,
+   explicit yes, 45 s timeout). Reply events are produced by Vox's `collectReply()`; the
+   **bridge is the stamper**: it passes the active voice client class through with the
+   session context, and reply events carry `channelID: "beacon"` when the active client is
+   beacon (the reply-router echoes the provided channelID). This is attribution metadata,
+   not authorization.
+7. **clientClass is advisory**: all three classes have identical frame rights; class is
+   used for logging, handoff bookkeeping, and reply attribution only. Spoofing a class
+   grants nothing — do not build authz on it.
+8. **voice-bridge obligations** (verified against current source): `main.ts` client union
+   (`"dash"|"page"`, ~line 80) extended with `"beacon"` (today an unknown class silently
+   maps to page-class behavior at ~line 216 — must become explicit); `protocol.ts` `isView`
+   (~18/28) extended to accept the beacon view values; class gating honors beacon for
+   `view-context`/`selection`; client-class pass-through for the reply stamper (item 6).
+9. **omo-pulse obligations**: `/api/voice-ws` gains the `clientClass` parameter with the
+   two allowed values; unknown values reject the WebSocket upgrade with HTTP 400.
+10. **oc-beacon obligations**: WSS voice client (AudioRecord/AudioTrack PCM16 16k↑/24k↓,
+    PTT interaction, RECORD_AUDIO runtime permission), native ShowView renderer (7 views +
+    unknown fallback), view-context emitter on navigation change, handoff state per item 1,
+    small-screen polish.
+
+Pending-ledger: the "OC Beacon walking-rung prep" row is updated accordingly (design done
+2026-10-08 via this amendment; implementation pending across the three repos above).
