@@ -1068,8 +1068,8 @@
             "field": "reasoning_content"
           },
           "limit": {
-            "context": 32768,
-            "input": 30000,
+            "context": 65536,
+            "input": 58000,
             "output": 6000
           },
           "modalities": {
