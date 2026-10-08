@@ -21,3 +21,14 @@ Operator demand: "you were supposed to find out the root cause of the thrash."
 
 - `repo_implemented` + `tests_passed`: `bun test` 374 pass / 0 fail (incl. new skip-unchanged, refetch-on-change, abort tests); `tsc --noEmit` clean; `bash -n install.sh` clean.
 - Deploy evidence appended below after live restart + measurement.
+
+## Deployment + live verification (2026-10-08 16:20-16:45 CEST)
+
+- Commits: `933b538` (diet + shutdown + systemd), `1dc5736` (boot-reconcile regression fix, below).
+- Boot reconcile with the diet: **4 seconds** after supervisor start (lastReconcile 14:40:21Z, start 14:40:17Z) — window 1d = 267 sessions.
+- First dieted sweep: server RSS moved 630 → 653 MB; yesterday's equivalent restart cycle drove 2.75 GB in 20 min.
+- Supervisor stop: bounded at the 120s drain force-exit with ledger receipt (was 5-min SIGKILL pre-a8eeb40). Residual wait = console/beacon/poller calls not yet signal-aware (follow-up).
+- **Regression found + fixed during verification**: `a8eeb40`'s stop-drain refactor had DELETED the boot `Promise.all(activeRoots.map(reconcile))` — every supervisor restart since went blind (no poll loops, no ticks; modes empty; ledger silent). Restored in `1dc5736` with an abort guard; verified live: `modes` populated for 20 roots, boot reconcile 4 s, errors 0.
+- 3021 recycled session-safe (resumed=0) at 16:33; RSS 646-757 MB through two dieted sweeps + resumed-session traffic.
+
+Not verified live: TICK emission on this instance (needs an idle-session event; poll loops confirmed started via `status.modes` = 20 roots).
