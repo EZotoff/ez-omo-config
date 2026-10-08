@@ -352,6 +352,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         ledger = await ledger.append("ERROR", { root, reason: "session fetch backoff recovered", sessionID })
       }
     } catch (error) {
+      if (signal.aborted) return runtimes.get(root)
       const b = rootBackoff.get(root) ?? { failures: 0, nextAttemptAt: 0 }
       const failures = b.failures + 1
       const delay = Math.min(2 ** Math.min(failures, 5) * 60_000, 1_800_000)
@@ -876,6 +877,11 @@ rootConfig?.continue_writes?.enabled === true
   let activeLoops = 0
   let resolveDrainDone!: () => void
   const drainDone = new Promise<"drained">((resolve) => { resolveDrainDone = () => resolve("drained") })
+  // Boot reconcile (RESTORED 2026-10-08): a8eeb40's stop-drain refactor dropped
+  // the startup Promise.all — runtimes stayed empty, the poll-loop guard below
+  // skipped every root, and the supervisor went blind after every restart (no
+  // polling, no ticks; only the 600s sweeps kept lastReconcile moving).
+  if (!signal.aborted) await Promise.all(activeRoots.map((root) => reconcile(root.path)))
   for (const root of activeRoots) {
     const runtime0 = runtimes.get(root.path)
     if (runtime0 === undefined) continue
