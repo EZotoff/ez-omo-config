@@ -1060,6 +1060,27 @@
             ]
           },
           "attachment": false
+        },
+        "flash-next": {
+          "name": "Flash-Next Q2_0 125B MoE (NInfer host-residency)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 32768,
+            "input": 30000,
+            "output": 6000
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false
         }
       }
     }

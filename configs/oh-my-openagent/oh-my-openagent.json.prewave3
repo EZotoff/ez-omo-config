@@ -166,7 +166,7 @@
       ]
     },
     "quick": {
-      "model": "local/swift-fast",
+      "model": "kimi-for-coding-oauth/k3",
       "fallback_models": [
         "zai-coding-plan/glm-5.3-flash",
         "ollama-cloud/deepseek-v4.1-flash",
