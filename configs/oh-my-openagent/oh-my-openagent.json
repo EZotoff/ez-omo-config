@@ -173,7 +173,8 @@
         "opencode-go/deepseek-v4.1-flash",
         "local/bonsai-fast",
         "local/swift-fast",
-        "local/gsq-smart"
+        "local/gsq-smart",
+        "local/flash-next"
       ]
     },
     "unspecified-low": {
