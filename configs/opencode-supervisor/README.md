@@ -14,7 +14,7 @@ Signature dedup (cross-hour, `dedup_window_h` default 6h) now suppresses repeat 
 | `server_url` | Existing OpenCode server URL |
 | `server_url` | Existing OpenCode server URL |
 | `server_username` / `server_password_env` | HTTP Basic auth; password read from this env var at runtime (default `OPENCODE_SERVER_PASSWORD`, supplied by the systemd unit's `EnvironmentFile`) |
-| `initial_window_days` | First-scan horizon: only sessions updated within this window are supervised (default 7) |
+| `initial_window_days` | First-scan horizon: only sessions updated within this window are supervised. **1 since 2026-10-08** (was 7): the reconcile diet — each sweep fetches transcripts for every in-window session, so the window directly multiplies server load (7d ≈ 2.2k sessions was a major contributor to the 2026-10-06/07 host thrash). Unchanged sessions are additionally skipped via the timeUpdatedMs watermark diet |
 | `fetch_concurrency` | Bounded parallel HTTP fetches during reconcile scans (default 8) |
 | `error_investigation` | Error-storm auto-investigation `{enabled, threshold}`: when the rolling 1-hour ERROR count reaches `threshold`, the supervisor creates a dedicated `[Supervisor] error investigation (<project>)` opencode session in the erroring root and prompts it to classify the errors and report root cause (ledger + journald sources inlined in the prompt). Once per hour window; the window slot is consumed even when the dispatch fails (no session-creation loops). Live since 2026-10-05 with threshold 10 |
 | `model` | Provider and model ID used for stateless judgment ticks |

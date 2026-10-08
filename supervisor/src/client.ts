@@ -46,11 +46,13 @@ export class OpencodeClient {
     return { Authorization: `Basic ${token}` }
   }
 
-  private async request(path: string): Promise<unknown> {
+  private async request(path: string, signal?: AbortSignal): Promise<unknown> {
+    const timeout = AbortSignal.timeout(15_000)
+    const combined = signal === undefined ? timeout : AbortSignal.any([timeout, signal])
     let lastError: Error | undefined
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const response = await fetch(new URL(path, this.baseURL), { signal: AbortSignal.timeout(15_000), headers: this.authHeader() })
+        const response = await fetch(new URL(path, this.baseURL), { signal: combined, headers: this.authHeader() })
         if (!response.ok) {
           // 4xx (except 429) is terminal: not-found/bad-request never heals on
           // retry — retrying tripled every poll of a stale session for days
@@ -59,17 +61,20 @@ export class OpencodeClient {
         }
         return await response.json()
       } catch (error) {
+        // Shutdown aborts propagate immediately — no retry, no linger (fixes the
+        // multi-minute SIGTERM drain when a sweep is mid-flight against a slow server).
+        if (signal?.aborted === true) throw error
         if (error instanceof ClientError && error.status !== undefined && error.status >= 400 && error.status < 500 && error.status !== 429) throw error
         if (!(error instanceof Error)) throw error
         lastError = error
-        if (attempt < 2) await delay(250 * 2 ** attempt)
+        if (attempt < 2) await delay(250 * 2 ** attempt, signal)
       }
     }
     throw new ClientError(path, { status: lastError instanceof ClientError ? lastError.status : undefined, cause: lastError })
   }
 
-  async listSessions(directory: string): Promise<readonly Session[]> {
-    const raw = z.array(sessionSchema).parse(await this.request(`/session?scope=project&directory=${encodeURIComponent(directory)}&limit=2000`))
+  async listSessions(directory: string, signal?: AbortSignal): Promise<readonly Session[]> {
+    const raw = z.array(sessionSchema).parse(await this.request(`/session?scope=project&directory=${encodeURIComponent(directory)}&limit=2000`, signal))
     return raw.map((session) => {
       const parentID = session.parentID ?? session.parent_id
       const updated = session.time?.updated
@@ -98,10 +103,11 @@ export class OpencodeClient {
     })
   }
 
-  async listMessages(sessionID: string, directory: string, limit?: number): Promise<readonly Message[]> {
+  async listMessages(sessionID: string, directory: string, limit?: number, signal?: AbortSignal): Promise<readonly Message[]> {
     const raw = z.array(messageEnvelopeSchema).parse(
       await this.request(
         `/session/${encodeURIComponent(sessionID)}/message?directory=${encodeURIComponent(directory)}${limit === undefined ? "" : `&limit=${limit}`}`,
+        signal,
       ),
     )
     return raw.map(({ info, parts }) => ({

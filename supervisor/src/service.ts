@@ -338,6 +338,8 @@ export async function runService(signal: AbortSignal): Promise<void> {
         initialWindowDays: config.initial_window_days,
         fetchConcurrency: config.fetch_concurrency,
         sessionBackoff,
+        signal,
+        previous: runtimes.get(root)?.manifest,
       }, new Set([...consoles.allSessionIDs(), ...beacon.allSessionIDs()]))
       rootBackoff.delete(root)
       if (manifest.fetchErrors.length > 0) {

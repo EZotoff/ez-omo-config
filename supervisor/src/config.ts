@@ -54,7 +54,7 @@ const configSchema = z.object({
   server_url: z.string().url(),
   server_username: z.string().min(1).default("opencode"),
   server_password_env: z.string().min(1).default("OPENCODE_SERVER_PASSWORD"),
-  initial_window_days: z.number().int().positive().default(7),
+  initial_window_days: z.number().int().positive().default(1),
   fetch_concurrency: z.number().int().positive().default(8),
   stall_minutes: z.number().int().positive().default(15),
   // Error-storm auto-investigation (2026-10-05): when the rolling 1-hour ERROR

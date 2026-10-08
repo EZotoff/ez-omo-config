@@ -23,6 +23,8 @@ export type ScanManifest = {
   readonly backoffRecovered?: readonly string[]
   readonly childSessionIDs: readonly string[]
   readonly sessions: readonly SessionScan[]
+  /** sessionID → timeUpdatedMs observed this scan; drives skip-unchanged fetches. */
+  readonly sessionMarks: Readonly<Record<string, number>>
 }
 
 export type ReconcileOptions = {
@@ -30,6 +32,10 @@ export type ReconcileOptions = {
   readonly fetchConcurrency: number
   readonly nowMs?: () => number
   readonly sessionBackoff?: SessionBackoff
+  /** Shutdown signal: aborts in-flight fetches so stop does not wait out a sweep. */
+  readonly signal?: AbortSignal
+  /** Previous manifest of this root; unchanged sessions reuse their scan (no fetch). */
+  readonly previous?: ScanManifest | undefined
 }
 
 const DAY_MS = 86_400_000
@@ -124,19 +130,42 @@ export async function reconcileRoot(
   const fetchErrors: { readonly sessionID: string; readonly error: string }[] = []
   const backoffEntered: string[] = []
   const backoffRecovered: string[] = []
+  const previousMarks = options.previous?.sessionMarks ?? {}
+  const previousScans = new Map((options.previous?.sessions ?? []).map((scan) => [scan.session.id, scan]))
+  // Skip-unchanged diet (2026-10-07 thrash root cause): a full sweep used to fetch
+  // messages for EVERY in-window session (~2.2k/7d) even when nothing changed —
+  // hydrating up to 50 messages x 2.2k sessions through the server on every sweep
+  // and on every idle tick. Reuse the previous scan when timeUpdatedMs is unchanged.
+  const marks: Record<string, number> = {}
+  const reused: SessionScan[] = []
+  const toFetch: Session[] = []
+  for (const session of inWindow) {
+    const mark = session.timeUpdatedMs
+    const previousScan = previousScans.get(session.id)
+    if (mark !== undefined && previousMarks[session.id] === mark) {
+      marks[session.id] = mark
+      if (previousScan !== undefined) reused.push(previousScan)
+    } else {
+      toFetch.push(session)
+    }
+  }
   // Blocked sessions are skipped from FETCHING only — `inWindow` stays intact so
   // topology (topLevelSessions) still sees them and their children do not get
   // promoted to top-level while the parent is in backoff.
   const sessionBackoff = options.sessionBackoff
   const fetchPool = sessionBackoff === undefined
-    ? inWindow
-    : inWindow.filter((session) => !sessionBackoff.isBlocked(session.id, nowMs))
+    ? toFetch
+    : toFetch.filter((session) => !sessionBackoff.isBlocked(session.id, nowMs))
+  const aborted = (): boolean => options.signal?.aborted === true
   const fetched = await mapPool(fetchPool, options.fetchConcurrency, async (session): Promise<SessionScan | undefined> => {
+    if (aborted()) return undefined
+    if (options.signal?.aborted === true) return undefined
     // Per-session isolation: one failing transcript fetch (after client retries)
     // must degrade that session only — never kill the whole service (live crash
     // 2026-09-30 18:12: single /session/<id>/message failure exited the process).
     try {
-      const messages = await client.listMessages(session.id, root, 50)
+      const messages = await client.listMessages(session.id, root, 50, options.signal)
+      if (session.timeUpdatedMs !== undefined) marks[session.id] = session.timeUpdatedMs
       if (options.sessionBackoff?.recordSuccess(session.id)) backoffRecovered.push(session.id)
       const watermark = messages.at(-1)?.id
       return {
@@ -146,16 +175,18 @@ export async function reconcileRoot(
         ...(watermark === undefined ? {} : { watermark }),
       }
     } catch (error) {
+      if (aborted()) throw error
       if (options.sessionBackoff?.recordFailure(session.id, nowMs)) backoffEntered.push(session.id)
       fetchErrors.push({ sessionID: session.id, error: error instanceof Error ? error.message : String(error) })
       return undefined
     }
   })
   const scans = fetched.filter((scan): scan is SessionScan => scan !== undefined)
-  const childIDs = deriveChildSessionIDs(scans.flatMap((scan) => scan.messages))
+  const childIDs = new Set([...(options.previous?.childSessionIDs ?? []), ...deriveChildSessionIDs(scans.flatMap((scan) => scan.messages))])
   const top = new Set(topLevelSessions(inWindow, childIDs).map((session) => session.id))
-  const sessions = scans
-    .filter((scan) => top.has(scan.session.id))
-    .map((scan) => ({ ...scan, turns: projectTurns(scan.messages, registry) }))
-  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, fetchErrors, backoffEntered, backoffRecovered, childSessionIDs: [...childIDs], sessions }
+  const sessions = [
+    ...reused.filter((scan) => top.has(scan.session.id)),
+    ...scans.filter((scan) => top.has(scan.session.id)).map((scan) => ({ ...scan, turns: projectTurns(scan.messages, registry) })),
+  ]
+  return { root, startedAt, completedAt: new Date().toISOString(), complete: true, fetchErrors, backoffEntered, backoffRecovered, childSessionIDs: [...childIDs], sessions, sessionMarks: marks }
 }

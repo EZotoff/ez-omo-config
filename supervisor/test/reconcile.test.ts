@@ -150,3 +150,42 @@ test("session backoff: blocked parent stays out of sessions/fetchErrors but keep
   expect(blocked.sessions).toHaveLength(0)
 })
 
+test("skip-unchanged sweep reuses the previous scan instead of refetching transcripts", async () => {
+  const { reconcileRoot } = await import("../src/reconcile")
+  let fetches = 0
+  const sessions: Session[] = [{ id: "ses-a", directory: "/project", timeUpdatedMs: 1000 }]
+  const client = {
+    listSessions: async () => sessions,
+    listMessages: async (sessionID: string) => {
+      fetches += 1
+      return [{ id: "u1", sessionID, role: "user", time: { created: 1 }, parts: [] }] as never
+    },
+  }
+  const registry = { humanMessageIDs: new Set<string>(), supervisorMessageIDs: new Set<string>() }
+  const first = await reconcileRoot(client as never, "/project", registry, { initialWindowDays: 7, fetchConcurrency: 1, nowMs: () => 1000 })
+  expect(fetches).toBe(1)
+  expect(first.sessionMarks["ses-a"]).toBe(1000)
+  const second = await reconcileRoot(client as never, "/project", registry, { initialWindowDays: 7, fetchConcurrency: 1, nowMs: () => 1000, previous: first })
+  expect(fetches).toBe(1)
+  expect(second.sessions.map((scan) => scan.session.id)).toEqual(["ses-a"])
+  expect(second.sessions[0]?.messages).toHaveLength(1)
+  sessions[0] = { ...sessions[0]!, timeUpdatedMs: 2000 }
+  const third = await reconcileRoot(client as never, "/project", registry, { initialWindowDays: 7, fetchConcurrency: 1, nowMs: () => 1000, previous: second })
+  expect(fetches).toBe(2)
+  expect(third.sessionMarks["ses-a"]).toBe(2000)
+})
+
+test("aborted signal stops transcript fetches (shutdown does not wait out a sweep)", async () => {
+  const { reconcileRoot } = await import("../src/reconcile")
+  const controller = new AbortController()
+  let fetches = 0
+  const client = {
+    listSessions: async () => [{ id: "ses-a", directory: "/project", timeUpdatedMs: 1 }] as Session[],
+    listMessages: async () => { fetches += 1; return [] as never },
+  }
+  controller.abort()
+  const manifest = await reconcileRoot(client as never, "/project", { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }, { initialWindowDays: 7, fetchConcurrency: 1, signal: controller.signal })
+  expect(fetches).toBe(0)
+  expect(manifest.sessions).toEqual([])
+})
+
