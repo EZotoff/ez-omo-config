@@ -344,6 +344,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
       rootBackoff.delete(root)
       if (manifest.fetchErrors.length > 0) {
         ledger = await ledger.append("ERROR", { root, error: `reconcile degraded: ${manifest.fetchErrors.length} session fetch(es) failed`, fetchErrors: manifest.fetchErrors.slice(0, 10) })
+        // Undercount fix (2026-10-08): reconcile-degraded fetch failures were the
+        // dominant storm signal but bypassed hourly telemetry — the error-peak gauge
+        // ran ~2x low mid-incident (Oct 6: 108 ledger vs 58 counted).
+        for (let i = 0; i < manifest.fetchErrors.length; i += 1) await recordErrorTelemetry({ root })
       }
       for (const sessionID of manifest.backoffEntered ?? []) {
         ledger = await ledger.append("ERROR", { root, reason: "session fetch backoff entered", sessionID })
