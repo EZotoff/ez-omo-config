@@ -177,14 +177,16 @@ Any session doing disk cleanup, deduplication, or "stale version" sweeps MUST:
 
 Incident reference: 2026-09-18, a benchmark-disk-cleanup session deleted `~/oh-my-openagent-v4.19.2`, silently unloading the OMO plugin and destroying unpushed fork commits.
 
-## Portable Supervisor prototype — cross-project awareness (2026-09-18)
+## Portable Supervisor prototype — cross-project awareness (2026-09-18; four-repo update + doc-search rule 2026-10-08)
 
-Three repos form one product (the OC Beacon Portable Supervisor prototype). Know which repo you are in and which seam you touch; the binding contract is [`~/ez-omo-config/docs/portable-supervisor-contract.md`](file:///home/ezotoff/ez-omo-config/docs/portable-supervisor-contract.md):
+FOUR repos form one product (the OC Beacon Portable Supervisor prototype). Know which repo you are in and which seam you touch. Two authoritative docs live in ez-omo-config: the **proposal** (product vision + UX spec — `~/ez-omo-config/docs/portable-supervisor-proposal.md`) and the **binding contract** (seam-level obligations + pending ledger — `~/ez-omo-config/docs/portable-supervisor-contract.md`).
 
 - **omo-pulse** (`~/AI_projects/ez-omo-dash`) — visual supervisor surface (attention queue, session cards, remote UI, deep-links). Central dev session for prototype work runs here.
 - **voice-bridge / Vox** (`~/AI_projects/voice-bridge`) — voice brain: Gemini Live service on `127.0.0.1:18220`, tools, interrupts, confirmation-gated mutations.
-- **ez-omo-config** — config store + contract home; contract changes land here FIRST, then per-repo implementation sessions.
-- Run **one session per repo** (AGENTS.md/codegraph/tests are repo-scoped); cross-repo changes go contract → bridge → dash in that order.
+- **oc-beacon** (`~/src/oc-beacon` — note: NOT under ~/AI_projects) — Android client: ambient attention surface, tap/spoken replies, Portable Supervisor Mode (the AR-glasses-emulating mini-screen per the proposal).
+- **ez-omo-config** — config store + contract/proposal home; contract changes land here FIRST, then per-repo implementation sessions.
+- Run **one session per repo** (AGENTS.md/codegraph/tests are repo-scoped); cross-repo changes go contract → bridge → dash/beacon in that order.
+- **Doc-search rule (2026-10-08 lesson)**: before ANY design/build decision for this product — and especially before declaring any spec or design "nonexistent" — grep the docs/plans of ALL FOUR repos (`docs/`, `.sisyphus/`, `.omo/plans/`) for the topic. Product specs usually exist somewhere; the 2026-10-08 incident rebuilt a feature from a wrong reconstruction while the authoritative spec sat in `portable-supervisor-proposal.md`, unsearched.
 
 Supervisory data contracts: escalations come from the supervisor ledger (`~/.local/state/opencode-supervisor/ledger.jsonl`, `TICK_DECIDED`+`ESCALATE`); never parse `[Supervisor]` console sessions for reading.
 
