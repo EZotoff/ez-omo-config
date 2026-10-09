@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source_file="${OPENCODE_PROCESSOR_SOURCE:-$HOME/src/opencode/packages/opencode/src/session/processor.ts}"
-[[ -f "$source_file" ]] || { printf 'FAIL: missing processor source: %s\n' "$source_file" >&2; exit 1; }
+# Default is the FIX WORKTREE checkout: the stall-exemption fix (commit
+# acc3dc0eb6) is fork-local and only exists there until it lands upstream, so
+# once the patch entry flips active (it is active as of 2026-10-09) the
+# structural greps must enforce against source that actually carries the fix.
+source_file="${OPENCODE_PROCESSOR_SOURCE:-$HOME/src/opencode-wt-stall/packages/opencode/src/session/processor.ts}"
 
 # Status gate: structural greps only enforce while the patch entry is active.
 # Kill variants and explicit fixture runs set OPENCODE_PROCESSOR_SOURCE, so the
