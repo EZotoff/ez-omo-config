@@ -47,6 +47,31 @@ done
 for action in $ACTIONS; do
   grep -q "\"$action\"" "$TYPES" || { echo "FAIL: action $action absent from ACTIONS in types.ts"; fail=1; }
 done
+
+echo "[dispatch-gate] 1b/3 injection single-flight tripwire (claim guard + root-filtered retry)"
+
+CONSOLE="$SUPERVISOR/src/console.ts"
+# The in-memory single-flight set must exist.
+grep -q 'inFlight' "$CONSOLE" || { echo "FAIL: inFlight single-flight set missing from console.ts"; fail=1; }
+# All three delivery paths must acquire the claim.
+CLAIMS=$(grep -c 'this\.claim(' "$CONSOLE" || true)
+test "$CLAIMS" -ge 3 || { echo "FAIL: claim guard missing on a delivery path (found $CLAIMS, need >=3)"; fail=1; }
+RELEASES=$(grep -c 'this\.release(' "$CONSOLE" || true)
+test "$RELEASES" -ge 3 || { echo "FAIL: release missing on a delivery path (found $RELEASES, need >=3)"; fail=1; }
+# handleReply must claim AFTER the disposition check (panel claim-leak fix).
+HANDLE_BODY=$(awk '/async handleReply\(/,/private async routeAnswered/' "$CONSOLE")
+DISP_LINE=$(printf '%s\n' "$HANDLE_BODY" | grep -n 'applyDisposition' | head -1 | cut -d: -f1)
+CLAIM_LINE=$(printf '%s\n' "$HANDLE_BODY" | grep -n 'this\.claim(' | head -1 | cut -d: -f1)
+test -n "$DISP_LINE" && test -n "$CLAIM_LINE" && test "$DISP_LINE" -lt "$CLAIM_LINE" || { echo "FAIL: handleReply claims before the disposition check (claim-leak)"; fail=1; }
+# retryPendingPropagations must be root-filtered and claim before probe.
+RETRY_BODY=$(awk '/async retryPendingPropagations\(/,/async recoverAnswered/' "$CONSOLE")
+printf '%s\n' "$RETRY_BODY" | grep -q 'item\.target\.root !== root' || { echo "FAIL: retryPendingPropagations is not root-filtered"; fail=1; }
+printf '%s\n' "$RETRY_BODY" | grep -q 'this\.claim(' || { echo "FAIL: retryPendingPropagations does not claim"; fail=1; }
+# recoverAnswered must claim per item.
+RECOVER_BODY=$(awk '/async recoverAnswered\(/,/async handleReply\(/' "$CONSOLE")
+printf '%s\n' "$RECOVER_BODY" | grep -q 'this\.claim(' || { echo "FAIL: recoverAnswered does not claim"; fail=1; }
+# The service call site must pass the root to the retry pass.
+grep -q 'retryPendingPropagations(root\.path' "$SERVICE" || { echo "FAIL: retryPendingPropagations call site does not pass root"; fail=1; }
 test "$fail" -eq 0 || exit 1
 echo "[dispatch-gate] bijection OK ($(echo "$ACTIONS" | tr '\n' ' '))"
 
