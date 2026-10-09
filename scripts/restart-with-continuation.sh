@@ -34,6 +34,10 @@
 #   CONTINUATION_DB_PATH       session DB path override for the DB fallback
 #                               (test isolation only; default ~/.local/share/
 #                               opencode/opencode.db). Read-only connection.
+#   CONTINUATION_JOURNAL_TAG   journal tag for journal_alert() (default
+#                               restart-continuation). Regression tests set it
+#                               to restart-continuation-test so their alerts
+#                               never enter the production bridge namespace.
 #
 # Evidence states: snapshot = live API read; resume = POST /session/:id/prompt_async
 # (fire-and-forget; the target session runs the prompt on next available turn).
@@ -83,11 +87,14 @@ journal_alert() { # journal_alert <reason> <unit> <rc|-> <uuid|-> <count|-> <tex
   local reason="$1" unit="$2" rc="${3:--}" uuid="${4:--}" count="${5:--}" ts
   shift 5
   ts="$(date +%s)"
+  # Namespace isolation (design 2, L1): tests set CONTINUATION_JOURNAL_TAG to a
+  # distinct tag so their alerts never enter the production bridge namespace.
+  local tag="${CONTINUATION_JOURNAL_TAG:-restart-continuation}"
   local msg="restart-continuation: $* unit=$unit reason=$reason rc=$rc uuid=$uuid count=$count ts=$ts"
   if command -v systemd-cat >/dev/null 2>&1; then
-    printf '%s\n' "$msg" | systemd-cat -p alert -t restart-continuation 2>/dev/null || true
+    printf '%s\n' "$msg" | systemd-cat -p alert -t "$tag" 2>/dev/null || true
   elif command -v logger >/dev/null 2>&1; then
-    printf '%s\n' "$msg" | logger -p user.alert -t restart-continuation 2>/dev/null || true
+    printf '%s\n' "$msg" | logger -p user.alert -t "$tag" 2>/dev/null || true
   fi
 }
 

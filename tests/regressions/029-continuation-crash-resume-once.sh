@@ -121,7 +121,7 @@ count_prompt_marks() {
 
 # --- Run 1: crash-class resume must inject exactly one prompt ----------------
 set +e
-XDG_STATE_DIR="$TEST_STATE" timeout 90 bash "$SCRIPT_UNDER_TEST" \
+CONTINUATION_JOURNAL_TAG=restart-continuation-test XDG_STATE_DIR="$TEST_STATE" timeout 90 bash "$SCRIPT_UNDER_TEST" \
     hook-resume "$TESTUNIT" "$URL" "$ENVFILE" > "$WORK/resume1.out" 2>&1
 RC1=$?
 set -e
@@ -146,7 +146,7 @@ fi
 # --- Run 2: second invocation must inject NOTHING ---------------------------
 sleep 1
 set +e
-XDG_STATE_DIR="$TEST_STATE" timeout 30 bash "$SCRIPT_UNDER_TEST" \
+CONTINUATION_JOURNAL_TAG=restart-continuation-test XDG_STATE_DIR="$TEST_STATE" timeout 30 bash "$SCRIPT_UNDER_TEST" \
     hook-resume "$TESTUNIT" "$URL" "$ENVFILE" > "$WORK/resume2.out" 2>&1
 RC2=$?
 set -e
