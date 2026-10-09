@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Kill variant: feed the regression test a fixture MISSING the local-tool
+# tracking block. The test MUST fail (non-zero exit). If it passes, the
+# assertions are dead (no polarity) and this kill script fails instead.
+set -uo pipefail
 
-repo="$(cd "$(dirname "$0")/../.." && pwd)"
-source_file="${OPENCODE_PROCESSOR_SOURCE:-$HOME/src/opencode-wt-stall/packages/opencode/src/session/processor.ts}"
-[[ -f "$source_file" ]] || { printf 'FAIL: missing processor source\n' >&2; exit 1; }
+here="$(cd "$(dirname "$0")" && pwd)"
 fixture="$(mktemp)"
 trap 'rm -f "$fixture"' EXIT
-# Fixture: processor.ts with the tracking step's local-tool registration
-# removed (set never gains IDs → exemption dead → regression must fail).
-perl -pe 's/localTools\.add\(event\.id\)/void event.id/' "$source_file" > "$fixture"
 
-if OPENCODE_PROCESSOR_SOURCE="$fixture" bash "$repo/tests/regressions/2026-10-09-local-tool-stall-exemption.sh" >/dev/null 2>&1; then
-    printf 'FAIL: regression did not detect missing local-tool registration\n' >&2
+cat > "$fixture" <<'EOF'
+// fixture: processor.ts WITHOUT the local-tool stall exemption fix
+export const watch = "watchdog"
+EOF
+
+output="$(OPENCODE_PROCESSOR_SOURCE="$fixture" bash "$here/2026-10-09-local-tool-stall-exemption.sh" 2>&1)"
+rc=$?
+
+if [[ $rc -eq 0 ]]; then
+    printf 'KILL-FAIL: regression test passed against fixture missing the tracking step — assertions have no polarity\n%s\n' "$output" >&2
     exit 1
 fi
-printf 'PASS: removing local-tool registration makes regression fail\n'
+
+printf 'KILL-PASS: test correctly fails against fixture missing the tracking step (exit %d)\n' "$rc"
+exit "$rc"
