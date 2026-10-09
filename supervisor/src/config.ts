@@ -66,6 +66,17 @@ const configSchema = z.object({
     threshold: z.number().int().positive().default(10),
     dedup_window_h: z.number().int().positive().default(6),
   }).strict().default({ enabled: false, threshold: 10, dedup_window_h: 6 }),
+  // Journal->ledger continuation bridge hygiene (design 2, M4): coalesce
+  // repeated continuation alerts by unit|reason, roll suppressed repeats into
+  // one per-window digest escalation, and break per-unit escalation storms.
+  // coalesce_enabled=false restores legacy one-ESCALATE-per-alert behavior.
+  continuation_bridge: z.object({
+    coalesce_enabled: z.boolean().default(true),
+    coalesce_window_s: z.number().int().positive().default(900),
+    max_escalations_per_unit_per_window: z.number().int().positive().default(5),
+    cooldown_s: z.number().int().positive().default(3600),
+    excluded_units: z.array(z.string().min(1)).default([]),
+  }).strict().default({ coalesce_enabled: true, coalesce_window_s: 900, max_escalations_per_unit_per_window: 5, cooldown_s: 3600, excluded_units: [] }),
   model: z.object({ provider: z.string().min(1), id: z.string().min(1) }).strict(),
   grace_period_s: z.number().int().nonnegative(),
   min_intervention_interval_s: z.number().int().nonnegative(),

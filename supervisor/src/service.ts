@@ -312,6 +312,13 @@ export async function runService(signal: AbortSignal): Promise<void> {
     statePath: join(stateDirectory, "journal-bridge.json"),
     read: readJournalEntries,
     append: async (type, payload) => { ledger = await ledger.append(type, payload) },
+    config: {
+      coalesceEnabled: config.continuation_bridge.coalesce_enabled,
+      coalesceWindowS: config.continuation_bridge.coalesce_window_s,
+      maxEscalationsPerUnitPerWindow: config.continuation_bridge.max_escalations_per_unit_per_window,
+      cooldownS: config.continuation_bridge.cooldown_s,
+      excludedUnits: config.continuation_bridge.excluded_units,
+    },
   })
   const pollBridge = async (): Promise<void> => {
     try {
