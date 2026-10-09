@@ -7,7 +7,7 @@ source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-10-09"
 dep_version: "1.18.31-p4"
-runtime_effective: false
+runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "stream-stall heartbeat: local tool execution in flight"
 verification_strength: "discriminative"
@@ -45,11 +45,13 @@ Pattern (necessary, NOT sufficient): `grep -ac 'stream-stall heartbeat: local to
 
 ## Runtime Verification
 
-1. RED (pre-patch p3): `bash tests/smoke/smoke-local-tool-stall-exemption.sh --bin ~/.opencode/bin/opencode --expect stall` — long bash tool with `OPENCODE_STREAM_STALL_MS=15000` must show `LLM stream stalled for 15000ms` (defect reproduced).
-2. GREEN (p4, task 13): `bash tests/smoke/smoke-local-tool-stall-exemption.sh --bin ~/.opencode/bin/opencode --expect clean` — sleep 45 s tool completes, no stall error, wall > 45 s.
-3. Not-masked (p4, task 13): `bash tests/smoke/smoke-stall-catch-preserved.sh --bin ~/.opencode/bin/opencode` — hanging mock provider with `OPENCODE_STREAM_STALL_MS=15000` must still surface `LLM stream stalled for 15000ms`.
+1. RED (pre-patch p3, 2026-10-09): `bash tests/smoke/smoke-local-tool-stall-exemption.sh --bin ~/.opencode/bin/opencode --expect stall` — exit 0, `LLM stream stalled for 15000ms` observed (defect reproduced). Logs: `.sisyphus/evidence/smoke-local-tool-stall-20261009-15*.log`, `smoke-stall-catch-red-20261009.log`.
+2. GREEN (p4 installed sha 684c2b99…, 2026-10-09 16:18): same script `--expect clean` — PASS: sleep 45 s tool completed (45070 ms), zero stall signals, wall 59968 ms. Log: `.sisyphus/evidence/smoke-local-tool-stall-green-20261009-161803.log`.
+3. Not-masked (p4, 2026-10-09 16:17): `bash tests/smoke/smoke-stall-catch-preserved.sh --bin ~/.opencode/bin/opencode` — PASS: first-byte provider hang surfaced `LLM stream stalled for 15000ms`; exemption does not mask real stalls. Log: `.sisyphus/evidence/smoke-stall-catch-green-20261009-161451.log`.
 4. Pending operator check (non-gating): interactive TUI question dialog held > stall window with reduced `OPENCODE_STREAM_STALL_MS` (headless `opencode run` has no question tool — wisdom `20260929-060436-xg5q`).
-5. runtime_effective stays false until (2) and (3) are GREEN on the installed binary; smoke records go to `~/.local/share/opencode/smoke-results/<p4-sha>.json` (smoke id `local-tool-stall-exemption`).
+5. Smoke records: `~/.local/share/opencode/smoke-results/684c2b9914a7885be362df5e5c0a505acdd91434e53bf68de2d9a7466e8d6174.json` (ids `local-tool-stall-exemption` PASS + `stall-catch-preserved` PASS).
+
+A/B-gate note (task 6): the 4000 ms exemption probe fails as an ARTIFACT — post-`tool-result` TTFT gaps are deliberately unexempted and can exceed 4 s; forensics on the failed probe's transcript proved the sleep completed and the stall fired at the next-request wait. Validated exemption probes: `OPENCODE_STREAM_STALL_MS=8000` + `sleep 20` and `15000` + `sleep 45` — both clean. Use those windows when re-running step 3 of Reapply Instructions.
 
 ## Reapply Instructions
 
@@ -62,3 +64,7 @@ Pattern (necessary, NOT sufficient): `grep -ac 'stream-stall heartbeat: local to
 ## Durable Alternative
 
 Upstream: the AI SDK exposing tool-execution windows or watchdog-relevant hooks so the processor can distinguish local-execution silence from provider silence without a local heartbeat. Status: not-yet-pursued.
+
+## Current Runtime Status
+
+Effective on installed binary 1.18.31-p4 (sha256 684c2b9914a7885be362df5e5c0a505acdd91434e53bf68de2d9a7466e8d6174) as of 2026-10-09. RED→GREEN proof captured (items 1-3 above); build receipt `~/.local/share/opencode/builds/684c2b99….json`; rollback backup `~/.opencode/bin/opencode.backup-1.18.31-p4-4-20261009-160623` (sha = p3 aa1fa633…). Interactive question-dialog path: pending operator check (non-gating).
