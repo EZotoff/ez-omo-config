@@ -152,3 +152,8 @@ follow-ups.
 ## Re-reapplied (2026-09-30, self-congestion transcript-limit task)
 
 Hand-reapplied to dist sha256=6990a043209c990dd3c0558712915fce084f54154ff699287bf74f5d1d6ba05d (rebuilt from branch `agent/sisyphus/tui-label-transcript-limit` = ae73e27cd + bounded last-agent transcript fetch; superset of canonical ref 3d507e2de). All verification_pattern gates pass; bootstrap receipt omo-6990a043....json (generation omo-4.19.2-patches.1).
+
+
+## Re-reapplied (2026-10-09, integrity-alarm remediation session)
+
+The 2026-10-07 out-of-flow rebuild (idle-deferral ceiling, ses_ef45bab follow-up) rebuilt dist/index.js from fix/custom-patches-v4.19.2 without reapplying dist patches and wrote a misnamed receipt (builds/omo-dist-50912c476c.json) — this left the patch absent from the live dist for ~2 days (caught by the permanently-red integrity alarms, 2026-10-09). Restored via the documented path: fork branch fix/custom-patches-v4.19.2 merged with feature/wake-journal-outbox (merge 6b2d2fe6, pushed), rebuilt with scripts/build-and-install-omo.sh, all four dist patches reapplied per their entries, receipt builds/omo-064064c637f38a1a6704a7a9ea49d5fb14bad6a892e70a40e4b573503d17318b.json (generation omo-4.19.2-patches.1, bootstrapped:false, source_head 6b2d2fe6 on fork remote).

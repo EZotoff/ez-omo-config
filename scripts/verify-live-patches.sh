@@ -338,15 +338,24 @@ if (( PROV_MODE )); then
     # {smoke_id, result, ...} entries) — read via the shared helper in
     # lib-patchset.sh (patchset_smoke_results).
     if [[ -n "$PROV_BIN_SHA" && -f "$SMOKE_RESULTS_DIR/$PROV_BIN_SHA.json" ]]; then
+        # Latest result wins per smoke id: the store is append-only, so
+        # historical FAILs superseded by later PASS runs must not poison
+        # current verdicts (same latest-wins semantics as
+        # check-provenance.sh's `latest` map). File order = append order.
+        declare -A latest_result=()
         while IFS=$'\t' read -r smoke_id smoke_result; do
             [[ -n "$smoke_id" ]] || continue
+            latest_result["$smoke_id"]="$smoke_result"
+        done < <(patchset_smoke_results "$SMOKE_RESULTS_DIR/$PROV_BIN_SHA.json")
+        for smoke_id in "${!latest_result[@]}"; do
+            smoke_result="${latest_result[$smoke_id]}"
             if [[ "$smoke_result" == "PASS" ]]; then
                 SMOKE_PASS["$smoke_id"]=1
             elif [[ "$smoke_result" == "FAIL" ]]; then
                 SMOKE_FAIL["$smoke_id"]=1
             fi
             # SKIP: intentionally not executed — neither pass nor fail
-        done < <(patchset_smoke_results "$SMOKE_RESULTS_DIR/$PROV_BIN_SHA.json")
+        done
     fi
 fi
 
