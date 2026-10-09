@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/src/opencode/packages/opencode/src/server/ro
 surfaces: "server-api"
 status: "active"
 applied_date: "2026-09-30"
-dep_version: "1.18.31-p3"
+dep_version: "1.18.31-p4"
 verification_pattern: "bufferSize:256"
 verification_strength: "discriminative"
 required_evidence: "runtime"

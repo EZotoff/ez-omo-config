@@ -6,7 +6,7 @@ target_install_path: "/home/ezotoff/.opencode/bin/opencode"
 source_repo: "/home/ezotoff/src/opencode"
 status: "active"
 applied_date: "2026-10-03"
-dep_version: "1.18.31-p3"
+dep_version: "1.18.31-p4"
 runtime_effective: true
 upstream_issue: "none"
 verification_pattern: "OPENCODE_EVENT_CODEC"

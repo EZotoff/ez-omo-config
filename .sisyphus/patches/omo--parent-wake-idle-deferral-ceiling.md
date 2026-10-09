@@ -7,7 +7,7 @@ status: "active"
 applied_date: "2026-10-07"
 dep_version: "4.19.2"
 upstream_issue: "none"
-verification_pattern: "idle-deferral ceiling (history guards bypassed)"
+verification_pattern: "idle-deferral ceiling \(history guards bypassed\)"
 surfaces: ["server-api"]
 runtime_effective: false
 note: "Source patch, carried as fork commit 50912c476 (branch fix/custom-patches-v4.19.2, pushed to EZotoff/oh-my-openagent 2026-10-07). status: active — dist rebuilt (build receipt ~/.local/share/opencode/builds/omo-dist-50912c476a.json) and both servers restarted 2026-10-07 21:19:57/21:20:17 CEST. runtime_effective: false until a real idle-stalled wake is observed recovering via the 'Sent parent wake after idle-deferral ceiling' log line."
@@ -104,3 +104,9 @@ opencode servers via `restart-with-continuation.sh`.
 - `omo--subagent-fallback-inplace` — the 2026-10-05 wake rework this completes.
 - opencode--sse-directory-filter-removal — the separate TUI invisibility of
   wake continuations (why stalls look like silent dead sessions).
+
+
+
+## Verification-pattern fix (2026-10-09)
+
+verification_pattern previously used unescaped parentheses — the verifier treats patterns as regex, so a group can never match the literal "(history guards bypassed)" text. Escaped to \\(...\\). Patch content itself was present and unaffected.

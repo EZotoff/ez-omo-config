@@ -9,7 +9,7 @@ note: "lockfile required:true since 2026-09-30 (was acknowledged-drift before th
 required_evidence: "runtime"
 status: "active"
 applied_date: "2026-06-26"
-dep_version: "1.18.31-p3"
+dep_version: "1.18.31-p4"
 upstream_issue: "https://github.com/anomalyco/opencode/pull/35913"
 verification_pattern: "location\\?\\.workspaceID===void 0\\|\\|"
 runtime_effective: true

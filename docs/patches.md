@@ -7,7 +7,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 - **Live runtime artifact safety**: never redirect diagnostic output into `~/oh-my-openagent-v4.19.2/dist/*`, `~/.opencode/bin/*`, `~/.opencode/plugin/*`, or live `~/.config/opencode/*` configs. Write `git show`, `cat`, and `curl` output only to `.sisyphus/drafts/` or mktemp.
 - Live writes require the documented timestamped `.pre-*` backup and verification flow. A failed `git show` redirect destroyed the OMO bundle on 2026-09-08.
 
-## OpenCode binary patches (live binary v1.18.31-p2, rebuilt via `update-to-latest`)
+## OpenCode binary patches (live binary v1.18.31-p4, rebuilt via `update-to-latest`)
 
 | Patch | Status | runtime_effective | Entry |
 |---|---|---|---|
@@ -27,6 +27,7 @@ Thin index over the authoritative patch registry. Every entry lives in [.sisyphu
 | `opencode--tui-subagent-spinner` — Sessions dialog shows the spinner on a parent row while any of its (hidden) sub-agent child sessions is busy/retry; children aggregated from the unfiltered sync list (browse/search are `roots:true`); live A/B verified 2026-09-17 | active | true | [entry](../.sisyphus/patches/opencode--tui-subagent-spinner.md) |
 | `opencode--plugin-engine-prerelease` — plugin `engines.opencode` ranges match prerelease-suffixed (`-p<N>` provenance) host builds; fixes `Plugin … skipped` toast on patched binaries; strace A/B verified | active | true | [entry](../.sisyphus/patches/opencode--plugin-engine-prerelease.md) |
 | `opencode--event-data-compression` — transparent gzip (gz1) compression of `EventTable.data` at the drizzle column seam (≥4 KB rows); kills event-log write amplification (61.8 GB / 3M-row incident 2026-10-02, ~8 GB/heavy-bench-day); kill switch `OPENCODE_EVENT_CODEC=off`; instrumentation `scripts/event-bytes-report.py`; escape hatch `scripts/event-codec-migrate-out.py`; measured 36×@4 KB / 309×@50 KB | active | false | [entry](../.sisyphus/patches/opencode--event-data-compression.md) |
+| `opencode--local-tool-stall-exemption` — heartbeat refresh while local tools (question dialogs, permission prompts, long bash, task waits) are in flight; exempts legitimate local execution from the stream-stall watchdog without touching the TDZ-trapped watchdog block; RED→GREEN smokes proven on installed p4 (smoke-results/9cf33b53….json) | active | true | [entry](../.sisyphus/patches/opencode--local-tool-stall-exemption.md) |
 
 **Superseded 2026-09-30:** source commit `48eedf9406` (question-tool stall suppression, built as `1.18.31-p2`) was reverted by `4d8d4713fa` — orphaned permission dialogs created immortal busy sessions plus a Bun bundler miscompile in the watchdog block. Registry row 45 (`opencode--question-stream-stall-guard`, superseded). The paired [structural regression](../tests/regressions/2026-09-28-question-stream-stall.sh) and [kill check](../tests/regressions/2026-09-28-question-stream-stall.kill.sh) are status-gated on the entry and re-arm if it flips to active.
 
