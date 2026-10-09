@@ -250,3 +250,27 @@ describe("openItemsByRoot", () => {
     expect(openItemsByRoot([])).toEqual({})
   })
 })
+
+describe("AttentionQueue idempotency guards", () => {
+  test("resolving an already-resolved item is a no-op (no duplicate ledger row)", async () => {
+    const { queue, dir, events } = await openQueue()
+    const created = await proposeItem(queue, proposal())
+    const first = await queue.resolve(created.item.id, { disposition: "propagated", evidence: [], now: NOW, reason: "delivered" })
+    const second = await queue.resolve(created.item.id, { disposition: "propagated", evidence: [], now: NOW, reason: "delivered again" })
+    expect(second).toBe(first)
+    expect(second.lifecycle).toHaveLength(first.lifecycle.length)
+    expect(events.filter((type) => type === "QUEUE_ITEM_RESOLVED")).toHaveLength(1)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("markAnswered on an already-answered item is a no-op (no lifecycle row)", async () => {
+    const { queue, dir, events } = await openQueue()
+    const created = await proposeItem(queue, proposal())
+    const first = await queue.markAnswered(created.item.id, "reply_1", "console", NOW)
+    const second = await queue.markAnswered(created.item.id, "reply_2", "console", NOW)
+    expect(second).toBe(first)
+    expect(second.lifecycle).toHaveLength(first.lifecycle.length)
+    expect(events.filter((type) => type === "QUEUE_REPLY_RECEIVED")).toHaveLength(1)
+    await rm(dir, { recursive: true, force: true })
+  })
+})
