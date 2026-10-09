@@ -57,3 +57,20 @@ echo "[dispatch-gate] 3/3 supervisor typecheck (tsc --noEmit)"
 (cd "$SUPERVISOR" && bunx tsc --noEmit)
 
 echo "[dispatch-gate] PASS"
+
+# --- LEDGER_TYPES registry coverage (M4 journal-bridge hygiene) -------------
+# The journal bridge emits CONTINUATION_ALERT raw rows. Guard the ledger type
+# registry against drift: the type must be present in LEDGER_TYPES (types.ts)
+# and the runtime schema must validate against it (ledger.ts z.enum). If any
+# source file ever adds an exhaustive switch over ledger record types with an
+# assertNever default, it must enumerate CONTINUATION_ALERT.
+echo "[dispatch-gate] 4/4 ledger type registry: CONTINUATION_ALERT present"
+LEDGER_SCHEMA="$SUPERVISOR/src/ledger.ts"
+grep -q '"CONTINUATION_ALERT"' "$TYPES" || { echo "FAIL: CONTINUATION_ALERT missing from LEDGER_TYPES in types.ts"; exit 1; }
+grep -q 'z.enum(LEDGER_TYPES)' "$LEDGER_SCHEMA" || { echo "FAIL: ledger.ts does not validate type against LEDGER_TYPES"; exit 1; }
+for f in $(grep -rl 'assertNever' "$SUPERVISOR/src" 2>/dev/null || true); do
+  if grep -q 'case "TICK_DECIDED"' "$f"; then
+    grep -q 'case "CONTINUATION_ALERT"' "$f" || { echo "FAIL: $f switches over ledger types but omits CONTINUATION_ALERT"; exit 1; }
+  fi
+done
+echo "[dispatch-gate] ledger type registry OK"
