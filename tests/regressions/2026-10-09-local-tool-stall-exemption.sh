@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Default source is the FIX WORKTREE checkout, not the main one: the
-# stall-exemption fix (commit acc3dc0eb6) only exists there until it lands.
-source_file="${OPENCODE_PROCESSOR_SOURCE:-$HOME/src/opencode-wt-stall/packages/opencode/src/session/processor.ts}"
+# Default source is the main checkout, per the plan (structural greps enforce
+# after the patch entry flips active). Fixture/kill runs override it via
+# OPENCODE_PROCESSOR_SOURCE; the fix itself lives in ~/src/opencode-wt-stall
+# (commit acc3dc0eb6) until it lands.
+source_file="${OPENCODE_PROCESSOR_SOURCE:-$HOME/src/opencode/packages/opencode/src/session/processor.ts}"
 [[ -f "$source_file" ]] || { printf 'FAIL: missing processor source: %s\n' "$source_file" >&2; exit 1; }
 
 # Status gate: structural greps only enforce while the patch entry is active.
@@ -19,11 +21,12 @@ if [[ -z "${OPENCODE_PROCESSOR_SOURCE:-}" ]]; then
     fi
 fi
 
-# Structural regression: local tool executions must be tracked on tool-call,
-# removed on tool-result/tool-error, and heartbeat via Effect.raceFirst with
+# Structural regression (rung R1): local tool executions must be tracked on
+# tool-call, removed on tool-result/tool-error, and raced via heartbeat alongside
 # the watchdog so a local tool run does not trip the stream-stall abort.
-# NOTE: these literals match fix commit acc3dc0eb6; the task-6 rung changes
-# must keep these literals in sync when they alter the tracking block.
+# NOTE: these literals encode rung R1 (`Effect.raceFirst(watchdog, heartbeat)`).
+# If the A/B gate (plan task 6) escalates to rung R2/R3, these literals MUST be
+# updated in the same commit as the rework.
 for required in \
     'localTools' \
     '!event.providerExecuted' \
