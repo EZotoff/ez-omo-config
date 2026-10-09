@@ -428,7 +428,7 @@ describe("pending propagation retry", () => {
     expect(route.kind).toBe("resolved")
     expect(deliveries).toEqual(["Approve option 2 and continue.**"])
     // Delivered answers are cleared: a later retry pass is a no-op.
-    expect(await channel.retryPendingPropagations(NOW)).toBe(0)
+    expect(await channel.retryPendingPropagations("/root", NOW)).toBe(0)
     await rm(dir, { recursive: true, force: true })
   })
 

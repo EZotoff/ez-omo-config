@@ -35,7 +35,10 @@ export type ReconcileOptions = {
   /** Shutdown signal: aborts in-flight fetches so stop does not wait out a sweep. */
   readonly signal?: AbortSignal
   /** Previous manifest of this root; unchanged sessions reuse their scan (no fetch). */
+  /** Previous manifest of this root; unchanged sessions reuse their scan (no fetch). */
   readonly previous?: ScanManifest | undefined
+  /** Canonical ownership filter: drop sessions another configured root owns (nested roots). */
+  readonly ownsSession?: (session: Session) => boolean
 }
 
 const DAY_MS = 86_400_000
@@ -123,7 +126,9 @@ export async function reconcileRoot(
   const startedAt = new Date().toISOString()
   const nowMs = options.nowMs?.() ?? Date.now()
   const cutoff = nowMs - options.initialWindowDays * DAY_MS
-  const all = await client.listSessions(root)
+  const listed = await client.listSessions(root)
+  const owns = options.ownsSession
+  const all = owns === undefined ? listed : listed.filter((session) => owns(session))
   const inWindow = all.filter(
     (session) => !excludeIDs.has(session.id) && (session.timeUpdatedMs === undefined || session.timeUpdatedMs >= cutoff),
   )

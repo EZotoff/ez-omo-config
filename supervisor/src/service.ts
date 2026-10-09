@@ -18,6 +18,7 @@ import { runTickWithCollect } from "./tick"
 import { pickTarget } from "./targets"
 import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
+import { ownsSession } from "./ownership"
 import { errorSignature, InvestigationMemory, maybeDispatchErrorInvestigation } from "./investigation"
 import { BeaconChannel, BEACON_CHANNEL_ID } from "./beacon"
 import { Blackboard, parseTickDecided } from "./blackboard"
@@ -326,6 +327,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const SWEEP_INTERVAL_MS = 5 * 60_000
   const RESURFACE_MS = 6 * 60 * 60_000
   const sweepState = new Map<string, { lastSweepMs: number; lastSurfaceMs: number }>()
+  // Canonical ownership (design 1, cluster C): a session belongs to the longest
+  // configured root that is a path-boundary prefix of its directory, so nested roots
+  // (veran + veran/apps/web) never both judge the same session.
+  const rootPaths = config.roots.map((root) => root.path)
+  const ownsSessionFor = (root: string) => (session: Session): boolean => ownsSession(root, session.directory, rootPaths)
   const reconcile = async (root: string): Promise<RootRuntime | undefined> => {
     const backoff = rootBackoff.get(root)
     if (backoff !== undefined && Date.now() < backoff.nextAttemptAt) {
@@ -340,6 +346,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         sessionBackoff,
         signal,
         previous: runtimes.get(root)?.manifest,
+        ownsSession: ownsSessionFor(root),
       }, new Set([...consoles.allSessionIDs(), ...beacon.allSessionIDs()]))
       rootBackoff.delete(root)
       if (manifest.fetchErrors.length > 0) {
@@ -904,7 +911,7 @@ rootConfig?.continue_writes?.enabled === true
         if (runtime === undefined) continue
         try {
           const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs(), ...beacon.allSessionIDs()])
-          const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now(), config.stall_minutes * 60_000)
+          const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now(), config.stall_minutes * 60_000, ownsSessionFor(root.path))
           activityGate.observe(signals, Date.now())
           for (const sig of signals) {
             if (sig.kind === "busy") {
