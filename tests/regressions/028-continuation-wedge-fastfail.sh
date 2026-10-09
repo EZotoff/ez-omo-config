@@ -87,7 +87,7 @@ HOOKS_LOG="$TEST_STATE/restart-continuations/hooks.log"
 
 start_ms="$(date +%s%3N)"
 set +e
-XDG_STATE_DIR="$TEST_STATE" timeout 20 bash "$SCRIPT_UNDER_TEST" \
+CONTINUATION_JOURNAL_TAG=restart-continuation-test XDG_STATE_DIR="$TEST_STATE" timeout 20 bash "$SCRIPT_UNDER_TEST" \
     hook-snapshot "$TESTUNIT" "$URL" "$ENVFILE" > "$WORK/hook.out" 2>&1
 HOOK_RC=$?
 set -e
@@ -112,7 +112,7 @@ else
 fi
 
 # (c) journal alert emitted (operator-visible channel; server is dead, no toast).
-if journalctl --user -t restart-continuation --since "$JOURNAL_SINCE" 2>/dev/null | grep -q 'stop preflight failed'; then
+if journalctl --user -t restart-continuation-test --since "$JOURNAL_SINCE" 2>/dev/null | grep -q 'stop preflight failed'; then
     TESTS_PASSED=$((TESTS_PASSED + 1))
     echo "PASS (c): journal alert 'stop preflight failed' visible since $JOURNAL_SINCE"
 else
