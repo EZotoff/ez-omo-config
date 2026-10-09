@@ -924,7 +924,7 @@ rootConfig?.continue_writes?.enabled === true
           }
           // Retry answered-but-undelivered propagations every tick (stuck-pending
           // fix): revalidate, then deliver the stored reply text or resolve.
-          await consoles.retryPendingPropagations(new Date().toISOString())
+          await consoles.retryPendingPropagations(root.path, new Date().toISOString())
           // Open-item lifecycle sweep (2026-10-01 audit): unanswered items aged
           // for days with nothing to trigger revalidation. Sweep revalidates on
           // a 5-min cadence (resolving dead items frees the open-item cap);
