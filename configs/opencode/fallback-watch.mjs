@@ -107,13 +107,13 @@ export function buildDeclaredSets() {
   for (const [name, assignment] of Object.entries(omo.agents ?? {})) {
     const set = new Set();
     declaredFor(assignment, set);
-    if (set.size > 0) agents.set(name, set);
+    if (set.size > 0) agents.set(name.toLowerCase(), set);
   }
   const categories = new Map();
   for (const [name, assignment] of Object.entries(omo.categories ?? {})) {
     const set = new Set();
     declaredFor(assignment, set);
-    if (set.size > 0) categories.set(name, set);
+    if (set.size > 0) categories.set(name.toLowerCase(), set);
   }
 
   const compaction = new Set();
@@ -122,23 +122,37 @@ export function buildDeclaredSets() {
     if (r) compaction.add(r);
   }
 
+  // Global declared pool: every model any operator config names anywhere.
+  const pool = new Set(compaction);
+  const smallModel = modelRef(oc.small_model);
+  if (smallModel) pool.add(smallModel);
+  for (const set of agents.values()) for (const ref of set) pool.add(ref);
+  for (const set of categories.values()) for (const ref of set) pool.add(ref);
+
   return {
     agents,
     categories,
-    smallModel: modelRef(oc.small_model),
+    smallModel,
     compaction,
+    pool,
   };
 }
 
-// Returns the out-of-band model ref, or undefined if the usage is declared
-// (or the agent has no OMO expectation — builtin agents are skipped).
+// Returns the out-of-band model ref, or undefined if the usage is declared.
+//
+// Semantics (v1): a model is out-of-band when NO operator config declares it
+// anywhere — not as an agent/category primary or fallback, not the small
+// model, not in the compaction chain. This is deliberately looser than
+// per-agent checking because OMO model resolution has legitimate paths this
+// plugin cannot see (task(category=...) spawns Sisyphus-Junior on the
+// category's model while message data still carries agent="Sisyphus-Junior";
+// the built-in chains layer on top). A model declared nowhere is
+// definitionally built-in-chain usage — exactly the 2026-10-04/05
+// google/gemini-3.1-pro event class.
 export function classifyAgentTurn({ agentName, model }, declared) {
   const ref = modelRef(model);
   if (!ref) return undefined;
-  const set = declared.agents.get(agentName) ?? declared.categories.get(agentName);
-  if (!set) return undefined; // no expectation — not our verdict to make
-  if (set.has(ref)) return undefined;
-  if (ref === declared.smallModel) return undefined;
+  if (declared.pool.has(ref)) return undefined;
   return ref;
 }
 
