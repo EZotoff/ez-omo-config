@@ -3,8 +3,8 @@
  "dependency": "opencode",
  "upstream_version": "1.18.31",
  "upstream_base": "014614d35b397775e5d397a490fc72368c894ec2",
- "generation": "opencode-1.18.31-patches.3",
- "canonical_ref": "refs/remotes/fork/fix/event-data-compression",
+ "generation": "opencode-1.18.31-patches.4",
+ "canonical_ref": "refs/remotes/fork/fix/v1.18.31-local-tool-stall-exemption",
  "patches": [
   {
    "patch_id": "opencode--turn-summary-timestamp",
@@ -154,6 +154,13 @@
     "3e77f503993f95fb7c8014bdaa0011ad15cf6d1a"
    ],
    "note": "gz1 storage codec; commit also carries the stats hook (event.ts) and sql.ts customType seam"
+  },
+  {
+   "patch_id": "opencode--local-tool-stall-exemption",
+   "required": true,
+   "implementation_commits": [
+    "acc3dc0eb64171dee2368856ace50e1172c124bc"
+   ]
   }
  ]
 }
