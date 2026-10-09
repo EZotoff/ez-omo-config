@@ -3,9 +3,11 @@
 #
 # Contract (plan: crashsafe-continuation-hardening Task 8; 2026-09-21 01:00
 # incident): ExecStop's hook-snapshot must NEVER hang on an unresponsive
-# server. Against a wedged instance it must, within 15s: exit 0 (hook trap
-# contract — failure is signaled by logs, not exit code), append an rc= line
-# to hooks.log, and emit a restart-continuation journal alert.
+# server. Against a wedged instance it must, within the bounded hook budget
+# (~22s: 10s per-call cap + 2s retry gap + 10s retry — the 2026-10-03
+# preflight retry), exit 0 (hook trap contract — failure is signaled by logs,
+# not exit code), append an rc= line to hooks.log, and emit a
+# restart-continuation journal alert.
 #
 # RED on the pre-hardening script: api() curl had no --max-time, so the
 # preflight GET /session/status blocked forever and systemd's 90s TimeoutStopSec
@@ -87,19 +89,19 @@ HOOKS_LOG="$TEST_STATE/restart-continuations/hooks.log"
 
 start_ms="$(date +%s%3N)"
 set +e
-CONTINUATION_JOURNAL_TAG=restart-continuation-test XDG_STATE_DIR="$TEST_STATE" timeout 20 bash "$SCRIPT_UNDER_TEST" \
+CONTINUATION_JOURNAL_TAG=restart-continuation-test XDG_STATE_DIR="$TEST_STATE" timeout 35 bash "$SCRIPT_UNDER_TEST" \
     hook-snapshot "$TESTUNIT" "$URL" "$ENVFILE" > "$WORK/hook.out" 2>&1
 HOOK_RC=$?
 set -e
 elapsed_ms=$(( $(date +%s%3N) - start_ms ))
 
 # (a) hook returns promptly — never burns the 90s stop window.
-if [[ $HOOK_RC -eq 0 && $elapsed_ms -lt 15000 ]]; then
+if [[ $HOOK_RC -eq 0 && $elapsed_ms -lt 30000 ]]; then
     TESTS_PASSED=$((TESTS_PASSED + 1))
-    echo "PASS (a): hook-snapshot returned rc=0 in ${elapsed_ms}ms (<15000ms)"
+    echo "PASS (a): hook-snapshot returned rc=0 in ${elapsed_ms}ms (<30000ms)"
 else
     TESTS_FAILED=$((TESTS_FAILED + 1))
-    echo "FAIL (a): hook-snapshot rc=$HOOK_RC elapsed=${elapsed_ms}ms (need rc=0 <15000ms)"
+    echo "FAIL (a): hook-snapshot rc=$HOOK_RC elapsed=${elapsed_ms}ms (need rc=0 <30000ms)"
 fi
 
 # (b) failure evidence in hooks.log: rc= line (SIGKILL-proof journal of cause).
