@@ -37,6 +37,7 @@ export const POISON_SUSPECT_THRESHOLD = 3
 export const POISON_EXPIRE_THRESHOLD = 4
 export const MAX_CONSECUTIVE_ROOT_SURFACES = 2
 export const SURFACE_LOG_CAP = 500
+export const REDECIDE_HIGH_WATER = 4
 
 const HOUR_MS = 3_600_000
 
@@ -249,6 +250,7 @@ export type ProposeResult =
   | { readonly kind: "deduped"; readonly item: AttentionQueueItem }
   | { readonly kind: "blocked"; readonly reason: string }
 export type RevalidationResult = {
+  readonly redecide?: true
   readonly outcome: RevalidationOutcome
   readonly item: AttentionQueueItem
   readonly poison: "none" | "suspect" | "expired"
@@ -470,6 +472,18 @@ export class AttentionQueue {
     const item = this.find(itemID)
     if (item === undefined) throw new Error(`unknown queue item ${itemID}`)
     const outcome = revalidate(item, sources, config)
+    if (outcome.kind === "re-decide") {
+      const redecideCount = (item.redecideCount ?? 0) + 1
+      const next = this.commit({ ...item, redecideCount }, { state: "revalidated", at: config.now, result: "materially-changed", evidence: [] }, item.poisonCount)
+      await this.append("QUEUE_ITEM_REVALIDATED", { itemID, itemVersion: next.version, result: "materially-changed", policy: outcome.kind, redecideCount })
+      if (redecideCount % REDECIDE_HIGH_WATER === 0) {
+        const message = `queue item ${itemID} remains open after ${redecideCount} re-decisions: ${outcome.reason}`
+        await this.recordDigestDiagnostic(message)
+        await this.append("QUEUE_REDECIDE_DIAGNOSTIC", { itemID, root: item.target.root, redecideCount, message })
+      }
+      await this.persist()
+      return { outcome, item: next, poison: "none", redecide: true }
+    }
     if (outcome.kind === "valid") {
       const next = this.commit(item, { state: "revalidated", at: config.now, result: "valid", evidence: outcome.evidence }, 0)
       await this.append("QUEUE_ITEM_REVALIDATED", { itemID, itemVersion: next.version, result: "valid" })
@@ -499,7 +513,7 @@ export class AttentionQueue {
     const next = this.commit({ ...item, poisonCount }, { state: "revalidated", at: config.now, result: "materially-changed", evidence: [] }, poisonCount)
     await this.append("QUEUE_ITEM_REVALIDATED", { itemID, itemVersion: next.version, result: "materially-changed", policy: effective.kind, poisonCount })
     await this.persist()
-    return { outcome: effective, item: next, poison: poisonCount >= POISON_SUSPECT_THRESHOLD ? "suspect" : "none" }
+    return { outcome: effective, item: next, poison: poisonCount >= POISON_SUSPECT_THRESHOLD ? "suspect" : "none", ...(effective.kind === "re-decide" ? { redecide: true } : {}) }
   }
 
   private commit(item: AttentionQueueItem, event: LifecycleEvent, poisonCount: number): AttentionQueueItem {

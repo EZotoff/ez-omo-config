@@ -269,6 +269,7 @@ export type ConsoleChannelOptions = {
   readonly ledger: () => Ledger
   readonly setLedger: (next: Ledger) => void
   readonly probe: (item: AttentionQueueItem) => Promise<RevalidationSources>
+  readonly onRedecide?: (item: AttentionQueueItem) => void
   readonly deliverPropagation?: (input: { root: string; sessionID: string; answer: string; ticketID: QueueItemID }) => Promise<boolean>
 }
 
@@ -280,6 +281,7 @@ export class ConsoleChannel {
   private readonly ledger: () => Ledger
   private readonly setLedger: (next: Ledger) => void
   private readonly probe: (item: AttentionQueueItem) => Promise<RevalidationSources>
+  private readonly onRedecide: ((item: AttentionQueueItem) => void) | undefined
   private readonly deliverPropagation: ((input: { root: string; sessionID: string; answer: string; ticketID: QueueItemID }) => Promise<boolean>) | undefined
   /** In-memory single-flight guard: an itemID is claimed while a delivery path
    *  (handleReply / retryPendingPropagations / recoverAnswered) is mid-flight, so
@@ -294,6 +296,7 @@ export class ConsoleChannel {
     this.ledger = options.ledger
     this.setLedger = options.setLedger
     this.probe = options.probe
+    this.onRedecide = options.onRedecide
     this.deliverPropagation = options.deliverPropagation
   }
 
@@ -364,6 +367,8 @@ export class ConsoleChannel {
 
   /** ESCALATE write path: enqueue into the queue (replaces openTicket). */
   async proposeEscalation(request: EscalationRequest): Promise<ProposeOutcome> {
+    const sameTarget = this.queue.items.find((item) => item.actionClass === "ESCALATE" && item.target.root === request.root && item.target.sessionID === request.sessionID && request.target.assistantMessageID !== undefined && item.target.assistantMessageID === request.target.assistantMessageID)
+    if (sameTarget !== undefined) return { kind: "deduped", item: sameTarget }
     const open = this.queue.items.filter((item) => item.target.root === request.root && itemState(item) !== "resolved")
     if (open.length >= MAX_OPEN_ITEMS_PER_ROOT) {
       return { kind: "capped", reason: `root at open-item cap (${MAX_OPEN_ITEMS_PER_ROOT})` }
@@ -417,6 +422,7 @@ export class ConsoleChannel {
     for (const candidate of refreshable) {
       const sources = await this.probe(candidate)
       const result = await this.queue.revalidate(candidate.id, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+      if (result.redecide) this.onRedecide?.(result.item)
       if (result.outcome.kind !== "valid") {
         const disposition = dispositionFor(result.outcome)
         if (disposition !== undefined) resolved = { disposition, reason: result.outcome.reason }
@@ -507,6 +513,7 @@ export class ConsoleChannel {
       try {
         const sources = await this.probe(item)
         const result = await this.queue.revalidate(item.id, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (result.redecide) this.onRedecide?.(result.item)
         if (itemState(result.item) === "resolved") resolved += 1
       } catch (error) {
         this.setLedger(await this.ledger().append("ERROR", { itemID: item.id, error: `sweepOpenItems revalidate failed: ${error instanceof Error ? error.message : String(error)}` }))
@@ -538,9 +545,15 @@ export class ConsoleChannel {
         if (itemState(item) !== "answered") await this.queue.markAnswered(itemID, `recovered_${itemID}`, CHANNEL_ID, now)
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (outcome.kind === "re-decide") {
+          const result = await this.queue.revalidate(itemID, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+          this.onRedecide?.(result.item)
+          retried += 1
+          continue
+        }
         if (outcome.kind === "retired-by-evidence") {
           await this.queue.resolve(itemID, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
-        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed") {
           await this.queue.resolve(itemID, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
         } else if (outcome.kind === "expired") {
           await this.queue.resolve(itemID, { disposition: "expired", evidence: [], now, reason: outcome.reason })
@@ -574,9 +587,15 @@ export class ConsoleChannel {
       try {
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (outcome.kind === "re-decide") {
+          const result = await this.queue.revalidate(item.id, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+          this.onRedecide?.(result.item)
+          recovered += 1
+          continue
+        }
         if (outcome.kind === "retired-by-evidence") {
           await this.queue.resolve(item.id, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
-        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed") {
           await this.queue.resolve(item.id, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
         } else if (outcome.kind === "expired") {
           await this.queue.resolve(item.id, { disposition: "expired", evidence: [], now, reason: outcome.reason })
@@ -656,11 +675,16 @@ export class ConsoleChannel {
     if (lease !== undefined && lease.itemID === itemID) await this.queue.defer(lease.presentationID, now, now)
     const sources = await this.probe(answered)
     const outcome = revalidate(answered, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+    if (outcome.kind === "re-decide") {
+      const result = await this.queue.revalidate(itemID, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+      this.onRedecide?.(result.item)
+      return { kind: "propagation-pending", item: result.item, reason: outcome.reason }
+    }
     if (outcome.kind === "retired-by-evidence") {
       const item = await this.queue.resolve(itemID, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
       return { kind: "resolved", disposition: "retired-by-evidence", item }
     }
-    if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+    if (outcome.kind === "superseded" || outcome.kind === "materially-changed") {
       const item = await this.queue.resolve(itemID, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
       return { kind: "resolved", disposition: "superseded", item }
     }

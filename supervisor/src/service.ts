@@ -307,6 +307,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       citationsAdmissible: () => true,
     }
   }
+  const pendingReticks = new Map<string, Set<string>>()
   const consoles = new ConsoleChannel({
     client,
     queue,
@@ -314,6 +315,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
     ledger: () => ledger,
     setLedger: (next) => { ledger = next },
     probe: buildSources,
+    onRedecide: (item) => {
+      const sessions = pendingReticks.get(item.target.root) ?? new Set<string>()
+      sessions.add(item.target.sessionID)
+      pendingReticks.set(item.target.root, sessions)
+    },
     deliverPropagation: async (input) => {
       const rootConfig = config.roots.find((r) => r.path === input.root)
       if (rootConfig?.continue_writes?.enabled !== true) return false
@@ -507,6 +513,12 @@ export async function runService(signal: AbortSignal): Promise<void> {
         }
       }
       if (target !== undefined) {
+        if (target.assistantMessageID !== undefined && queue.items.some((item) => item.target.root === runtime.root && item.target.sessionID === sessionID && item.target.assistantMessageID === target.assistantMessageID && item.actionClass === "ESCALATE")) {
+          ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "fresh-target guard: assistant message already escalated" })
+          runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
+          runtime.scheduler?.markTicked(sessionID)
+          return
+        }
         // Awaiting-operator guard (2026-10-05 incident, ses_ef4ef9abaffe): a
         // session whose last assistant message trails a RUNNING question-tool
         // part is blocked on the operator's dialog answer. The projector drops
@@ -1005,6 +1017,14 @@ rootConfig?.continue_writes?.enabled === true
           const beaconReplies = await beacon.poll(root.path, new Date().toISOString())
           for (const reply of beaconReplies) {
             await beacon.handleReply(reply, new Date().toISOString())
+          }
+          const reticks = pendingReticks.get(root.path)
+          for (const sessionID of reticks ?? []) {
+            if (runtime.states.get(sessionID)?.kind === "TICK") continue
+            reticks?.delete(sessionID)
+            if (await applyEvent(runtime, sessionID, { type: "idle", at: Date.now() })) {
+              await enqueueIdle(runtime, sessionID)
+            }
           }
       },
       onError: async (error) => {
