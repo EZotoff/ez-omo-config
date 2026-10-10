@@ -239,7 +239,7 @@ export class ContinuationBridge {
   /**
    * One import pass. Every new alert fingerprint is recorded as a raw
    * CONTINUATION_ALERT row; escalations are coalesced by unit|reason within a
-   * window (first pass → one ESCALATE; later passes → one per-window digest
+   * window (first pass → one ESCALATE; later passes → one updated digest
    * escalation naming the suppressed count), with a per-unit cooldown breaker
    * and an excluded_units list. Idempotent across restarts (persisted cursor +
    * fingerprints + coalesce/breaker state). Returns the number of TICK_DECIDED
@@ -302,11 +302,9 @@ export class ContinuationBridge {
             const entry = state.coalesce[key]
             if (entry === undefined) break
             entry.suppressed += alerts.length
-            if (!entry.digestEmitted) {
-              entry.digestEmitted = true
-              await this.appendDigest(head, entry)
-              escalations += 1
-            }
+            entry.digestEmitted = true
+            await this.appendDigest(head, entry)
+            escalations += 1
             break
           }
           case "escalate":

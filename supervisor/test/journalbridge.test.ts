@@ -232,6 +232,18 @@ describe("ContinuationBridge", () => {
     expect(rows[1]?.continuation['uuid']).toBe("p2")
   })
 
+  test("digest exposes the running suppressed count on every growing pass", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    const entries = [entry("resume_fallback", "running-1")]
+    const { bridge, ledgerPath } = await openBridge(directory, entries)
+    await bridge.poll()
+    entries.push(entry("resume_fallback", "running-2"))
+    await bridge.poll()
+    entries.push(entry("resume_fallback", "running-3"))
+    expect(await bridge.poll()).toBe(1)
+    expect((await continuationRows(ledgerPath)).map((row) => row.continuation['suppressed'])).toEqual([undefined, "1", "2"])
+  })
+
   test("excluded_units: no escalation, raw row preserved", async () => {
     const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
     const { bridge, ledgerPath } = await openBridge(directory, [entry("resume_fallback", "e1")], { config: config({ excludedUnits: ["opencode-interactive.service"] }) })
