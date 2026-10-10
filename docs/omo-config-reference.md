@@ -397,7 +397,7 @@ Every entry below appears in `HookNameSchema` and may be added to `disabled_hook
 | `hashline_edit` | `boolean` | — | Hashline edit tool (also root-level) |
 | `model_fallback_title` | `boolean` | `false` | Append fallback model info to session title |
 | `max_tools` | `number (≥1)` | — | Max tools to register (e.g. OpenAI 128-tool cap). Accounts for ~20 OpenCode built-in. |
-| `disable_live_parent_wake_routing` | `boolean` | `true` in this repo | Roll back parent-targeted internal prompts to the in-process dispatch path. Enabled here because OpenCode TUI can persist but not live-render externally routed parent-wake turns. |
+| `disable_live_parent_wake_routing` | `boolean` | `false` (2026-10-10) | Roll back parent-targeted internal prompts to the in-process dispatch path. Was `true` since 2026-06-26 as a stopgap for the TUI invisible-wake bug; that bug is fixed by the `opencode--sse-directory-filter-removal` binary patch (runtime-verified 1.18.31-p4), so the flag was flipped back to let parent wakes ride the live server-listener route. Note: while `true`, the short-circuit (`reason:"flag"`) logs nothing — do not diagnose wake routing from log silence alone. |
 
 ### 8.1 `dynamic_context_pruning`
 
