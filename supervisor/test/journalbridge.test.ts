@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Ledger } from "../src/ledger"
@@ -96,6 +96,18 @@ describe("parseContinuationAlert", () => {
 })
 
 describe("ContinuationBridge", () => {
+  test("reports corrupt or unreadable state instead of resetting protection", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    const statePath = join(directory, "journal-bridge.json")
+    await writeFile(statePath, "not json")
+    const bridge = new ContinuationBridge({ statePath, read: async () => [], append: async () => {} })
+    await expect(bridge.poll()).rejects.toThrow()
+    await writeFile(statePath, JSON.stringify({ schemaVersion: 2 }))
+    await expect(bridge.poll()).rejects.toThrow()
+    const unreadable = new ContinuationBridge({ statePath: directory, read: async () => [], append: async () => {} })
+    await expect(unreadable.poll()).rejects.toThrow()
+  })
+
   test("retries an unacknowledged batch after a ledger append rejects without duplicate escalations", async () => {
     const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
     const ledgerPath = join(directory, "ledger.jsonl")

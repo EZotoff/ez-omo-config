@@ -198,8 +198,9 @@ async function loadState(path: string): Promise<BridgeState> {
         breakers: parseBreakers(raw.breakers),
       }
     }
-  } catch {
-    // missing or unreadable state — start fresh (cursor undefined, no imports)
+    throw new Error(`Invalid continuation bridge state: ${path}`)
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error
   }
   return { schemaVersion: 1, cursor: undefined, fingerprints: [], coalesce: {}, breakers: {} }
 }
