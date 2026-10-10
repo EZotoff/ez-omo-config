@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { rm } from "node:fs/promises"
 import { continueCapKey, continueWriteText, gateContinueWrite, gateReformulateWrite, gateSteerWrite, reformulateWriteText, steerWriteText } from "../src/continue-writes"
+import type { Message } from "../src/types"
 
 const base = {
   config: { enabled: true, dailyCap: 5, kickStartOnly: true },
@@ -217,10 +218,10 @@ describe("between-poll turn completions (2026-10-02 bonsai-stall fix)", () => {
       return new Response(JSON.stringify([{ id: "ses_gap", directory: "/root", time: { updated } }]), { status: 200 })
     }) as unknown
     const prev = new Map()
-    await pollRootOnce(c as never, "/root", new Set(), prev, 1_100_000, 15 * 60_000) // poll 1: first observation, complete turn
-    const s2 = await pollRootOnce(c as never, "/root", new Set(), prev, 1_500_000, 15 * 60_000) // poll 2: listing advanced → busy (cheap path)
+    await pollRootOnce(c, "/root", new Set(), prev, 1_100_000, 15 * 60_000) // poll 1: first observation, complete turn
+    const s2 = await pollRootOnce(c, "/root", new Set(), prev, 1_500_000, 15 * 60_000) // poll 2: listing advanced → busy (cheap path)
     expect(s2.filter((x) => x.sessionID === "ses_gap").map((x) => x.kind)).toContain("busy")
-    const s3 = await pollRootOnce(c as never, "/root", new Set(), prev, 1_700_000, 15 * 60_000) // poll 3: quiet → classification fetch → idle
+    const s3 = await pollRootOnce(c, "/root", new Set(), prev, 1_700_000, 15 * 60_000) // poll 3: quiet → classification fetch → idle
     const kinds3 = s3.filter((x) => x.sessionID === "ses_gap").map((x) => x.kind)
     expect(kinds3).toContain("idle") // the completion must reach the tick pipeline
     expect(s2.filter((x) => x.sessionID === "ses_gap").map((x) => x.kind)).not.toContain("idle")
@@ -289,10 +290,10 @@ test("poller ownership filter excludes sessions owned by another configured root
   ]
   const client = {
     listSessions: async () => sessions,
-    listMessages: async (sessionID: string) => [{ id: "u1", sessionID, role: "user", time: { created: 1 }, parts: [] }] as never,
+    listMessages: async (sessionID: string): Promise<readonly Message[]> => [{ id: "u1", sessionID, role: "user", time: { created: 1 }, parts: [] }],
   }
   const prev = new Map()
-  const signals = await pollRootOnce(client as never, "/a", new Set(), prev, 1_000_000, 15 * 60_000, (session) => session.directory !== "/a/b/x")
+  const signals = await pollRootOnce(client, "/a", new Set(), prev, 1_000_000, 15 * 60_000, (session) => session.directory !== "/a/b/x")
   expect(signals.some((signal) => signal.sessionID === "ses-ab")).toBe(false)
   expect(signals.some((signal) => signal.sessionID === "ses-a")).toBe(true)
 })

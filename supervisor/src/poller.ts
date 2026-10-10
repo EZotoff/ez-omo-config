@@ -45,8 +45,10 @@ const RECENT_ACTIVITY_MS = 15 * 60_000
  * child-ID set from reconcile) updated within the recent-activity window are
  * polled.
  */
+export type PollClient = Pick<OpencodeClient, "listSessions" | "listMessages">
+
 export async function pollRootOnce(
-  client: OpencodeClient,
+  client: PollClient,
   root: string,
   childIDs: ReadonlySet<string>,
   previous: Map<string, WatchState>,
