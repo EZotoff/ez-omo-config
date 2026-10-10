@@ -227,6 +227,7 @@ export type BridgeDeps = {
 
 export class ContinuationBridge {
   private state: BridgeState | undefined
+  private readonly written = new Set<string>()
 
   constructor(private readonly deps: BridgeDeps) {}
 
@@ -245,7 +246,7 @@ export class ContinuationBridge {
    * escalations appended (primary + digest).
    */
   async poll(): Promise<number> {
-    const state = await this.currentState()
+    const state = structuredClone(await this.currentState())
     const entries = await this.deps.read(state.cursor)
     if (entries.length === 0) return 0
     const config = this.deps.config ?? DEFAULT_BRIDGE_CONFIG
@@ -261,7 +262,7 @@ export class ContinuationBridge {
     }
     // Raw rows: one CONTINUATION_ALERT per distinct new fingerprint, always.
     for (const alert of fresh) {
-      await this.deps.append("CONTINUATION_ALERT", {
+      await this.appendOnce("CONTINUATION_ALERT", {
         source: "continuation",
         unit: alert.unit,
         reason: alert.reason,
@@ -320,7 +321,16 @@ export class ContinuationBridge {
     state.cursor = entries.at(-1)?.cursor ?? state.cursor
     if (state.fingerprints.length > FINGERPRINT_CAP) state.fingerprints = state.fingerprints.slice(-FINGERPRINT_CAP)
     await saveState(this.deps.statePath, state)
+    this.state = state
+    this.written.clear()
     return escalations
+  }
+
+  private async appendOnce(...args: Parameters<LedgerAppend>): Promise<void> {
+    const key = JSON.stringify(args)
+    if (this.written.has(key)) return
+    await this.deps.append(...args)
+    this.written.add(key)
   }
 
   /** Exhaustive coalescing decision for one unit|reason group. Mutates state. */
@@ -355,7 +365,7 @@ export class ContinuationBridge {
     const head = alerts[0]
     if (head === undefined) return
     const aggregateCount = alerts.reduce((sum, alert) => sum + (Number.parseInt(alert.count, 10) || 0), 0)
-    await this.deps.append("TICK_DECIDED", {
+    await this.appendOnce("TICK_DECIDED", {
       decision: {
         action: "ESCALATE",
         confidence: 0.9,
@@ -378,7 +388,7 @@ export class ContinuationBridge {
   }
 
   private async appendDigest(head: ContinuationAlert, entry: CoalesceEntry): Promise<void> {
-    await this.deps.append("TICK_DECIDED", {
+    await this.appendOnce("TICK_DECIDED", {
       decision: {
         action: "ESCALATE",
         confidence: 0.9,

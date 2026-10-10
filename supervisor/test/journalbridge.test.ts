@@ -96,6 +96,28 @@ describe("parseContinuationAlert", () => {
 })
 
 describe("ContinuationBridge", () => {
+  test("retries an unacknowledged batch after a ledger append rejects without duplicate escalations", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    const ledgerPath = join(directory, "ledger.jsonl")
+    let rejectOnce = true
+    const bridge = new ContinuationBridge({
+      statePath: join(directory, "journal-bridge.json"),
+      read: async () => [entry("resume_fallback", "retry"), entry("snapshot_failed", "retry-2")],
+      append: async (type, payload) => {
+        if (type === "TICK_DECIDED" && (await continuationRows(ledgerPath)).length === 1 && rejectOnce) {
+          rejectOnce = false
+          throw new Error("injected append failure")
+        }
+        await (await Ledger.open(ledgerPath)).append(type, payload)
+      },
+    })
+    await expect(bridge.poll()).rejects.toThrow("injected append failure")
+    expect(await bridge.poll()).toBe(2)
+    expect(await bridge.poll()).toBe(0)
+    expect(await continuationRows(ledgerPath)).toHaveLength(2)
+    expect(await rawRows(ledgerPath)).toHaveLength(2)
+  })
+
   test("QA scenario 1: each reason imports exactly one ESCALATE row with expected fields", async () => {
     const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
     const reasons = ["preflight_failed", "snapshot_failed", "resume_fallback", "db_fallback"]
