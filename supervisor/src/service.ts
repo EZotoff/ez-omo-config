@@ -132,6 +132,8 @@ function eventSessionID(event: ServerEvent): string | undefined {
   return typeof sessionID === "string" ? sessionID : undefined
 }
 
+export const ROOT_READY_DEADLINE_MS = 5 * 60_000
+
 export async function startRootPollLoop<T>(deps: {
   readonly signal: AbortSignal
   readonly sleep: () => Promise<void>
@@ -140,14 +142,27 @@ export async function startRootPollLoop<T>(deps: {
   readonly onError: (error: unknown) => Promise<void>
   readonly onStart: () => void
   readonly onStop: () => void
+  readonly now?: () => number
+  readonly reconcile?: () => Promise<unknown>
+  readonly onNotReady?: () => Promise<void>
 }): Promise<void> {
+  const now = deps.now ?? Date.now
+  const startedAt = now()
+  let watchdogFired = false
   deps.onStart()
   try {
     while (!deps.signal.aborted) {
       await deps.sleep()
-      const runtime = deps.getRuntime()
-      if (runtime === undefined) continue
       try {
+        if (deps.getRuntime() === undefined) await deps.reconcile?.()
+        const runtime = deps.getRuntime()
+        if (runtime === undefined) {
+          if (!watchdogFired && now() - startedAt >= ROOT_READY_DEADLINE_MS) {
+            watchdogFired = true
+            await deps.onNotReady?.()
+          }
+          continue
+        }
         await deps.poll(runtime)
       } catch (error) {
         await deps.onError(error)
@@ -927,20 +942,24 @@ rootConfig?.continue_writes?.enabled === true
   // polling, no ticks; only the 600s sweeps kept lastReconcile moving).
   if (!signal.aborted) await Promise.all(activeRoots.map((root) => reconcile(root.path)))
   for (const root of activeRoots) {
-    const runtime0 = runtimes.get(root.path)
-    if (runtime0 === undefined) continue
-    status.modes = { ...status.modes, [root.path]: runtime0.mode }
-    await writeStatusSynced()
-    if (root.mode === "observe" || root.mode === "full") {
-      void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
-    }
+    let initialized = false
     const watchStates = new Map<string, WatchState>()
     void startRootPollLoop({
       signal,
       sleep: () => Bun.sleep(POLL_INTERVAL_MS),
       getRuntime: () => runtimes.get(root.path),
+      reconcile: () => reconcile(root.path),
+      onNotReady: async () => { ledger = await ledger.append("ROOT_NOT_READY", { root: root.path, deadlineMs: ROOT_READY_DEADLINE_MS }) },
       onStart: () => { activeLoops += 1 },
       poll: async (runtime) => {
+          if (!initialized) {
+            status.modes = { ...status.modes, [root.path]: runtime.mode }
+            await writeStatusSynced()
+            if (root.mode === "observe" || root.mode === "full") {
+              void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
+            }
+            initialized = true
+          }
           const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs(), ...beacon.allSessionIDs()])
           const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now(), config.stall_minutes * 60_000, ownsSessionFor(root.path))
           activityGate.observe(signals, Date.now())
