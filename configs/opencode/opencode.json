@@ -1157,6 +1157,27 @@
             ]
           },
           "attachment": false
+        },
+        "swift-smart-laptop": {
+          "name": "Swift 1.5 27B (laptop, llama.cpp+MTP)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 130352,
+            "input": 124352,
+            "output": 6000
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false
         }
       }
     }
