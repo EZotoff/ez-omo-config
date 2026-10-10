@@ -1,6 +1,6 @@
 // allow: SIZE_OK — POLICY is a prompt (data, ~60 lines); the fork logic is ~200 LOC.
 import { z } from "zod"
-import type { Decision, Turn } from "./types"
+import type { Decision, Turn, WakeHandle } from "./types"
 import type { ReasoningAdapter } from "./adapter"
 import type { AssembledContext } from "./assembler"
 import {
@@ -34,6 +34,10 @@ export type EvidenceEffect = z.infer<typeof evidenceEffectSchema>
 
 const continueModeSchema = z.enum(["kick_start", "approve"])
 export type ContinueMode = z.infer<typeof continueModeSchema>
+const wakeHandleSchema = z.object({
+  kind: z.enum(["systemd-unit", "timer", "process", "none"]),
+  ref: z.string().min(1),
+}).strict()
 
 const decisionSchema = z.object({
   action: z.enum(["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"]),
@@ -45,6 +49,8 @@ const decisionSchema = z.object({
   information_needs: z.array(informationNeedSchema).max(3).optional(),
   evidence_effect: evidenceEffectSchema.optional(),
   mode: continueModeSchema.nullable().optional(),
+  operator_input_requested: z.boolean().optional().default(false),
+  wake_handle: wakeHandleSchema.nullable().optional(),
 }).strict()
 
 /** Decision plus the fork fields the tick loop carries (types.ts Decision stays the shared shape). */
@@ -52,6 +58,8 @@ export type TickDecision = Decision & {
   readonly information_needs: readonly InformationNeed[]
   readonly evidence_effect?: EvidenceEffect
   readonly mode?: ContinueMode | null
+  readonly operator_input_requested?: boolean
+  readonly wake_handle?: WakeHandle | null
 }
 
 function abstain(reason: string): TickDecision {
@@ -104,6 +112,13 @@ function normalizeDecisionValue(value: unknown): unknown {
       ? "REFORMULATE"
       : actionUpper
   const normalized: Record<string, unknown> = { ...input, action }
+  const ask = normalized["operator_input_requested"]
+  normalized["operator_input_requested"] = ask === true || (typeof ask === "string" && ask.trim().toLowerCase() === "true")
+  const wake = normalized["wake_handle"]
+  if (typeof wake === "object" && wake !== null && "kind" in wake && typeof wake.kind === "string") {
+    const parsedWake = wakeHandleSchema.safeParse({ ...wake, kind: wake.kind.trim().toLowerCase().replace(/_/g, "-") })
+    normalized["wake_handle"] = parsedWake.success ? parsedWake.data : null
+  } else if (wake !== undefined) normalized["wake_handle"] = null
   if (normalized["target"] === null) delete normalized["target"]
   const modeRaw = normalized["mode"]
   if (typeof modeRaw === "string") {
@@ -184,6 +199,8 @@ export function parseDecision(raw: string, confidenceFloor: number, options?: { 
     citations: parsed.data.citations,
     confidence: parsed.data.confidence,
     information_needs: parsed.data.information_needs ?? [],
+    operator_input_requested: parsed.data.operator_input_requested,
+    ...(parsed.data.wake_handle === undefined ? {} : { wake_handle: parsed.data.wake_handle }),
     ...(parsed.data.evidence_effect === undefined ? {} : { evidence_effect: parsed.data.evidence_effect }),
     ...(parsed.data.mode === undefined ? {} : { mode: parsed.data.mode }),
   }
@@ -196,9 +213,9 @@ export function parseDecision(raw: string, confidenceFloor: number, options?: { 
 
 /** Apply the confidence floor and the non-ACCEPT citation requirement to a final decision. */
 export function applyFinalGates(decision: TickDecision, confidenceFloor: number): TickDecision {
-  if (decision.confidence < confidenceFloor) return abstain("confidence below configured floor")
+  if (decision.confidence < confidenceFloor) return { ...decision, action: "ABSTAIN", rationale: `confidence below configured floor: ${decision.rationale}` }
   if (decision.action !== "ACCEPT" && decision.action !== "ABSTAIN" && decision.citations.length === 0) {
-    return abstain("non-accept decision requires citations")
+    return { ...decision, action: "ABSTAIN", rationale: `non-accept decision requires citations: ${decision.rationale}` }
   }
   return decision
 }
@@ -271,13 +288,15 @@ Decision rules:
 9. Deployment, promote, prod-write, and credential decisions are ESCALATE by default. Exception: if the project's trust config marks deploys autonomous, treat them as ordinary work.
 10. L1 TARGET HISTORY contains this session's prior turns — it is your memory. Use it to resolve ambiguous references, detect contradictions, and honor decisions already made earlier in the session. If the operator already answered or gave a go-ahead earlier, the matter is SETTLED: do not re-ask it; STEER requires citing the specific conflicting message.
 11. Your recent decisions and open tickets for this session are provided. Do not repeat a decision on the same unresolved cause. If you CONTINUEd last turn and the worker still has not delivered, STEER with the specific correction.
-12. BEFORE choosing an action, run rule 3's FACT-gap check. If a specific retrievable fact is missing, emit 1-3 information_needs FIRST and return your action as provisional — the system will retrieve and re-ask. Each need names: question, scope (sessions|ledger|cards), target (sessionID or "root"), why, expected_effect (what answer flips the action). Emit information_needs: [] ONLY when the supplied transcript genuinely suffices. A need names retrievable evidence, never an operator preference. At most 3.
+12. Missing facts: emit 1-3 provisional information_needs (question, scope sessions|ledger|cards, target sessionID|root, why, expected_effect). System retrieves and re-asks. Empty only if context suffices. Never gather preferences.
 
 13. kick_start requires EVIDENCE OF UNFINISHED WORK in the transcript: an in-flight job, undelivered outcome, or unresolved instruction. Bare "OK"/"done" on a one-shot task (probes, exact-reply tests) is DELIVERED — never kick; a complete session awaiting nothing is ACCEPT/ABSTAIN; a wake notice without pending work is not a stall.
+14. operator_input_requested=true iff reply asks operator to decide/choose/authorize, independent of action/origin; name ask in rationale; else false.
+15. ABSTAIN on self-wake: wake_handle={kind: systemd-unit|timer|process|none, ref: exact unit/PID/pattern}; else null. Never invent handles.
 
 AUTONOMOUS-ORIGIN SESSIONS: A target marked [origin: autonomous] was machine-initiated (bench-runner, ASTRA, heartbeat) and has no human owner. Drive it to completion: prefer CONTINUE on stall or error; do NOT ESCALATE for ordinary decisions. ESCALATE ONLY for a hard blocker (missing credential or secret), and mark it low-priority. Never re-litigate the automation's own purpose.
 
-Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "mode": "kick_start|approve|null", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": []}`
+Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "mode": "kick_start|approve|null", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": [], "operator_input_requested": false, "wake_handle": null}`
 
 export const CONFIRMATION_INSTRUCTION = `CONFIRMATION CHECK: The GATHERED EVIDENCE above was retrieved because you named an information need. State in "evidence_effect" whether it CONFIRMED, DISCONFIRMED, or was INCONCLUSIVE for your provisional lean, and cite the gathered evidence in your citations.`
 

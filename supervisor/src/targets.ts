@@ -1,5 +1,5 @@
 import { classifyRunHealth, assistantRunFor } from "./health"
-import type { Message, Turn } from "./types"
+import type { Message, Turn, TargetSelection } from "./types"
 
 /**
  * Operator-attention-point selection. The supervisor replaces the operator's
@@ -9,17 +9,19 @@ import type { Message, Turn } from "./types"
  * after the target reply, the moment has already been handled by whatever
  * pushed next — the supervisor stands down for that idle event.
  */
-export function pickTarget(turns: readonly Turn[], messages: readonly Message[], options: { readonly sessionProtected?: boolean } = {}): Turn | undefined {
+export function pickTarget(turns: readonly Turn[], messages: readonly Message[], options: { readonly sessionProtected?: boolean; readonly adjudicateMachineOrigin?: boolean; readonly escalatedAssistantMessageIDs?: readonly string[] } = {}): TargetSelection {
   // Protection overlay (D295): an operator-protected session is never a kick-start target.
-  if (options.sessionProtected === true) return undefined
+  if (options.sessionProtected === true) return { rejected: "protected", text: "session is operator-protected" }
   const lastMessageID = messages.at(-1)?.id
-  if (lastMessageID === undefined) return undefined
-  const candidates = turns.filter(
-    (turn) =>
-      (turn.origin === "human" || turn.origin === "unknown") &&
-      turn.assistantMessageID === lastMessageID,
-  )
+  if (lastMessageID === undefined || turns.length === 0) return { rejected: "missing-context", text: "no messages or projected turns available" }
+  const target = turns.findLast((turn) => turn.assistantMessageID === lastMessageID)
+  if (target === undefined) return { rejected: "stale-target", text: "target is not the session's last message (native continuation or newer turn intervened)" }
+  if (options.escalatedAssistantMessageIDs?.includes(lastMessageID)) return { rejected: "stale-target", text: "fresh-target guard: assistant message already escalated" }
   // Abort guard (D295): an operator-stopped turn is never an attention point.
   // Errored/stalled runs stay eligible — they are the kick-start candidates.
-  return candidates.filter((turn) => classifyRunHealth(assistantRunFor(turn, messages)) !== "aborted").at(-1)
+  if (classifyRunHealth(assistantRunFor(target, messages)) === "aborted") return { rejected: "aborted", text: "last assistant run was operator-aborted" }
+  if (options.adjudicateMachineOrigin !== true && target.origin !== "human" && target.origin !== "unknown") {
+    return { rejected: "origin-excluded", text: `target kickoff origin ${target.origin} is excluded from adjudication` }
+  }
+  return { target }
 }
