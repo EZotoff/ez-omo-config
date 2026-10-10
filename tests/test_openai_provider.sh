@@ -97,18 +97,18 @@ print('PASS: opencode-openai-codex-auth plugin entry exists')
 expected_agent_models = {
     'sisyphus': 'zai-coding-plan/glm-5.3-flash',
     'hephaestus': 'openai/gpt-6.1-sol',
-    'oracle': 'openai/gpt-6.1-sol',
+    'oracle': 'mimo/mimo-v2.6-pro',
     'explore': 'ollama-cloud/minimax-m3',
     'librarian': 'ollama-cloud/minimax-m3',
     'prometheus': 'kimi-for-coding-oauth/k3',
-    'metis': 'openai/gpt-6.1-sol',
+    'metis': 'mimo/mimo-v2.6-pro',
     'multimodal-looker': 'zai-coding-plan/glm-5.3-flash',
-    'frontend-ui-ux-engineer': 'zai-coding-plan/glm-5.3',
+    'frontend-ui-ux-engineer': 'zai-coding-plan/glm-5.3-flash',
 }
 expected_category_models = {
     'ultrabrain': 'zai-coding-plan/glm-5.3',
     'deep': 'openai/gpt-6.1-sol',
-    'quick': 'zai-coding-plan/glm-5.3-flash',
+    'quick': 'kimi-for-coding-oauth/k3',
     'unspecified-low': 'ollama-cloud/deepseek-v4.1-flash',
     'unspecified-high': 'zai-coding-plan/glm-5.3',
     'mephistopheles': 'openai/gpt-6.1-sol',
@@ -116,7 +116,7 @@ expected_category_models = {
 }
 
 expected_gemini_routes = {
-    ('categories', 'artistry'): 'google/gemini-3.8-flash',
+    ('categories', 'artistry'): 'mimo/mimo-v2.6-flash',
 }
 
 expected_opencode_go_routes = {
@@ -134,11 +134,11 @@ print('PASS: retired provider string absent from active JSON config')
 expected_agent_fallbacks = {
     'sisyphus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol'],
     'oracle': ['zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
-    'prometheus': ['zai-coding-plan/glm-5.3', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol'],
+    'prometheus': ['mimo/mimo-v2.6-flash', 'zai-coding-plan/glm-5.3', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol'],
     'metis': ['zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
     'momus': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
-    'explore': ['opencode-go/minimax-m3', 'openai/gpt-6-luna'],
-    'librarian': ['opencode-go/minimax-m3', 'openai/gpt-6-luna'],
+    'explore': ['zai-coding-plan/glm-5.3-flash', 'opencode-go/minimax-m3', 'openai/gpt-6-luna'],
+    'librarian': ['zai-coding-plan/glm-5.3-flash', 'opencode-go/minimax-m3', 'openai/gpt-6-luna'],
 }
 
 for name, expected in expected_agent_models.items():
@@ -155,7 +155,7 @@ for name, expected in expected_agent_models.items():
 expected_category_fallbacks = {
     'ultrabrain': ['kimi-for-coding-oauth/k3', 'openai/gpt-6.1-sol', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
     'deep': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'kimi-for-coding-oauth/k3', 'zai-coding-plan/glm-5.3'],
-    'quick': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'quick': ['zai-coding-plan/glm-5.3-flash', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'local/bonsai-fast', 'local/swift-fast', 'local/gsq-smart', 'local/flash-next'],
     'unspecified-low': ['opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3'],
     'unspecified-high': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'openai/gpt-6.1-sol'],
     'mephistopheles': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3', 'kimi-for-coding-oauth/k3'],
@@ -174,12 +174,12 @@ for name, expected in expected_category_models.items():
 print('PASS: OMO GPT-heavy routes use openai without retired-provider fallbacks')
 
 expected_flash_fallbacks = {
-    'quick': ['ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash'],
+    'quick': ['zai-coding-plan/glm-5.3-flash', 'ollama-cloud/deepseek-v4.1-flash', 'opencode-go/deepseek-v4.1-flash', 'local/bonsai-fast', 'local/swift-fast', 'local/gsq-smart', 'local/flash-next'],
     'unspecified-low': ['opencode-go/deepseek-v4.1-flash', 'zai-coding-plan/glm-5.3'],
 }
 for name, expected in expected_flash_fallbacks.items():
     route = categories.get(name, {})
-    expected_variant = {'quick': 'high'}.get(name)
+    expected_variant = {'quick': None}.get(name)
     if route.get('variant') != expected_variant:
         print(f'FAIL: categories.{name}.variant expected {expected_variant!r}, got {route.get(\"variant\")!r}')
         sys.exit(1)

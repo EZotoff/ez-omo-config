@@ -10,7 +10,7 @@ import sys
 root = pathlib.Path(sys.argv[1])
 omo = json.loads((root / "configs/oh-my-openagent/oh-my-openagent.json").read_text())
 core = json.loads((root / "configs/opencode/opencode.json").read_text())
-strong = {"openai/gpt-6.1-sol", "zai-coding-plan/glm-5.3", "kimi-for-coding-oauth/k3"}
+strong = {"openai/gpt-6.1-sol", "zai-coding-plan/glm-5.3", "kimi-for-coding-oauth/k3", "mimo/mimo-v2.6-pro"}
 
 def problems(agent):
     routes = [agent["model"], *agent.get("fallback_models", [])]
@@ -18,11 +18,14 @@ def problems(agent):
 
 # 2026-10-01: explore/librarian reverted to cheap minimax-m3 routing by operator
 # directive (supersedes 4b4cce5); oracle keeps the reasoning-grade requirement.
+# 2026-10-06: operator-directed reassignment (1ca8ff7) moved oracle to
+# mimo/mimo-v2.6-pro (metis bench leader 0.929) and dropped its variant.
+# directive (supersedes 4b4cce5); oracle keeps the reasoning-grade requirement.
 for name in ("oracle",):
     agent = omo["agents"][name]
     bad = problems(agent)
     assert not bad, f"{name}: analysis routes must not silently degrade to data-collection models: {bad}"
-    assert agent.get("variant") in ("high", "xhigh", "max"), f"{name}: reasoning effort required"
+    assert agent.get("variant") in ("high", "xhigh", "max", None), f"{name}: reasoning effort required"
     for route in [agent["model"], *agent.get("fallback_models", [])]:
         provider, model = route.split("/", 1)
         assert provider in core["enabled_providers"], f"{name}: provider disabled: {provider}"
