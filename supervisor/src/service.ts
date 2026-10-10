@@ -711,6 +711,17 @@ export async function runService(signal: AbortSignal): Promise<void> {
           onSuppressed: (reason) => { suppressedReason = reason },
         }))
         const decision = await applyAttentionOverrides(judged, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin, verifyWake: config.wake_verification.enabled })
+        // Episode re-check before any action write (F1 D4): the model call above
+        // can take many seconds; if a newer event replaced the episode, the
+        // decision rests on stale premises — skip every action write (ESCALATE /
+        // STEER / REFORMULATE / CONTINUE) and record the stale premise once.
+        // The end-of-tick guard is not reached, so no duplicate row.
+        if (runtime.states.get(sessionID) !== episode) {
+          ledger = await ledger.append("TICK_STALE_PREMISE", { root: runtime.root, sessionID, reason: "episode changed during decision — action writes skipped" })
+          runtime.scheduler?.markTicked(sessionID)
+          return
+        }
+        await recordDecision(decision, target, runtime.root)
         await recordDecision(decision, target, runtime.root)
         await pendingAttention?.resolve({ root: runtime.root, sessionID })
         assertDispatchHandlesEveryAction(decision.action)
