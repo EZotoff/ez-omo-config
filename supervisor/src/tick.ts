@@ -1,6 +1,6 @@
 // allow: SIZE_OK — POLICY is a prompt (data, ~60 lines); the fork logic is ~200 LOC.
 import { z } from "zod"
-import type { Decision, Turn } from "./types"
+import type { Decision, Turn, WakeHandle } from "./types"
 import type { ReasoningAdapter } from "./adapter"
 import type { AssembledContext } from "./assembler"
 import {
@@ -34,6 +34,10 @@ export type EvidenceEffect = z.infer<typeof evidenceEffectSchema>
 
 const continueModeSchema = z.enum(["kick_start", "approve"])
 export type ContinueMode = z.infer<typeof continueModeSchema>
+const wakeHandleSchema = z.object({
+  kind: z.enum(["systemd-unit", "timer", "process", "none"]),
+  ref: z.string().min(1),
+}).strict()
 
 const decisionSchema = z.object({
   action: z.enum(["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"]),
@@ -46,6 +50,7 @@ const decisionSchema = z.object({
   evidence_effect: evidenceEffectSchema.optional(),
   mode: continueModeSchema.nullable().optional(),
   operator_input_requested: z.boolean().optional().default(false),
+  wake_handle: wakeHandleSchema.nullable().optional(),
 }).strict()
 
 /** Decision plus the fork fields the tick loop carries (types.ts Decision stays the shared shape). */
@@ -54,6 +59,7 @@ export type TickDecision = Decision & {
   readonly evidence_effect?: EvidenceEffect
   readonly mode?: ContinueMode | null
   readonly operator_input_requested?: boolean
+  readonly wake_handle?: WakeHandle | null
 }
 
 function abstain(reason: string): TickDecision {
@@ -108,6 +114,11 @@ function normalizeDecisionValue(value: unknown): unknown {
   const normalized: Record<string, unknown> = { ...input, action }
   const ask = normalized["operator_input_requested"]
   normalized["operator_input_requested"] = ask === true || (typeof ask === "string" && ask.trim().toLowerCase() === "true")
+  const wake = normalized["wake_handle"]
+  if (typeof wake === "object" && wake !== null && "kind" in wake && typeof wake.kind === "string") {
+    const parsedWake = wakeHandleSchema.safeParse({ ...wake, kind: wake.kind.trim().toLowerCase().replace(/_/g, "-") })
+    normalized["wake_handle"] = parsedWake.success ? parsedWake.data : null
+  } else if (wake !== undefined) normalized["wake_handle"] = null
   if (normalized["target"] === null) delete normalized["target"]
   const modeRaw = normalized["mode"]
   if (typeof modeRaw === "string") {
@@ -189,6 +200,7 @@ export function parseDecision(raw: string, confidenceFloor: number, options?: { 
     confidence: parsed.data.confidence,
     information_needs: parsed.data.information_needs ?? [],
     operator_input_requested: parsed.data.operator_input_requested,
+    ...(parsed.data.wake_handle === undefined ? {} : { wake_handle: parsed.data.wake_handle }),
     ...(parsed.data.evidence_effect === undefined ? {} : { evidence_effect: parsed.data.evidence_effect }),
     ...(parsed.data.mode === undefined ? {} : { mode: parsed.data.mode }),
   }
@@ -280,10 +292,11 @@ Decision rules:
 
 13. kick_start requires EVIDENCE OF UNFINISHED WORK in the transcript: an in-flight job, undelivered outcome, or unresolved instruction. Bare "OK"/"done" on a one-shot task (probes, exact-reply tests) is DELIVERED — never kick; a complete session awaiting nothing is ACCEPT/ABSTAIN; a wake notice without pending work is not a stall.
 14. Set operator_input_requested=true iff the reply asks the operator to decide, choose among options, or authorize; independent of action and kickoff origin. Name the actual ask in the rationale. Otherwise set it false.
+15. If ABSTAIN relies on a claimed self-wake, emit wake_handle with kind systemd-unit, timer, process, or none and its exact ref (unit name, PID, or process pattern). Do not invent a handle. Otherwise emit null. A promise to check later without a wake is not liveness evidence.
 
 AUTONOMOUS-ORIGIN SESSIONS: A target marked [origin: autonomous] was machine-initiated (bench-runner, ASTRA, heartbeat) and has no human owner. Drive it to completion: prefer CONTINUE on stall or error; do NOT ESCALATE for ordinary decisions. ESCALATE ONLY for a hard blocker (missing credential or secret), and mark it low-priority. Never re-litigate the automation's own purpose.
 
-Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "mode": "kick_start|approve|null", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": [], "operator_input_requested": false}`
+Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "mode": "kick_start|approve|null", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": [], "operator_input_requested": false, "wake_handle": null}`
 
 export const CONFIRMATION_INSTRUCTION = `CONFIRMATION CHECK: The GATHERED EVIDENCE above was retrieved because you named an information need. State in "evidence_effect" whether it CONFIRMED, DISCONFIRMED, or was INCONCLUSIVE for your provisional lean, and cite the gathered evidence in your citations.`
 

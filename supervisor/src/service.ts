@@ -18,6 +18,7 @@ import { runTickWithCollect, type TickDecision } from "./tick"
 import { pickTarget } from "./targets"
 import { projectTurns } from "./projector"
 import { PendingAttentionStore } from "./pending"
+import { verifyWakeHandle } from "./wake"
 import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
 import { ownsSession } from "./ownership"
@@ -38,12 +39,17 @@ const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMe
 /** The sole post-judge consumption site for structured operator attention. */
 export async function applyAttentionOverrides(decision: TickDecision, options: {
   readonly adjudicateMachineOrigin: boolean
+  readonly verifyWake?: boolean
+  readonly wakeVerifier?: typeof verifyWakeHandle
 }): Promise<TickDecision> {
   switch (decision.action) {
     case "ACCEPT":
     case "ABSTAIN":
       if (options.adjudicateMachineOrigin && decision.operator_input_requested === true) {
         return { ...decision, action: "ESCALATE", rationale: `operator input requested: ${decision.rationale}` }
+      }
+      if (decision.action === "ABSTAIN" && options.verifyWake === true && decision.wake_handle != null && !(await (options.wakeVerifier ?? verifyWakeHandle)(decision.wake_handle))) {
+        return { ...decision, action: "ESCALATE", rationale: `claimed wake handle ${decision.wake_handle.ref} not found` }
       }
       return decision
     case "CONTINUE":
@@ -678,7 +684,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
           autonomous: autonomousTarget,
           onSuppressed: (reason) => { suppressedReason = reason },
         }))
-        const decision = await applyAttentionOverrides(judged, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin })
+        const decision = await applyAttentionOverrides(judged, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin, verifyWake: config.wake_verification.enabled })
         await recordDecision(decision, target, runtime.root)
         await pendingAttention?.resolve({ root: runtime.root, sessionID })
         assertDispatchHandlesEveryAction(decision.action)

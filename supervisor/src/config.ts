@@ -65,6 +65,7 @@ const configSchema = z.object({
     max_attempts: z.number().int().positive().max(4).default(4),
     backoff_s: z.array(z.number().int().positive()).min(1).max(4).default([120, 300, 900, 1800]),
   }).strict().default({ enabled: false, max_attempts: 4, backoff_s: [120, 300, 900, 1800] }),
+  wake_verification: z.object({ enabled: z.boolean().default(false) }).strict().default({ enabled: false }),
   // Error-storm auto-investigation (2026-10-05): when the rolling 1-hour ERROR
   // count reaches `threshold`, create an opencode session asking what is
   // causing the errors. Once per hour window; global (not per-root) because it
