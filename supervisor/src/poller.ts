@@ -62,7 +62,6 @@ export async function pollRootOnce(
   const eligible = (session: Session): boolean =>
     (ownsSession === undefined || ownsSession(session)) &&
     session.parentID === undefined &&
-    session.parentID === undefined &&
     !childIDs.has(session.id) &&
     (previous.has(session.id) || session.timeUpdatedMs === undefined || session.timeUpdatedMs >= nowMs - RECENT_ACTIVITY_MS)
   const sessions = (await client.listSessions(root)).filter(eligible)
