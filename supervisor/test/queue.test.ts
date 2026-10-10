@@ -103,6 +103,39 @@ async function openQueue(): Promise<{ queue: AttentionQueue; dir: string; events
   return { queue, dir, events }
 }
 
+test("repeated re-decide stays open without poison and emits high-water diagnostics", async () => {
+  // Given
+  const { queue, dir, events } = await openQueue()
+  try {
+    const created = await proposeItem(queue, proposal())
+    const changed = makeSources({ latestMessageID: () => "msg-new" })
+    // When
+    for (let count = 1; count <= 8; count += 1) {
+      const result = await queue.revalidate(created.item.id, changed, CONFIG)
+      // Then
+      expect(result.redecide).toBe(true)
+      expect(result.item.poisonCount).toBe(0)
+      expect(itemState(result.item)).toBe("revalidated")
+      expect(result.item.redecideCount).toBe(count)
+    }
+    expect(queue.digest).toHaveLength(2)
+    expect(events.filter((type) => type === "QUEUE_REDECIDE_DIAGNOSTIC")).toHaveLength(2)
+  } finally { await rm(dir, { recursive: true, force: true }) }
+})
+
+test("newer-turn evidence retires instead of requesting re-decision", async () => {
+  // Given
+  const { queue, dir } = await openQueue()
+  try {
+    const created = await proposeItem(queue, proposal())
+    // When
+    const result = await queue.revalidate(created.item.id, makeSources({ latestMessageID: () => "msg-new", answeredElsewhere: () => ({ source: "session", sessionID: "ses-a", messageID: "msg-new", digest: "answered" }) }), CONFIG)
+    // Then
+    expect(itemState(result.item)).toBe("resolved")
+    expect(result.outcome.kind).toBe("retired-by-evidence")
+  } finally { await rm(dir, { recursive: true, force: true }) }
+})
+
 describe("decisionKey", () => {
   test("normalizeSubject strips ticket numbers, timestamps, and whitespace", () => {
     expect(normalizeSubject("Q17: Deploy  2026-09-19T12:00:00Z now?")).toBe("deploy now?")
@@ -173,6 +206,23 @@ describe("AttentionQueue dedupe", () => {
 })
 
 describe("AttentionQueue lease", () => {
+  test("lease records precede confirmed delivery and confirmation is idempotent", async () => {
+    // Given
+    const { queue, dir, events } = await openQueue()
+    try {
+      const created = await proposeItem(queue, proposal())
+      // When
+      const acquired = await queue.acquireLease(created.item.id, { channelID: "console", now: NOW })
+      if (acquired.kind !== "acquired") throw new Error("expected lease")
+      // Then
+      expect(events).toContain("QUEUE_ITEM_LEASED")
+      expect(events).not.toContain("QUEUE_ITEM_SURFACED")
+      await queue.confirmSurfaced(created.item.id, acquired.lease.presentationID, NOW)
+      await queue.confirmSurfaced(created.item.id, acquired.lease.presentationID, NOW)
+      expect(events.filter((type) => type === "QUEUE_ITEM_SURFACED")).toHaveLength(1)
+      expect(events.indexOf("QUEUE_ITEM_LEASED")).toBeLessThan(events.indexOf("QUEUE_ITEM_SURFACED"))
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
   test("enforces a single global presentation lease", async () => {
     const { queue, dir } = await openQueue()
     const first = await proposeItem(queue, proposal({ question: "A?" }))
@@ -193,7 +243,7 @@ describe("AttentionQueue poison handling", () => {
   test("three failures mark poison-suspect, the fourth expires the item", async () => {
     const { queue, dir } = await openQueue()
     const created = await proposeItem(queue, proposal())
-    const failing = makeSources({ latestMessageID: () => "msg-a2" })
+    const failing = makeSources({ citationsAdmissible: () => false })
     expect((await queue.revalidate(created.item.id, failing, CONFIG)).poison).toBe("none")
     expect((await queue.revalidate(created.item.id, failing, CONFIG)).poison).toBe("none")
     const third = await queue.revalidate(created.item.id, failing, CONFIG)

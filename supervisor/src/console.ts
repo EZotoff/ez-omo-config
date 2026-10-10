@@ -269,6 +269,7 @@ export type ConsoleChannelOptions = {
   readonly ledger: () => Ledger
   readonly setLedger: (next: Ledger) => void
   readonly probe: (item: AttentionQueueItem) => Promise<RevalidationSources>
+  readonly onRedecide?: (item: AttentionQueueItem) => void
   readonly deliverPropagation?: (input: { root: string; sessionID: string; answer: string; ticketID: QueueItemID }) => Promise<boolean>
 }
 
@@ -280,6 +281,7 @@ export class ConsoleChannel {
   private readonly ledger: () => Ledger
   private readonly setLedger: (next: Ledger) => void
   private readonly probe: (item: AttentionQueueItem) => Promise<RevalidationSources>
+  private readonly onRedecide: ((item: AttentionQueueItem) => void) | undefined
   private readonly deliverPropagation: ((input: { root: string; sessionID: string; answer: string; ticketID: QueueItemID }) => Promise<boolean>) | undefined
   /** In-memory single-flight guard: an itemID is claimed while a delivery path
    *  (handleReply / retryPendingPropagations / recoverAnswered) is mid-flight, so
@@ -294,6 +296,7 @@ export class ConsoleChannel {
     this.ledger = options.ledger
     this.setLedger = options.setLedger
     this.probe = options.probe
+    this.onRedecide = options.onRedecide
     this.deliverPropagation = options.deliverPropagation
   }
 
@@ -325,6 +328,7 @@ export class ConsoleChannel {
       counters: parsed.counters ?? {},
       aliases: parsed.aliases ?? {},
       watermarks: parsed.watermarks ?? {},
+      pendingAnswers: parsed.pendingAnswers ?? {},
       ...(parsed.held === undefined ? {} : { held: parsed.held }),
       ...(parsed.dnd === undefined ? {} : { dnd: parsed.dnd }),
     }
@@ -363,6 +367,8 @@ export class ConsoleChannel {
 
   /** ESCALATE write path: enqueue into the queue (replaces openTicket). */
   async proposeEscalation(request: EscalationRequest): Promise<ProposeOutcome> {
+    const sameTarget = this.queue.items.find((item) => item.actionClass === "ESCALATE" && item.target.root === request.root && item.target.sessionID === request.sessionID && request.target.assistantMessageID !== undefined && item.target.assistantMessageID === request.target.assistantMessageID)
+    if (sameTarget !== undefined) return { kind: "deduped", item: sameTarget }
     const open = this.queue.items.filter((item) => item.target.root === request.root && itemState(item) !== "resolved")
     if (open.length >= MAX_OPEN_ITEMS_PER_ROOT) {
       return { kind: "capped", reason: `root at open-item cap (${MAX_OPEN_ITEMS_PER_ROOT})` }
@@ -416,6 +422,7 @@ export class ConsoleChannel {
     for (const candidate of refreshable) {
       const sources = await this.probe(candidate)
       const result = await this.queue.revalidate(candidate.id, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+      if (result.redecide) this.onRedecide?.(result.item)
       if (result.outcome.kind !== "valid") {
         const disposition = dispositionFor(result.outcome)
         if (disposition !== undefined) resolved = { disposition, reason: result.outcome.reason }
@@ -432,7 +439,15 @@ export class ConsoleChannel {
       return { kind: "suppressed", reason: "console unavailable" }
     }
     const alias = await this.assignAlias(root, item.id)
-    await this.client.promptAsync(consoleID, root, formatTicket(alias, item))
+    try {
+      await this.client.promptAsync(consoleID, root, formatTicket(alias, item))
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      await this.queue.defer(lease.lease.presentationID, now, now)
+      this.setLedger(await this.ledger().append("QUEUE_SURFACE_FAILED", { root, itemID: item.id, presentationID: lease.lease.presentationID, channelID: CHANNEL_ID, reason }))
+      return { kind: "suppressed", reason }
+    }
+    await this.queue.confirmSurfaced(item.id, lease.lease.presentationID, now)
     await this.client.toast(`${projectBasename(root)} — ${sessionLabel(item)}: ${glanceHeadline(item.question)}`, `[Supervisor] ${projectBasename(root)}`)
     return { kind: "surfaced", item, presentationID: lease.lease.presentationID, alias }
   }
@@ -506,6 +521,7 @@ export class ConsoleChannel {
       try {
         const sources = await this.probe(item)
         const result = await this.queue.revalidate(item.id, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (result.redecide) this.onRedecide?.(result.item)
         if (itemState(result.item) === "resolved") resolved += 1
       } catch (error) {
         this.setLedger(await this.ledger().append("ERROR", { itemID: item.id, error: `sweepOpenItems revalidate failed: ${error instanceof Error ? error.message : String(error)}` }))
@@ -523,7 +539,7 @@ export class ConsoleChannel {
     let retried = 0
     for (const [itemID, answer] of Object.entries(this.state.pendingAnswers ?? {}) as [QueueItemID, string][]) {
       const item = this.queue.items.find((entry) => entry.id === itemID)
-      if (item === undefined || itemState(item) !== "answered") {
+      if (item === undefined || itemState(item) === "resolved") {
         const { [itemID]: _gone, ...remaining } = this.state.pendingAnswers ?? {}
         this.state = { ...this.state, pendingAnswers: remaining }
         await this.persist()
@@ -534,11 +550,18 @@ export class ConsoleChannel {
       // Single-flight: skip when handleReply or another retry pass already owns the item.
       if (!this.claim(itemID)) continue
       try {
+        if (itemState(item) !== "answered") await this.queue.markAnswered(itemID, `recovered_${itemID}`, CHANNEL_ID, now)
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (outcome.kind === "re-decide") {
+          const result = await this.queue.revalidate(itemID, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+          this.onRedecide?.(result.item)
+          retried += 1
+          continue
+        }
         if (outcome.kind === "retired-by-evidence") {
           await this.queue.resolve(itemID, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
-        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed") {
           await this.queue.resolve(itemID, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
         } else if (outcome.kind === "expired") {
           await this.queue.resolve(itemID, { disposition: "expired", evidence: [], now, reason: outcome.reason })
@@ -572,9 +595,15 @@ export class ConsoleChannel {
       try {
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+        if (outcome.kind === "re-decide") {
+          const result = await this.queue.revalidate(item.id, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+          this.onRedecide?.(result.item)
+          recovered += 1
+          continue
+        }
         if (outcome.kind === "retired-by-evidence") {
           await this.queue.resolve(item.id, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
-        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+        } else if (outcome.kind === "superseded" || outcome.kind === "materially-changed") {
           await this.queue.resolve(item.id, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
         } else if (outcome.kind === "expired") {
           await this.queue.resolve(item.id, { disposition: "expired", evidence: [], now, reason: outcome.reason })
@@ -610,7 +639,7 @@ export class ConsoleChannel {
   async handleReply(reply: ReplyEvent, now: ISO8601, options: HandleReplyOptions = {}): Promise<RouteOutcome> {
     const channelID = options.channelID ?? CHANNEL_ID
     if (isResume(reply.normalizedText)) {
-      this.state = { consoles: this.state.consoles, counters: this.state.counters, aliases: this.state.aliases, watermarks: this.state.watermarks, dnd: false }
+      this.state = { consoles: this.state.consoles, counters: this.state.counters, aliases: this.state.aliases, watermarks: this.state.watermarks, pendingAnswers: this.state.pendingAnswers ?? {}, dnd: false }
       await this.persist()
       this.setLedger(await this.ledger().append("QUEUE_REPLY_RECEIVED", { replyEventID: reply.id, channelID, action: "resume" }))
       return { kind: "resumed" }
@@ -643,23 +672,27 @@ export class ConsoleChannel {
     }
   }
 
-  /** markAnswered → persist pending reply → revalidate → deliver or park. Runs under
+  /** Persist pending reply → markAnswered → revalidate → deliver or park. Runs under
    *  the caller's single-flight claim; never acquires or releases it itself. */
   private async routeAnswered(itemID: QueueItemID, reply: ReplyEvent, now: ISO8601, channelID: string): Promise<RouteOutcome> {
-    const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
-    // Persist the reply text BEFORE any delivery attempt: a crash between
-    // markAnswered and propagation must be recoverable, never lose the answer.
+    // Persist text before the queue transition so either crash window is recoverable.
     this.state = { ...this.state, pendingAnswers: { ...this.state.pendingAnswers, [itemID]: reply.normalizedText } }
     await this.persist()
+    const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
     const lease = this.queue.lease
     if (lease !== undefined && lease.itemID === itemID) await this.queue.defer(lease.presentationID, now, now)
     const sources = await this.probe(answered)
     const outcome = revalidate(answered, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+    if (outcome.kind === "re-decide") {
+      const result = await this.queue.revalidate(itemID, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
+      this.onRedecide?.(result.item)
+      return { kind: "propagation-pending", item: result.item, reason: outcome.reason }
+    }
     if (outcome.kind === "retired-by-evidence") {
       const item = await this.queue.resolve(itemID, { disposition: "retired-by-evidence", evidence: outcome.evidence, now, reason: outcome.reason })
       return { kind: "resolved", disposition: "retired-by-evidence", item }
     }
-    if (outcome.kind === "superseded" || outcome.kind === "materially-changed" || outcome.kind === "re-decide") {
+    if (outcome.kind === "superseded" || outcome.kind === "materially-changed") {
       const item = await this.queue.resolve(itemID, { disposition: "superseded", evidence: [], now, reason: outcome.reason })
       return { kind: "resolved", disposition: "superseded", item }
     }

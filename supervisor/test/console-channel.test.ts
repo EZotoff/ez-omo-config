@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Ledger } from "../src/ledger"
@@ -107,6 +107,73 @@ async function setup(probe: (item: AttentionQueueItem) => Promise<RevalidationSo
 
 const ledgerTypes = (ledgerRef: { current: Ledger }): readonly string[] => ledgerRef.current.records.map((record) => record.type)
 
+for (const answered of [false, true]) {
+  for (const resume of [false, true]) {
+    test(`durable answer survives reload and ${resume ? "resume" : "retry"} when answered=${answered}`, async () => {
+      // Given
+      const { dir, queue, client, channel, ledgerRef } = await setup()
+      try {
+        const proposed = await channel.proposeEscalation(escalationRequest())
+        if (proposed.kind === "capped") throw new Error("unexpected cap")
+        if (answered) await queue.markAnswered(proposed.item.id, "reply_original", "console", NOW)
+        await writeFile(join(dir, "consoles.json"), JSON.stringify({ pendingAnswers: { [proposed.item.id]: "operator answer" } }))
+        const deliveries: string[] = []
+        const restored = new ConsoleChannel({
+          client, queue, statePath: join(dir, "consoles.json"),
+          ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next },
+          probe: healthyProbe,
+          deliverPropagation: async ({ answer }) => { deliveries.push(answer); return true },
+        })
+        await restored.load()
+        // When
+        if (resume) await restored.handleReply({ schemaVersion: 1, id: "reply_resume", receivedAt: NOW, channelID: "console", root: "/root", raw: { kind: "text", text: "resume" }, normalizedText: "resume", correlation: { status: "unmatched" } }, NOW)
+        await restored.retryPendingPropagations("/root", NOW)
+        // Then
+        expect(deliveries).toEqual(["operator answer"])
+        expect(itemState(queue.items[0] ?? proposed.item)).toBe("resolved")
+      } finally { await rm(dir, { recursive: true, force: true }) }
+    })
+  }
+}
+
+test("reply text is durable before the answered transition", async () => {
+  // Given
+  const { dir, queue, channel } = await setup()
+  try {
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind === "capped") throw new Error("unexpected cap")
+    const original = queue.markAnswered.bind(queue)
+    let persisted = false
+    queue.markAnswered = async (...args) => {
+      persisted = (await readFile(join(dir, "consoles.json"), "utf8")).includes("durable-answer")
+      return original(...args)
+    }
+    // When
+    await channel.handleReply({ schemaVersion: 1, id: "reply_durable", receivedAt: NOW, channelID: "console", root: "/root", raw: { kind: "text", text: "durable-answer" }, normalizedText: "durable-answer", correlation: { status: "matched", itemID: proposed.item.id } }, NOW)
+    // Then
+    expect(persisted).toBe(true)
+  } finally { await rm(dir, { recursive: true, force: true }) }
+})
+
+test("re-decide keeps an operator answer durable and requests a fresh tick", async () => {
+  // Given
+  const { dir, queue, client, channel, ledgerRef } = await setup()
+  try {
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind === "capped") throw new Error("unexpected cap")
+    const reticks: string[] = []
+    const routing = new ConsoleChannel({ client, queue, statePath: join(dir, "consoles.json"), ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next }, probe: async () => ({ ...(await healthyProbe()), latestMessageID: () => "msg-new" }), onRedecide: (item) => { reticks.push(item.target.sessionID) } })
+    // When
+    const result = await routing.handleReply({ schemaVersion: 1, id: "reply_changed", receivedAt: NOW, channelID: "console", root: "/root", raw: { kind: "text", text: "keep-me" }, normalizedText: "keep-me", correlation: { status: "matched", itemID: proposed.item.id } }, NOW)
+    // Then
+    expect(result.kind).toBe("propagation-pending")
+    expect(itemState(queue.items[0] ?? proposed.item)).not.toBe("resolved")
+    expect(reticks).toEqual(["ses-a"])
+    const persisted: unknown = JSON.parse(await readFile(join(dir, "consoles.json"), "utf8"))
+    expect(persisted).toMatchObject({ pendingAnswers: { [proposed.item.id]: "keep-me" } })
+  } finally { await rm(dir, { recursive: true, force: true }) }
+})
+
 describe("correlateReply", () => {
   const a: QueueItemID = "att_a"
   const b: QueueItemID = "att_b"
@@ -158,6 +225,22 @@ describe("glanceHeadline", () => {
 })
 
 describe("ConsoleChannel dedupe", () => {
+  test("ESCALATE re-decide ESCALATE cannot re-escalate the same assistant message", async () => {
+    // Given
+    const { channel, queue, dir } = await setup()
+    try {
+      const first = await channel.proposeEscalation(escalationRequest())
+      if (first.kind === "capped") throw new Error("unexpected cap")
+      await queue.revalidate(first.item.id, { ...(await healthyProbe()), latestMessageID: () => "msg-new" }, { now: NOW, graceMs: 60_000, ttlMs: 86_400_000 })
+      // When
+      const same = await channel.proposeEscalation(escalationRequest({ question: "Different wording, same turn?" }))
+      const fresh = await channel.proposeEscalation(escalationRequest({ question: "Fresh question?", target: { ...first.item.target, assistantMessageID: "msg-new" } }))
+      // Then
+      expect(same.kind).toBe("deduped")
+      expect(fresh.kind).toBe("enqueued")
+      expect(queue.items).toHaveLength(2)
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
   test("duplicate escalations collapse to one queue item", async () => {
     const { channel, queue, dir } = await setup()
     const first = await channel.proposeEscalation(escalationRequest())
@@ -171,6 +254,23 @@ describe("ConsoleChannel dedupe", () => {
 })
 
 describe("ConsoleChannel lifecycle", () => {
+  test("ticket POST failure records failure and defers without a surfaced row", async () => {
+    // Given
+    const { channel, client, queue, ledgerRef, dir } = await setup()
+    try {
+      await channel.proposeEscalation(escalationRequest())
+      await channel.ensure("/root", "console")
+      client.promptAsync = async () => { throw new Error("POST rejected") }
+      // When
+      const result = await channel.surfaceNext("/root", NOW)
+      // Then
+      expect(result.kind).toBe("suppressed")
+      expect(queue.lease).toBeUndefined()
+      expect(ledgerTypes(ledgerRef)).toContain("QUEUE_ITEM_LEASED")
+      expect(ledgerTypes(ledgerRef)).toContain("QUEUE_SURFACE_FAILED")
+      expect(ledgerTypes(ledgerRef)).not.toContain("QUEUE_ITEM_SURFACED")
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
   test("enqueue → revalidate → surface → correlate → propagation pending", async () => {
     const { channel, client, queue, ledgerRef, dir } = await setup()
     const proposed = await channel.proposeEscalation(escalationRequest())

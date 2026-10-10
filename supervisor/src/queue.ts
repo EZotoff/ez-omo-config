@@ -37,6 +37,7 @@ export const POISON_SUSPECT_THRESHOLD = 3
 export const POISON_EXPIRE_THRESHOLD = 4
 export const MAX_CONSECUTIVE_ROOT_SURFACES = 2
 export const SURFACE_LOG_CAP = 500
+export const REDECIDE_HIGH_WATER = 4
 
 const HOUR_MS = 3_600_000
 
@@ -249,6 +250,7 @@ export type ProposeResult =
   | { readonly kind: "deduped"; readonly item: AttentionQueueItem }
   | { readonly kind: "blocked"; readonly reason: string }
 export type RevalidationResult = {
+  readonly redecide?: true
   readonly outcome: RevalidationOutcome
   readonly item: AttentionQueueItem
   readonly poison: "none" | "suspect" | "expired"
@@ -470,6 +472,18 @@ export class AttentionQueue {
     const item = this.find(itemID)
     if (item === undefined) throw new Error(`unknown queue item ${itemID}`)
     const outcome = revalidate(item, sources, config)
+    if (outcome.kind === "re-decide") {
+      const redecideCount = (item.redecideCount ?? 0) + 1
+      const next = this.commit({ ...item, redecideCount }, { state: "revalidated", at: config.now, result: "materially-changed", evidence: [] }, item.poisonCount)
+      await this.append("QUEUE_ITEM_REVALIDATED", { itemID, itemVersion: next.version, result: "materially-changed", policy: outcome.kind, redecideCount })
+      if (redecideCount % REDECIDE_HIGH_WATER === 0) {
+        const message = `queue item ${itemID} remains open after ${redecideCount} re-decisions: ${outcome.reason}`
+        await this.recordDigestDiagnostic(message)
+        await this.append("QUEUE_REDECIDE_DIAGNOSTIC", { itemID, root: item.target.root, redecideCount, message })
+      }
+      await this.persist()
+      return { outcome, item: next, poison: "none", redecide: true }
+    }
     if (outcome.kind === "valid") {
       const next = this.commit(item, { state: "revalidated", at: config.now, result: "valid", evidence: outcome.evidence }, 0)
       await this.append("QUEUE_ITEM_REVALIDATED", { itemID, itemVersion: next.version, result: "valid" })
@@ -499,7 +513,7 @@ export class AttentionQueue {
     const next = this.commit({ ...item, poisonCount }, { state: "revalidated", at: config.now, result: "materially-changed", evidence: [] }, poisonCount)
     await this.append("QUEUE_ITEM_REVALIDATED", { itemID, itemVersion: next.version, result: "materially-changed", policy: effective.kind, poisonCount })
     await this.persist()
-    return { outcome: effective, item: next, poison: poisonCount >= POISON_SUSPECT_THRESHOLD ? "suspect" : "none" }
+    return { outcome: effective, item: next, poison: poisonCount >= POISON_SUSPECT_THRESHOLD ? "suspect" : "none", ...(effective.kind === "re-decide" ? { redecide: true } : {}) }
   }
 
   private commit(item: AttentionQueueItem, event: LifecycleEvent, poisonCount: number): AttentionQueueItem {
@@ -542,11 +556,22 @@ export class AttentionQueue {
     const presentationID = `pres_${timeSortableID()}`
     const ttlMs = request.ttlMs ?? LEASE_TTL_MS
     const lease: PresentationLease = { presentationID, itemID, channelID: request.channelID, acquiredAt: request.now, heartbeatAt: request.now, expiresAt: new Date(Date.parse(request.now) + ttlMs).toISOString() }
+    // Keep the existing lifecycle state for lease recovery; delivery is confirmed separately.
     const next = this.commit(item, { state: "surfaced", at: request.now, channelID: request.channelID, presentationID }, item.poisonCount)
-    this.snapshot = { ...this.snapshot, lease, surfaceLog: [...this.snapshot.surfaceLog, { root: item.target.root, itemID, at: request.now }] }
-    await this.append("QUEUE_ITEM_SURFACED", { itemID, itemVersion: next.version, channelID: request.channelID, presentationID })
+    this.snapshot = { ...this.snapshot, lease }
+    await this.append("QUEUE_ITEM_LEASED", { itemID, itemVersion: next.version, channelID: request.channelID, presentationID })
     await this.persist()
     return { kind: "acquired", lease }
+  }
+
+  async confirmSurfaced(itemID: QueueItemID, presentationID: string, now: ISO8601): Promise<void> {
+    const item = this.find(itemID)
+    if (item === undefined) throw new Error(`unknown queue item ${itemID}`)
+    const lease = this.snapshot.lease
+    if (lease === undefined || lease.itemID !== itemID || lease.presentationID !== presentationID || lease.confirmedAt !== undefined) return
+    this.snapshot = { ...this.snapshot, lease: { ...lease, confirmedAt: now }, surfaceLog: [...this.snapshot.surfaceLog, { root: item.target.root, itemID, at: now }] }
+    await this.append("QUEUE_ITEM_SURFACED", { itemID, itemVersion: item.version, channelID: lease.channelID, presentationID })
+    await this.persist()
   }
 
   /** Deferral is a scheduling request, never a retire: release the lease, set notBefore, keep aging. */

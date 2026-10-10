@@ -132,6 +132,47 @@ function eventSessionID(event: ServerEvent): string | undefined {
   return typeof sessionID === "string" ? sessionID : undefined
 }
 
+export const ROOT_READY_DEADLINE_MS = 5 * 60_000
+
+export async function startRootPollLoop<T>(deps: {
+  readonly signal: AbortSignal
+  readonly sleep: () => Promise<void>
+  readonly getRuntime: () => T | undefined
+  readonly poll: (runtime: T) => Promise<void>
+  readonly onError: (error: unknown) => Promise<void>
+  readonly onStart: () => void
+  readonly onStop: () => void
+  readonly now?: () => number
+  readonly reconcile?: () => Promise<unknown>
+  readonly onNotReady?: () => Promise<void>
+}): Promise<void> {
+  const now = deps.now ?? Date.now
+  const startedAt = now()
+  let watchdogFired = false
+  deps.onStart()
+  try {
+    while (!deps.signal.aborted) {
+      await deps.sleep()
+      try {
+        if (deps.getRuntime() === undefined) await deps.reconcile?.()
+        const runtime = deps.getRuntime()
+        if (runtime === undefined) {
+          if (!watchdogFired && now() - startedAt >= ROOT_READY_DEADLINE_MS) {
+            watchdogFired = true
+            await deps.onNotReady?.()
+          }
+          continue
+        }
+        await deps.poll(runtime)
+      } catch (error) {
+        await deps.onError(error)
+      }
+    }
+  } finally {
+    deps.onStop()
+  }
+}
+
 function emptyStatus(): SupervisorStatus {
   return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {}, errorsSinceStart: 0, errorsLastHour: 0, errorInvestigations: 0, collect: { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 } }
 }
@@ -266,6 +307,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       citationsAdmissible: () => true,
     }
   }
+  const pendingReticks = new Map<string, Set<string>>()
   const consoles = new ConsoleChannel({
     client,
     queue,
@@ -273,6 +315,11 @@ export async function runService(signal: AbortSignal): Promise<void> {
     ledger: () => ledger,
     setLedger: (next) => { ledger = next },
     probe: buildSources,
+    onRedecide: (item) => {
+      const sessions = pendingReticks.get(item.target.root) ?? new Set<string>()
+      sessions.add(item.target.sessionID)
+      pendingReticks.set(item.target.root, sessions)
+    },
     deliverPropagation: async (input) => {
       const rootConfig = config.roots.find((r) => r.path === input.root)
       if (rootConfig?.continue_writes?.enabled !== true) return false
@@ -466,6 +513,12 @@ export async function runService(signal: AbortSignal): Promise<void> {
         }
       }
       if (target !== undefined) {
+        if (target.assistantMessageID !== undefined && queue.items.some((item) => item.target.root === runtime.root && item.target.sessionID === sessionID && item.target.assistantMessageID === target.assistantMessageID && item.actionClass === "ESCALATE")) {
+          ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "fresh-target guard: assistant message already escalated" })
+          runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
+          runtime.scheduler?.markTicked(sessionID)
+          return
+        }
         // Awaiting-operator guard (2026-10-05 incident, ses_ef4ef9abaffe): a
         // session whose last assistant message trails a RUNNING question-tool
         // part is blocked on the operator's dialog answer. The projector drops
@@ -901,22 +954,24 @@ rootConfig?.continue_writes?.enabled === true
   // polling, no ticks; only the 600s sweeps kept lastReconcile moving).
   if (!signal.aborted) await Promise.all(activeRoots.map((root) => reconcile(root.path)))
   for (const root of activeRoots) {
-    const runtime0 = runtimes.get(root.path)
-    if (runtime0 === undefined) continue
-    status.modes = { ...status.modes, [root.path]: runtime0.mode }
-    await writeStatusSynced()
-    if (root.mode === "observe" || root.mode === "full") {
-      void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
-    }
+    let initialized = false
     const watchStates = new Map<string, WatchState>()
-    void (async () => {
-      activeLoops += 1
-      try {
-      while (!signal.aborted) {
-        await Bun.sleep(POLL_INTERVAL_MS)
-        const runtime = runtimes.get(root.path)
-        if (runtime === undefined) continue
-        try {
+    void startRootPollLoop({
+      signal,
+      sleep: () => Bun.sleep(POLL_INTERVAL_MS),
+      getRuntime: () => runtimes.get(root.path),
+      reconcile: () => reconcile(root.path),
+      onNotReady: async () => { ledger = await ledger.append("ROOT_NOT_READY", { root: root.path, deadlineMs: ROOT_READY_DEADLINE_MS }) },
+      onStart: () => { activeLoops += 1 },
+      poll: async (runtime) => {
+          if (!initialized) {
+            status.modes = { ...status.modes, [root.path]: runtime.mode }
+            await writeStatusSynced()
+            if (root.mode === "observe" || root.mode === "full") {
+              void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
+            }
+            initialized = true
+          }
           const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs(), ...beacon.allSessionIDs()])
           const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now(), config.stall_minutes * 60_000, ownsSessionFor(root.path))
           activityGate.observe(signals, Date.now())
@@ -963,18 +1018,26 @@ rootConfig?.continue_writes?.enabled === true
           for (const reply of beaconReplies) {
             await beacon.handleReply(reply, new Date().toISOString())
           }
-        } catch (error) {
+          const reticks = pendingReticks.get(root.path)
+          for (const sessionID of reticks ?? []) {
+            if (runtime.states.get(sessionID)?.kind === "TICK") continue
+            reticks?.delete(sessionID)
+            if (await applyEvent(runtime, sessionID, { type: "idle", at: Date.now() })) {
+              await enqueueIdle(runtime, sessionID)
+            }
+          }
+      },
+      onError: async (error) => {
           if (error instanceof Error) {
             ledger = await ledger.append("ERROR", { root: root.path, error: error.message })
             await recordErrorTelemetry({ root: root.path })
           }
-        }
-      }
-      } finally {
+      },
+      onStop: () => {
         activeLoops -= 1
         if (activeLoops === 0 && signal.aborted) resolveDrainDone()
-      }
-    })()
+      },
+    })
   }
 
   await new Promise<void>((resolveDone) => signal.addEventListener("abort", () => resolveDone(), { once: true }))

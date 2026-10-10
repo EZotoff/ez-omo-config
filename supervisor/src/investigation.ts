@@ -123,6 +123,16 @@ export async function maybeDispatchErrorInvestigation(input: {
   try {
     const session = await input.client.createSession(input.root, title)
     if (input.memory !== undefined && input.signature !== undefined) await input.memory.record(input.signature, nowMs)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await input.client.promptAsync(session.id, input.root, investigationPrompt(input.root, input.count, input.peak, input.config.threshold))
+        break
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        await input.append("ERROR", { root: input.root, sessionID: session.id, attempt, reason: `error investigation dispatch failed: ${message}` })
+        if (attempt === 3) return { dispatched: false, reason: "dispatch-failed", error: message }
+      }
+    }
     await input.append("INTERVENTION_SENT", {
       mode: "investigation",
       root: input.root,
@@ -131,7 +141,6 @@ export async function maybeDispatchErrorInvestigation(input: {
       peak: input.peak,
       threshold: input.config.threshold,
     })
-    await input.client.promptAsync(session.id, input.root, investigationPrompt(input.root, input.count, input.peak, input.config.threshold))
     return { dispatched: true, sessionID: session.id }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
