@@ -53,6 +53,8 @@ export type TargetSelection =
   | { readonly target: Turn }
   | { readonly rejected: TargetRejectionReason; readonly text: string }
 
+export type WakeHandle = { readonly kind: "systemd-unit" | "timer" | "process" | "none"; readonly ref: string }
+
 export const ACTIONS = ["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"] as const
 export type Action = (typeof ACTIONS)[number]
 
