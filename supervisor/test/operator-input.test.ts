@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
-import { parseDecision } from "../src/tick"
+import { parseDecision, type TickDecision } from "../src/tick"
 import { applyAttentionOverrides } from "../src/service"
+import { ACTIONS } from "../src/types"
 
 const raw = (action: string, extra: Readonly<Record<string, unknown>> = {}) => JSON.stringify({
   action, rationale: "Choose A or B", citations: [], confidence: 0.9, ...extra,
@@ -27,4 +28,15 @@ test("flag off preserves the decision", async () => {
 test("false does not override", async () => {
   const decision = parseDecision(raw("ACCEPT", { operator_input_requested: false }), 0.6)
   expect(await applyAttentionOverrides(decision, { adjudicateMachineOrigin: true })).toEqual(decision)
+})
+
+for (const action of ACTIONS) test(`post-judge action dispatch preserves ${action} unless it is a terminal operator ask`, async () => {
+  const decision: TickDecision = { action, rationale: "Choose A or B", citations: [], confidence: 0.9, information_needs: [], operator_input_requested: true }
+  const result = await applyAttentionOverrides(decision, { adjudicateMachineOrigin: true })
+  expect(result.action).toBe(action === "ACCEPT" || action === "ABSTAIN" ? "ESCALATE" : action)
+})
+
+test("confidence gate preserves the structured ask for post-decision dispatch", async () => {
+  const decision = parseDecision(raw("ACCEPT", { operator_input_requested: true, confidence: 0.2 }), 0.6)
+  expect(await applyAttentionOverrides(decision, { adjudicateMachineOrigin: true })).toMatchObject({ action: "ESCALATE", operator_input_requested: true })
 })

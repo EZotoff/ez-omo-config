@@ -45,3 +45,13 @@ test("active units and process patterns honor probe success", async () => {
     expect(await verifyWakeHandle({ kind, ref: "watcher" }, async () => true)).toBe(true)
   }
 })
+
+test("ACCEPT never invokes the wake verifier and operator asks take precedence", async () => {
+  let probes = 0
+  const wakeVerifier = async () => { probes += 1; return false }
+  const accepted = decision({ kind: "process", ref: "123" }, "ACCEPT")
+  expect(await applyAttentionOverrides(accepted, { adjudicateMachineOrigin: true, verifyWake: true, wakeVerifier })).toEqual(accepted)
+  const asked = { ...accepted, action: "ABSTAIN" as const, operator_input_requested: true }
+  expect(await applyAttentionOverrides(asked, { adjudicateMachineOrigin: true, verifyWake: true, wakeVerifier })).toMatchObject({ action: "ESCALATE", rationale: `operator input requested: ${asked.rationale}` })
+  expect(probes).toBe(0)
+})

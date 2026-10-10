@@ -559,7 +559,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
       // Operator-attention-point guard: tick only if the target reply is the
       // session's LAST message. If anything arrived after it (a ralph push, a
       // nudge, a user message), that idle moment was already handled — stand down.
-      const selection = pickTarget(scan?.turns ?? [], scan?.messages ?? [], { sessionProtected: protectedSession(sessionID), adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin })
+      const selection = pickTarget(scan?.turns ?? [], scan?.messages ?? [], {
+        sessionProtected: protectedSession(sessionID), adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin,
+        escalatedAssistantMessageIDs: queue.items.filter((item) => item.target.root === runtime.root && item.target.sessionID === sessionID && item.actionClass === "ESCALATE").flatMap((item) => item.target.assistantMessageID === undefined ? [] : [item.target.assistantMessageID]),
+      })
       if ("rejected" in selection) {
         const targetUserMessageID = scan?.turns.at(-1)?.userMessageID
         const pending = await pendingAttention?.record({ root: runtime.root, sessionID, reason: selection.rejected, ...(targetUserMessageID === undefined ? {} : { targetUserMessageID }) })
@@ -570,13 +573,6 @@ export async function runService(signal: AbortSignal): Promise<void> {
       }
       const target = selection.target
       {
-        if (target.assistantMessageID !== undefined && queue.items.some((item) => item.target.root === runtime.root && item.target.sessionID === sessionID && item.target.assistantMessageID === target.assistantMessageID && item.actionClass === "ESCALATE")) {
-          await pendingAttention?.resolve({ root: runtime.root, sessionID })
-          ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "fresh-target guard: assistant message already escalated" })
-          runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
-          runtime.scheduler?.markTicked(sessionID)
-          return
-        }
         // Awaiting-operator guard (2026-10-05 incident, ses_ef4ef9abaffe): a
         // session whose last assistant message trails a RUNNING question-tool
         // part is blocked on the operator's dialog answer. The projector drops
