@@ -155,6 +155,25 @@ test("reply text is durable before the answered transition", async () => {
   } finally { await rm(dir, { recursive: true, force: true }) }
 })
 
+test("re-decide keeps an operator answer durable and requests a fresh tick", async () => {
+  // Given
+  const { dir, queue, client, channel, ledgerRef } = await setup()
+  try {
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind === "capped") throw new Error("unexpected cap")
+    const reticks: string[] = []
+    const routing = new ConsoleChannel({ client, queue, statePath: join(dir, "consoles.json"), ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next }, probe: async () => ({ ...(await healthyProbe()), latestMessageID: () => "msg-new" }), onRedecide: (item) => { reticks.push(item.target.sessionID) } })
+    // When
+    const result = await routing.handleReply({ schemaVersion: 1, id: "reply_changed", receivedAt: NOW, channelID: "console", root: "/root", raw: { kind: "text", text: "keep-me" }, normalizedText: "keep-me", correlation: { status: "matched", itemID: proposed.item.id } }, NOW)
+    // Then
+    expect(result.kind).toBe("propagation-pending")
+    expect(itemState(queue.items[0] ?? proposed.item)).not.toBe("resolved")
+    expect(reticks).toEqual(["ses-a"])
+    const persisted: unknown = JSON.parse(await readFile(join(dir, "consoles.json"), "utf8"))
+    expect(persisted).toMatchObject({ pendingAnswers: { [proposed.item.id]: "keep-me" } })
+  } finally { await rm(dir, { recursive: true, force: true }) }
+})
+
 describe("correlateReply", () => {
   const a: QueueItemID = "att_a"
   const b: QueueItemID = "att_b"
@@ -206,6 +225,22 @@ describe("glanceHeadline", () => {
 })
 
 describe("ConsoleChannel dedupe", () => {
+  test("ESCALATE re-decide ESCALATE cannot re-escalate the same assistant message", async () => {
+    // Given
+    const { channel, queue, dir } = await setup()
+    try {
+      const first = await channel.proposeEscalation(escalationRequest())
+      if (first.kind === "capped") throw new Error("unexpected cap")
+      await queue.revalidate(first.item.id, { ...(await healthyProbe()), latestMessageID: () => "msg-new" }, { now: NOW, graceMs: 60_000, ttlMs: 86_400_000 })
+      // When
+      const same = await channel.proposeEscalation(escalationRequest({ question: "Different wording, same turn?" }))
+      const fresh = await channel.proposeEscalation(escalationRequest({ question: "Fresh question?", target: { ...first.item.target, assistantMessageID: "msg-new" } }))
+      // Then
+      expect(same.kind).toBe("deduped")
+      expect(fresh.kind).toBe("enqueued")
+      expect(queue.items).toHaveLength(2)
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
   test("duplicate escalations collapse to one queue item", async () => {
     const { channel, queue, dir } = await setup()
     const first = await channel.proposeEscalation(escalationRequest())
