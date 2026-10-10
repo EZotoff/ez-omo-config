@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Ledger } from "../src/ledger"
@@ -96,6 +96,40 @@ describe("parseContinuationAlert", () => {
 })
 
 describe("ContinuationBridge", () => {
+  test("reports corrupt or unreadable state instead of resetting protection", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    const statePath = join(directory, "journal-bridge.json")
+    await writeFile(statePath, "not json")
+    const bridge = new ContinuationBridge({ statePath, read: async () => [], append: async () => {} })
+    await expect(bridge.poll()).rejects.toThrow()
+    await writeFile(statePath, JSON.stringify({ schemaVersion: 2 }))
+    await expect(bridge.poll()).rejects.toThrow()
+    const unreadable = new ContinuationBridge({ statePath: directory, read: async () => [], append: async () => {} })
+    await expect(unreadable.poll()).rejects.toThrow()
+  })
+
+  test("retries an unacknowledged batch after a ledger append rejects without duplicate escalations", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    const ledgerPath = join(directory, "ledger.jsonl")
+    let rejectOnce = true
+    const bridge = new ContinuationBridge({
+      statePath: join(directory, "journal-bridge.json"),
+      read: async () => [entry("resume_fallback", "retry"), entry("snapshot_failed", "retry-2")],
+      append: async (type, payload) => {
+        if (type === "TICK_DECIDED" && (await continuationRows(ledgerPath)).length === 1 && rejectOnce) {
+          rejectOnce = false
+          throw new Error("injected append failure")
+        }
+        await (await Ledger.open(ledgerPath)).append(type, payload)
+      },
+    })
+    await expect(bridge.poll()).rejects.toThrow("injected append failure")
+    expect(await bridge.poll()).toBe(2)
+    expect(await bridge.poll()).toBe(0)
+    expect(await continuationRows(ledgerPath)).toHaveLength(2)
+    expect(await rawRows(ledgerPath)).toHaveLength(2)
+  })
+
   test("QA scenario 1: each reason imports exactly one ESCALATE row with expected fields", async () => {
     const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
     const reasons = ["preflight_failed", "snapshot_failed", "resume_fallback", "db_fallback"]
@@ -208,6 +242,30 @@ describe("ContinuationBridge", () => {
     expect(rows).toHaveLength(2)
     expect(rows[1]?.continuation['digest']).toBe("true")
     expect(rows[1]?.continuation['uuid']).toBe("p2")
+  })
+
+  test("digest exposes the running suppressed count on every growing pass", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    const entries = [entry("resume_fallback", "running-1")]
+    const { bridge, ledgerPath } = await openBridge(directory, entries)
+    await bridge.poll()
+    entries.push(entry("resume_fallback", "running-2"))
+    await bridge.poll()
+    entries.push(entry("resume_fallback", "running-3"))
+    expect(await bridge.poll()).toBe(1)
+    expect((await continuationRows(ledgerPath)).map((row) => row.continuation['suppressed'])).toEqual([undefined, "1", "2"])
+  })
+
+  test("coalescing windows are capped at 900 seconds", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    let nowMs = 1_000_000_000_000
+    const entries = [entry("resume_fallback", "bounded-1")]
+    const { bridge, ledgerPath } = await openBridge(directory, entries, { config: config({ coalesceWindowS: 1800 }), now: () => nowMs })
+    await bridge.poll()
+    nowMs += 901_000
+    entries.push(entry("resume_fallback", "bounded-2"))
+    await bridge.poll()
+    expect((await continuationRows(ledgerPath))[1]?.continuation['digest']).toBeUndefined()
   })
 
   test("excluded_units: no escalation, raw row preserved", async () => {

@@ -34,6 +34,10 @@ This page links to per-system observability documentation for the four non-Wisdo
 - **Patch docs**: `.sisyphus/patches/opencode-dcp--bounded-range-archive-mode.md` (status: retired)
 - **Historical reference**: `configs/opencode/dcp.jsonc.retired`, `tests/test_dcp_bounded_range.sh.retired`, `tests/test_dcp_startup_warning.sh.retired`
 
+### Supervisor Ledger
+
+- **`QUEUE_ITEM_SURFACED` bifurcation (analytics)**: rows written before the surfaced-truthfulness cutover (commit `83c0d4e`, 2026-10-10) meant **leased** — the item was handed to a presentation lease; rows from that cutover onward mean **confirmed delivery** — the item was accepted POST-surface (lease acquisition now emits `QUEUE_ITEM_LEASED` instead). The ledger type string is unchanged, so consumers MUST bifurcate by timestamp (against the cutover) or by accompanying fields — never pool the whole history under one semantic. Pooling inflates delivery counts and misreads lease churn as delivery.
+
 ### Continuation / Crash-Safe Recovery
 
 The OpenCode serve daemons (interactive `:3030`, headless `:3021`, bench `:3040`) share a crash-safe continuation stack so busy sessions survive restarts and crashes.

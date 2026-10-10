@@ -198,8 +198,9 @@ async function loadState(path: string): Promise<BridgeState> {
         breakers: parseBreakers(raw.breakers),
       }
     }
-  } catch {
-    // missing or unreadable state — start fresh (cursor undefined, no imports)
+    throw new Error(`Invalid continuation bridge state: ${path}`)
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error
   }
   return { schemaVersion: 1, cursor: undefined, fingerprints: [], coalesce: {}, breakers: {} }
 }
@@ -227,6 +228,7 @@ export type BridgeDeps = {
 
 export class ContinuationBridge {
   private state: BridgeState | undefined
+  private readonly written = new Set<string>()
 
   constructor(private readonly deps: BridgeDeps) {}
 
@@ -238,17 +240,18 @@ export class ContinuationBridge {
   /**
    * One import pass. Every new alert fingerprint is recorded as a raw
    * CONTINUATION_ALERT row; escalations are coalesced by unit|reason within a
-   * window (first pass → one ESCALATE; later passes → one per-window digest
+   * window (first pass → one ESCALATE; later passes → one updated digest
    * escalation naming the suppressed count), with a per-unit cooldown breaker
    * and an excluded_units list. Idempotent across restarts (persisted cursor +
    * fingerprints + coalesce/breaker state). Returns the number of TICK_DECIDED
    * escalations appended (primary + digest).
    */
   async poll(): Promise<number> {
-    const state = await this.currentState()
+    const state = structuredClone(await this.currentState())
     const entries = await this.deps.read(state.cursor)
     if (entries.length === 0) return 0
-    const config = this.deps.config ?? DEFAULT_BRIDGE_CONFIG
+    const configured = this.deps.config ?? DEFAULT_BRIDGE_CONFIG
+    const config = { ...configured, coalesceWindowS: Math.min(configured.coalesceWindowS, 900) }
     const now = Math.floor((this.deps.now ?? Date.now)() / 1000)
     const seen = new Set(state.fingerprints)
     const fresh: ContinuationAlert[] = []
@@ -261,7 +264,7 @@ export class ContinuationBridge {
     }
     // Raw rows: one CONTINUATION_ALERT per distinct new fingerprint, always.
     for (const alert of fresh) {
-      await this.deps.append("CONTINUATION_ALERT", {
+      await this.appendOnce("CONTINUATION_ALERT", {
         source: "continuation",
         unit: alert.unit,
         reason: alert.reason,
@@ -301,11 +304,9 @@ export class ContinuationBridge {
             const entry = state.coalesce[key]
             if (entry === undefined) break
             entry.suppressed += alerts.length
-            if (!entry.digestEmitted) {
-              entry.digestEmitted = true
-              await this.appendDigest(head, entry)
-              escalations += 1
-            }
+            entry.digestEmitted = true
+            await this.appendDigest(head, entry)
+            escalations += 1
             break
           }
           case "escalate":
@@ -320,7 +321,16 @@ export class ContinuationBridge {
     state.cursor = entries.at(-1)?.cursor ?? state.cursor
     if (state.fingerprints.length > FINGERPRINT_CAP) state.fingerprints = state.fingerprints.slice(-FINGERPRINT_CAP)
     await saveState(this.deps.statePath, state)
+    this.state = state
+    this.written.clear()
     return escalations
+  }
+
+  private async appendOnce(...args: Parameters<LedgerAppend>): Promise<void> {
+    const key = JSON.stringify(args)
+    if (this.written.has(key)) return
+    await this.deps.append(...args)
+    this.written.add(key)
   }
 
   /** Exhaustive coalescing decision for one unit|reason group. Mutates state. */
@@ -355,7 +365,7 @@ export class ContinuationBridge {
     const head = alerts[0]
     if (head === undefined) return
     const aggregateCount = alerts.reduce((sum, alert) => sum + (Number.parseInt(alert.count, 10) || 0), 0)
-    await this.deps.append("TICK_DECIDED", {
+    await this.appendOnce("TICK_DECIDED", {
       decision: {
         action: "ESCALATE",
         confidence: 0.9,
@@ -378,7 +388,7 @@ export class ContinuationBridge {
   }
 
   private async appendDigest(head: ContinuationAlert, entry: CoalesceEntry): Promise<void> {
-    await this.deps.append("TICK_DECIDED", {
+    await this.appendOnce("TICK_DECIDED", {
       decision: {
         action: "ESCALATE",
         confidence: 0.9,

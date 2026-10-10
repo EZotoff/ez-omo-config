@@ -45,8 +45,10 @@ const RECENT_ACTIVITY_MS = 15 * 60_000
  * child-ID set from reconcile) updated within the recent-activity window are
  * polled.
  */
+export type PollClient = Pick<OpencodeClient, "listSessions" | "listMessages">
+
 export async function pollRootOnce(
-  client: OpencodeClient,
+  client: PollClient,
   root: string,
   childIDs: ReadonlySet<string>,
   previous: Map<string, WatchState>,
@@ -59,7 +61,6 @@ export async function pollRootOnce(
   // and must not become invisible (2026-09-30 regression from the window filter).
   const eligible = (session: Session): boolean =>
     (ownsSession === undefined || ownsSession(session)) &&
-    session.parentID === undefined &&
     session.parentID === undefined &&
     !childIDs.has(session.id) &&
     (previous.has(session.id) || session.timeUpdatedMs === undefined || session.timeUpdatedMs >= nowMs - RECENT_ACTIVITY_MS)

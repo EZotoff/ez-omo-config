@@ -166,6 +166,32 @@ export const tickDecidedPayload = (decision: Decision, turn: Turn, root: string)
   messageID: turn.userMessageID,
 })
 
+/**
+ * End-of-tick decision write with an episode-token guard (F1 D4, 2026-10-10).
+ *
+ * The tick captures the TICK state object at grace time. If a newer session
+ * event replaced it during the tick's awaits (a fresh completion re-arms GRACE,
+ * a busy flip resets to IDLE), applying `decision_recorded` to the captured
+ * object would clobber the newer episode. Re-read the CURRENT state and write
+ * only when it is still the captured episode; otherwise record
+ * TICK_STALE_PREMISE and leave the newer state untouched.
+ */
+export async function recordDecisionGuarded(
+  ledger: Ledger,
+  states: Map<string, SessionState>,
+  sessionID: string,
+  episode: SessionState,
+  root: string,
+  at: number,
+): Promise<Ledger> {
+  const current = states.get(sessionID)
+  if (current !== episode) {
+    return ledger.append("TICK_STALE_PREMISE", { root, sessionID, reason: "episode changed during tick — decision write skipped" })
+  }
+  states.set(sessionID, transition(current, { type: "decision_recorded", at }).state)
+  return ledger
+}
+
 function eventSessionID(event: ServerEvent): string | undefined {
   const properties = event.properties
   if (properties === undefined) return undefined
@@ -546,6 +572,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
       const graceResult = transition(runtime.states.get(sessionID) ?? initialState, { type: "grace_elapsed", at: Date.now() })
       runtime.states.set(sessionID, graceResult.state)
       if (graceResult.illegal || graceResult.state.kind !== "TICK") return
+      // Episode token: the TICK state object this tick owns. Any newer event
+      // during the awaits below replaces it in runtime.states; the end-of-tick
+      // write must then stand down (recordDecisionGuarded).
+      const episode = graceResult.state
       const previousManifest = runtime.manifest
       const refreshed = await reconcile(runtime.root)
       if (refreshed !== undefined) runtime.manifest = refreshed.manifest
@@ -567,7 +597,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         const targetUserMessageID = scan?.turns.at(-1)?.userMessageID
         const pending = await pendingAttention?.record({ root: runtime.root, sessionID, reason: selection.rejected, ...(targetUserMessageID === undefined ? {} : { targetUserMessageID }) })
         ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: selection.rejected, text: selection.text, ...(pending === undefined ? {} : { disposition: pending.disposition, attempts: pending.attempts }) })
-        runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
+        ledger = await recordDecisionGuarded(ledger, runtime.states, sessionID, episode, runtime.root, Date.now())
         runtime.scheduler?.markTicked(sessionID)
         return
       }
@@ -590,14 +620,14 @@ export async function runService(signal: AbortSignal): Promise<void> {
             sessionID,
             reason: `awaiting-operator-input: question-tool dialog pending${sinceMs === undefined ? "" : ` since ${new Date(sinceMs).toISOString()}`}: ${pending === undefined ? "" : pendingQuestionText(pending, 140)}`,
           })
-          runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)
+          ledger = await recordDecisionGuarded(ledger, runtime.states, sessionID, episode, runtime.root, Date.now())
           runtime.scheduler?.markTicked(sessionID)
           return
         }
         // CONTINUE quiescence gate (T6): never kick-start a session that moved during grace.
         if (!activityGate.isQuiescent(sessionID, Date.now(), config.grace_period_s * 1000)) {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "activity gate: session moved during grace — not quiescent, tick suppressed" })
-          runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
+          ledger = await recordDecisionGuarded(ledger, runtime.states, sessionID, episode, runtime.root, Date.now())
           runtime.scheduler?.markTicked(sessionID)
           return
         }
@@ -681,6 +711,16 @@ export async function runService(signal: AbortSignal): Promise<void> {
           onSuppressed: (reason) => { suppressedReason = reason },
         }))
         const decision = await applyAttentionOverrides(judged, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin, verifyWake: config.wake_verification.enabled })
+        // Episode re-check before any action write (F1 D4): the model call above
+        // can take many seconds; if a newer event replaced the episode, the
+        // decision rests on stale premises — skip every action write (ESCALATE /
+        // STEER / REFORMULATE / CONTINUE) and record the stale premise once.
+        // The end-of-tick guard is not reached, so no duplicate row.
+        if (runtime.states.get(sessionID) !== episode) {
+          ledger = await ledger.append("TICK_STALE_PREMISE", { root: runtime.root, sessionID, reason: "episode changed during decision — action writes skipped" })
+          runtime.scheduler?.markTicked(sessionID)
+          return
+        }
         await recordDecision(decision, target, runtime.root)
         await pendingAttention?.resolve({ root: runtime.root, sessionID })
         assertDispatchHandlesEveryAction(decision.action)
@@ -921,7 +961,7 @@ rootConfig?.continue_writes?.enabled === true
             skipped: entry.skipped + (actionOutcome === "skip" ? 1 : 0),
           },
         }
-        runtime.states.set(sessionID, transition(graceResult.state, { type: "decision_recorded", at: Date.now() }).state)
+        ledger = await recordDecisionGuarded(ledger, runtime.states, sessionID, episode, runtime.root, Date.now())
         runtime.scheduler?.markTicked(sessionID)
       }
     } finally {
