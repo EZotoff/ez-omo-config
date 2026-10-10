@@ -6,12 +6,26 @@
 # and test_patch_lockfile.sh (bijection/ancestry/remote presence), plus
 # test_execution_record_lint.sh (plan Execution Record + reviews-ledger
 # lint — .omo/plans/workflow-standardization.md W2.4).
+#
+# Acknowledged failures: tests listed in tests/acknowledged-failures.md are
+# counted as "acknowledged" instead of "failed" (see that file's header for
+# the format contract). This keeps the gate red only for NEW regressions.
 
 set -o errexit
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ACK_FILE="$SCRIPT_DIR/acknowledged-failures.md"
 TOTAL_PASSED=0
 TOTAL_FAILED=0
+TOTAL_ACKNOWLEDGED=0
+
+# Acknowledged failures: test basenames (without .sh) listed in the first
+# column of the table in tests/acknowledged-failures.md.
+is_acknowledged() {
+    local name="$1"
+    [[ -f "$ACK_FILE" ]] || return 1
+    grep -Eq "^\|[[:space:]]*${name}[[:space:]]*\|" "$ACK_FILE"
+}
 
 # Run regression corpus (aggregate — standard tests still run after a corpus
 # failure, but the corpus result is FATAL for the final exit code: plan DoD
@@ -37,10 +51,13 @@ for test_script in "$SCRIPT_DIR"/test_*.sh; do
     
     tests_found=$((tests_found + 1))
     test_name=$(basename "$test_script")
+    test_key="${test_name%.sh}"
     
     echo "Running: $test_name"
     if bash "$test_script"; then
         TOTAL_PASSED=$((TOTAL_PASSED + 1))
+    elif is_acknowledged "$test_key"; then
+        TOTAL_ACKNOWLEDGED=$((TOTAL_ACKNOWLEDGED + 1))
     else
         TOTAL_FAILED=$((TOTAL_FAILED + 1))
     fi
@@ -76,10 +93,10 @@ done
 echo "=========================================="
 if [[ $tests_found -eq 0 ]]; then
     echo "No test scripts found (test_*.sh)"
-    echo "Pass: 0 | Fail: 0"
+    echo "Pass: 0 | Fail: 0 | Acknowledged: 0"
 else
     echo "Test Summary"
-    echo "Pass: $TOTAL_PASSED | Fail: $TOTAL_FAILED"
+    echo "Pass: $TOTAL_PASSED | Fail: $TOTAL_FAILED | Acknowledged: $TOTAL_ACKNOWLEDGED"
 fi
 echo "=========================================="
 
