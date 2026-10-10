@@ -17,6 +17,7 @@ import { initialState, transition, type SessionEvent, type SessionState } from "
 import { runTickWithCollect, type TickDecision } from "./tick"
 import { pickTarget } from "./targets"
 import { projectTurns } from "./projector"
+import { PendingAttentionStore } from "./pending"
 import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
 import { ownsSession } from "./ownership"
@@ -112,6 +113,17 @@ export class SessionScheduler {
     this.lastTickAt.set(sessionID, this.nowFn())
   }
 
+  enqueueRetry(sessionID: string, rearm: () => Promise<boolean>): Promise<boolean> {
+    const previous = this.inFlight.get(sessionID) ?? Promise.resolve()
+    const next = previous.then(async () => {
+      if (this.isThrottled(sessionID) || !(await rearm())) return false
+      await this.run(sessionID)
+      return true
+    })
+    this.inFlight.set(sessionID, next.then(() => undefined, () => undefined))
+    return next
+  }
+
   private readonly deferred = new Set<string>()
 
   enqueue(sessionID: string): Promise<void> {
@@ -204,6 +216,10 @@ export async function runService(signal: AbortSignal): Promise<void> {
   const repoRoot = resolve(import.meta.dir, "../..")
   const config = await loadConfig(join(repoRoot, "configs", "opencode-supervisor", "supervisor.json"))
   const stateDirectory = join(homedir(), ".local", "state", "opencode-supervisor")
+  const pendingAttention = config.pending_attention.enabled ? await PendingAttentionStore.open({
+    path: join(stateDirectory, "pending-attention.json"), now: Date.now,
+    maxAttempts: config.pending_attention.max_attempts, backoffS: config.pending_attention.backoff_s,
+  }) : undefined
   const statusPath = join(stateDirectory, "status.json")
   const ledgerPath = join(stateDirectory, "ledger.jsonl")
   const client = new OpencodeClient(config.server_url, {
@@ -528,13 +544,20 @@ export async function runService(signal: AbortSignal): Promise<void> {
       const refreshed = await reconcile(runtime.root)
       if (refreshed !== undefined) runtime.manifest = refreshed.manifest
       const rootConfig = config.roots.find((r) => r.path === runtime.root)
-      const scan = runtime.manifest.sessions.find((entry) => entry.session.id === sessionID)
+      const reconciledScan = runtime.manifest.sessions.find((entry) => entry.session.id === sessionID)
+      const freshMessages = reconciledScan === undefined ? [] : await client.listMessages(sessionID, runtime.root)
+      const scan = reconciledScan === undefined ? undefined : {
+        ...reconciledScan, messages: freshMessages,
+        turns: projectTurns(freshMessages, emptyRegistry, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin }),
+      }
       // Operator-attention-point guard: tick only if the target reply is the
       // session's LAST message. If anything arrived after it (a ralph push, a
       // nudge, a user message), that idle moment was already handled — stand down.
       const selection = pickTarget(scan?.turns ?? [], scan?.messages ?? [], { sessionProtected: protectedSession(sessionID), adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin })
       if ("rejected" in selection) {
-        ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: selection.rejected, text: selection.text })
+        const targetUserMessageID = scan?.turns.at(-1)?.userMessageID
+        const pending = await pendingAttention?.record({ root: runtime.root, sessionID, reason: selection.rejected, ...(targetUserMessageID === undefined ? {} : { targetUserMessageID }) })
+        ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: selection.rejected, text: selection.text, ...(pending === undefined ? {} : { disposition: pending.disposition, attempts: pending.attempts }) })
         runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
         runtime.scheduler?.markTicked(sessionID)
         return
@@ -542,6 +565,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
       const target = selection.target
       {
         if (target.assistantMessageID !== undefined && queue.items.some((item) => item.target.root === runtime.root && item.target.sessionID === sessionID && item.target.assistantMessageID === target.assistantMessageID && item.actionClass === "ESCALATE")) {
+          await pendingAttention?.resolve({ root: runtime.root, sessionID })
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "fresh-target guard: assistant message already escalated" })
           runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
           runtime.scheduler?.markTicked(sessionID)
@@ -556,6 +580,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         // (status.awaitingOperator, computed in writeStatusSynced).
         const awaitingInputAtDecision = scan !== undefined && awaitingOperatorAnswer(scan.messages)
         if (awaitingInputAtDecision) {
+          await pendingAttention?.resolve({ root: runtime.root, sessionID })
           const pending = scan === undefined ? undefined : pendingQuestionPart(scan.messages)
           const sinceMs = pending === undefined ? undefined : pendingQuestionStartedAtMs(pending)
           ledger = await ledger.append("TICK_SKIPPED", {
@@ -570,6 +595,8 @@ export async function runService(signal: AbortSignal): Promise<void> {
         // CONTINUE quiescence gate (T6): never kick-start a session that moved during grace.
         if (!activityGate.isQuiescent(sessionID, Date.now(), config.grace_period_s * 1000)) {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "activity gate: session moved during grace — not quiescent, tick suppressed" })
+          runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
+          runtime.scheduler?.markTicked(sessionID)
           return
         }
         ledger = await ledger.append("WORKER_TURN_COMPLETED", { sessionID, messageID: target.assistantMessageID })
@@ -653,6 +680,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
         }))
         const decision = await applyAttentionOverrides(judged, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin })
         await recordDecision(decision, target, runtime.root)
+        await pendingAttention?.resolve({ root: runtime.root, sessionID })
         assertDispatchHandlesEveryAction(decision.action)
         // Funnel invariant (2026-10-02 postmortem): every non-terminal action must
         // end this tick with an effect or an explicit skip — an unhandled dispatch
@@ -955,6 +983,35 @@ rootConfig?.continue_writes?.enabled === true
     return result.state.kind === "GRACE" && (previous.kind !== "GRACE" || event.type === "idle") && !result.illegal
   }
 
+  let pendingSweepRunning = false
+  const sweepPendingAttention = async (): Promise<void> => {
+    if (pendingAttention === undefined || pendingSweepRunning || signal.aborted) return
+    pendingSweepRunning = true
+    try {
+      for (const record of pendingAttention.due()) {
+        const runtime = runtimes.get(record.root)
+        if (runtime === undefined) continue
+        runtime.scheduler ??= new SessionScheduler(config.min_intervention_interval_s * 1000, Date.now, (sid) => processIdle(runtime, sid))
+        await runtime.scheduler.enqueueRetry(record.sessionID, async () => {
+          const state = runtime.states.get(record.sessionID)
+          if (state?.kind === "GRACE" || state?.kind === "TICK") return false
+          if (!pendingAttention.due().some((entry) => entry.root === record.root && entry.sessionID === record.sessionID)) return false
+          const attempt = await pendingAttention.beginAttempt(record)
+          if (attempt === undefined) return false
+          if (attempt.disposition === "exhausted") {
+            ledger = await ledger.append("TICK_SKIPPED", { root: record.root, sessionID: record.sessionID, reason: record.reason, text: "pending attention retry cap reached", disposition: attempt.disposition, attempts: attempt.attempts })
+            return false
+          }
+          if (!(await applyEvent(runtime, record.sessionID, { type: "idle", at: Date.now() }))) return false
+          return true
+        })
+      }
+    } catch (error) {
+      if (!(error instanceof Error)) throw error
+      ledger = await ledger.append("ERROR", { reason: "pending attention sweep failed", error: error.message })
+    } finally { pendingSweepRunning = false }
+  }
+
   const periodicReconcile = setInterval(() => {
     void pollBridge()
     for (const root of config.roots) {
@@ -982,6 +1039,11 @@ rootConfig?.continue_writes?.enabled === true
   // skipped every root, and the supervisor went blind after every restart (no
   // polling, no ticks; only the 600s sweeps kept lastReconcile moving).
   if (!signal.aborted) await Promise.all(activeRoots.map((root) => reconcile(root.path)))
+  if (pendingAttention !== undefined && !signal.aborted) {
+    const pendingSweep = setInterval(() => { void sweepPendingAttention() }, 60_000)
+    signal.addEventListener("abort", () => clearInterval(pendingSweep), { once: true })
+    void sweepPendingAttention()
+  }
   for (const root of activeRoots) {
     let initialized = false
     const watchStates = new Map<string, WatchState>()
