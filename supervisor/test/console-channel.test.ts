@@ -254,6 +254,23 @@ describe("ConsoleChannel dedupe", () => {
 })
 
 describe("ConsoleChannel lifecycle", () => {
+  test("ticket POST failure records failure and defers without a surfaced row", async () => {
+    // Given
+    const { channel, client, queue, ledgerRef, dir } = await setup()
+    try {
+      await channel.proposeEscalation(escalationRequest())
+      await channel.ensure("/root", "console")
+      client.promptAsync = async () => { throw new Error("POST rejected") }
+      // When
+      const result = await channel.surfaceNext("/root", NOW)
+      // Then
+      expect(result.kind).toBe("suppressed")
+      expect(queue.lease).toBeUndefined()
+      expect(ledgerTypes(ledgerRef)).toContain("QUEUE_ITEM_LEASED")
+      expect(ledgerTypes(ledgerRef)).toContain("QUEUE_SURFACE_FAILED")
+      expect(ledgerTypes(ledgerRef)).not.toContain("QUEUE_ITEM_SURFACED")
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
   test("enqueue → revalidate → surface → correlate → propagation pending", async () => {
     const { channel, client, queue, ledgerRef, dir } = await setup()
     const proposed = await channel.proposeEscalation(escalationRequest())

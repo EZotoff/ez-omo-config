@@ -206,6 +206,23 @@ describe("AttentionQueue dedupe", () => {
 })
 
 describe("AttentionQueue lease", () => {
+  test("lease records precede confirmed delivery and confirmation is idempotent", async () => {
+    // Given
+    const { queue, dir, events } = await openQueue()
+    try {
+      const created = await proposeItem(queue, proposal())
+      // When
+      const acquired = await queue.acquireLease(created.item.id, { channelID: "console", now: NOW })
+      if (acquired.kind !== "acquired") throw new Error("expected lease")
+      // Then
+      expect(events).toContain("QUEUE_ITEM_LEASED")
+      expect(events).not.toContain("QUEUE_ITEM_SURFACED")
+      await queue.confirmSurfaced(created.item.id, acquired.lease.presentationID, NOW)
+      await queue.confirmSurfaced(created.item.id, acquired.lease.presentationID, NOW)
+      expect(events.filter((type) => type === "QUEUE_ITEM_SURFACED")).toHaveLength(1)
+      expect(events.indexOf("QUEUE_ITEM_LEASED")).toBeLessThan(events.indexOf("QUEUE_ITEM_SURFACED"))
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
   test("enforces a single global presentation lease", async () => {
     const { queue, dir } = await openQueue()
     const first = await proposeItem(queue, proposal({ question: "A?" }))

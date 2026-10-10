@@ -36,6 +36,26 @@ function makeHarness(options: { readonly failCreate?: boolean } = {}) {
 }
 
 describe("maybeDispatchErrorInvestigation", () => {
+  for (const failures of [2, 3]) {
+    test(`investigation retries the existing session with ${failures} failed POSTs`, async () => {
+      // Given
+      const harness = makeHarness()
+      const sessionIDs: string[] = []
+      harness.client.promptAsync = async (sessionID) => {
+        sessionIDs.push(sessionID)
+        expect(harness.appended.some((entry) => entry.type === "INTERVENTION_SENT")).toBe(false)
+        if (sessionIDs.length <= failures) throw new Error("POST failed")
+      }
+      // When
+      const outcome = await harness.dispatch(10)
+      // Then
+      expect(harness.created).toHaveLength(1)
+      expect(sessionIDs).toEqual(["ses_1", "ses_1", "ses_1"])
+      expect(outcome.dispatched).toBe(failures === 2)
+      expect(harness.appended.filter((entry) => entry.type === "INTERVENTION_SENT")).toHaveLength(failures === 2 ? 1 : 0)
+      expect(harness.appended.filter((entry) => entry.type === "ERROR")).toHaveLength(failures)
+    })
+  }
   test("disabled config never dispatches, even above threshold", async () => {
     const harness = makeHarness()
     harness.errorHour.investigated = false
