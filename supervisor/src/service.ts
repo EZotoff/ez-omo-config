@@ -16,6 +16,7 @@ import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
 import { runTickWithCollect, type TickDecision } from "./tick"
 import { pickTarget } from "./targets"
+import { projectTurns } from "./projector"
 import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
 import { ownsSession } from "./ownership"
@@ -451,6 +452,9 @@ export async function runService(signal: AbortSignal): Promise<void> {
       return runtimes.get(root)
     }
     const previous = runtimes.get(root)
+    if (config.targeting.adjudicate_machine_origin) {
+      manifest = { ...manifest, sessions: manifest.sessions.map((scan) => ({ ...scan, turns: projectTurns(scan.messages, emptyRegistry, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin }) })) }
+    }
     const rootConfig = config.roots.find((r) => r.path === root)
     const runtime = previous ?? {
       root,
@@ -528,13 +532,15 @@ export async function runService(signal: AbortSignal): Promise<void> {
       // Operator-attention-point guard: tick only if the target reply is the
       // session's LAST message. If anything arrived after it (a ralph push, a
       // nudge, a user message), that idle moment was already handled — stand down.
-      const target = scan === undefined ? undefined : pickTarget(scan.turns, scan.messages, { sessionProtected: protectedSession(sessionID) })
-      if (target === undefined) {
-        if (scan !== undefined && scan.turns.length > 0) {
-          ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "target is not the session's last message (native continuation or newer turn intervened)" })
-        }
+      const selection = pickTarget(scan?.turns ?? [], scan?.messages ?? [], { sessionProtected: protectedSession(sessionID), adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin })
+      if ("rejected" in selection) {
+        ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: selection.rejected, text: selection.text })
+        runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)
+        runtime.scheduler?.markTicked(sessionID)
+        return
       }
-      if (target !== undefined) {
+      const target = selection.target
+      {
         if (target.assistantMessageID !== undefined && queue.items.some((item) => item.target.root === runtime.root && item.target.sessionID === sessionID && item.target.assistantMessageID === target.assistantMessageID && item.actionClass === "ESCALATE")) {
           ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: "fresh-target guard: assistant message already escalated" })
           runtime.states.set(sessionID, transition(runtime.states.get(sessionID) ?? initialState, { type: "decision_recorded", at: Date.now() }).state)

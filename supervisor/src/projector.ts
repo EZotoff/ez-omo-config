@@ -32,7 +32,7 @@ function classify(message: Message, text: string, registry: OriginRegistry): Ori
   return "unknown"
 }
 
-export function projectTurns(messages: readonly Message[], registry: OriginRegistry): readonly Turn[] {
+export function projectTurns(messages: readonly Message[], registry: OriginRegistry, options: { readonly adjudicateMachineOrigin?: boolean } = {}): readonly Turn[] {
   const turns: Turn[] = []
   for (let index = 0; index < messages.length; index += 1) {
     const user = messages[index]
@@ -43,7 +43,7 @@ export function projectTurns(messages: readonly Message[], registry: OriginRegis
     const assistantText = assistantRun.map(messageText).filter((text) => text !== "").join("\n")
     const lastAssistant = assistantRun.at(-1)
     const machine = origin === "machine-synthetic" || origin === "machine-template" || origin === "supervisor"
-    const label = origin === "unknown" ? " [origin: unknown]" : ""
+    const label = origin === "unknown" || (machine && options.adjudicateMachineOrigin === true) ? ` [origin: ${origin}]` : ""
     const pendingQuestion = pendingQuestionPart(assistantRun)
     turns.push({
       sessionID: user.sessionID,
@@ -53,7 +53,7 @@ export function projectTurns(messages: readonly Message[], registry: OriginRegis
       userText,
       assistantText,
       ...(pendingQuestion === undefined ? {} : { awaitingOperatorAnswer: true }),
-      transcript: machine
+      transcript: machine && options.adjudicateMachineOrigin !== true
         ? ""
         : `USER${label}: ${userText}${assistantText === "" ? "" : `\nASSISTANT: ${assistantText}`}${pendingQuestion === undefined ? "" : `\nASSISTANT: [awaiting operator answer via question tool: ${pendingQuestionText(pendingQuestion)}]`}`,
     })

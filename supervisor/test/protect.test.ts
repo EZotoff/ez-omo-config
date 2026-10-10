@@ -108,9 +108,9 @@ describe("pickTarget protection gate", () => {
   test("protected session is never a CONTINUE target; unprotect restores eligibility", () => {
     const { turns, messages } = idleKickStartFixture()
     const target = pickTarget(turns, messages)
-    expect(target).toBeDefined()
-    expect(pickTarget(turns, messages, { sessionProtected: true })).toBeUndefined()
-    expect(pickTarget(turns, messages, { sessionProtected: false })).toBeDefined()
+    expect(target).toHaveProperty("target")
+    expect(pickTarget(turns, messages, { sessionProtected: true })).toMatchObject({ rejected: "protected" })
+    expect(pickTarget(turns, messages, { sessionProtected: false })).toHaveProperty("target")
   })
 
   test("gate composes with the abort guard (aborted + protected → undefined)", () => {
@@ -119,8 +119,8 @@ describe("pickTarget protection gate", () => {
     const assistant = aborted.messages[1]
     if (user === undefined || assistant === undefined) throw new Error("fixture must have two messages")
     const withAbort = { turns: aborted.turns, messages: [user, { ...assistant, finish: "aborted" }] }
-    expect(pickTarget(withAbort.turns, withAbort.messages)).toBeUndefined()
-    expect(pickTarget(withAbort.turns, withAbort.messages, { sessionProtected: true })).toBeUndefined()
+    expect(pickTarget(withAbort.turns, withAbort.messages)).toMatchObject({ rejected: "aborted" })
+    expect(pickTarget(withAbort.turns, withAbort.messages, { sessionProtected: true })).toMatchObject({ rejected: "protected" })
   })
 })
 
@@ -134,7 +134,7 @@ describe("queue protection gate", () => {
     const { append } = collectAppends()
     const queue = await AttentionQueue.open({ path: join(path, "..", "queue.json"), append, protectedSession })
 
-    expect(pickTarget(turns, messages, { sessionProtected: protectedSession("ses-a") })).toBeUndefined()
+    expect(pickTarget(turns, messages, { sessionProtected: protectedSession("ses-a") })).toMatchObject({ rejected: "protected" })
     expect((await queue.propose(proposeInput("ses-a", "ESCALATE"))).kind).toBe("created")
   })
 

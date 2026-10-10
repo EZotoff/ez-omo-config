@@ -70,12 +70,12 @@ describe("pickTarget abort guard (D295 fixture)", () => {
     const turns = [target]
     const messages = [message("u1", "user", { text: "continue" }), message("a1", "assistant", { finish: "aborted", completed: 2 })]
     expect(turnHealth(target, messages)).toBe("aborted")
-    expect(pickTarget(turns, messages)).toBeUndefined()
+    expect(pickTarget(turns, messages)).toMatchObject({ rejected: "aborted" })
   })
   test("MessageAbortedError error field equally guards", () => {
     const turns = [turn("u1", "a1")]
     const messages = [message("u1", "user", { text: "continue" }), message("a1", "assistant", { error: { name: "MessageAbortedError" }, completed: 2 })]
-    expect(pickTarget(turns, messages)).toBeUndefined()
+    expect(pickTarget(turns, messages)).toMatchObject({ rejected: "aborted" })
   })
 })
 
@@ -85,7 +85,7 @@ describe("pickTarget errored eligibility (D244 fixture)", () => {
     const turns = [target]
     const messages = [message("u1", "user", { text: "keep going" }), message("a1", "assistant", { error: { name: "APIError", message: "model not found" }, completed: 2 })]
     expect(turnHealth(target, messages)).toBe("errored")
-    expect(pickTarget(turns, messages)?.userMessageID).toBe("u1")
+    expect(pickTarget(turns, messages)).toMatchObject({ target: { userMessageID: "u1" } })
   })
 })
 
