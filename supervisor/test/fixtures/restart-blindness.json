@@ -1,0 +1,5 @@
+{
+  "source": "opencode-supervisor/ledger.jsonl",
+  "failedBoot": { "seq": 25653, "timestamp": "2026-10-07T21:02:31.354Z", "type": "ERROR", "root": "/home/ezotoff/AI_projects/ez-omo-dash", "error": "root reconcile failed (root degraded, service continues)" },
+  "pollingResumed": { "seq": 25809, "timestamp": "2026-10-08T14:46:07.409Z", "type": "WORKER_TURN_COMPLETED", "sessionID": "ses_ef56d4eccffemcvJNJoyM6FVo7", "messageID": "msg_11bf8c8c5001y5bwe05pbn9rbK" }
+}
