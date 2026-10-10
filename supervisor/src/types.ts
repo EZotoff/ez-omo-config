@@ -157,6 +157,7 @@ export type PresentationLease = {
   readonly acquiredAt: ISO8601
   readonly heartbeatAt: ISO8601
   readonly expiresAt: ISO8601
+  readonly confirmedAt?: ISO8601
 }
 
 export type SurfaceRecord = {

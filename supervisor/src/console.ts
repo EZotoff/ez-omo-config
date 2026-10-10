@@ -439,7 +439,15 @@ export class ConsoleChannel {
       return { kind: "suppressed", reason: "console unavailable" }
     }
     const alias = await this.assignAlias(root, item.id)
-    await this.client.promptAsync(consoleID, root, formatTicket(alias, item))
+    try {
+      await this.client.promptAsync(consoleID, root, formatTicket(alias, item))
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      await this.queue.defer(lease.lease.presentationID, now, now)
+      this.setLedger(await this.ledger().append("QUEUE_SURFACE_FAILED", { root, itemID: item.id, presentationID: lease.lease.presentationID, channelID: CHANNEL_ID, reason }))
+      return { kind: "suppressed", reason }
+    }
+    await this.queue.confirmSurfaced(item.id, lease.lease.presentationID, now)
     await this.client.toast(`${projectBasename(root)} — ${sessionLabel(item)}: ${glanceHeadline(item.question)}`, `[Supervisor] ${projectBasename(root)}`)
     return { kind: "surfaced", item, presentationID: lease.lease.presentationID, alias }
   }

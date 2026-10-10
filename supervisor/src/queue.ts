@@ -556,11 +556,22 @@ export class AttentionQueue {
     const presentationID = `pres_${timeSortableID()}`
     const ttlMs = request.ttlMs ?? LEASE_TTL_MS
     const lease: PresentationLease = { presentationID, itemID, channelID: request.channelID, acquiredAt: request.now, heartbeatAt: request.now, expiresAt: new Date(Date.parse(request.now) + ttlMs).toISOString() }
+    // Keep the existing lifecycle state for lease recovery; delivery is confirmed separately.
     const next = this.commit(item, { state: "surfaced", at: request.now, channelID: request.channelID, presentationID }, item.poisonCount)
-    this.snapshot = { ...this.snapshot, lease, surfaceLog: [...this.snapshot.surfaceLog, { root: item.target.root, itemID, at: request.now }] }
-    await this.append("QUEUE_ITEM_SURFACED", { itemID, itemVersion: next.version, channelID: request.channelID, presentationID })
+    this.snapshot = { ...this.snapshot, lease }
+    await this.append("QUEUE_ITEM_LEASED", { itemID, itemVersion: next.version, channelID: request.channelID, presentationID })
     await this.persist()
     return { kind: "acquired", lease }
+  }
+
+  async confirmSurfaced(itemID: QueueItemID, presentationID: string, now: ISO8601): Promise<void> {
+    const item = this.find(itemID)
+    if (item === undefined) throw new Error(`unknown queue item ${itemID}`)
+    const lease = this.snapshot.lease
+    if (lease === undefined || lease.itemID !== itemID || lease.presentationID !== presentationID || lease.confirmedAt !== undefined) return
+    this.snapshot = { ...this.snapshot, lease: { ...lease, confirmedAt: now }, surfaceLog: [...this.snapshot.surfaceLog, { root: item.target.root, itemID, at: now }] }
+    await this.append("QUEUE_ITEM_SURFACED", { itemID, itemVersion: item.version, channelID: lease.channelID, presentationID })
+    await this.persist()
   }
 
   /** Deferral is a scheduling request, never a retire: release the lease, set notBefore, keep aging. */
