@@ -14,7 +14,7 @@ import { awaitingOperatorAnswer, createGuardedPrompt, pendingQuestionPart, pendi
 import { boundedDrain, STOP_DRAIN_GRACE_MS } from "./stop-drain"
 import { writeStatus, type SupervisorStatus } from "./status"
 import { initialState, transition, type SessionEvent, type SessionState } from "./statemachine"
-import { runTickWithCollect } from "./tick"
+import { runTickWithCollect, type TickDecision } from "./tick"
 import { pickTarget } from "./targets"
 import { continueCapKey, continueWriteText, gateApproveWrite, approveWriteText, gateContinueWrite, gateSteerWrite, gateReformulateWrite, reformulateWriteText, steerWriteText } from "./continue-writes"
 import { ConsoleChannel } from "./console"
@@ -29,8 +29,30 @@ import { CollectBudget, CollectExecutor, type CollectEvent } from "./collect"
 import { ProtectionRegistry } from "./protect"
 import { OperatorViewPublisher, isProbeTarget } from "./operator-view"
 import type { Action, AttentionQueueItem, Decision, OriginRegistry, Session, Turn } from "./types"
+import { assertNever } from "./types"
 
 const emptyRegistry: OriginRegistry = { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }
+
+/** The sole post-judge consumption site for structured operator attention. */
+export async function applyAttentionOverrides(decision: TickDecision, options: {
+  readonly adjudicateMachineOrigin: boolean
+}): Promise<TickDecision> {
+  switch (decision.action) {
+    case "ACCEPT":
+    case "ABSTAIN":
+      if (options.adjudicateMachineOrigin && decision.operator_input_requested === true) {
+        return { ...decision, action: "ESCALATE", rationale: `operator input requested: ${decision.rationale}` }
+      }
+      return decision
+    case "CONTINUE":
+    case "STEER":
+    case "REFORMULATE":
+    case "ESCALATE":
+      return decision
+    default:
+      return assertNever(decision.action)
+  }
+}
 
 type RootRuntime = {
   readonly root: string
@@ -603,7 +625,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
           nowMs: Date.now,
         })
         let suppressedReason: string | undefined = undefined
-        const decision = await tickGate.run(() => runTickWithCollect({
+        const judged = await tickGate.run(() => runTickWithCollect({
           adapter,
           context,
           target,
@@ -623,6 +645,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
           autonomous: autonomousTarget,
           onSuppressed: (reason) => { suppressedReason = reason },
         }))
+        const decision = await applyAttentionOverrides(judged, { adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin })
         await recordDecision(decision, target, runtime.root)
         assertDispatchHandlesEveryAction(decision.action)
         // Funnel invariant (2026-10-02 postmortem): every non-terminal action must

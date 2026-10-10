@@ -57,6 +57,9 @@ const configSchema = z.object({
   initial_window_days: z.number().int().positive().default(1),
   fetch_concurrency: z.number().int().positive().default(8),
   stall_minutes: z.number().int().positive().default(15),
+  targeting: z.object({
+    adjudicate_machine_origin: z.boolean().default(false),
+  }).strict().default({ adjudicate_machine_origin: false }),
   // Error-storm auto-investigation (2026-10-05): when the rolling 1-hour ERROR
   // count reaches `threshold`, create an opencode session asking what is
   // causing the errors. Once per hour window; global (not per-root) because it

@@ -45,6 +45,7 @@ const decisionSchema = z.object({
   information_needs: z.array(informationNeedSchema).max(3).optional(),
   evidence_effect: evidenceEffectSchema.optional(),
   mode: continueModeSchema.nullable().optional(),
+  operator_input_requested: z.boolean().optional().default(false),
 }).strict()
 
 /** Decision plus the fork fields the tick loop carries (types.ts Decision stays the shared shape). */
@@ -52,6 +53,7 @@ export type TickDecision = Decision & {
   readonly information_needs: readonly InformationNeed[]
   readonly evidence_effect?: EvidenceEffect
   readonly mode?: ContinueMode | null
+  readonly operator_input_requested?: boolean
 }
 
 function abstain(reason: string): TickDecision {
@@ -104,6 +106,8 @@ function normalizeDecisionValue(value: unknown): unknown {
       ? "REFORMULATE"
       : actionUpper
   const normalized: Record<string, unknown> = { ...input, action }
+  const ask = normalized["operator_input_requested"]
+  normalized["operator_input_requested"] = ask === true || (typeof ask === "string" && ask.trim().toLowerCase() === "true")
   if (normalized["target"] === null) delete normalized["target"]
   const modeRaw = normalized["mode"]
   if (typeof modeRaw === "string") {
@@ -184,6 +188,7 @@ export function parseDecision(raw: string, confidenceFloor: number, options?: { 
     citations: parsed.data.citations,
     confidence: parsed.data.confidence,
     information_needs: parsed.data.information_needs ?? [],
+    operator_input_requested: parsed.data.operator_input_requested,
     ...(parsed.data.evidence_effect === undefined ? {} : { evidence_effect: parsed.data.evidence_effect }),
     ...(parsed.data.mode === undefined ? {} : { mode: parsed.data.mode }),
   }
@@ -196,9 +201,9 @@ export function parseDecision(raw: string, confidenceFloor: number, options?: { 
 
 /** Apply the confidence floor and the non-ACCEPT citation requirement to a final decision. */
 export function applyFinalGates(decision: TickDecision, confidenceFloor: number): TickDecision {
-  if (decision.confidence < confidenceFloor) return abstain("confidence below configured floor")
+  if (decision.confidence < confidenceFloor) return { ...decision, action: "ABSTAIN", rationale: `confidence below configured floor: ${decision.rationale}` }
   if (decision.action !== "ACCEPT" && decision.action !== "ABSTAIN" && decision.citations.length === 0) {
-    return abstain("non-accept decision requires citations")
+    return { ...decision, action: "ABSTAIN", rationale: `non-accept decision requires citations: ${decision.rationale}` }
   }
   return decision
 }
@@ -274,10 +279,11 @@ Decision rules:
 12. BEFORE choosing an action, run rule 3's FACT-gap check. If a specific retrievable fact is missing, emit 1-3 information_needs FIRST and return your action as provisional — the system will retrieve and re-ask. Each need names: question, scope (sessions|ledger|cards), target (sessionID or "root"), why, expected_effect (what answer flips the action). Emit information_needs: [] ONLY when the supplied transcript genuinely suffices. A need names retrievable evidence, never an operator preference. At most 3.
 
 13. kick_start requires EVIDENCE OF UNFINISHED WORK in the transcript: an in-flight job, undelivered outcome, or unresolved instruction. Bare "OK"/"done" on a one-shot task (probes, exact-reply tests) is DELIVERED — never kick; a complete session awaiting nothing is ACCEPT/ABSTAIN; a wake notice without pending work is not a stall.
+14. Set operator_input_requested=true iff the reply asks the operator to decide, choose among options, or authorize; independent of action and kickoff origin. Name the actual ask in the rationale. Otherwise set it false.
 
 AUTONOMOUS-ORIGIN SESSIONS: A target marked [origin: autonomous] was machine-initiated (bench-runner, ASTRA, heartbeat) and has no human owner. Drive it to completion: prefer CONTINUE on stall or error; do NOT ESCALATE for ordinary decisions. ESCALATE ONLY for a hard blocker (missing credential or secret), and mark it low-priority. Never re-litigate the automation's own purpose.
 
-Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "mode": "kick_start|approve|null", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": []}`
+Return STRICT JSON only: {"action": "ACCEPT|ABSTAIN|CONTINUE|STEER|REFORMULATE|ESCALATE", "mode": "kick_start|approve|null", "target": null, "rationale": "...", "citations": [{"session": "...", "messageID": "...", "quote": "..."}], "confidence": 0.0-1.0, "information_needs": [], "operator_input_requested": false}`
 
 export const CONFIRMATION_INSTRUCTION = `CONFIRMATION CHECK: The GATHERED EVIDENCE above was retrieved because you named an information need. State in "evidence_effect" whether it CONFIRMED, DISCONFIRMED, or was INCONCLUSIVE for your provisional lean, and cite the gathered evidence in your citations.`
 
