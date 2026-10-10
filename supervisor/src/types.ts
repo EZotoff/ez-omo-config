@@ -147,6 +147,7 @@ export type AttentionQueueItem = {
   readonly relatedItemIDs: readonly QueueItemID[]
   readonly lifecycle: readonly LifecycleEvent[]
   readonly poisonCount: number
+  readonly redecideCount?: number
 }
 
 export type PresentationLease = {
@@ -188,7 +189,13 @@ export const LEDGER_TYPES = [
   "QUEUE_ITEM_MERGED",
   "QUEUE_PROPOSAL_DEDUPED",
   "QUEUE_ITEM_REVALIDATED",
+  "QUEUE_ITEM_LEASED",
+  // Before M2, SURFACED meant leased; from M2 onward it means accepted POST.
   "QUEUE_ITEM_SURFACED",
+  "QUEUE_SURFACE_FAILED",
+  "QUEUE_REDECIDE_DIAGNOSTIC",
+  "TICK_STALE_PREMISE",
+  "ROOT_NOT_READY",
   "QUEUE_REPLY_RECEIVED",
   "QUEUE_REPLY_AMBIGUOUS",
   "QUEUE_PROPAGATION_PROPOSED",
