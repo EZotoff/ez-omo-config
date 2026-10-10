@@ -132,6 +132,32 @@ function eventSessionID(event: ServerEvent): string | undefined {
   return typeof sessionID === "string" ? sessionID : undefined
 }
 
+export async function startRootPollLoop<T>(deps: {
+  readonly signal: AbortSignal
+  readonly sleep: () => Promise<void>
+  readonly getRuntime: () => T | undefined
+  readonly poll: (runtime: T) => Promise<void>
+  readonly onError: (error: unknown) => Promise<void>
+  readonly onStart: () => void
+  readonly onStop: () => void
+}): Promise<void> {
+  deps.onStart()
+  try {
+    while (!deps.signal.aborted) {
+      await deps.sleep()
+      const runtime = deps.getRuntime()
+      if (runtime === undefined) continue
+      try {
+        await deps.poll(runtime)
+      } catch (error) {
+        await deps.onError(error)
+      }
+    }
+  } finally {
+    deps.onStop()
+  }
+}
+
 function emptyStatus(): SupervisorStatus {
   return { lastReconcile: null, queueDepths: {}, ticksByAction: {}, unknownOriginRate: 0, machineMarkedRate: 0, modes: {}, errorsSinceStart: 0, errorsLastHour: 0, errorInvestigations: 0, collect: { attempts: 0, performed: 0, changed: 0, discarded: 0, budgetExhausted: 0, tokens: 0, rate: 0, changedRate: 0 } }
 }
@@ -909,14 +935,12 @@ rootConfig?.continue_writes?.enabled === true
       void consoles.ensure(root.path, `[Supervisor] ${root.path.split("/").at(-1) ?? root.path}`)
     }
     const watchStates = new Map<string, WatchState>()
-    void (async () => {
-      activeLoops += 1
-      try {
-      while (!signal.aborted) {
-        await Bun.sleep(POLL_INTERVAL_MS)
-        const runtime = runtimes.get(root.path)
-        if (runtime === undefined) continue
-        try {
+    void startRootPollLoop({
+      signal,
+      sleep: () => Bun.sleep(POLL_INTERVAL_MS),
+      getRuntime: () => runtimes.get(root.path),
+      onStart: () => { activeLoops += 1 },
+      poll: async (runtime) => {
           const childIDs = new Set([...runtime.manifest.childSessionIDs, ...consoles.allSessionIDs(), ...beacon.allSessionIDs()])
           const signals = await pollRootOnce(client, root.path, childIDs, watchStates, Date.now(), config.stall_minutes * 60_000, ownsSessionFor(root.path))
           activityGate.observe(signals, Date.now())
@@ -963,18 +987,18 @@ rootConfig?.continue_writes?.enabled === true
           for (const reply of beaconReplies) {
             await beacon.handleReply(reply, new Date().toISOString())
           }
-        } catch (error) {
+      },
+      onError: async (error) => {
           if (error instanceof Error) {
             ledger = await ledger.append("ERROR", { root: root.path, error: error.message })
             await recordErrorTelemetry({ root: root.path })
           }
-        }
-      }
-      } finally {
+      },
+      onStop: () => {
         activeLoops -= 1
         if (activeLoops === 0 && signal.aborted) resolveDrainDone()
-      }
-    })()
+      },
+    })
   }
 
   await new Promise<void>((resolveDone) => signal.addEventListener("abort", () => resolveDone(), { once: true }))
