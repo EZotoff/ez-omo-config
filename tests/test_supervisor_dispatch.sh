@@ -72,6 +72,29 @@ RECOVER_BODY=$(awk '/async recoverAnswered\(/,/async handleReply\(/' "$CONSOLE")
 printf '%s\n' "$RECOVER_BODY" | grep -q 'this\.claim(' || { echo "FAIL: recoverAnswered does not claim"; fail=1; }
 # The service call site must pass the root to the retry pass.
 grep -q 'retryPendingPropagations(root\.path' "$SERVICE" || { echo "FAIL: retryPendingPropagations call site does not pass root"; fail=1; }
+echo "[dispatch-gate] 1c/3 structured attention dispatch and flag wiring"
+ATTENTION_BODY=$(awk '/export async function applyAttentionOverrides\(/,/^type RootRuntime/' "$SERVICE")
+for pattern in 'switch (decision.action)' 'decision.operator_input_requested === true' 'decision.action === "ABSTAIN"' 'decision.wake_handle' 'verifyWakeHandle)(decision.wake_handle)' 'assertNever(decision.action)' 'action: "ESCALATE"'; do
+  printf '%s\n' "$ATTENTION_BODY" | grep -Fq "$pattern" || { echo "FAIL: attention override lacks real dispatch: $pattern"; fail=1; }
+done
+for action in $ACTIONS; do
+  printf '%s\n' "$ATTENTION_BODY" | grep -q "case \"$action\":" || { echo "FAIL: attention override omits $action"; fail=1; }
+done
+grep -Fq 'const decision = await applyAttentionOverrides(judged' "$SERVICE" || { echo "FAIL: attention override is declared but never dispatched"; fail=1; }
+grep -Fq 'verifyWake: config.wake_verification.enabled' "$SERVICE" || { echo "FAIL: wake flag is not read at dispatch"; fail=1; }
+grep -Fq 'adjudicateMachineOrigin: config.targeting.adjudicate_machine_origin' "$SERVICE" || { echo "FAIL: targeting flag is not passed to consumers"; fail=1; }
+for consumer in projector targets; do
+  grep -q 'options.adjudicateMachineOrigin' "$SUPERVISOR/src/$consumer.ts" || { echo "FAIL: $consumer does not read targeting flag"; fail=1; }
+done
+WAKE="$SUPERVISOR/src/wake.ts"
+grep -Fq 'switch (handle.kind)' "$WAKE" || { echo "FAIL: wake handle lacks exhaustive kind dispatch"; fail=1; }
+grep -Fq 'assertNever(handle.kind)' "$WAKE" || { echo "FAIL: wake handle lacks assertNever"; fail=1; }
+for kind in systemd-unit timer process none; do
+  grep -q "case \"$kind\":" "$WAKE" || { echo "FAIL: wake verification omits $kind"; fail=1; }
+done
+grep -Fq 'setInterval(() => { void sweepPendingAttention() }, 60_000)' "$SERVICE" || { echo "FAIL: pending attention has no 60s sweep"; fail=1; }
+grep -Fq 'runtime.scheduler.enqueueRetry(record.sessionID' "$SERVICE" || { echo "FAIL: pending attention bypasses per-session serialization"; fail=1; }
+grep -Fq 'escalatedAssistantMessageIDs: queue.items' "$SERVICE" || { echo "FAIL: fresh-target guard is not wired to the durable queue"; fail=1; }
 test "$fail" -eq 0 || exit 1
 echo "[dispatch-gate] bijection OK ($(echo "$ACTIONS" | tr '\n' ' '))"
 

@@ -1166,9 +1166,6 @@ function assertDispatchHandlesEveryAction(action: Action): void {
     case "STEER":
     case "REFORMULATE":
       return
-    default: {
-      const unhandled: never = action
-      throw new Error(`tick action has no dispatch handling: ${String(unhandled)}`)
-    }
+    default: return assertNever(action)
   }
 }
