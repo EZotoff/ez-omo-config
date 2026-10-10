@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Ledger } from "../src/ledger"
@@ -106,6 +106,54 @@ async function setup(probe: (item: AttentionQueueItem) => Promise<RevalidationSo
 }
 
 const ledgerTypes = (ledgerRef: { current: Ledger }): readonly string[] => ledgerRef.current.records.map((record) => record.type)
+
+for (const answered of [false, true]) {
+  for (const resume of [false, true]) {
+    test(`durable answer survives reload and ${resume ? "resume" : "retry"} when answered=${answered}`, async () => {
+      // Given
+      const { dir, queue, client, channel, ledgerRef } = await setup()
+      try {
+        const proposed = await channel.proposeEscalation(escalationRequest())
+        if (proposed.kind === "capped") throw new Error("unexpected cap")
+        if (answered) await queue.markAnswered(proposed.item.id, "reply_original", "console", NOW)
+        await writeFile(join(dir, "consoles.json"), JSON.stringify({ pendingAnswers: { [proposed.item.id]: "operator answer" } }))
+        const deliveries: string[] = []
+        const restored = new ConsoleChannel({
+          client, queue, statePath: join(dir, "consoles.json"),
+          ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next },
+          probe: healthyProbe,
+          deliverPropagation: async ({ answer }) => { deliveries.push(answer); return true },
+        })
+        await restored.load()
+        // When
+        if (resume) await restored.handleReply({ schemaVersion: 1, id: "reply_resume", receivedAt: NOW, channelID: "console", root: "/root", raw: { kind: "text", text: "resume" }, normalizedText: "resume", correlation: { status: "unmatched" } }, NOW)
+        await restored.retryPendingPropagations("/root", NOW)
+        // Then
+        expect(deliveries).toEqual(["operator answer"])
+        expect(itemState(queue.items[0] ?? proposed.item)).toBe("resolved")
+      } finally { await rm(dir, { recursive: true, force: true }) }
+    })
+  }
+}
+
+test("reply text is durable before the answered transition", async () => {
+  // Given
+  const { dir, queue, channel } = await setup()
+  try {
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind === "capped") throw new Error("unexpected cap")
+    const original = queue.markAnswered.bind(queue)
+    let persisted = false
+    queue.markAnswered = async (...args) => {
+      persisted = (await readFile(join(dir, "consoles.json"), "utf8")).includes("durable-answer")
+      return original(...args)
+    }
+    // When
+    await channel.handleReply({ schemaVersion: 1, id: "reply_durable", receivedAt: NOW, channelID: "console", root: "/root", raw: { kind: "text", text: "durable-answer" }, normalizedText: "durable-answer", correlation: { status: "matched", itemID: proposed.item.id } }, NOW)
+    // Then
+    expect(persisted).toBe(true)
+  } finally { await rm(dir, { recursive: true, force: true }) }
+})
 
 describe("correlateReply", () => {
   const a: QueueItemID = "att_a"
