@@ -35,6 +35,7 @@ ITEMS=(
     "commands|commands/dual-review.md|$HOME/.config/opencode/command/dual-review.md"
     "commands|commands/escalate.md|$HOME/.config/opencode/command/escalate.md"
     "commands|commands/episode.md|$HOME/.config/opencode/command/episode.md"
+    "commands|commands/workflow.md|$HOME/.config/opencode/command/workflow.md"
     "configs|configs/opencode/opencode.json|$HOME/.config/opencode/opencode.json"
     "configs|configs/opencode/opencode.jsonc|$HOME/.opencode/opencode.jsonc"
     "configs|configs/opencode/magic-context.jsonc|$HOME/.config/opencode/magic-context.jsonc"
@@ -550,5 +551,3 @@ main() {
 }
 
 main "$@"
-
-    "commands|commands/workflow.md|$HOME/.config/opencode/command/workflow.md"
