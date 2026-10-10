@@ -722,7 +722,6 @@ export async function runService(signal: AbortSignal): Promise<void> {
           return
         }
         await recordDecision(decision, target, runtime.root)
-        await recordDecision(decision, target, runtime.root)
         await pendingAttention?.resolve({ root: runtime.root, sessionID })
         assertDispatchHandlesEveryAction(decision.action)
         // Funnel invariant (2026-10-02 postmortem): every non-terminal action must
