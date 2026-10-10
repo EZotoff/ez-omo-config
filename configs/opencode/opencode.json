@@ -1081,6 +1081,82 @@
             ]
           },
           "attachment": false
+        },
+        "swift-fast-nothink": {
+          "name": "Swift 1.5 Qwen 27B (NInfer+MTP) (no-think)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 131072,
+            "input": 120000,
+            "output": 11072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false
+        },
+        "gsq-smart-nothink": {
+          "name": "GSQ Qwen 27B Smart (NInfer+MTP) (no-think)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 131072,
+            "input": 120000,
+            "output": 11072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false
+        },
+        "bonsai-fast-nothink": {
+          "name": "Bonsai 27B Fast (NInfer+DFlash2) (no-think)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 65536,
+            "input": 60000,
+            "output": 5536
+          },
+          "attachment": false
+        },
+        "flash-next-nothink": {
+          "name": "Flash-Next Q2_0 125B MoE (NInfer host-residency) (no-think)",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 65536,
+            "input": 58000,
+            "output": 6000
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false
         }
       }
     }

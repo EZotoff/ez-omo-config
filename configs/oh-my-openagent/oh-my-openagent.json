@@ -175,7 +175,11 @@
         "local/bonsai-fast",
         "local/swift-fast",
         "local/gsq-smart",
-        "local/flash-next"
+        "local/flash-next",
+        "local/swift-fast-nothink",
+        "local/gsq-smart-nothink",
+        "local/bonsai-fast-nothink",
+        "local/flash-next-nothink"
       ]
     },
     "unspecified-low": {
