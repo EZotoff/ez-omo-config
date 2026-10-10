@@ -48,6 +48,11 @@ export type Turn = {
   readonly awaitingOperatorAnswer?: boolean
 }
 
+export type TargetRejectionReason = "origin-excluded" | "stale-target" | "aborted" | "protected" | "missing-context"
+export type TargetSelection =
+  | { readonly target: Turn }
+  | { readonly rejected: TargetRejectionReason; readonly text: string }
+
 export const ACTIONS = ["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"] as const
 export type Action = (typeof ACTIONS)[number]
 
