@@ -52,11 +52,14 @@ export async function pollRootOnce(
   previous: Map<string, WatchState>,
   nowMs: number,
   stallAfterMs = 15 * 60_000,
+  ownsSession?: (session: Session) => boolean,
 ): Promise<readonly PollSignal[]> {
   // Tracked sessions stay pollable even outside the recent-activity window:
   // an incomplete turn quiescent past the threshold is exactly the stall case
   // and must not become invisible (2026-09-30 regression from the window filter).
   const eligible = (session: Session): boolean =>
+    (ownsSession === undefined || ownsSession(session)) &&
+    session.parentID === undefined &&
     session.parentID === undefined &&
     !childIDs.has(session.id) &&
     (previous.has(session.id) || session.timeUpdatedMs === undefined || session.timeUpdatedMs >= nowMs - RECENT_ACTIVITY_MS)

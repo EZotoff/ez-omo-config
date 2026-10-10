@@ -281,6 +281,11 @@ export class ConsoleChannel {
   private readonly setLedger: (next: Ledger) => void
   private readonly probe: (item: AttentionQueueItem) => Promise<RevalidationSources>
   private readonly deliverPropagation: ((input: { root: string; sessionID: string; answer: string; ticketID: QueueItemID }) => Promise<boolean>) | undefined
+  /** In-memory single-flight guard: an itemID is claimed while a delivery path
+   *  (handleReply / retryPendingPropagations / recoverAnswered) is mid-flight, so
+   *  concurrent passes cannot double-send the same answer. Cleared on release and
+   *  on process restart (the persisted pendingAnswers map is the crash-safe outbox). */
+  private readonly inFlight = new Set<QueueItemID>()
 
   constructor(options: ConsoleChannelOptions) {
     this.client = options.client
@@ -290,6 +295,18 @@ export class ConsoleChannel {
     this.setLedger = options.setLedger
     this.probe = options.probe
     this.deliverPropagation = options.deliverPropagation
+  }
+
+  /** Acquire the single-flight claim for an item; false when a delivery is already in flight. */
+  private claim(itemID: QueueItemID): boolean {
+    if (this.inFlight.has(itemID)) return false
+    this.inFlight.add(itemID)
+    return true
+  }
+
+  /** Release the single-flight claim; always called from a finally block. */
+  private release(itemID: QueueItemID): void {
+    this.inFlight.delete(itemID)
   }
 
   get held(): { readonly root: string; readonly itemID: QueueItemID } | undefined {
@@ -501,7 +518,7 @@ export class ConsoleChannel {
    *  never delivered (revalidation deferred the delivery, or the service died
    *  mid-route — 5 ledger items sat PROPOSED/pending forever before this).
    *  Idempotent: queue resolve keys and pendingAnswers clearing guard re-entry. */
-  async retryPendingPropagations(now: ISO8601): Promise<number> {
+  async retryPendingPropagations(root: string, now: ISO8601): Promise<number> {
     if (this.deliverPropagation === undefined) return 0
     let retried = 0
     for (const [itemID, answer] of Object.entries(this.state.pendingAnswers ?? {}) as [QueueItemID, string][]) {
@@ -512,6 +529,10 @@ export class ConsoleChannel {
         await this.persist()
         continue
       }
+      // Root filter: each root's poll loop retries only its own pending answers.
+      if (item.target.root !== root) continue
+      // Single-flight: skip when handleReply or another retry pass already owns the item.
+      if (!this.claim(itemID)) continue
       try {
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
@@ -533,6 +554,8 @@ export class ConsoleChannel {
         retried += 1
       } catch (error) {
         this.setLedger(await this.ledger().append("ERROR", { itemID, error: `retryPendingPropagations failed: ${error instanceof Error ? error.message : String(error)}` }))
+      } finally {
+        this.release(itemID)
       }
     }
     return retried
@@ -545,6 +568,7 @@ export class ConsoleChannel {
     let recovered = 0
     for (const item of answered) {
       const now = new Date().toISOString()
+      if (!this.claim(item.id)) continue
       try {
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
@@ -573,6 +597,8 @@ export class ConsoleChannel {
         recovered += 1
       } catch (error) {
         this.setLedger(await this.ledger().append("ERROR", { itemID: item.id, error: `recoverAnswered failed: ${error instanceof Error ? error.message : String(error)}` }))
+      } finally {
+        this.release(item.id)
       }
     }
     return recovered
@@ -606,6 +632,20 @@ export class ConsoleChannel {
     }
     const disposition = parseDisposition(reply.normalizedText)
     if (disposition !== undefined) return this.applyDisposition(disposition, itemID, reply, now)
+    // Claim AFTER the disposition path: applyDisposition returns early and must not
+    // leave a claim wedged (panel claim-leak fix). Hold through markAnswered → probe →
+    // deliverPropagation → pendingAnswers removal → resolve; release in finally.
+    if (!this.claim(itemID)) return { kind: "propagation-pending", item: current, reason: "delivery already in flight" }
+    try {
+      return await this.routeAnswered(itemID, reply, now, channelID)
+    } finally {
+      this.release(itemID)
+    }
+  }
+
+  /** markAnswered → persist pending reply → revalidate → deliver or park. Runs under
+   *  the caller's single-flight claim; never acquires or releases it itself. */
+  private async routeAnswered(itemID: QueueItemID, reply: ReplyEvent, now: ISO8601, channelID: string): Promise<RouteOutcome> {
     const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
     // Persist the reply text BEFORE any delivery attempt: a crash between
     // markAnswered and propagation must be recoverable, never lose the answer.

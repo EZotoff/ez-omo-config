@@ -280,3 +280,19 @@ describe("approve writes epoch-2 (2026-10-05: uncapped + tightened POLICY applie
     expect(POLICY.includes("NOT trivial: ESCALATE")).toBe(true)
   })
 })
+
+test("poller ownership filter excludes sessions owned by another configured root", async () => {
+  const { pollRootOnce } = await import("../src/poller")
+  const sessions = [
+    { id: "ses-a", directory: "/a/x", timeUpdatedMs: 1_000_000 },
+    { id: "ses-ab", directory: "/a/b/x", timeUpdatedMs: 1_000_000 },
+  ]
+  const client = {
+    listSessions: async () => sessions,
+    listMessages: async (sessionID: string) => [{ id: "u1", sessionID, role: "user", time: { created: 1 }, parts: [] }] as never,
+  }
+  const prev = new Map()
+  const signals = await pollRootOnce(client as never, "/a", new Set(), prev, 1_000_000, 15 * 60_000, (session) => session.directory !== "/a/b/x")
+  expect(signals.some((signal) => signal.sessionID === "ses-ab")).toBe(false)
+  expect(signals.some((signal) => signal.sessionID === "ses-a")).toBe(true)
+})

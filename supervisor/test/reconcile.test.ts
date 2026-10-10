@@ -189,3 +189,21 @@ test("aborted signal stops transcript fetches (shutdown does not wait out a swee
   expect(manifest.sessions).toEqual([])
 })
 
+test("reconcileRoot drops sessions owned by another configured root", async () => {
+  const { reconcileRoot } = await import("../src/reconcile")
+  const sessions: Session[] = [
+    { id: "ses-a", directory: "/a/x", timeUpdatedMs: Date.now() },
+    { id: "ses-ab", directory: "/a/b/x", timeUpdatedMs: Date.now() },
+  ]
+  const client = {
+    listSessions: async () => sessions,
+    listMessages: async (sessionID: string) => [{ id: "u1", sessionID, role: "user", time: { created: 1 }, parts: [] }] as never,
+  }
+  const manifest = await reconcileRoot(client as never, "/a", { humanMessageIDs: new Set(), supervisorMessageIDs: new Set() }, {
+    initialWindowDays: 7,
+    fetchConcurrency: 2,
+    ownsSession: (session) => session.directory !== "/a/b/x",
+  })
+  expect(manifest.sessions.map((entry) => entry.session.id)).toEqual(["ses-a"])
+})
+

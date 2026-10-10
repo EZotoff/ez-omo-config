@@ -428,7 +428,7 @@ describe("pending propagation retry", () => {
     expect(route.kind).toBe("resolved")
     expect(deliveries).toEqual(["Approve option 2 and continue.**"])
     // Delivered answers are cleared: a later retry pass is a no-op.
-    expect(await channel.retryPendingPropagations(NOW)).toBe(0)
+    expect(await channel.retryPendingPropagations("/root", NOW)).toBe(0)
     await rm(dir, { recursive: true, force: true })
   })
 
@@ -454,6 +454,101 @@ describe("pending propagation retry", () => {
     const recovered = await channel.recoverAnswered()
     expect(recovered).toBe(1)
     expect(deliveries).toHaveLength(0) // no placeholder into worker sessions
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("concurrent retry during an in-flight handleReply delivers exactly once", async () => {
+    let releaseProbe!: () => void
+    const probeGate = new Promise<void>((resolve) => { releaseProbe = resolve })
+    let signalEntered!: () => void
+    const enteredProbe = new Promise<void>((resolve) => { signalEntered = resolve })
+    let gateProbe = false
+    const deliveries: string[] = []
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-console-race-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const channel = new ConsoleChannel({
+      client, queue, statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next },
+      probe: async () => { if (gateProbe) { signalEntered(); await probeGate } return healthyProbe() },
+      deliverPropagation: async (input) => {
+        deliveries.push(input.answer)
+        ledgerRef.current = await ledgerRef.current.append("QUEUE_PROPAGATION_DELIVERED", { root: input.root, sessionID: input.sessionID })
+        return true
+      },
+    })
+    const proposed = await channel.proposeEscalation(escalationRequest())
+    if (proposed.kind !== "enqueued") throw new Error("expected enqueue")
+    const surfaced = await channel.surfaceNext("/root", NOW)
+    if (surfaced.kind !== "surfaced") throw new Error("expected surface")
+    const consoleID = channel.sessionID("/root")
+    if (consoleID === undefined) throw new Error("expected console session")
+    expect(await channel.pollReplies("/root", NOW)).toHaveLength(0) // seed watermark
+    client.append(consoleID, "assistant", "**Q1: Approve option 2 and continue.**")
+    const replies = await channel.pollReplies("/root", NOW)
+    const reply = replies[0]
+    if (reply === undefined) throw new Error("expected reply")
+    // Start the reply handler; it claims the item synchronously, then parks at the probe gate.
+    gateProbe = true
+    const inFlight = channel.handleReply(reply, NOW)
+    await enteredProbe // handler has passed markAnswered and is parked at the probe gate
+    // Two concurrent retry passes for the same root race the in-flight handler.
+    const retryA = channel.retryPendingPropagations("/root", NOW)
+    const retryB = channel.retryPendingPropagations("/root", NOW)
+    await Bun.sleep(10) // let both retries reach the probe gate
+    releaseProbe()
+    await Promise.all([inFlight, retryA, retryB])
+    expect(deliveries).toHaveLength(1)
+    expect(ledgerTypes(ledgerRef).filter((type) => type === "QUEUE_PROPAGATION_DELIVERED")).toHaveLength(1)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  test("retry for one root never touches another root's pending item", async () => {
+    const deliveries: { root: string; answer: string }[] = []
+    let deliver = false
+    const dir = await mkdtemp(join(tmpdir(), "supervisor-console-rootfilter-"))
+    const ledgerRef: { current: Ledger } = { current: await Ledger.open(join(dir, "ledger.jsonl")) }
+    const queue = await AttentionQueue.open({
+      path: join(dir, "queue.json"),
+      append: async (type, payload) => { ledgerRef.current = await ledgerRef.current.append(type, payload) },
+    })
+    const client = new StubClient()
+    const channel = new ConsoleChannel({
+      client, queue, statePath: join(dir, "consoles.json"),
+      ledger: () => ledgerRef.current, setLedger: (next) => { ledgerRef.current = next },
+      probe: async (item) => ({ ...(await healthyProbe()), latestMessageID: () => item.target.assistantMessageID ?? "msg-a1" }),
+      deliverPropagation: async (input) => {
+        if (!deliver) return false
+        deliveries.push({ root: input.root, answer: input.answer })
+        return true
+      },
+    })
+    const replyFor = (root: string, itemID: QueueItemID): ReplyEvent => ({
+      schemaVersion: 1,
+      id: `reply_${root.replace(/[^a-z0-9]/gi, "")}` as `reply_${string}`,
+      receivedAt: NOW,
+      channelID: "console",
+      root,
+      raw: { kind: "text", text: "yes" },
+      normalizedText: "yes",
+      correlation: { status: "matched", itemID },
+    })
+    const a = await channel.proposeEscalation(escalationRequest({ root: "/root-a", target: { root: "/root-a", sessionID: "ses-a", userMessageID: "msg-u1", assistantMessageID: "msg-a1" } }))
+    if (a.kind !== "enqueued") throw new Error("expected enqueue")
+    const b = await channel.proposeEscalation(escalationRequest({ root: "/root-b", sessionID: "ses-b", question: "Deploy B?", target: { root: "/root-b", sessionID: "ses-b", userMessageID: "msg-u2", assistantMessageID: "msg-a2" } }))
+    if (b.kind !== "enqueued") throw new Error("expected enqueue")
+    // Both replies are answered but undelivered: pendingAnswers holds both.
+    expect((await channel.handleReply(replyFor("/root-a", a.item.id), NOW)).kind).toBe("propagation-pending")
+    expect((await channel.handleReply(replyFor("/root-b", b.item.id), NOW)).kind).toBe("propagation-pending")
+    deliver = true
+    expect(await channel.retryPendingPropagations("/root-a", NOW)).toBe(1)
+    expect(deliveries).toEqual([{ root: "/root-a", answer: "yes" }])
+    expect(await channel.retryPendingPropagations("/root-b", NOW)).toBe(1)
+    expect(deliveries).toEqual([{ root: "/root-a", answer: "yes" }, { root: "/root-b", answer: "yes" }])
     await rm(dir, { recursive: true, force: true })
   })
 })

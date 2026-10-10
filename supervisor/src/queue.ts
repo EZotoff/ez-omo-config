@@ -509,6 +509,10 @@ export class AttentionQueue {
   }
 
   private async resolveInternal(item: AttentionQueueItem, resolution: Resolution): Promise<AttentionQueueItem> {
+    // Terminal-state guard: a resolved item is immutable. Re-resolving would append a
+    // duplicate QUEUE_ITEM_RESOLVED row and bump the version for no state change
+    // (2026-10-09 audit: 18 items resolved repeatedly → 132 excess rows).
+    if (itemState(item) === "resolved") return item
     const event: LifecycleEvent = { state: "resolved", at: resolution.now, disposition: resolution.disposition, evidence: resolution.evidence, ...(resolution.replacementItemID === undefined ? {} : { replacementItemID: resolution.replacementItemID }) }
     const next = this.commit(item, event, item.poisonCount)
     await this.append("QUEUE_ITEM_RESOLVED", { itemID: item.id, itemVersion: next.version, disposition: resolution.disposition, reason: resolution.reason, evidence: resolution.evidence })
@@ -567,6 +571,9 @@ export class AttentionQueue {
   async markAnswered(itemID: QueueItemID, replyEventID: string, channelID: string, now: ISO8601): Promise<AttentionQueueItem> {
     const item = this.find(itemID)
     if (item === undefined) throw new Error(`unknown queue item ${itemID}`)
+    // Idempotency guard: an already-answered item is a no-op — no lifecycle row, no
+    // version bump, no persist (panel directive D1.2).
+    if (itemState(item) === "answered") return item
     const next = this.commit(item, { state: "answered", at: now, replyEventID, channelID }, item.poisonCount)
     await this.append("QUEUE_REPLY_RECEIVED", { itemID, itemVersion: next.version, replyEventID, channelID })
     await this.persist()
