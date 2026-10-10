@@ -325,6 +325,7 @@ export class ConsoleChannel {
       counters: parsed.counters ?? {},
       aliases: parsed.aliases ?? {},
       watermarks: parsed.watermarks ?? {},
+      pendingAnswers: parsed.pendingAnswers ?? {},
       ...(parsed.held === undefined ? {} : { held: parsed.held }),
       ...(parsed.dnd === undefined ? {} : { dnd: parsed.dnd }),
     }
@@ -523,7 +524,7 @@ export class ConsoleChannel {
     let retried = 0
     for (const [itemID, answer] of Object.entries(this.state.pendingAnswers ?? {}) as [QueueItemID, string][]) {
       const item = this.queue.items.find((entry) => entry.id === itemID)
-      if (item === undefined || itemState(item) !== "answered") {
+      if (item === undefined || itemState(item) === "resolved") {
         const { [itemID]: _gone, ...remaining } = this.state.pendingAnswers ?? {}
         this.state = { ...this.state, pendingAnswers: remaining }
         await this.persist()
@@ -534,6 +535,7 @@ export class ConsoleChannel {
       // Single-flight: skip when handleReply or another retry pass already owns the item.
       if (!this.claim(itemID)) continue
       try {
+        if (itemState(item) !== "answered") await this.queue.markAnswered(itemID, `recovered_${itemID}`, CHANNEL_ID, now)
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
         if (outcome.kind === "retired-by-evidence") {
@@ -610,7 +612,7 @@ export class ConsoleChannel {
   async handleReply(reply: ReplyEvent, now: ISO8601, options: HandleReplyOptions = {}): Promise<RouteOutcome> {
     const channelID = options.channelID ?? CHANNEL_ID
     if (isResume(reply.normalizedText)) {
-      this.state = { consoles: this.state.consoles, counters: this.state.counters, aliases: this.state.aliases, watermarks: this.state.watermarks, dnd: false }
+      this.state = { consoles: this.state.consoles, counters: this.state.counters, aliases: this.state.aliases, watermarks: this.state.watermarks, pendingAnswers: this.state.pendingAnswers ?? {}, dnd: false }
       await this.persist()
       this.setLedger(await this.ledger().append("QUEUE_REPLY_RECEIVED", { replyEventID: reply.id, channelID, action: "resume" }))
       return { kind: "resumed" }
@@ -643,14 +645,13 @@ export class ConsoleChannel {
     }
   }
 
-  /** markAnswered → persist pending reply → revalidate → deliver or park. Runs under
+  /** Persist pending reply → markAnswered → revalidate → deliver or park. Runs under
    *  the caller's single-flight claim; never acquires or releases it itself. */
   private async routeAnswered(itemID: QueueItemID, reply: ReplyEvent, now: ISO8601, channelID: string): Promise<RouteOutcome> {
-    const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
-    // Persist the reply text BEFORE any delivery attempt: a crash between
-    // markAnswered and propagation must be recoverable, never lose the answer.
+    // Persist text before the queue transition so either crash window is recoverable.
     this.state = { ...this.state, pendingAnswers: { ...this.state.pendingAnswers, [itemID]: reply.normalizedText } }
     await this.persist()
+    const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
     const lease = this.queue.lease
     if (lease !== undefined && lease.itemID === itemID) await this.queue.defer(lease.presentationID, now, now)
     const sources = await this.probe(answered)
