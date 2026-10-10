@@ -199,6 +199,7 @@ export const LEDGER_TYPES = [
   "CHANNEL_DEFERRED",
   "BLACKBOARD_FACT_WRITTEN",
   "BLACKBOARD_FACT_INVALIDATED",
+  "CONTINUATION_ALERT",
 ] as const
 export type LedgerRecordType = (typeof LEDGER_TYPES)[number]
 
