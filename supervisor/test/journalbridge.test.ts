@@ -244,6 +244,18 @@ describe("ContinuationBridge", () => {
     expect((await continuationRows(ledgerPath)).map((row) => row.continuation['suppressed'])).toEqual([undefined, "1", "2"])
   })
 
+  test("coalescing windows are capped at 900 seconds", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
+    let nowMs = 1_000_000_000_000
+    const entries = [entry("resume_fallback", "bounded-1")]
+    const { bridge, ledgerPath } = await openBridge(directory, entries, { config: config({ coalesceWindowS: 1800 }), now: () => nowMs })
+    await bridge.poll()
+    nowMs += 901_000
+    entries.push(entry("resume_fallback", "bounded-2"))
+    await bridge.poll()
+    expect((await continuationRows(ledgerPath))[1]?.continuation['digest']).toBeUndefined()
+  })
+
   test("excluded_units: no escalation, raw row preserved", async () => {
     const directory = await mkdtemp(join(tmpdir(), "supervisor-bridge-")); paths.push(directory)
     const { bridge, ledgerPath } = await openBridge(directory, [entry("resume_fallback", "e1")], { config: config({ excludedUnits: ["opencode-interactive.service"] }) })

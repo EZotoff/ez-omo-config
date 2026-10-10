@@ -249,7 +249,8 @@ export class ContinuationBridge {
     const state = structuredClone(await this.currentState())
     const entries = await this.deps.read(state.cursor)
     if (entries.length === 0) return 0
-    const config = this.deps.config ?? DEFAULT_BRIDGE_CONFIG
+    const configured = this.deps.config ?? DEFAULT_BRIDGE_CONFIG
+    const config = { ...configured, coalesceWindowS: Math.min(configured.coalesceWindowS, 900) }
     const now = Math.floor((this.deps.now ?? Date.now)() / 1000)
     const seen = new Set(state.fingerprints)
     const fresh: ContinuationAlert[] = []
