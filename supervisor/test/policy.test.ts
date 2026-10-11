@@ -64,8 +64,10 @@ describe("POLICY preserves the pre-existing contract", () => {
     expect(POLICY).toContain("the matter is SETTLED: do not re-ask it")
   })
 
-  test("stays under the ~1.5k token ceiling", () => {
-    expect(estimateTokens(POLICY)).toBeLessThan(1500)
+  test("stays under the ~1.5k token ceiling (raised to 1.8k for the multi-genre summary/instruction amendment)", () => {
+    // POLICY was at 1495/1500 before the amendment; rules 16-17 + the extended
+    // JSON template add ~200 tokens by plan (.omo/plans/supervisor-multi-genre-comms.md, checkbox 2).
+    expect(estimateTokens(POLICY)).toBeLessThan(1800)
   })
 })
 
