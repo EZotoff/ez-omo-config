@@ -1118,6 +1118,45 @@
           },
           "attachment": false
         },
+        "gsq-smart-nothink-samp": {
+          "name": "GSQ 27B no-think samp",
+          "reasoning": false,
+          "limit": {
+            "context": 131072,
+            "input": 120000,
+            "output": 11072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false
+        },
+        "gsq-smart-laptop": {
+          "name": "GSQ 27B laptop",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 130352,
+            "input": 120000,
+            "output": 10000
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false
+        },
         "flash-next-nothink": {
           "name": "Flash-Next 125B no-think",
           "reasoning": false,
