@@ -55,4 +55,34 @@ describe("decision summary/instruction budget enforcement", () => {
     expect(decision.summary).toEqual(summary)
     expect(decision.instruction).toBe("Fix the flaky test, then land.")
   })
+
+  test("options over 8 words clamp to first 8 words, action intact", () => {
+    const tenWords = "a b c d e f g h i j"
+    const decision = parseDecision(raw({
+      summary: {
+        headline: "Deploy 2.4 blocked on prod call",
+        ask: "Approve the prod deploy?",
+        options: [tenWords, "roll back now please okay thanks again but maybe wait"],
+      },
+    }), 0)
+
+    expect(decision.action).toBe("ESCALATE")
+    expect(decision.summary?.options?.length).toBe(2)
+    expect(decision.summary?.options?.[0]).toBe("a b c d e f g h")
+    for (const option of decision.summary?.options ?? []) {
+      expect(option.split(/\s+/).length).toBeLessThanOrEqual(8)
+      expect(option.length).toBeLessThanOrEqual(48)
+    }
+  })
+
+  test("ask missing a question mark gets one appended, action intact", () => {
+    const decision = parseDecision(raw({
+      summary: { headline: "Deploy 2.4 blocked on prod call", ask: "Approve the prod deploy" },
+    }), 0)
+
+    expect(decision.action).toBe("ESCALATE")
+    expect(decision.summary?.ask).toBe("Approve the prod deploy?")
+    expect((decision.summary?.ask ?? "").length).toBeLessThanOrEqual(140)
+  })
+
 })

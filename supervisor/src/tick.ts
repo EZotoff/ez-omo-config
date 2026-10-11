@@ -112,8 +112,9 @@ function normalizeNeed(value: unknown): unknown {
 
 /** Trim an operator-facing summary to its budgets at the parse path so an
  * over-long headline never rejects the whole decision. Unknown keys are
- * dropped (summarySchema is strict); options clamp to the first 4 and are
- * dropped entirely when fewer than 2 usable strings remain.
+ * dropped (summarySchema is strict); options clamp to the first 4, each to
+ * its first 8 words then 48 chars, and are dropped entirely when fewer than
+ * 2 usable strings remain; the ask is normalized to end in "?".
  */
 function normalizeSummary(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined
@@ -121,15 +122,17 @@ function normalizeSummary(value: unknown): Record<string, unknown> | undefined {
   const headline = typeof input["headline"] === "string" ? input["headline"].trim() : ""
   const askText = typeof input["ask"] === "string" ? input["ask"].trim() : ""
   if (headline === "" || askText === "") return undefined
+  let ask = truncateAtSentence(askText, 140)
+  if (!ask.endsWith("?")) ask = `${ask.slice(0, 139)}?`
   const summary: Record<string, unknown> = {
     headline: truncateAtSentence(headline, 60),
-    ask: truncateAtSentence(askText, 140),
+    ask,
   }
   if (Array.isArray(input["options"])) {
     const options = input["options"]
       .filter((option): option is string => typeof option === "string" && option.trim() !== "")
       .slice(0, 4)
-      .map((option) => truncateAtSentence(option.trim(), 48))
+      .map((option) => truncateAtSentence(option.trim().split(/\s+/).slice(0, 8).join(" "), 48))
     if (options.length >= 2) summary["options"] = options
   }
   const recommendation = typeof input["recommendation"] === "string" ? input["recommendation"].trim() : ""
