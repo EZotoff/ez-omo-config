@@ -1,0 +1,10 @@
+[Unit]
+Description=Start kraken ASTRA daemon 15 min before the 01:00 night fire
+
+[Timer]
+OnCalendar=*-*-* 00:45:00 Europe/Luxembourg
+Persistent=true
+Unit=kraken-astra-night-start.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Start spacebot-astra (kraken ASTRA daemon) for the night window
+# Paired with kraken-astra-night-start.timer (00:45 daily = 15 min before the
+# 01:00 nightly-research cron fire). Persistent=true so a machine rebooted
+# after a missed fire still gets the daemon up — but only before 09:00; an
+# afternoon catch-up fire is a no-op, otherwise the daemon would idle all day
+# until the 09:15 stop.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash -c 'H=$(date +%-H); if [ "$H" -ge 9 ] && [ "$H" -lt 23 ]; then echo "catch-up fire between 09:00-22:59 — skip; next real start tonight 00:45"; exit 0; fi; /usr/bin/systemctl --user start spacebot-astra.service && echo "spacebot-astra started for night window"'

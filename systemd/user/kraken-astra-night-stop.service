@@ -1,0 +1,11 @@
+[Unit]
+Description=Stop spacebot-astra (kraken ASTRA daemon) after the night window
+# Paired with kraken-astra-night-stop.timer (09:15 daily). Night schedule
+# (spacebot config.toml): research 01:00, verify 07:00, sentinel 07:30,
+# fixer 08:15 — 09:15 = last fire + 1h grace for tasks to finish, per
+# operator request 2026-10-11.
+
+[Service]
+Type=oneshot
+ExecStart=/home/ezotoff/ez-omo-config/scripts/kraken-astra-night-stop.sh
+TimeoutStartSec=600

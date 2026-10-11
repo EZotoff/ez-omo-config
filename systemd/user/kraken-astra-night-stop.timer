@@ -1,0 +1,10 @@
+[Unit]
+Description=Stop kraken ASTRA daemon 1h after the night schedule ends
+
+[Timer]
+OnCalendar=*-*-* 09:15:00 Europe/Luxembourg
+Persistent=false
+Unit=kraken-astra-night-stop.service
+
+[Install]
+WantedBy=timers.target
