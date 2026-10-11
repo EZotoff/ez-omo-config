@@ -966,7 +966,7 @@
           "attachment": false
         },
         "qwen3.8-27b": {
-          "name": "Qwen 27B GSQ",
+          "name": "Qwen3.8 27B",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -995,7 +995,7 @@
           "attachment": false
         },
         "bonsai-unipc": {
-          "name": "Bonsai 27B (uni-pc)",
+          "name": "Bonsai 27B uni-pc",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -1007,7 +1007,7 @@
           "attachment": false
         },
         "bonsai-fast": {
-          "name": "Bonsai 27B Fast (NInfer+DFlash2)",
+          "name": "Bonsai 27B fast",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -1020,7 +1020,7 @@
           "attachment": false
         },
         "gsq-smart": {
-          "name": "GSQ Qwen 27B Smart (NInfer+MTP)",
+          "name": "GSQ 27B",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -1041,7 +1041,7 @@
           "attachment": false
         },
         "swift-fast": {
-          "name": "Swift 1.5 Qwen 27B (NInfer+MTP)",
+          "name": "Swift 1.5 27B",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -1062,7 +1062,7 @@
           "attachment": false
         },
         "flash-next": {
-          "name": "Flash-Next Q2_0 125B MoE (NInfer host-residency)",
+          "name": "Flash-Next 125B",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning_content"
@@ -1083,7 +1083,7 @@
           "attachment": false
         },
         "swift-fast-nothink": {
-          "name": "Swift 1.5 Qwen 27B no-think",
+          "name": "Swift 1.5 27B no-think",
           "reasoning": false,
           "limit": {
             "context": 131072,
@@ -1101,7 +1101,7 @@
           "attachment": false
         },
         "gsq-smart-nothink": {
-          "name": "GSQ Qwen 27B no-think",
+          "name": "GSQ 27B no-think",
           "reasoning": false,
           "limit": {
             "context": 131072,
@@ -1137,7 +1137,7 @@
           "attachment": false
         },
         "bonsai-fast-nothink": {
-          "name": "Bonsai 27B no-think",
+          "name": "Bonsai 27B fast no-think",
           "reasoning": false,
           "limit": {
             "context": 65536,
