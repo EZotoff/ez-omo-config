@@ -64,12 +64,21 @@ export type Citation = {
   readonly quote: string
 }
 
+export type DecisionSummary = {
+  readonly headline: string
+  readonly ask: string
+  readonly options?: readonly string[]
+  readonly recommendation?: string
+}
+
 export type Decision = {
   readonly action: Action
   readonly target?: string
   readonly rationale: string
   readonly citations: readonly Citation[]
   readonly confidence: number
+  readonly summary?: DecisionSummary
+  readonly instruction?: string
 }
 
 export type QueueItemID = `att_${string}`

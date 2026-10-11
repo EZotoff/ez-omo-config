@@ -12,6 +12,7 @@ import {
   type CollectEvent,
   type CollectRunner,
 } from "./collect"
+import { truncateAtSentence } from "./text"
 
 const citationSchema = z.object({ session: z.string().min(1), messageID: z.string().min(1), quote: z.string().min(1) }).strict()
 
@@ -39,6 +40,17 @@ const wakeHandleSchema = z.object({
   ref: z.string().min(1),
 }).strict()
 
+/** Operator-facing escalation summary (multi-genre comms). Budgets are
+ * enforced by trim-at-parse (normalizeSummary), never by rejection —
+ * an escalation must not be lost to a long headline.
+ */
+const summarySchema = z.object({
+  headline: z.string().min(1).max(60),
+  ask: z.string().min(1).max(140),
+  options: z.array(z.string().min(1).max(48)).min(2).max(4).optional(),
+  recommendation: z.string().max(100).optional(),
+}).strict()
+
 const decisionSchema = z.object({
   action: z.enum(["ACCEPT", "ABSTAIN", "CONTINUE", "STEER", "REFORMULATE", "ESCALATE"]),
   target: z.string().min(1).optional(),
@@ -51,6 +63,8 @@ const decisionSchema = z.object({
   mode: continueModeSchema.nullable().optional(),
   operator_input_requested: z.boolean().optional().default(false),
   wake_handle: wakeHandleSchema.nullable().optional(),
+  summary: summarySchema.optional(),
+  instruction: z.string().max(300).optional(),
 }).strict()
 
 /** Decision plus the fork fields the tick loop carries (types.ts Decision stays the shared shape). */
@@ -96,6 +110,33 @@ function normalizeNeed(value: unknown): unknown {
   return normalized
 }
 
+/** Trim an operator-facing summary to its budgets at the parse path so an
+ * over-long headline never rejects the whole decision. Unknown keys are
+ * dropped (summarySchema is strict); options clamp to the first 4 and are
+ * dropped entirely when fewer than 2 usable strings remain.
+ */
+function normalizeSummary(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined
+  const input = value as Record<string, unknown>
+  const headline = typeof input["headline"] === "string" ? input["headline"].trim() : ""
+  const askText = typeof input["ask"] === "string" ? input["ask"].trim() : ""
+  if (headline === "" || askText === "") return undefined
+  const summary: Record<string, unknown> = {
+    headline: truncateAtSentence(headline, 60),
+    ask: truncateAtSentence(askText, 140),
+  }
+  if (Array.isArray(input["options"])) {
+    const options = input["options"]
+      .filter((option): option is string => typeof option === "string" && option.trim() !== "")
+      .slice(0, 4)
+      .map((option) => truncateAtSentence(option.trim(), 48))
+    if (options.length >= 2) summary["options"] = options
+  }
+  const recommendation = typeof input["recommendation"] === "string" ? input["recommendation"].trim() : ""
+  if (recommendation !== "") summary["recommendation"] = truncateAtSentence(recommendation, 100)
+  return summary
+}
+
 function normalizeDecisionValue(value: unknown): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return value
   const input = value as Record<string, unknown>
@@ -119,6 +160,12 @@ function normalizeDecisionValue(value: unknown): unknown {
     const parsedWake = wakeHandleSchema.safeParse({ ...wake, kind: wake.kind.trim().toLowerCase().replace(/_/g, "-") })
     normalized["wake_handle"] = parsedWake.success ? parsedWake.data : null
   } else if (wake !== undefined) normalized["wake_handle"] = null
+  const summary = normalizeSummary(normalized["summary"])
+  if (summary === undefined) delete normalized["summary"]
+  else normalized["summary"] = summary
+  if (typeof normalized["instruction"] === "string" && normalized["instruction"].trim() !== "") {
+    normalized["instruction"] = truncateAtSentence(normalized["instruction"].trim(), 300)
+  } else delete normalized["instruction"]
   if (normalized["target"] === null) delete normalized["target"]
   const modeRaw = normalized["mode"]
   if (typeof modeRaw === "string") {
@@ -203,6 +250,15 @@ export function parseDecision(raw: string, confidenceFloor: number, options?: { 
     ...(parsed.data.wake_handle === undefined ? {} : { wake_handle: parsed.data.wake_handle }),
     ...(parsed.data.evidence_effect === undefined ? {} : { evidence_effect: parsed.data.evidence_effect }),
     ...(parsed.data.mode === undefined ? {} : { mode: parsed.data.mode }),
+    ...(parsed.data.summary === undefined ? {} : {
+      summary: {
+        headline: parsed.data.summary.headline,
+        ask: parsed.data.summary.ask,
+        ...(parsed.data.summary.options === undefined ? {} : { options: [...parsed.data.summary.options] }),
+        ...(parsed.data.summary.recommendation === undefined ? {} : { recommendation: parsed.data.summary.recommendation }),
+      },
+    }),
+    ...(parsed.data.instruction === undefined ? {} : { instruction: parsed.data.instruction }),
   }
   // Tick 1 parses provisionally: the confidence floor and citation requirement
   // apply to the FINAL decision only, so a low-confidence lean that names a need
