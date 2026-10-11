@@ -9,7 +9,8 @@ note: "lockfile required:true since 2026-09-30 (was acknowledged-drift before th
 required_evidence: "runtime"
 status: "active"
 applied_date: "2026-06-26"
-dep_version: "1.18.31-p4"
+dep_version: "1.18.31-p5"
+dep_version_note: "p5 carry-forward 2026-10-11: implementation commits unchanged from p4; p5 adds only the openai-compatible video_url dependency patch — no source delta for this patch, effectiveness carried forward."
 upstream_issue: "https://github.com/anomalyco/opencode/pull/35913"
 verification_pattern: "location\\?\\.workspaceID===void 0\\|\\|"
 runtime_effective: true
