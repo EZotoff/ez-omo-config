@@ -7,7 +7,7 @@ import { tmpdir } from "node:os"
 import { dirname } from "node:path"
 import { bandOf, itemState } from "./queue"
 import { truncateAtSentence } from "./text"
-import type { AttentionQueueItem, ISO8601, Premise } from "./types"
+import type { AttentionQueueItem, DecisionSummary, ISO8601, Premise } from "./types"
 
 export const OPERATOR_VIEW_SCHEMA_VERSION = 1
 /** Contract heartbeat obligation: republish at most every 15 s even when idle. */
@@ -34,6 +34,11 @@ export type OperatorViewCard = {
   /** Absolute project root path (reply targeting); the publisher always sets it, pre-amendment images may lack it. */
   readonly root?: string | undefined
   readonly escalationKind?: "DECISION" | "INFORMATION" | "APPROVAL" | undefined
+  /** Operator-register summary (Amendment 2026-10-11); budgets enforced upstream at decision parse. */
+  readonly headline?: string | undefined
+  readonly ask?: string | undefined
+  readonly options?: readonly string[] | undefined
+  readonly recommendation?: string | undefined
 }
 
 export type OperatorView = {
@@ -87,7 +92,10 @@ const BAND_ORDER = { A: 0, B: 1, C: 2, D: 3 } as const
 
 const rootLabelOf = (root: string): string => root.split("/").filter((segment) => segment.length > 0).at(-1) ?? root
 
-function toCard(item: AttentionQueueItem, nowMs: number): OperatorViewCard {
+/** toCard reads `summary` additively (queue.ts todo); typed structurally so this module compiles before/after queue.ts lands it. */
+type CardSourceItem = AttentionQueueItem & { readonly summary?: DecisionSummary }
+
+function toCard(item: CardSourceItem, nowMs: number): OperatorViewCard {
   return {
     id: item.id,
     rootLabel: rootLabelOf(item.target.root),
@@ -102,6 +110,14 @@ function toCard(item: AttentionQueueItem, nowMs: number): OperatorViewCard {
     actionClass: item.actionClass,
     root: item.target.root,
     ...(item.escalationKind === undefined ? {} : { escalationKind: item.escalationKind }),
+    ...(item.summary === undefined
+      ? {}
+      : {
+          headline: item.summary.headline,
+          ask: item.summary.ask,
+          ...(item.summary.options === undefined ? {} : { options: item.summary.options }),
+          ...(item.summary.recommendation === undefined ? {} : { recommendation: item.summary.recommendation }),
+        }),
   }
 }
 

@@ -9,8 +9,8 @@ import {
   buildOperatorView,
   isProbeItem,
 } from "../src/operator-view"
-import type { AttentionQueueItem } from "../src/types"
 import { T0, fixtureItem } from "./helpers"
+import type { AttentionQueueItem, DecisionSummary } from "../src/types"
 
 const readView = async (path: string) => JSON.parse(await readFile(path, "utf8")) as {
   schemaVersion: number
@@ -161,6 +161,73 @@ describe("operator-view acceptance", () => {
       expect(Object.prototype.hasOwnProperty.call(view.cards[0], "escalationKind")).toBe(false)
       expect(view.cards[0]!["actionClass"]).toBe("ESCALATE")
       expect(view.cards[0]!["root"]).toBe("/home/user/proj")
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  test("(5d) item with summary → card carries headline/ask/options/recommendation", () => {
+    const summary: DecisionSummary = {
+      headline: "Deploy gate blocked",
+      ask: "Approve the prod deploy?",
+      options: ["approve now", "hold for tests"],
+      recommendation: "approve now — gate already green",
+    }
+    const item: AttentionQueueItem & { readonly summary: DecisionSummary } = { ...fixtureItem({ id: nextID() }), summary }
+    const { view } = buildOperatorView({ items: [item], ledgerSeq: 5, generation: 1, nowMs: T0 })
+    expect(view.cards.length).toBe(1)
+    const card = view.cards[0]!
+    expect(card.headline).toBe(summary.headline)
+    expect(card.ask).toBe(summary.ask)
+    expect(card.options).toEqual(["approve now", "hold for tests"])
+    expect(card.recommendation).toBe("approve now — gate already green")
+    // reasonText stays the fallback + expandable detail, unchanged by summary
+    expect(card.reasonText).toBe("Deploy to prod?")
+  })
+
+  test("(5e) item without summary → card JSON keeps the exact legacy key set", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "operator-view-legacy-"))
+    try {
+      const path = join(dir, "operator-view.json")
+      const publisher = new OperatorViewPublisher({ path, items: () => [fixtureItem({ id: nextID() })], ledgerSeq: () => 5, nowMs: () => T0 })
+      await publisher.publish()
+      const raw = await readFile(path, "utf8")
+      for (const key of ["headline", "ask", "options", "recommendation"]) {
+        expect(raw.includes(`"${key}"`)).toBe(false)
+      }
+      const view = JSON.parse(raw) as { cards: Array<Record<string, unknown>> }
+      const card = view.cards[0]!
+      for (const key of ["headline", "ask", "options", "recommendation"]) {
+        expect(Object.prototype.hasOwnProperty.call(card, key)).toBe(false)
+      }
+      expect(Object.keys(card).sort()).toEqual(
+        ["actionClass", "ageSeconds", "escalationKind", "id", "jumpAvailable", "premiseTexts", "reasonText", "root", "rootLabel", "sessionLabel", "severity"].sort(),
+      )
+      expect(card["reasonText"]).toBe("Deploy to prod?")
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  test("(5f) summary without options/recommendation → those card keys are omitted from JSON", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "operator-view-partial-"))
+    try {
+      const path = join(dir, "operator-view.json")
+      const item: AttentionQueueItem & { readonly summary: DecisionSummary } = {
+        ...fixtureItem({ id: nextID() }),
+        summary: { headline: "Build red", ask: "Revert or fix forward?" },
+      }
+      const publisher = new OperatorViewPublisher({ path, items: () => [item], ledgerSeq: () => 5, nowMs: () => T0 })
+      await publisher.publish()
+      const raw = await readFile(path, "utf8")
+      expect(raw.includes(`"${"headline"}"`)).toBe(true)
+      expect(raw.includes(`"${"ask"}"`)).toBe(true)
+      for (const key of ["options", "recommendation"]) {
+        expect(raw.includes(`"${key}"`)).toBe(false)
+      }
+      const view = JSON.parse(raw) as { cards: Array<Record<string, unknown>> }
+      expect(view.cards[0]!["headline"]).toBe("Build red")
+      expect(view.cards[0]!["ask"]).toBe("Revert or fix forward?")
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
