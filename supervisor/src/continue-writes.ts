@@ -99,14 +99,14 @@ export function gateSteerWrite(input: SteerWriteGateInput): ContinueWriteGate {
   return { allowed: true }
 }
 
-export function steerWriteText(decision: Pick<Decision, "rationale">): string {
-  return `[supervisor] (steer) ${truncateAtSentence(decision.rationale, 6000)}`
+export function steerWriteText(decision: Pick<Decision, "instruction" | "rationale">): string {
+  return `[supervisor] (steer) ${truncateAtSentence(decision.instruction ?? decision.rationale, 300)}`
 }
 
 /** REFORMULATE write text: per POLICY rule 258/265 — demand a standalone account
  *  rebuilt from first principles, relying on nothing from the session's interior. */
-export function reformulateWriteText(input: { readonly rationale: string }): string {
-  return `[supervisor] (reformulate) Your reply cannot be evaluated from the transcript alone. Re-state the outcome as a standalone account: define the terms, state what changed and why it matters, rebuilt from first principles — a competent reader with NO access to this session must be able to evaluate it. Unresolved: ${truncateAtSentence(input.rationale, 6000)}`
+export function reformulateWriteText(input: Pick<Decision, "instruction" | "rationale">): string {
+  return `[supervisor] (reformulate) Your reply cannot be evaluated from the transcript alone. Re-state the outcome as a standalone account: define the terms, state what changed and why it matters, rebuilt from first principles — a competent reader with NO access to this session must be able to evaluate it. Unresolved: ${truncateAtSentence(input.instruction ?? input.rationale, 300)}`
 }
 
 export type ReformulateGateInput = {
