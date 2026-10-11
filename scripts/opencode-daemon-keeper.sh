@@ -21,10 +21,9 @@ PORTS_FILE="$HOME/.sisyphus/ports.json"
 # the fallback literal covers the window before the allocation entry lands.
 UNITS=(
   "opencode-interactive.service|3030|opencode-serve-interactive"
-  # Fallback 3040 mirrors the ports.json allocation (service:
-  # opencode-serve-bench, allocated 2026-09-21); runtime resolution supersedes
-  # it if the allocation moves.
-  "opencode-bench.service|3040|opencode-serve-bench"
+  # opencode-bench.service retired 2026-10-11 — the bench moved to uni-pc
+  # (repo /data/bench/ez-omo-bench); the laptop bench server is no longer
+  # revived here (frees ~3GB RAM).
 )
 
 resolve_port() {
