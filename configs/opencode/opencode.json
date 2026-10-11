@@ -8,7 +8,8 @@
     "inception",
     "mimo",
     "ollama-cloud",
-    "local"
+    "local",
+    "laptopdirect"
   ],
   "plugin": [
     "./provider-connect-retry.mjs",
@@ -549,7 +550,8 @@
           "modalities": {
             "input": [
               "text",
-              "image"
+              "image",
+              "video"
             ],
             "output": [
               "text"
@@ -1182,6 +1184,39 @@
             "context": 65536,
             "input": 60000,
             "output": 5536
+          },
+          "attachment": false
+        }
+      }
+    },
+    "laptopdirect": {
+      "name": "GSQ laptop direct",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://100.87.87.113:8090/v1",
+        "apiKey": "x",
+        "chunkTimeout": 600000,
+        "headerTimeout": 600000
+      },
+      "models": {
+        "gsq-smart": {
+          "name": "GSQ laptop direct",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 130352,
+            "input": 120000,
+            "output": 10000
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           },
           "attachment": false
         }
