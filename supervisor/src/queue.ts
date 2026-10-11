@@ -8,6 +8,7 @@ import type {
   Action,
   AttentionQueueItem,
   Citation,
+  DecisionSummary,
   DecisionKey,
   EscalationKind,
   EvidenceRef,
@@ -239,6 +240,7 @@ export type ProposeInput = {
   readonly escalationKind?: EscalationKind
   readonly question: string
   readonly rationale: string
+  readonly summary?: DecisionSummary
   readonly priority: QueuePriorityInputs
   readonly premises: readonly Premise[]
   readonly materialChange?: boolean
@@ -318,6 +320,7 @@ function createItem(input: ProposeInput, key: DecisionKey): AttentionQueueItem {
     ...(input.escalationKind === undefined ? {} : { escalationKind: input.escalationKind }),
     question: input.question,
     rationale: input.rationale,
+    ...(input.summary === undefined ? {} : { summary: input.summary }),
     priority: input.priority,
     premises: input.premises,
     relatedItemIDs: [],

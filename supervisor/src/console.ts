@@ -7,7 +7,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import type { Ledger } from "./ledger"
 import { ClientError } from "./client"
-import { clipFragment, truncateAtSentence } from "./text"
+import { truncateAtSentence } from "./text"
 import {
   AttentionQueue,
   DEFAULT_GRACE_MS,
@@ -23,6 +23,7 @@ import type {
   AttentionQueueItem,
   Citation,
   Decision,
+  DecisionSummary,
   ISO8601,
   Message,
   QueueItemID,
@@ -91,6 +92,7 @@ export type EscalationRequest = {
   readonly sessionID: string
   readonly question: string
   readonly rationale: string
+  readonly summary?: DecisionSummary
   readonly citations: readonly Citation[]
   readonly confidence: number
   readonly target: TargetRef
@@ -167,9 +169,15 @@ export function isResume(text: string): boolean {
 }
 
 /** GLANCE FORM headline for small-screen rendering (Addendum A: ≤60 chars). */
-export function glanceHeadline(question: string): string {
-  const single = question.replace(/\s+/g, " ").trim()
+const clampGlance = (text: string): string => {
+  const single = text.replace(/\s+/g, " ").trim()
   return single.length <= 60 ? single : `${single.slice(0, 57)}...`
+}
+export function glanceHeadline(question: string): string
+export function glanceHeadline(item: AttentionQueueItem): string
+export function glanceHeadline(input: string | AttentionQueueItem): string {
+  if (typeof input === "string") return clampGlance(input)
+  return clampGlance(input.summary?.headline ?? input.question)
 }
 
 export type CorrelationContext = {
@@ -235,23 +243,20 @@ export function sessionLabel(item: AttentionQueueItem): string {
 export function formatTicket(alias: string, item: AttentionQueueItem): string {
   const session = sessionLabel(item)
   const project = projectBasename(item.target.root)
-  const citations = item.origin.citations
-    .map((citation) => `${citation.session}/${citation.messageID}: ${clipFragment(citation.quote, 800)}`)
-    .join("; ")
+  const summary = item.summary
   // First line MUST carry the [Supervisor] tag: the ticket is written into the
   // console session as a user message, and pollReplies filters supervisor-authored
   // turns by that prefix. Un-tagged tickets are read back as operator replies and
   // propagated into worker sessions (2026-09-28 self-echo regression).
   return [
     `[Supervisor] ${alias} — ${session} [${project}]`,
-    glanceHeadline(item.question),
+    glanceHeadline(item),
     "",
-    item.question,
+    summary?.ask ?? item.question,
+    ...(summary?.options ?? []).map((option, index) => `${index + 1}) ${option}`),
+    ...(summary?.recommendation === undefined ? [] : [`Rec: ${summary.recommendation}`]),
     "",
     `Why: ${truncateAtSentence(item.rationale, 4000)}`,
-    // The escalation proposal sets rationale = citation evidence (service.ts), so
-  // Why: and Citations: would render byte-identical (2026-10-01 report). Show one.
-  ...(citations === "" || citations === item.rationale ? [] : [`Citations: ${citations}`]),
     "",
     `Reply in this session, e.g. "${alias}: <your answer>".`,
   ].join("\n")
@@ -390,6 +395,7 @@ export class ConsoleChannel {
       escalationKind: "DECISION",
       question: request.question,
       rationale: request.rationale,
+      ...(request.summary === undefined ? {} : { summary: request.summary }),
       priority: { stakes: 4, urgency: 4, confidence: request.confidence, freshness: 1, createdAt: now },
       premises: [
         { id: `p_${randomUUID().replace(/-/g, "").slice(0, 8)}`, kind: "session-idle", sessionID: request.sessionID, observedAt: now },
@@ -448,7 +454,7 @@ export class ConsoleChannel {
       return { kind: "suppressed", reason }
     }
     await this.queue.confirmSurfaced(item.id, lease.lease.presentationID, now)
-    await this.client.toast(`${projectBasename(root)} — ${sessionLabel(item)}: ${glanceHeadline(item.question)}`, `[Supervisor] ${projectBasename(root)}`)
+    await this.client.toast(`${projectBasename(root)} — ${sessionLabel(item)}: ${glanceHeadline(item)}`, `[Supervisor] ${projectBasename(root)}`)
     return { kind: "surfaced", item, presentationID: lease.lease.presentationID, alias }
   }
 

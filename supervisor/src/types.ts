@@ -158,6 +158,7 @@ export type AttentionQueueItem = {
   readonly escalationKind?: EscalationKind
   readonly question: string
   readonly rationale: string
+  readonly summary?: DecisionSummary
   readonly priority: QueuePriorityInputs
   readonly premises: readonly Premise[]
   readonly relatedItemIDs: readonly QueueItemID[]
