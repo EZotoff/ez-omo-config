@@ -1158,6 +1158,30 @@
           },
           "attachment": false
         },
+        "gsq-laptop-nt-test": {
+          "name": "GSQ laptop nt-test",
+          "reasoning": true,
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 81920,
+            "input": 75000,
+            "output": 6900
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false,
+          "options": {
+            "enable_thinking": false
+          }
+        },
         "flash-next-nothink": {
           "name": "Flash-Next 125B no-think",
           "reasoning": false,
