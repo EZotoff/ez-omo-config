@@ -4,6 +4,8 @@
 > `~/Downloads/OC_BEACON_PORTABLE_SUPERVISOR_PROTOTYPE.md`), copied here for versioning.
 > Implementation status and the component/contract split it drove:
 > [portable-supervisor-contract.md](portable-supervisor-contract.md).
+>
+> **Addendum 2026-10-11** (communications genres): this proposal's density doctrine (§1 "short text", §7 terse attention items, §8 semantic visual forms) is now codified at the seam level: the [portable-supervisor-contract Amendment 2026-10-11](portable-supervisor-contract.md) separates the supervisor's decision output into audit / operator / worker genres with a four-depth progressive-disclosure pyramid (glance → card → dive → audit) whose budgets are sized for the AR-glance surface. No roadmap phase changes — Phase 2's visual surfaces and Phase 3's semantic actions consume the pyramid as-is.
 # OC Beacon Portable Supervisor Prototype
 
 ## Purpose

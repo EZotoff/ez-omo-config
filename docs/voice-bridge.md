@@ -13,6 +13,7 @@ The project lives in its own repository at `~/AI_projects/voice-bridge/` (Bun + 
 - **Facts-in-bridge**: an append-only DiscussionLog plus pinned facts that survive compression and are re-injected on every reconnect — the model is never trusted for facts.
 - **Authority model**: every state-changing op goes through `propose_mutation` — human-legible disambiguator, explicit yes / explicit no / timeout auto-cancel, hash-chained ledger entry written **before** execution.
 - **Push policy**: escalation (`TICK_DECIDED` + `action=ESCALATE` + `confidence ≥ 0.7`), stale permissions (>5 min), and errors on sessions in the current discussion. Everything else is pull-only. Escalations are rare in practice, so Vox is pull-mode-first.
+  Escalation payloads carry facts (action, confidence, `ask`, options, target, seq pointer) — not the supervisor's `rationale` ([Amendment 2026-10-11](portable-supervisor-contract.md)).
 - **Grounding**: Vox calls `read_file_snippet` on the actual artifact before agreeing or disagreeing with a supervisor verdict.
 
 Canonical design and the full adversarial review (Oracle proposal → Mephistopheles critique → revision → synthesis, plus two ground-truth audit amendments): [`.sisyphus/debates/voice-agent/final-design.md`](../.sisyphus/debates/voice-agent/final-design.md).
