@@ -13,7 +13,7 @@ import {
   type EscalationRequest,
   type ReplyEvent,
 } from "../src/console"
-import type { AttentionQueueItem, Message, QueueItemID } from "../src/types"
+import type { AttentionQueueItem, DecisionSummary, Message, QueueItemID } from "../src/types"
 
 const NOW = "2026-09-20T12:00:00.000Z"
 
@@ -725,3 +725,80 @@ describe("ticket duplication + streaming watermark (2026-10-01 night fixes)", ()
     await rm(dir, { recursive: true, force: true })
   })
 })
+
+describe("structured ticket + summary storage (plan checkbox 4)", () => {
+  const summary: DecisionSummary = {
+    headline: "Prod deploy gate",
+    ask: "Approve the 14:00 prod deploy?",
+    options: ["Ship it now", "Hold for soak results"],
+    recommendation: "Hold for soak results",
+  }
+
+  function ticketItem(itemSummary?: DecisionSummary): AttentionQueueItem {
+    return {
+      schemaVersion: 1, id: "att_summary1", version: 1, decisionKey: "k", kind: "decision",
+      origin: { tickID: "tick_1", ledgerSeq: 1, decision: { action: "ESCALATE", rationale: "r", citations: [], confidence: 0.9 }, citations: [], informationNeeds: [], contextDigest: "" },
+      target: { root: "/r", sessionID: "ses-a", userMessageID: "u1", sessionTitle: "summary ticket test" },
+      actionClass: "ESCALATE", escalationKind: "DECISION", question: "Should the deploy proceed?",
+      rationale: "needs operator signal before the window closes",
+      priority: { stakes: 3, urgency: 3, confidence: 0.9, freshness: 1, createdAt: "t" },
+      premises: [], relatedItemIDs: [], lifecycle: [], poisonCount: 0,
+      ...(itemSummary === undefined ? {} : { summary: itemSummary }),
+    }
+  }
+
+  test("proposeEscalation stores summary fields on the queue item", async () => {
+    const { channel, dir } = await setup()
+    try {
+      const proposed = await channel.proposeEscalation(escalationRequest({ summary }))
+      if (proposed.kind === "capped") throw new Error("unexpected cap")
+      expect(proposed.item.schemaVersion).toBe(1)
+      expect(proposed.item.summary).toEqual(summary)
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
+
+  test("proposeEscalation without summary leaves the field absent", async () => {
+    const { channel, dir } = await setup()
+    try {
+      const proposed = await channel.proposeEscalation(escalationRequest())
+      if (proposed.kind === "capped") throw new Error("unexpected cap")
+      expect("summary" in proposed.item).toBe(false)
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
+
+  test("formatTicket with summary renders headline, ask, numbered options, Rec — no Citations", async () => {
+    const { formatTicket } = await import("../src/console")
+    const ticket = formatTicket("Q1", ticketItem(summary))
+    expect(ticket.split("\n")[0]).toBe("[Supervisor] Q1 — summary ticket test [r]")
+    expect(ticket).toContain("Prod deploy gate")
+    expect(ticket).toContain("Approve the 14:00 prod deploy?")
+    expect(ticket).toContain("1) Ship it now")
+    expect(ticket).toContain("2) Hold for soak results")
+    expect(ticket).toContain("Rec: Hold for soak results")
+    expect(ticket).toContain("Why: needs operator signal before the window closes")
+    expect(ticket.match(/Citations:/g) ?? []).toHaveLength(0)
+    expect(ticket).toContain('Reply in this session, e.g. "Q1: <your answer>".')
+  })
+
+  test("formatTicket without summary renders the legacy shape", async () => {
+    const { formatTicket } = await import("../src/console")
+    const ticket = formatTicket("Q1", ticketItem())
+    expect(ticket.split("\n")[0]).toBe("[Supervisor] Q1 — summary ticket test [r]")
+    expect(ticket).toContain("Should the deploy proceed?")
+    expect(ticket).toContain("Why: needs operator signal before the window closes")
+    expect(ticket).not.toContain("1) ")
+    expect(ticket).not.toContain("Rec:")
+    expect(ticket.match(/Citations:/g) ?? []).toHaveLength(0)
+    expect(ticket).toContain('Reply in this session, e.g. "Q1: <your answer>".')
+  })
+
+  test("glanceHeadline prefers the item summary headline over the question", async () => {
+    const { glanceHeadline } = await import("../src/console")
+    expect(glanceHeadline(ticketItem(summary))).toBe("Prod deploy gate")
+    expect(glanceHeadline(ticketItem())).toBe("Should the deploy proceed?")
+    // Summary headlines are clamped to the glance budget too
+    const long = ticketItem({ ...summary, headline: "x".repeat(90) })
+    expect(glanceHeadline(long).length).toBeLessThanOrEqual(60)
+  })
+})
+

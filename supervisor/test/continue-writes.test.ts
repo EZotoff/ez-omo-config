@@ -282,6 +282,38 @@ describe("approve writes epoch-2 (2026-10-05: uncapped + tightened POLICY applie
   })
 })
 
+describe("instruction-based write texts (2026-10-11 multi-genre comms, task 3)", () => {
+  const longNoBoundary = "word ".repeat(120).trim() // 600ish chars, no sentence boundary
+  test("steer: instruction preferred and capped at 300, exact prefix", () => {
+    const t = steerWriteText({ instruction: "Re-run the ordering sweep before touching Redis.", rationale: "stale rationale" })
+    expect(t).toBe("[supervisor] (steer) Re-run the ordering sweep before touching Redis.")
+    const long = steerWriteText({ instruction: longNoBoundary, rationale: "stale rationale" })
+    expect(long.startsWith("[supervisor] (steer) ")).toBe(true)
+    expect(long.length).toBeLessThanOrEqual("[supervisor] (steer) ".length + 301)
+    expect(long).not.toContain("stale rationale")
+  })
+  test("steer: rationale fallback capped at 300, not 6000", () => {
+    const t = steerWriteText({ rationale: longNoBoundary })
+    expect(t.startsWith("[supervisor] (steer) ")).toBe(true)
+    expect(t.length).toBeLessThanOrEqual("[supervisor] (steer) ".length + 301)
+    expect(t.length).toBeLessThan("[supervisor] (steer) ".length + 400)
+  })
+  test("reformulate: instruction preferred in Unresolved tail, preamble intact", () => {
+    const t = reformulateWriteText({ instruction: "state the migration outcome.", rationale: "stale rationale" })
+    expect(t.startsWith("[supervisor] (reformulate)")).toBe(true)
+    expect(t).toContain("first principles")
+    expect(t).toContain("Unresolved: state the migration outcome.")
+    expect(t).not.toContain("stale rationale")
+  })
+  test("reformulate: rationale fallback capped at 300", () => {
+    const t = reformulateWriteText({ rationale: longNoBoundary })
+    expect(t.startsWith("[supervisor] (reformulate)")).toBe(true)
+    const tail = t.slice(t.indexOf("Unresolved: ") + "Unresolved: ".length)
+    expect(tail.length).toBeLessThanOrEqual(301)
+    expect(tail.length).toBeLessThan(400)
+  })
+})
+
 test("poller ownership filter excludes sessions owned by another configured root", async () => {
   const { pollRootOnce } = await import("../src/poller")
   const sessions = [
