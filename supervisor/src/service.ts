@@ -9,7 +9,7 @@ import { loadApiKey, loadConfig, loadProviderBaseURL, rootAutonomousOrigin } fro
 import { Ledger } from "./ledger"
 import { changedTurnsSinceWatermark, reconcileRoot, SessionBackoff, type ScanManifest } from "./reconcile"
 import { pollRootOnce, ActivityGate, type WatchState } from "./poller"
-import { clipFragment, truncateAtSentence } from "./text"
+import { truncateAtSentence } from "./text"
 import { awaitingOperatorAnswer, createGuardedPrompt, pendingQuestionPart, pendingQuestionStartedAtMs, pendingQuestionText } from "./awaiting-input"
 import { boundedDrain, STOP_DRAIN_GRACE_MS } from "./stop-drain"
 import { writeStatus, type SupervisorStatus } from "./status"
@@ -161,9 +161,20 @@ export class SessionScheduler {
 
 export const tickDecidedPayload = (decision: Decision, turn: Turn, root: string) => ({
   decision,
+  ...(decision.summary === undefined ? {} : { summary: decision.summary }),
+  ...(decision.instruction === undefined ? {} : { instruction: decision.instruction }),
   root,
   sessionID: turn.sessionID,
   messageID: turn.userMessageID,
+})
+
+/** Escalation proposal question: the structured ask when present, else a sentence-trimmed rationale (legacy summary-less decisions). */
+export const escalationQuestion = (decision: Decision): string => decision.summary?.ask ?? truncateAtSentence(decision.rationale, 140)
+
+/** Write-site argument for steer/reformulate texts: forwards instruction when the decision carries one. */
+export const writeTextArgs = (decision: Decision): Pick<Decision, "instruction" | "rationale"> => ({
+  ...(decision.instruction === undefined ? {} : { instruction: decision.instruction }),
+  rationale: decision.rationale,
 })
 
 /**
@@ -733,14 +744,14 @@ export async function runService(signal: AbortSignal): Promise<void> {
           actionOutcome = "skip"
         }
         if (decision.action === "ESCALATE" && (runtime.mode === "observe" || runtime.mode === "full")) {
-          const evidence = decision.citations.map((c) => `${c.session}/${c.messageID}: ${clipFragment(c.quote, 800)}`).join("; ")
           const proposed = await consoles.proposeEscalation({
             root: runtime.root,
             sessionID,
-            question: decision.rationale,
-            rationale: evidence || "no citations supplied",
+            question: escalationQuestion(decision),
+            rationale: decision.rationale,
             citations: decision.citations,
             confidence: decision.confidence,
+            ...(decision.summary === undefined ? {} : { summary: decision.summary }),
             target: {
               root: runtime.root,
               sessionID,
@@ -908,7 +919,7 @@ rootConfig?.continue_writes?.enabled === true
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `steer write: ${gate.reason}` })
             actionOutcome = "skip"
           } else {
-            const sent = await guardedPrompt(sessionID, runtime.root, steerWriteText(decision))
+            const sent = await guardedPrompt(sessionID, runtime.root, steerWriteText(writeTextArgs(decision)))
             if (!sent.sent) {
               ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `steer write: ${sent.reason}` })
               actionOutcome = "skip"
@@ -936,7 +947,7 @@ rootConfig?.continue_writes?.enabled === true
             ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `reformulate write: ${gate.reason}` })
             actionOutcome = "skip"
           } else {
-            const sent = await guardedPrompt(sessionID, runtime.root, reformulateWriteText({ rationale: decision.rationale }))
+            const sent = await guardedPrompt(sessionID, runtime.root, reformulateWriteText(writeTextArgs(decision)))
             if (!sent.sent) {
               ledger = await ledger.append("TICK_SKIPPED", { root: runtime.root, sessionID, reason: `reformulate write: ${sent.reason}` })
               actionOutcome = "skip"
