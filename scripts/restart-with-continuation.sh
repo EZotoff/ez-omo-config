@@ -990,6 +990,19 @@ set_bypass
 trap clear_bypass EXIT
 systemctl --user restart "$SERVICE_UNIT"
 wait_ready
-resume "$(ls -t "$STATE_DIR"/snapshot-*.json 2>/dev/null | head -1 || echo "$STATE_FILE")"
+# Select the newest snapshot, resume it, then consume it. Do NOT fold the
+# fallback into the command substitution: once the state dir holds enough
+# snapshot files that `ls` output exceeds the pipe buffer, `ls | head -1` loses
+# the SIGPIPE race under `set -o pipefail` (exit 141) and an echoed fallback
+# would append a SECOND line — resume()'s python then open()s "X\nX", raises
+# FileNotFoundError and `set -e` aborts the whole invocation without resuming
+# anything (2026-10-11; the dir had grown to 91 files because this path never
+# consumed its snapshots). `|| true` keeps head's captured line, zeroing only
+# the exit status; ${snap:-$STATE_FILE} restores the designed zero-file default.
+snap="$(ls -t "$STATE_DIR"/snapshot-*.json 2>/dev/null | head -1 || true)"
+resume "${snap:-$STATE_FILE}"
+if [[ -n "$snap" && -e "$snap" ]]; then
+  mv "$snap" "$STATE_DIR/consumed-$(basename "$snap")" 2>/dev/null || true
+fi
 clear_bypass
 trap - EXIT
