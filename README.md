@@ -150,7 +150,7 @@ Pruned to the models used by OMO role assignments plus select extras via per-pro
 | **openai** (Codex OAuth) | GPT 6.1 Sol / 5.6 Terra / 6 Luna | OAuth: `opencode auth login openai`; whitelisted |
 | **opencode-go** | MiniMax M3, DeepSeek V4 Flash, V4 Flash Vision Exp, V4.1 Flash, Qwen 3.8 Flash, Qwen 3.8 Max | whitelisted to OMO fallback-chain models; Qwen 3.8 Flash added for benchmark evaluation; Qwen 3.8 Max added 2026-09-23 (1M ctx, $15/mo plan limit) |
 | **kimi-for-coding-oauth** | K2.7 Code (256k), K3 (1M) | device-flow OAuth; details in [docs/configs.md](docs/configs.md) |
-| **zai-coding-plan** | GLM 5.3, GLM 5.3 Flash | Coding Plan API; whitelisted |
+| **zai-coding-plan** | GLM 5.3, GLM 5.3 Flash | Coding Plan API; whitelisted; Flash declares video input — powers `look_at` video/motion analysis (multimodal-looker) |
 | **inception** | Mercury 2.5 (260k ctx) | replaces Mercury 2 (Sep 2026); also OMO Aspect Dynamics scoring/polishing model |
 | **ollama-cloud** | DeepSeek V4.1 Flash, MiniMax M3 | ollama.com OpenAI-compatible API; whitelisted (catalog has 24 models) |
 | **mimo** | MiMo v2.6 Pro, MiMo v2.6 Flash | Xiaomi MiMo Token Plan (Europe endpoint); 1M ctx, no OMO assignments yet |
