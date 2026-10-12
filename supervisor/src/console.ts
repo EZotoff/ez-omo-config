@@ -72,6 +72,14 @@ export type ReplyEvent = {
 
 export type OperatorDisposition = "SKIP" | "HOLD" | "DND"
 
+export type PendingAnswerEntry = {
+  readonly text: string
+  /** Original reply identity; legacy string entries fall back to recovered_<itemID>. */
+  readonly replyEventID?: string
+  /** Originating channel (console/beacon); legacy string entries fall back to console. */
+  readonly channelID?: string
+}
+
 export type ConsoleState = {
   readonly consoles: Readonly<Record<string, string>>
   readonly counters: Readonly<Record<string, number>>
@@ -79,10 +87,11 @@ export type ConsoleState = {
   readonly watermarks: Readonly<Record<string, string>>
   readonly held?: { readonly root: string; readonly itemID: QueueItemID }
   readonly dnd?: boolean
-  /** Answered-but-undelivered operator replies (itemID -> normalized text).
+  /** Answered-but-undelivered operator replies (itemID -> answer + origin).
    *  Survives restarts so a crash between markAnswered and propagation never
-   *  loses the reply, and stuck pending propagations can be retried. */
-  readonly pendingAnswers?: Readonly<Record<string, string>>
+   *  loses the reply, and stuck pending propagations can be retried. Legacy
+   *  entries are bare strings (pre-origin-preservation format). */
+  readonly pendingAnswers?: Readonly<Record<string, string | PendingAnswerEntry>>
 }
 
 const EMPTY: ConsoleState = { consoles: {}, counters: {}, aliases: {}, watermarks: {}, pendingAnswers: {} }
@@ -536,6 +545,19 @@ export class ConsoleChannel {
     return resolved
   }
 
+  /** Legacy outbox entries are bare strings; newer ones carry the reply origin. */
+  private storedText(entry: string | PendingAnswerEntry): string {
+    return typeof entry === "string" ? entry : entry.text
+  }
+
+  private storedReplyEventID(itemID: QueueItemID, entry: string | PendingAnswerEntry): string {
+    return typeof entry === "string" ? `recovered_${itemID}` : entry.replyEventID ?? `recovered_${itemID}`
+  }
+
+  private storedChannelID(entry: string | PendingAnswerEntry): string {
+    return typeof entry === "string" ? CHANNEL_ID : entry.channelID ?? CHANNEL_ID
+  }
+
   /** Retry stuck pending propagations: answered items whose stored reply was
    *  never delivered (revalidation deferred the delivery, or the service died
    *  mid-route — 5 ledger items sat PROPOSED/pending forever before this).
@@ -543,7 +565,8 @@ export class ConsoleChannel {
   async retryPendingPropagations(root: string, now: ISO8601): Promise<number> {
     if (this.deliverPropagation === undefined) return 0
     let retried = 0
-    for (const [itemID, answer] of Object.entries(this.state.pendingAnswers ?? {}) as [QueueItemID, string][]) {
+    for (const [itemID, entry] of Object.entries(this.state.pendingAnswers ?? {}) as [QueueItemID, string | PendingAnswerEntry][]) {
+      const answer = this.storedText(entry)
       const item = this.queue.items.find((entry) => entry.id === itemID)
       if (item === undefined || itemState(item) === "resolved") {
         const { [itemID]: _gone, ...remaining } = this.state.pendingAnswers ?? {}
@@ -556,7 +579,7 @@ export class ConsoleChannel {
       // Single-flight: skip when handleReply or another retry pass already owns the item.
       if (!this.claim(itemID)) continue
       try {
-        if (itemState(item) !== "answered") await this.queue.markAnswered(itemID, `recovered_${itemID}`, CHANNEL_ID, now)
+        if (itemState(item) !== "answered") await this.queue.markAnswered(itemID, this.storedReplyEventID(itemID, entry), this.storedChannelID(entry), now)
         const sources = await this.probe(item)
         const outcome = revalidate(item, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
         if (outcome.kind === "re-decide") {
@@ -623,7 +646,7 @@ export class ConsoleChannel {
             this.setLedger(await this.ledger().append("QUEUE_PROPAGATION_PROPOSED", {
               itemID: item.id,
               target: item.target,
-              answer: stored.slice(0, 200),
+              answer: this.storedText(stored).slice(0, 200),
               mode: "pending",
               reason: "reason" in outcome ? outcome.reason : "still relevant",
             }))
@@ -682,7 +705,7 @@ export class ConsoleChannel {
    *  the caller's single-flight claim; never acquires or releases it itself. */
   private async routeAnswered(itemID: QueueItemID, reply: ReplyEvent, now: ISO8601, channelID: string): Promise<RouteOutcome> {
     // Persist text before the queue transition so either crash window is recoverable.
-    this.state = { ...this.state, pendingAnswers: { ...this.state.pendingAnswers, [itemID]: reply.normalizedText } }
+    this.state = { ...this.state, pendingAnswers: { ...this.state.pendingAnswers, [itemID]: { text: reply.normalizedText, replyEventID: reply.id, channelID } } }
     await this.persist()
     const answered = await this.queue.markAnswered(itemID, reply.id, channelID, now)
     const lease = this.queue.lease

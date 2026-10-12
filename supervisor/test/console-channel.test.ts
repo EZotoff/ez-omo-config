@@ -170,7 +170,7 @@ test("re-decide keeps an operator answer durable and requests a fresh tick", asy
     expect(itemState(queue.items[0] ?? proposed.item)).not.toBe("resolved")
     expect(reticks).toEqual(["ses-a"])
     const persisted: unknown = JSON.parse(await readFile(join(dir, "consoles.json"), "utf8"))
-    expect(persisted).toMatchObject({ pendingAnswers: { [proposed.item.id]: "keep-me" } })
+    expect(persisted).toMatchObject({ pendingAnswers: { [proposed.item.id]: { text: "keep-me", replyEventID: "reply_changed", channelID: "console" } } })
   } finally { await rm(dir, { recursive: true, force: true }) }
 })
 
