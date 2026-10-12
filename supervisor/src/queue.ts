@@ -605,8 +605,6 @@ export class AttentionQueue {
     // a retry re-submitting the SAME accepted replyEventID must not re-record it
     // (2026-10-12 beacon-reply-integrity: 5,985 receipts for one recovered item).
     if (itemState(item) === "answered" || item.lifecycle.some((event) => event.state === "answered" && event.replyEventID === replyEventID)) return item
-    // version bump, no persist (panel directive D1.2).
-    if (itemState(item) === "answered") return item
     const next = this.commit(item, { state: "answered", at: now, replyEventID, channelID }, item.poisonCount)
     await this.append("QUEUE_REPLY_RECEIVED", { itemID, itemVersion: next.version, replyEventID, channelID })
     await this.persist()
