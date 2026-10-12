@@ -600,6 +600,11 @@ export class AttentionQueue {
     const item = this.find(itemID)
     if (item === undefined) throw new Error(`unknown queue item ${itemID}`)
     // Idempotency guard: an already-answered item is a no-op — no lifecycle row, no
+    // version bump, no persist (panel directive D1.2). The check is durable, not
+    // latest-state-only: a re-decide revalidation moves the state off answered, and
+    // a retry re-submitting the SAME accepted replyEventID must not re-record it
+    // (2026-10-12 beacon-reply-integrity: 5,985 receipts for one recovered item).
+    if (itemState(item) === "answered" || item.lifecycle.some((event) => event.state === "answered" && event.replyEventID === replyEventID)) return item
     // version bump, no persist (panel directive D1.2).
     if (itemState(item) === "answered") return item
     const next = this.commit(item, { state: "answered", at: now, replyEventID, channelID }, item.poisonCount)

@@ -323,4 +323,24 @@ describe("AttentionQueue idempotency guards", () => {
     expect(events.filter((type) => type === "QUEUE_REPLY_RECEIVED")).toHaveLength(1)
     await rm(dir, { recursive: true, force: true })
   })
+
+  test("markAnswered with an already-accepted replyEventID is a no-op after revalidation flipped the state", async () => {
+    const { queue, dir, events } = await openQueue()
+    const created = await proposeItem(queue, proposal())
+    await queue.markAnswered(created.item.id, "reply_recovered", "console", NOW)
+    // Incident shape: a re-decide revalidation moves latest state off answered,
+    // so the retry path re-calls markAnswered with the same reply identity.
+    await queue.revalidate(created.item.id, makeSources({ latestMessageID: () => "msg-new" }), CONFIG)
+    expect(itemState(queue.items.find((item) => item.id === created.item.id) ?? created.item)).toBe("revalidated")
+    // When: the same accepted reply is re-submitted
+    const again = await queue.markAnswered(created.item.id, "reply_recovered", "console", NOW)
+    // Then: durable dedup — no new answered row, no new receipt
+    expect(itemState(again)).toBe("revalidated")
+    expect(events.filter((type) => type === "QUEUE_REPLY_RECEIVED")).toHaveLength(1)
+    // A genuinely different reply is a new answer and still records
+    const fresh = await queue.markAnswered(created.item.id, "reply_new", "console", NOW)
+    expect(itemState(fresh)).toBe("answered")
+    expect(events.filter((type) => type === "QUEUE_REPLY_RECEIVED")).toHaveLength(2)
+    await rm(dir, { recursive: true, force: true })
+  })
 })
