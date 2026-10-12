@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises"
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
@@ -291,4 +291,34 @@ test("isProbeTarget: probe titles and scratch roots gate kick-starts; normal ses
   expect(isProbeTarget({ root: "/home/ezotoff/ez-omo-bench", sessionTitle: "Reply FINAL_OK confirmation" })).toBe(true)
   expect(isProbeTarget({ root: `${await import("node:os").then((m) => m.tmpdir())}/probe.XYZ`, })).toBe(true)
   expect(isProbeTarget({ root: "/home/ezotoff/ez-omo-bench", sessionTitle: "Storage discipline implementation" })).toBe(false)
+})
+
+test("generation floor: persists across restarts; first boot jumps to epoch-minute scale", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "operator-view-genfloor-"))
+  try {
+    const viewPath = join(dir, "operator-view.json")
+    const floorPath = join(dir, "operator-view-generation.json")
+    const items = [fixtureItem({ id: nextID() })]
+    // Boot 1 (fresh state): generation must start FAR above any legacy process-lifetime
+    // counter so post-restart readers holding a large previous generation un-freeze immediately
+    // (2026-10-12: supervisor restart froze OC Beacon via GENERATION_REGRESSION for hours).
+    const first = new OperatorViewPublisher({ path: viewPath, items: () => items, ledgerSeq: () => 7, nowMs: () => T0, generationFloorPath: floorPath })
+    const v1 = await first.publish()
+    expect(v1.generation).toBeGreaterThan(1_000_000)
+    const persisted1 = JSON.parse(await readFile(floorPath, "utf8")) as { generation: number }
+    expect(persisted1.generation).toBe(v1.generation)
+    // Boot 2 (restart): continues from the persisted floor — never regresses.
+    const second = new OperatorViewPublisher({ path: viewPath, items: () => items, ledgerSeq: () => 8, nowMs: () => T0, generationFloorPath: floorPath })
+    const v2 = await second.publish()
+    expect(v2.generation).toBe(v1.generation + 1)
+    // Corrupt floor file: the persisted value is unrecoverable, so generation falls back
+    // to the epoch-minute seed. Bounded regression vs v2 (only increments published within
+    // the current minute) self-heals in seconds; never regresses vs the epoch scale.
+    await writeFile(floorPath, "not json at all")
+    const third = new OperatorViewPublisher({ path: viewPath, items: () => items, ledgerSeq: () => 9, nowMs: () => T0, generationFloorPath: floorPath })
+    const v3 = await third.publish()
+    expect(v3.generation).toBeGreaterThanOrEqual(Math.floor(Date.now() / 60_000))
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
 })

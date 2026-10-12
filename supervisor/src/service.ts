@@ -349,6 +349,7 @@ export async function runService(signal: AbortSignal): Promise<void> {
   // after ledger append + queue derivation, plus a ≤15 s idle heartbeat.
   const operatorView = new OperatorViewPublisher({
     path: join(stateDirectory, "operator-view.json"),
+    generationFloorPath: join(stateDirectory, "operator-view-generation.json"),
     items: () => queue.items,
     ledgerSeq: () => ledger.records.at(-1)?.seq ?? 0,
     onHeartbeatError: (error) => {

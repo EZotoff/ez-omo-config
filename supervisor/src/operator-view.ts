@@ -2,7 +2,7 @@
 // amendment per docs/portable-supervisor-contract.md). The Supervisor stays
 // read-only on the ledger: this module only ever WRITES operator-view.json.
 import { randomUUID } from "node:crypto"
-import { mkdir, open, rename } from "node:fs/promises"
+import { mkdir, open, readFile, rename } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname } from "node:path"
 import { bandOf, itemState } from "./queue"
@@ -191,6 +191,19 @@ async function atomicWrite(path: string, content: string): Promise<void> {
   await rename(temporary, path)
 }
 
+
+/** Persisted generation floor: `{"generation": N}`. Absent/corrupt → 0 (the caller's
+ *  epoch-minute seed still guarantees a monotonic jump above any legacy counter). */
+async function readGenerationFloor(path: string): Promise<number> {
+  try {
+    const parsed: unknown = JSON.parse(await readFile(path, "utf8"))
+    const value = (parsed as { generation?: unknown }).generation
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0
+  } catch {
+    return 0
+  }
+}
+
 export type OperatorViewPublisherOptions = {
   readonly path: string
   readonly items: () => readonly AttentionQueueItem[]
@@ -199,11 +212,14 @@ export type OperatorViewPublisherOptions = {
   readonly isProbe?: (item: AttentionQueueItem) => boolean
   /** Heartbeat failures land here instead of becoming unhandled rejections. */
   readonly onHeartbeatError?: (error: unknown) => void
+  /** Persisted generation floor (restart monotonicity, 2026-10-12): when set, generation resumes above the last published value instead of resetting to 0 — a reset regresses readers (OC Beacon GENERATION_REGRESSION freeze). First boot seeds from epoch minutes, far above any legacy process-lifetime counter. */
+  readonly generationFloorPath?: string
 }
 
 export class OperatorViewPublisher {
   private generation = 0
   private lastSeq = 0
+  private generationFloorLoaded = false
   private heartbeat?: ReturnType<typeof setInterval> | undefined
   private readonly nowMs: () => number
 
@@ -212,6 +228,11 @@ export class OperatorViewPublisher {
   }
 
   async publish(): Promise<OperatorView> {
+    if (this.options.generationFloorPath !== undefined && !this.generationFloorLoaded) {
+      const persisted = await readGenerationFloor(this.options.generationFloorPath)
+      this.generation = Math.max(persisted, Math.floor(Date.now() / 60_000))
+      this.generationFloorLoaded = true
+    }
     this.generation += 1
     const built = buildOperatorView({
       items: this.options.items(),
@@ -223,6 +244,9 @@ export class OperatorViewPublisher {
     })
     this.lastSeq = built.lastSeq
     await atomicWrite(this.options.path, `${JSON.stringify(built.view, null, 2)}\n`)
+    if (this.options.generationFloorPath !== undefined) {
+      await atomicWrite(this.options.generationFloorPath, `${JSON.stringify({ generation: this.generation })}\n`)
+    }
     return built.view
   }
 
