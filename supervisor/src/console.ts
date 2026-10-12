@@ -585,6 +585,13 @@ export class ConsoleChannel {
         if (outcome.kind === "re-decide") {
           const result = await this.queue.revalidate(itemID, sources, { now, graceMs: DEFAULT_GRACE_MS, ttlMs: DEFAULT_TTL_MS })
           this.onRedecide?.(result.item)
+          // A recovered answer whose premise has changed is stale: drop it so this
+          // retry loop terminates (2026-10-12 beacon-reply-integrity: re-record/
+          // revalidate cycles looped forever on an unchanged no-newer-turn
+          // failure). The re-decide itself re-escalates for a fresh decision.
+          const { [itemID]: _stale, ...remaining } = this.state.pendingAnswers ?? {}
+          this.state = { ...this.state, pendingAnswers: remaining }
+          await this.persist()
           retried += 1
           continue
         }

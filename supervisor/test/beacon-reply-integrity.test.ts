@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { Ledger } from "../src/ledger"
 import { AttentionQueue, itemState, type RevalidationSources } from "../src/queue"
 import { ConsoleChannel, type ConsoleClient, type EscalationRequest } from "../src/console"
-import type { AttentionQueueItem, Message } from "../src/types"
+import type { AttentionQueueItem, Message, QueueItemID } from "../src/types"
 
 const NOW = "2026-10-12T12:00:00.000Z"
 
@@ -88,7 +88,7 @@ async function harness(
   return { dir, queue, client, channel, ledgerRef }
 }
 
-async function proposedItem(h: Harness): Promise<string> {
+async function proposedItem(h: Harness): Promise<QueueItemID> {
   const result = await h.channel.proposeEscalation(escalationRequest())
   if (result.kind === "capped") throw new Error("unexpected cap")
   return result.item.id
@@ -143,6 +143,43 @@ describe("recovered-reply integrity (beacon-reply-integrity)", () => {
       await retrying.retryPendingPropagations("/root", NOW)
       expect(receipts(h.ledgerRef)).toHaveLength(1)
       expect(receipts(h.ledgerRef)[0]?.payload).toMatchObject({ itemID, replyEventID: `recovered_${itemID}`, channelID: "console" })
+    } finally { await rm(h.dir, { recursive: true, force: true }) }
+  })
+
+  test("re-decide on a recovered answer drops the stale entry and re-escalates once, not forever", async () => {
+    // Given: an already-accepted answer whose premise has changed (incident
+    // shape: markAnswered recorded once, a re-decide revalidation moved the
+    // state off answered, and every retry cycle re-entered the same branch).
+    const reticks: string[] = []
+    const h = await harness(redecideProbe)
+    try {
+      const itemID = await proposedItem(h)
+      await h.queue.markAnswered(itemID, "reply_beacon_1", "beacon", NOW)
+      await h.queue.revalidate(itemID, await redecideProbe(), { now: NOW, graceMs: 60_000, ttlMs: 86_400_000 })
+      await writeFile(join(h.dir, "consoles.json"), JSON.stringify({
+        pendingAnswers: { [itemID]: { text: "prepare the packager", replyEventID: "reply_beacon_1", channelID: "beacon" } },
+      }))
+      const deliveries: string[] = []
+      const retrying = new ConsoleChannel({
+        client: h.client, queue: h.queue, statePath: join(h.dir, "consoles.json"),
+        ledger: () => h.ledgerRef.current, setLedger: (next) => { h.ledgerRef.current = next },
+        probe: redecideProbe,
+        onRedecide: (item) => { reticks.push(item.target.sessionID) },
+        deliverPropagation: async ({ answer }) => { deliveries.push(answer); return false },
+      })
+      await retrying.load()
+      // When: two retry cycles run against the unchanged stale premise
+      const first = await retrying.retryPendingPropagations("/root", NOW)
+      const second = await retrying.retryPendingPropagations("/root", NOW)
+      // Then: the stale answer is dropped, the re-decide surfaces exactly once,
+      // and later cycles no longer touch this item.
+      expect(first).toBe(1)
+      expect(second).toBe(0)
+      expect(reticks).toEqual(["ses-a"])
+      expect(deliveries).toEqual([])
+      expect(receipts(h.ledgerRef)).toHaveLength(1)
+      const persisted = JSON.parse(await readFile(join(h.dir, "consoles.json"), "utf8")) as { pendingAnswers?: Record<string, unknown> }
+      expect(persisted.pendingAnswers ?? {}).not.toHaveProperty(itemID)
     } finally { await rm(h.dir, { recursive: true, force: true }) }
   })
 })
