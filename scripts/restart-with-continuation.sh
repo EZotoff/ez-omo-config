@@ -308,6 +308,7 @@ for sid in busy_ids:
                 "title": s.get("title"),
                 "directory": s.get("directory"),
                 "status": status[sid].get("type"),
+                "time_updated": s.get("time", {}).get("updated"),
                 "parentID": True,
                 "parentSessionID": s.get("parentID"),
             })
@@ -508,7 +509,9 @@ for sid in sorted(busy_ids):
         continue
     if s.get("parentID"):
         children.append({"id": sid, "title": s.get("title"), "directory": s.get("directory"),
-                         "status": merged[sid].get("type"), "parentID": True,
+                         "status": merged[sid].get("type"),
+                         "time_updated": s.get("time", {}).get("updated"),
+                         "parentID": True,
                          "parentSessionID": s.get("parentID")})
         continue
     out.append({"id": sid, "title": s.get("title"), "directory": s.get("directory")})
@@ -582,7 +585,7 @@ rows = con.execute(
     "where time_archived is null and time_updated >= ?", (cutoff,)).fetchall()
 out = []
 children = []
-for sid, directory, title, _tu, pid in rows:
+for sid, directory, title, tu, pid in rows:
     if table == "message":
         row = con.execute(
             "select json_extract(data,'$.time.completed') from message "
@@ -597,7 +600,8 @@ for sid, directory, title, _tu, pid in rows:
         continue  # no assistant turn, or the latest one completed
     if pid:
         children.append({"id": sid, "title": title, "directory": directory,
-                         "status": None, "parentID": True, "parentSessionID": pid})
+                         "status": None, "time_updated": tu,
+                         "parentID": True, "parentSessionID": pid})
         continue
     out.append({"id": sid, "title": title, "directory": directory})
 print(json.dumps({"created": int(time.time()), "sessions": out, "children": children}))
