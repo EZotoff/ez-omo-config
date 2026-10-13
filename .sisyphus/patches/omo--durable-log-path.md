@@ -157,3 +157,26 @@ Hand-reapplied to dist sha256=6990a043209c990dd3c0558712915fce084f54154ff699287b
 ## Re-reapplied (2026-10-09, integrity-alarm remediation session)
 
 The 2026-10-07 out-of-flow rebuild (idle-deferral ceiling, ses_ef45bab follow-up) rebuilt dist/index.js from fix/custom-patches-v4.19.2 without reapplying dist patches and wrote a misnamed receipt (builds/omo-dist-50912c476c.json) — this left the patch absent from the live dist for ~2 days (caught by the permanently-red integrity alarms, 2026-10-09). Restored via the documented path: fork branch fix/custom-patches-v4.19.2 merged with feature/wake-journal-outbox (merge 6b2d2fe6, pushed), rebuilt with scripts/build-and-install-omo.sh, all four dist patches reapplied per their entries, receipt builds/omo-064064c637f38a1a6704a7a9ea49d5fb14bad6a892e70a40e4b573503d17318b.json (generation omo-4.19.2-patches.1, bootstrapped:false, source_head 6b2d2fe6 on fork remote).
+
+## Re-reapplied (2026-10-12, wake-stall investigation session)
+
+THIRD loss to an out-of-flow rebuild: the 2026-10-10 15:48 UTC dist rebuild (merge b6b94302c +
+rebuild by a concurrent maintenance flow, NO build receipt) again dropped the patch — durable
+log went quiet for new processes 2026-10-10T21:19Z; diagnosed 2026-10-11
+(evidence: omo-logging-regression-2026-10-11.md — logs were going to /tmp/oh-my-opencode.log,
+resolver reverted to upstream tmpdir at dist line 5220). Reapplied 2026-10-12 ~23:40 UTC per
+Reapply Instructions (bindings os2/path2 unchanged; backup dist/index.js.pre-durable-log.*,
+marker OMO_LOG_DIR verified 1x post-patch, receipt
+builds/omo-dist-c3f54b2860516228-durable-log.json). Activation: 2026-10-13 morning recycles
+(3021 pid 3240453 booted 05:39:40Z, 3030 pid 3514753 booted 05:40:20Z).
+
+**Runtime re-verification 2026-10-13T05:45Z: PASS, both servers.** Durable log receiving
+fresh multi-subsystem entries ([background-agent] 78, [tmux-session-manager] 190,
+[config-handler] 143 in the 05:40-05:45Z window); /tmp/oh-my-opencode.log quiescent since
+2026-10-12T17:40Z (last pre-patch process). Verdict: runtime_effective: true — re-confirmed.
+
+**Systemic note (third identical loss):** every out-of-flow `bun run build` into dist/
+silently discards dist-level patches. The documented safe path is
+scripts/build-and-install-omo.sh (reapplies dist patches + receipt). Until rebuilds go
+through that script or the durable alternative is upstreamed, expect this patch to drop on
+every manual rebuild — check verify-live-patches.sh after ANY dist rebuild.
