@@ -204,3 +204,10 @@ The same applies to any estimate offered where a measurement was required, and t
 any comparison table mixing conditions (spec-decoding on/off, decode vs e2e) —
 label conditions or don't pool. Recording a substitution as a "deviation" and
 continuing is the exact failure this rule prohibits.
+
+<!-- GEMINI-SKILLS-ROUTING -->
+## Gemini API/model work (any project)
+- ANY task touching Gemini models/API/SDK (`@google/genai`, Vertex, Live API, TTS, image/video gen): load the matching `gemini-api-dev` / `gemini-live-api-dev` / `gemini-omni-flash-api` skill FIRST, before advising or editing.
+- Before trusting model IDs: read `~/.config/opencode/gemini-skills/FRESHNESS.md`. If the last successful remote check is >14 days old, treat skill model info as SUSPECT — verify current model IDs against live official docs (ai.google.dev) before recommending.
+- Prefer task-time official-doc retrieval for time-sensitive specifics (pricing, quotas, deprecations); the skill is the baseline, not the source of truth.
+- If FRESHNESS.md looks stale, check `~/.config/opencode/gemini-skills/update-failures.log`; after an update failure the last-known-good skill content stays usable-with-suspicion.
