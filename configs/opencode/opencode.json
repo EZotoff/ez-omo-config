@@ -954,72 +954,6 @@
         "headerTimeout": 600000
       },
       "models": {
-        "bonsai": {
-          "name": "Bonsai 27B",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 262144,
-            "output": 16384
-          },
-          "attachment": false
-        },
-        "qwen3.8-27b": {
-          "name": "Qwen3.8 27B",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 131072,
-            "output": 16384
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false
-        },
-        "scout": {
-          "name": "MiniCPM3 4B",
-          "reasoning": false,
-          "limit": {
-            "context": 6144,
-            "output": 4096
-          },
-          "attachment": false
-        },
-        "bonsai-unipc": {
-          "name": "Bonsai 27B uni-pc",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 393216,
-            "output": 16384
-          },
-          "attachment": false
-        },
-        "bonsai-fast": {
-          "name": "Bonsai 27B fast",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 65536,
-            "input": 60000,
-            "output": 5536
-          },
-          "attachment": false
-        },
         "gsq-smart": {
           "name": "GSQ 27B",
           "reasoning": true,
@@ -1029,27 +963,6 @@
           "limit": {
             "context": 151072,
             "input": 140000,
-            "output": 11072
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false
-        },
-        "swift-fast": {
-          "name": "Swift 1.5 27B",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 131072,
-            "input": 120000,
             "output": 11072
           },
           "modalities": {
@@ -1083,48 +996,12 @@
           },
           "attachment": false
         },
-        "swift-fast-nothink": {
-          "name": "Swift 1.5 27B no-think",
-          "reasoning": false,
-          "limit": {
-            "context": 131072,
-            "input": 120000,
-            "output": 11072
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false
-        },
         "gsq-smart-nothink": {
           "name": "GSQ 27B no-think",
           "reasoning": false,
           "limit": {
             "context": 151072,
             "input": 140000,
-            "output": 11072
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false
-        },
-        "gsq-smart-nothink-samp": {
-          "name": "GSQ 27B no-think samp",
-          "reasoning": false,
-          "limit": {
-            "context": 131072,
-            "input": 120000,
             "output": 11072
           },
           "modalities": {
@@ -1158,30 +1035,6 @@
           },
           "attachment": false
         },
-        "gsq-laptop-nt-test": {
-          "name": "GSQ laptop nt-test",
-          "reasoning": true,
-          "interleaved": {
-            "field": "reasoning_content"
-          },
-          "limit": {
-            "context": 81920,
-            "input": 75000,
-            "output": 6900
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false,
-          "options": {
-            "enable_thinking": false
-          }
-        },
         "flash-next-nothink": {
           "name": "Flash-Next 125B no-think",
           "reasoning": false,
@@ -1197,16 +1050,6 @@
             "output": [
               "text"
             ]
-          },
-          "attachment": false
-        },
-        "bonsai-fast-nothink": {
-          "name": "Bonsai 27B fast no-think",
-          "reasoning": false,
-          "limit": {
-            "context": 65536,
-            "input": 60000,
-            "output": 5536
           },
           "attachment": false
         }
