@@ -973,7 +973,8 @@
               "text"
             ]
           },
-          "attachment": false
+          "attachment": false,
+          "reasoning_effort": ["low", "high"]
         },
         "flash-next": {
           "name": "Flash-Next 125B",
@@ -994,25 +995,8 @@
               "text"
             ]
           },
-          "attachment": false
-        },
-        "gsq-smart-nothink": {
-          "name": "GSQ 27B no-think",
-          "reasoning": false,
-          "limit": {
-            "context": 151072,
-            "input": 140000,
-            "output": 11072
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false
+          "attachment": false,
+          "reasoning_effort": ["low", "high"]
         },
         "gsq-smart-laptop": {
           "name": "GSQ 27B laptop",
@@ -1033,25 +1017,8 @@
               "text"
             ]
           },
-          "attachment": false
-        },
-        "flash-next-nothink": {
-          "name": "Flash-Next 125B no-think",
-          "reasoning": false,
-          "limit": {
-            "context": 251072,
-            "input": 240000,
-            "output": 11072
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false
+          "attachment": false,
+          "reasoning_effort": ["low", "high"]
         }
       }
     }
