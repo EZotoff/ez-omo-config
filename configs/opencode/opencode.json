@@ -949,7 +949,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "http://100.86.113.119:18213/v1",
-        "apiKey": "sk-bonsai-lb-phase0-2026",
+        "apiKey": "{env:LITELLM_ROUTER_KEY}",
         "chunkTimeout": 600000,
         "headerTimeout": 600000
       },
