@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-13 (fix); incident 2026-10-12 06:23 UTC
 **Plan**: [`.omo/plans/restart-continuation-subagent-coverage.md`](../../.omo/plans/restart-continuation-subagent-coverage.md) (main repo checkout)
-**Evidence ceiling**: `repo_implemented` + `tests_passed` — live verification (a real service restart with a live background child) is operator-gated and pending.
+**Evidence ceiling**: `repo_implemented` + `tests_passed` + `real_project_behavior_proven` (restart with a live background child — see Live verification below).
 
 ## What happened
 
@@ -26,4 +26,12 @@ At 2026-10-12 06:23 UTC, `opencode-interactive.service` was restarted. The resta
 
 - `tests/test_continuation_hooks.sh`: 14 passed | 0 failed. `tests/run_regressions.sh`: 43 passed | 0 failed (51 kill-tests proved).
 - Functional probes under a stub server (sandbox HOME + synthetic session DB) proved: child POSTed with the child prompt; stale child skipped; second pass deduped; wake parent received `WAKE_PROMPT` with no extra snapshot file minted.
-- **Not verified live**: a real service restart with a live background child (real_project_behavior_proven pending, operator-gated). The script changes are repo-side only; no systemd unit or live config changed in this plan.
+## Live verification (2026-10-13 10:37:53 UTC) — real_project_behavior_proven
+
+- Real `systemctl --user restart opencode.service` (:3021) executed with a live background child in `/home/ezotoff/scratch/continuation-live-test`. The systemd drop-ins invoke `%h/ez-omo-config/scripts/restart-with-continuation.sh` directly, so the merged script was live for this restart.
+- **V1 (capture) — PASS.** `consumed-snapshot-opencode.service-20261013-103753.json` contains `sessions[]` = 1 busy parent (`ses_ecb979ee4ffeWgYMfvlADlv4xY`) and `children[]` = 1 busy child (`ses_ecb976858ffe6yzzk8qcnY9Oc4`, `parentID: true`, `parentSessionID` = the parent) — the exact incident shape, captured.
+- **V2 (child resume) — PASS.** `hooks.log`: `resumed-child ses_ecb976858ffe6yzzk8qcnY9Oc4 (Child sleep then token (@general subagent))`; summary `resumed=4 failed=0 budget_skipped=0 dup_skipped=0 stale_skipped=0`. The child transcript shows the CHILD_PROMPT injected at 10:38:09 and a new assistant turn started after it; dedup marker `.resumed-win-ses_ecb976858ffe6yzzk8qcnY9Oc4` written.
+- **V3 (adjacent surface) — PASS.** The top-level parent was resumed with the standard DEFAULT_PROMPT (no child note); top-level semantics unchanged.
+- **V4 (hook-path wake union) — PASS.** `hooks.log`: `union: 2 wake-pending session(s) added` on the hook-resume path.
+- Claim ceiling upgraded: `repo_implemented` + `tests_passed` + `real_project_behavior_proven` (for the restart-with-live-child scenario).
+- Evidence artifacts: `.omo/evidence/restart-continuation-subagent-coverage/` (consumed snapshot, child transcript, hooks-log excerpt).
