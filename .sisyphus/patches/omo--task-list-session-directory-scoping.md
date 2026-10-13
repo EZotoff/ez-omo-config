@@ -7,7 +7,7 @@ status: "active"
 applied_date: "2026-10-10"
 dep_version: "4.19.2"
 upstream_issue: "none"
-verification_pattern: "getTaskDir(config, context.directory)"
+verification_pattern: "getTaskDir\(config, (context\.)?directory\)"
 runtime_effective: false
 surfaces: "server-api (task_* tool execution inside opencode serve)"
 note: "Source patch, fork commit 2a2fd5fcd, merge b6b94302c on branch fix/custom-patches-v4.19.2 (pushed to EZotoff/oh-my-openagent 2026-10-10 before status active). runtime_effective pending: both serve surfaces must restart to load the rebuilt dist and a live serve-hosted task_create must land in the session's project list, not the HOME list."
@@ -46,3 +46,7 @@ git -C /home/ezotoff/oh-my-openagent-v4.19.2 branch -r --contains 2a2fd5fcd   # 
 2. From a real project directory served by a long-running server (not `opencode run`), create a task via `task_create`; confirm the JSON lands under `~/.config/opencode/tasks/<project-basename>/`, NOT `tasks/ezotoff/`.
 3. Confirm `task_list` in that session no longer returns cross-project tasks.
 4. Then flip `runtime_effective: true` here.
+
+## Verifier-pattern fix (2026-10-13)
+
+`verification_pattern` was `getTaskDir(config, context.directory)` — a call-site string that (a) contains regex metacharacters (`(` `.`) misparsed by `pattern_matches()`'s `re.search`, and (b) never occurs in the defining file `storage.ts` (which has `getTaskDir(config, directory)`), so the verifier's ALL-targets rule could never be satisfied → permanent false STALE. Replaced with the alternation regex `getTaskDir\(config, (context\.)?directory\)`, which matches the definition and all four call sites. (`yaml_frontmatter_value()` strips surrounding quotes but does not process escapes, so backslashes reach `re.search` verbatim.)
