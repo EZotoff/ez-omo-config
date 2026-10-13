@@ -349,9 +349,10 @@ test_wake_union() {
   trap cleanup_scratch RETURN
   mkdir -p "$HOME/d1/.omo/run-continuation/wakes"
   PYBIN="$PYBIN" python3 - <<'PY'
-import json, os
+import json, os, time
 wf = os.path.join(os.environ["HOME"], "d1", ".omo", "run-continuation", "wakes", "w1.json")
-json.dump({"sessionID": "wake-parent", "state": "dispatched-awaiting-output", "title": "W"}, open(wf, "w"))
+json.dump({"sessionID": "wake-parent", "state": "dispatched-awaiting-output", "title": "W",
+           "firstDispatchedAt": int(time.time() * 1000)}, open(wf, "w"))
 PY
   printf '%s\n' '{"sessions":[{"id":"sess-1","title":"T1","directory":"'"$HOME"'/d1","status":"busy"}]}' \
     > "$STATE_DIR/snapshot-$UNIT-20261013-000000.json"

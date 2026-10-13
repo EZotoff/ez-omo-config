@@ -865,14 +865,17 @@ PYEOF
 }
 # Wake-journal union (R3/T3): appends fresh non-terminal wake-journal
 # parents (<dir>/.omo/run-continuation/wakes/*.json) as wake-pending session
-# entries to a snapshot-shaped JSON. Defined BEFORE the hook block so the
+# entries to a snapshot-shaped JSON. Freshness is judged by CONTENT age — the
+# timestamps recorded INSIDE each wake — never by file mtime (2026-10-13: an
+# unidentified writer mass-refreshed 19 stale wake mtimes in 4ms, making
+# months-old leftovers look brand new). Defined BEFORE the hook block so the
 # hook-resume path (snapshot / checkpoint / db_fallback) can call it too —
 # the standalone converge_snapshot flow below remains its other caller.
 union_wakes() {
   local src="$1" out="$2" dirs d
   dirs="$(discover_dirs)" || dirs=""
   SRC="$src" OUT="$out" DIRS="$dirs" python3 - <<'PYEOF'
-import glob, json, os
+import glob, json, os, time
 snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
 have = {s['id'] for s in snap.get('sessions', [])} | {c['id'] for c in snap.get('children', [])}
 nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
@@ -880,8 +883,30 @@ nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
 # dispatched-awaiting-output forever after the session continued fine (280 such
 # files as of 2026-09-28). Union only FRESH wakes, or every restart re-prompts
 # the whole backlog — the replay bomb the wake-stall debate warned about (F4).
+# Freshness is judged by CONTENT age (timestamps recorded inside the wake),
+# never by file mtime: the 2026-10-13 incident showed an unidentified writer
+# can mass-refresh mtimes (19 stale wakes touched in 4ms), making months-old
+# leftovers look brand new. A wake with NO readable content timestamp cannot
+# prove freshness and is skipped (fail-safe against this bug class).
 MAX_WAKE_AGE_SECONDS = 6 * 3600
-added = 0
+
+def age_basis(w):
+    # Newest content timestamp (ms-epoch -> seconds) among the wake's own
+    # bookkeeping fields; None when none is present/numeric.
+    cands = []
+    for k in ('firstDispatchedAt', 'dispatchedAt', 'claimedAt'):
+        v = w.get(k)
+        if isinstance(v, (int, float)) and v > 0:
+            cands.append(v / 1000.0)
+    hist = w.get('history')
+    if isinstance(hist, list) and hist and isinstance(hist[-1], dict):
+        v = hist[-1].get('at')
+        if isinstance(v, (int, float)) and v > 0:
+            cands.append(v / 1000.0)
+    return max(cands) if cands else None
+
+now = time.time()
+best = {}  # sessionID -> (age_basis, wake_file, wake_dict, dir); newest wins
 for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
     for wf in glob.glob(os.path.join(d, '.omo', 'run-continuation', 'wakes', '*.json')):
         try:
@@ -891,20 +916,24 @@ for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
         sid = w.get('sessionID')
         if not sid or w.get('state') not in nonterminal or sid in have:
             continue
-        try:
-            age = __import__('time').time() - os.path.getmtime(wf)
-        except OSError:
+        ab = age_basis(w)
+        if ab is None:
             continue
-        if age > MAX_WAKE_AGE_SECONDS:
+        if now - ab >= MAX_WAKE_AGE_SECONDS:
             continue
-        snap['sessions'].append({
-            'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
-            'status': 'wake-pending', 'time_updated': None,
-            'captured_at_ms': int(__import__('time').time() * 1000),
-            'resume_prompt_target': '', 'wake_file': wf,
-        })
-        have.add(sid)
-        added += 1
+        prev = best.get(sid)
+        if prev is None or ab > prev[0]:
+            best[sid] = (ab, wf, w, d)
+added = 0
+for sid, (ab, wf, w, d) in best.items():
+    snap['sessions'].append({
+        'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
+        'status': 'wake-pending', 'time_updated': None,
+        'captured_at_ms': int(now * 1000),
+        'resume_prompt_target': '', 'wake_file': wf,
+    })
+    have.add(sid)
+    added += 1
 os.makedirs(os.path.dirname(os.environ['OUT']), exist_ok=True)
 json.dump(snap, open(os.environ['OUT'], 'w'), indent=1)
 print(f"union: {added} wake-pending session(s) added -> {os.environ['OUT']}")
