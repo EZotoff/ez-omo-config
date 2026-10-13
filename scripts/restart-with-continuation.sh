@@ -52,7 +52,10 @@ set -euo pipefail
 # fresh marker => skip (already claimed this window). The marker is claimed
 # BEFORE the POST and released only on provable non-delivery (rc=7 refused).
 # Stale markers beyond the window are inert; they are empty dotfiles.
-RESUME_DEDUP_WINDOW="${RESUME_DEDUP_WINDOW:-180}"
+# Window is 30 min (2026-10-13: two restart instances 5 min apart both
+# injected the same session — the old 180s window was too narrow to cover a
+# restart burst plus its retry tail).
+RESUME_DEDUP_WINDOW="${RESUME_DEDUP_WINDOW:-1800}"
 export RESUME_DEDUP_WINDOW
 export STATE_DIR
 
@@ -411,7 +414,7 @@ for s in snap.get("sessions", []):
     # claimed this session's resume within the window (multi-injection fix).
     _statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
     marker = os.path.join(_statedir, ".resumed-win-" + s["id"])
-    window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
     def dedup_fresh():
         try:
             return time.time() - os.path.getmtime(marker) < window
@@ -455,7 +458,7 @@ from urllib.parse import quote
 stale = 0
 dir_cache = {}
 _statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
-_window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+_window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
 child_prompt = os.environ.get("CHILD_PROMPT") or os.environ["PROMPT"]
 for c in snap.get("children", []):
     sid = c.get("id")
@@ -767,7 +770,7 @@ for s in cands.get("sessions", []):
         continue
     # Cross-run dedup guard (2026-10-02 multi-injection incident)
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
     try:
         _fresh = time.time() - os.path.getmtime(_marker) < _window
     except OSError:
@@ -828,7 +831,7 @@ for c in cands.get("children", []):
         budget_skipped += 1
         continue
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
     try:
         _fresh = time.time() - os.path.getmtime(_marker) < _window
     except OSError:
@@ -1099,7 +1102,7 @@ for s in ckpt.get("sessions", []):
         continue
     # Cross-run dedup guard (2026-10-02 multi-injection incident)
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
     try:
         _fresh = time.time() - os.path.getmtime(_marker) < _window
     except OSError:
@@ -1159,7 +1162,7 @@ for c in ckpt.get("children", []):
         budget_skipped += 1
         continue
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
     try:
         _fresh = time.time() - os.path.getmtime(_marker) < _window
     except OSError:
