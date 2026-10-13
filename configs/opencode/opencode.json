@@ -1027,8 +1027,8 @@
             "field": "reasoning_content"
           },
           "limit": {
-            "context": 131072,
-            "input": 120000,
+            "context": 151072,
+            "input": 140000,
             "output": 11072
           },
           "modalities": {
@@ -1069,9 +1069,9 @@
             "field": "reasoning_content"
           },
           "limit": {
-            "context": 65536,
-            "input": 58000,
-            "output": 6000
+            "context": 251072,
+            "input": 240000,
+            "output": 11072
           },
           "modalities": {
             "input": [
@@ -1105,8 +1105,8 @@
           "name": "GSQ 27B no-think",
           "reasoning": false,
           "limit": {
-            "context": 131072,
-            "input": 120000,
+            "context": 151072,
+            "input": 140000,
             "output": 11072
           },
           "modalities": {
@@ -1186,9 +1186,9 @@
           "name": "Flash-Next 125B no-think",
           "reasoning": false,
           "limit": {
-            "context": 65536,
-            "input": 58000,
-            "output": 6000
+            "context": 251072,
+            "input": 240000,
+            "output": 11072
           },
           "modalities": {
             "input": [
