@@ -296,12 +296,21 @@ active_types = {"busy", "retry"}
 busy_ids = {sid for sid, st in status.items() if st.get("type") in active_types}
 by_id = {s["id"]: s for s in sessions}
 top_level = []
+children = []
 for sid in busy_ids:
     s = by_id.get(sid)
     if s is not None:
-        if s.get("parentID"):          # skip subagent/child sessions
-            continue
         if s.get("time", {}).get("archived"):
+            continue
+        if s.get("parentID"):          # subagent/child session -> children[]
+            children.append({
+                "id": sid,
+                "title": s.get("title"),
+                "directory": s.get("directory"),
+                "status": status[sid].get("type"),
+                "parentID": True,
+                "parentSessionID": s.get("parentID"),
+            })
             continue
         top_level.append({
             "id": sid,
@@ -316,17 +325,19 @@ for sid in busy_ids:
         # Partial inventory: /session metadata was not collected in time.
         # Keep a best-effort entry so the busy session is not silently
         # dropped; resume() degrades to a directory-less POST for it.
+        # (Parent linkage is unknowable without metadata, so partial entries
+        # stay top-level — same as before the children[] capture.)
         top_level.append({
             "id": sid, "title": None, "directory": None,
             "status": status[sid].get("type"), "time_updated": None,
             "captured_at_ms": int(time.time() * 1000), "resume_prompt_target": "",
         })
-snapshot = {"prompt_note": "inject via POST /session/<id>/prompt_async", "sessions": top_level}
+snapshot = {"prompt_note": "inject via POST /session/<id>/prompt_async", "sessions": top_level, "children": children}
 if os.environ.get("PARTIAL") == "1":
     snapshot["partial"] = True
 with open(os.environ["OUT"], "w") as f:
     json.dump(snapshot, f, indent=1)
-print(f"{len(top_level)} active top-level session(s) captured -> {os.environ['OUT']}")
+print(f"{len(top_level)} active top-level session(s), {len(children)} child(ren) captured -> {os.environ['OUT']}")
 for s in top_level:
     print(f"  - {s['id']}  [{s['status']}]  {s['title']}")
 PYEOF
@@ -490,15 +501,21 @@ for f in glob.glob(os.path.join(os.environ["SESSIONS_DIR"], "sessions-*.json")):
 busy_ids = {sid for sid, st in merged.items() if st.get("type") in {"busy", "retry"}}
 by_id = {s["id"]: s for s in sessions}
 out = []
+children = []
 for sid in sorted(busy_ids):
     s = by_id.get(sid)
-    if s is None or s.get("parentID") or s.get("time", {}).get("archived"):
+    if s is None or s.get("time", {}).get("archived"):
+        continue
+    if s.get("parentID"):
+        children.append({"id": sid, "title": s.get("title"), "directory": s.get("directory"),
+                         "status": merged[sid].get("type"), "parentID": True,
+                         "parentSessionID": s.get("parentID")})
         continue
     out.append({"id": sid, "title": s.get("title"), "directory": s.get("directory")})
-ckpt = {"uuid": str(uuid.uuid4()), "created": int(time.time()), "sessions": out}
+ckpt = {"uuid": str(uuid.uuid4()), "created": int(time.time()), "sessions": out, "children": children}
 with open(os.environ["OUT"], "w") as f:
     json.dump(ckpt, f, indent=1)
-print(f"checkpoint {os.environ['UNIT']}: {len(out)} busy session(s)")
+print(f"checkpoint {os.environ['UNIT']}: {len(out)} busy session(s), {len(children)} child(ren)")
 PYEOF
   mv -f "$tmpout" "$STATE_DIR/last-busy-$unit.json"
   log "checkpoint written: $STATE_DIR/last-busy-$unit.json"
@@ -561,10 +578,11 @@ cutoff = (time.time() - float(os.environ["TTL"])) * 1000
 # servers; newer builds project into `session_message` (role = type column).
 table = "message" if con.execute("select count(*) from message").fetchone()[0] else "session_message"
 rows = con.execute(
-    "select id, directory, title, time_updated from session "
-    "where parent_id is null and time_archived is null and time_updated >= ?", (cutoff,)).fetchall()
+    "select id, directory, title, time_updated, parent_id from session "
+    "where time_archived is null and time_updated >= ?", (cutoff,)).fetchall()
 out = []
-for sid, directory, title, _tu in rows:
+children = []
+for sid, directory, title, _tu, pid in rows:
     if table == "message":
         row = con.execute(
             "select json_extract(data,'$.time.completed') from message "
@@ -577,8 +595,12 @@ for sid, directory, title, _tu in rows:
             "order by seq desc limit 1", (sid,)).fetchone()
     if row is None or row[0] is not None:
         continue  # no assistant turn, or the latest one completed
+    if pid:
+        children.append({"id": sid, "title": title, "directory": directory,
+                         "status": None, "parentID": True, "parentSessionID": pid})
+        continue
     out.append({"id": sid, "title": title, "directory": directory})
-print(json.dumps({"created": int(time.time()), "sessions": out}))
+print(json.dumps({"created": int(time.time()), "sessions": out, "children": children}))
 PYEOF
 )"; then
     hook_log "db fallback query failed for $SERVICE_UNIT; db fallback skipped"
