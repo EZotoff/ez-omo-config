@@ -70,6 +70,8 @@ HOOK_MODE=""
 PROMPT="$DEFAULT_PROMPT"
 STATE_FILE=""
 
+CHILD_PROMPT_DEFAULT="$DEFAULT_PROMPT NOTE: this session is a subagent child. The parent session's background-task registry was lost in the server restart, so background_output(task_id=...) lookups are dead. Complete your pending work and emit your result as a final message text so the parent can read it."
+
 case "${1:-}" in
   hook-snapshot|hook-resume) HOOK_MODE="$1" ;;
   checkpoint) CHECKPOINT_MODE=true; HOOK_MODE="$1" ;;  # hook-style args; NOT the exit-0 hook contract
@@ -373,7 +375,7 @@ resume() {
   if hook_budget_active; then
     dl="$(( $(date +%s) + $(hook_deadline_rem) ))"
   fi
-  SESSIONS_FILE="$file" PROMPT="$PROMPT" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
+  SESSIONS_FILE="$file" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
     API_DEADLINE="$dl" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -442,7 +444,83 @@ for s in snap.get("sessions", []):
     else:
         print(f"FAILED {s['id']}: {r.stderr.strip()}", file=sys.stderr)
         fail += 1
-print(f"resumed={ok} failed={fail} budget_skipped={budget_skipped} dup_skipped={dup}")
+# Parented children: resumed DIRECTLY via prompt_async with a child-specific
+# prompt because the parent's background-task registry is process-local and
+# dies with the server — the normal wake/registry channel cannot re-kick a
+# child post-restart (2026-10-12: direct POST is the only working channel).
+# Same dedup/retry/budget machinery as top-level entries, plus a MANDATORY
+# freshness guard: a child that progressed after capture may already have
+# been collected by its parent and must not be re-prompted.
+from urllib.parse import quote
+stale = 0
+dir_cache = {}
+_statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
+_window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+child_prompt = os.environ.get("CHILD_PROMPT") or os.environ["PROMPT"]
+for c in snap.get("children", []):
+    sid = c.get("id")
+    if not sid:
+        continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (child; hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    d = c.get("directory") or ""
+    captured = c.get("time_updated") or 0
+    if d:
+        if d not in dir_cache:
+            rl = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(5, int(rem)))), "-u", f"{auth[0]}:{auth[1]}",
+                                base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                               capture_output=True, text=True)
+            try:
+                dir_cache[d] = {x["id"]: x for x in json.loads(rl.stdout or "[]")}
+            except ValueError:
+                dir_cache[d] = {}
+        cur = dir_cache.get(d, {}).get(sid) or {}
+        updated = cur.get("time", {}).get("updated") or 0
+        if captured and updated and updated > captured:
+            print("skip-stale-child %s (turn newer than capture)" % sid)
+            stale += 1
+            continue
+    marker = os.path.join(_statedir, ".resumed-win-" + sid)
+    try:
+        _fresh = time.time() - os.path.getmtime(marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (child resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(marker, "w") as mh:
+        mh.write(str(time.time()))
+    body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    cmd = ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem)))), "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
+           "-H", "Content-Type: application/json", "-d", body,
+           f"{base}/session/{sid}/prompt_async{q}"]
+    t_post = time.time()
+    retry_secs = float(os.environ.get("RESUME_RETRY_SECONDS") or 60)
+    while True:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0:
+            break
+        if r.returncode == 7:
+            try:
+                os.unlink(marker)
+            except OSError:
+                pass
+        rem = budget_left()
+        if time.time() - t_post + 2 >= retry_secs or rem <= 0:
+            break
+        time.sleep(min(2, max(rem, 0.1)))
+    if r.returncode == 0:
+        print(f"resumed-child {sid}  ({c.get('title')})")
+        ok += 1
+    else:
+        print(f"FAILED {sid}: {r.stderr.strip()}", file=sys.stderr)
+        fail += 1
+print(f"resumed={ok} failed={fail} budget_skipped={budget_skipped} dup_skipped={dup} stale_skipped={stale}")
 sys.exit(1 if fail else 0)
 PYEOF
 }
@@ -800,7 +878,7 @@ latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
     wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
     hook_log "no stop snapshot; crash-class resume from checkpoint $ckpt_uuid"
-    ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
+    ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
       OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
       API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -870,6 +948,64 @@ for s in ckpt.get("sessions", []):
                        capture_output=True, text=True)
     if r.returncode == 0:
         print("re-prompted %s  (%s)" % (sid, s.get("title")))
+        ok += 1
+    else:
+        print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
+        fail += 1
+# Parented children: same direct prompt_async rationale as resume() — the
+# parent's background-task registry died with the server process. Freshness
+# guard uses the same created_ms baseline this block's top-level entries use.
+child_prompt = os.environ.get("CHILD_PROMPT") or prompt
+for c in ckpt.get("children", []):
+    sid = c.get("id")
+    if not sid:
+        continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (child; hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    max_time = str(max(1, min(5, int(rem))))
+    d = c.get("directory") or ""
+    if d and d not in dir_cache:
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth,
+                            base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                           capture_output=True, text=True)
+        try:
+            dir_cache[d] = {x["id"]: x for x in json.loads(r.stdout or "[]")}
+        except ValueError:
+            dir_cache[d] = {}
+    cur = dir_cache.get(d, {}).get(sid) or {}
+    updated = cur.get("time", {}).get("updated") or 0
+    if updated and updated > created_ms:
+        print("skip-stale %s (child turn newer than checkpoint)" % sid)
+        stale += 1
+        continue
+    rem2 = budget_left()
+    if rem2 <= 0:
+        print("skip-budget %s (child; hook api budget exhausted before prompt)" % sid)
+        budget_skipped += 1
+        continue
+    _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    try:
+        _fresh = time.time() - os.path.getmtime(_marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (child resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(_marker, "w") as _mh:
+        _mh.write(str(time.time()))
+    body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
+                        "-H", "Content-Type: application/json", "-d", body,
+                        base + "/session/" + sid + "/prompt_async" + q],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        print("re-prompted-child %s  (%s)" % (sid, c.get("title")))
         ok += 1
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
