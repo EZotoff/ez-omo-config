@@ -371,10 +371,11 @@ PY
   fi
 }
 
-echo "=========================================="
-echo "continuation-hooks: $PASS passed | $FAIL failed"
 test_children_capture
 test_resume_children
 test_wake_union
+
+echo "=========================================="
+echo "continuation-hooks: $PASS passed | $FAIL failed"
 echo "=========================================="
 [[ $FAIL -eq 0 ]]
