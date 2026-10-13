@@ -70,6 +70,8 @@ HOOK_MODE=""
 PROMPT="$DEFAULT_PROMPT"
 STATE_FILE=""
 
+CHILD_PROMPT_DEFAULT="$DEFAULT_PROMPT NOTE: this session is a subagent child. The parent session's background-task registry was lost in the server restart, so background_output(task_id=...) lookups are dead. Complete your pending work and emit your result as a final message text so the parent can read it."
+
 case "${1:-}" in
   hook-snapshot|hook-resume) HOOK_MODE="$1" ;;
   checkpoint) CHECKPOINT_MODE=true; HOOK_MODE="$1" ;;  # hook-style args; NOT the exit-0 hook contract
@@ -296,12 +298,22 @@ active_types = {"busy", "retry"}
 busy_ids = {sid for sid, st in status.items() if st.get("type") in active_types}
 by_id = {s["id"]: s for s in sessions}
 top_level = []
+children = []
 for sid in busy_ids:
     s = by_id.get(sid)
     if s is not None:
-        if s.get("parentID"):          # skip subagent/child sessions
-            continue
         if s.get("time", {}).get("archived"):
+            continue
+        if s.get("parentID"):          # subagent/child session -> children[]
+            children.append({
+                "id": sid,
+                "title": s.get("title"),
+                "directory": s.get("directory"),
+                "status": status[sid].get("type"),
+                "time_updated": s.get("time", {}).get("updated"),
+                "parentID": True,
+                "parentSessionID": s.get("parentID"),
+            })
             continue
         top_level.append({
             "id": sid,
@@ -316,17 +328,19 @@ for sid in busy_ids:
         # Partial inventory: /session metadata was not collected in time.
         # Keep a best-effort entry so the busy session is not silently
         # dropped; resume() degrades to a directory-less POST for it.
+        # (Parent linkage is unknowable without metadata, so partial entries
+        # stay top-level — same as before the children[] capture.)
         top_level.append({
             "id": sid, "title": None, "directory": None,
             "status": status[sid].get("type"), "time_updated": None,
             "captured_at_ms": int(time.time() * 1000), "resume_prompt_target": "",
         })
-snapshot = {"prompt_note": "inject via POST /session/<id>/prompt_async", "sessions": top_level}
+snapshot = {"prompt_note": "inject via POST /session/<id>/prompt_async", "sessions": top_level, "children": children}
 if os.environ.get("PARTIAL") == "1":
     snapshot["partial"] = True
 with open(os.environ["OUT"], "w") as f:
     json.dump(snapshot, f, indent=1)
-print(f"{len(top_level)} active top-level session(s) captured -> {os.environ['OUT']}")
+print(f"{len(top_level)} active top-level session(s), {len(children)} child(ren) captured -> {os.environ['OUT']}")
 for s in top_level:
     print(f"  - {s['id']}  [{s['status']}]  {s['title']}")
 PYEOF
@@ -361,7 +375,7 @@ resume() {
   if hook_budget_active; then
     dl="$(( $(date +%s) + $(hook_deadline_rem) ))"
   fi
-  SESSIONS_FILE="$file" PROMPT="$PROMPT" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
+  SESSIONS_FILE="$file" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
     API_DEADLINE="$dl" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -430,7 +444,84 @@ for s in snap.get("sessions", []):
     else:
         print(f"FAILED {s['id']}: {r.stderr.strip()}", file=sys.stderr)
         fail += 1
-print(f"resumed={ok} failed={fail} budget_skipped={budget_skipped} dup_skipped={dup}")
+# Parented children: resumed DIRECTLY via prompt_async with a child-specific
+# prompt because the parent's background-task registry is process-local and
+# dies with the server — the normal wake/registry channel cannot re-kick a
+# child post-restart (2026-10-12: direct POST is the only working channel).
+# Same dedup/retry/budget machinery as top-level entries, plus a MANDATORY
+# freshness guard: a child that progressed after capture may already have
+# been collected by its parent and must not be re-prompted.
+from urllib.parse import quote
+stale = 0
+dir_cache = {}
+_statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
+_window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+child_prompt = os.environ.get("CHILD_PROMPT") or os.environ["PROMPT"]
+for c in snap.get("children", []):
+    sid = c.get("id")
+    if not sid:
+        continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (child; hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    d = c.get("directory") or ""
+    captured = c.get("time_updated") or 0
+    if d:
+        if d not in dir_cache:
+            rl = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(5, int(rem)))), "-u", f"{auth[0]}:{auth[1]}",
+                                base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                               capture_output=True, text=True)
+            try:
+                dir_cache[d] = {x["id"]: x for x in json.loads(rl.stdout or "[]")}
+            except ValueError:
+                dir_cache[d] = {}
+        cur = dir_cache.get(d, {}).get(sid) or {}
+        updated = cur.get("time", {}).get("updated") or 0
+# Fail-open: a missing time_updated or a failed /session lookup skips this guard — prefer re-prompting a live child over silently dropping it (incident-correct).
+        if captured and updated and updated > captured:
+            print("skip-stale-child %s (turn newer than capture)" % sid)
+            stale += 1
+            continue
+    marker = os.path.join(_statedir, ".resumed-win-" + sid)
+    try:
+        _fresh = time.time() - os.path.getmtime(marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (child resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(marker, "w") as mh:
+        mh.write(str(time.time()))
+    body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    cmd = ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem)))), "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
+           "-H", "Content-Type: application/json", "-d", body,
+           f"{base}/session/{sid}/prompt_async{q}"]
+    t_post = time.time()
+    retry_secs = float(os.environ.get("RESUME_RETRY_SECONDS") or 60)
+    while True:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0:
+            break
+        if r.returncode == 7:
+            try:
+                os.unlink(marker)
+            except OSError:
+                pass
+        rem = budget_left()
+        if time.time() - t_post + 2 >= retry_secs or rem <= 0:
+            break
+        time.sleep(min(2, max(rem, 0.1)))
+    if r.returncode == 0:
+        print(f"resumed-child {sid}  ({c.get('title')})")
+        ok += 1
+    else:
+        print(f"FAILED {sid}: {r.stderr.strip()}", file=sys.stderr)
+        fail += 1
+print(f"resumed={ok} failed={fail} budget_skipped={budget_skipped} dup_skipped={dup} stale_skipped={stale}")
 sys.exit(1 if fail else 0)
 PYEOF
 }
@@ -490,15 +581,23 @@ for f in glob.glob(os.path.join(os.environ["SESSIONS_DIR"], "sessions-*.json")):
 busy_ids = {sid for sid, st in merged.items() if st.get("type") in {"busy", "retry"}}
 by_id = {s["id"]: s for s in sessions}
 out = []
+children = []
 for sid in sorted(busy_ids):
     s = by_id.get(sid)
-    if s is None or s.get("parentID") or s.get("time", {}).get("archived"):
+    if s is None or s.get("time", {}).get("archived"):
+        continue
+    if s.get("parentID"):
+        children.append({"id": sid, "title": s.get("title"), "directory": s.get("directory"),
+                         "status": merged[sid].get("type"),
+                         "time_updated": s.get("time", {}).get("updated"),
+                         "parentID": True,
+                         "parentSessionID": s.get("parentID")})
         continue
     out.append({"id": sid, "title": s.get("title"), "directory": s.get("directory")})
-ckpt = {"uuid": str(uuid.uuid4()), "created": int(time.time()), "sessions": out}
+ckpt = {"uuid": str(uuid.uuid4()), "created": int(time.time()), "sessions": out, "children": children}
 with open(os.environ["OUT"], "w") as f:
     json.dump(ckpt, f, indent=1)
-print(f"checkpoint {os.environ['UNIT']}: {len(out)} busy session(s)")
+print(f"checkpoint {os.environ['UNIT']}: {len(out)} busy session(s), {len(children)} child(ren)")
 PYEOF
   mv -f "$tmpout" "$STATE_DIR/last-busy-$unit.json"
   log "checkpoint written: $STATE_DIR/last-busy-$unit.json"
@@ -548,7 +647,7 @@ db_fallback() {
       return 0
     fi
   done
-  local db_epoch db_uuid db_marker cands n out rep
+  local db_epoch db_uuid db_marker cands n n_children extra out rep
   db_epoch="$(date +%s)"
   db_uuid="db-$db_epoch"
   db_marker="$STATE_DIR/.consumed-$SERVICE_UNIT-$db_uuid"
@@ -561,10 +660,11 @@ cutoff = (time.time() - float(os.environ["TTL"])) * 1000
 # servers; newer builds project into `session_message` (role = type column).
 table = "message" if con.execute("select count(*) from message").fetchone()[0] else "session_message"
 rows = con.execute(
-    "select id, directory, title, time_updated from session "
-    "where parent_id is null and time_archived is null and time_updated >= ?", (cutoff,)).fetchall()
+    "select id, directory, title, time_updated, parent_id from session "
+    "where time_archived is null and time_updated >= ?", (cutoff,)).fetchall()
 out = []
-for sid, directory, title, _tu in rows:
+children = []
+for sid, directory, title, tu, pid in rows:
     if table == "message":
         row = con.execute(
             "select json_extract(data,'$.time.completed') from message "
@@ -577,22 +677,46 @@ for sid, directory, title, _tu in rows:
             "order by seq desc limit 1", (sid,)).fetchone()
     if row is None or row[0] is not None:
         continue  # no assistant turn, or the latest one completed
+    if pid:
+        children.append({"id": sid, "title": title, "directory": directory,
+                         "status": None, "time_updated": tu,
+                         "parentID": True, "parentSessionID": pid})
+        continue
     out.append({"id": sid, "title": title, "directory": directory})
-print(json.dumps({"created": int(time.time()), "sessions": out}))
+print(json.dumps({"created": int(time.time()), "sessions": out, "children": children}))
 PYEOF
 )"; then
     hook_log "db fallback query failed for $SERVICE_UNIT; db fallback skipped"
     return 0
   fi
-  n="$(printf '%s' "$cands" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("sessions",[])))' 2>/dev/null || echo 0)"
+  # Hook-path wake union (T3): converge_snapshot (standalone --restart flow)
+  # unions wakes, but plain `systemctl restart` runs only the hooks — so union
+  # fresh non-terminal wake-journal parents into the candidate list here, via
+  # a mktemp copy (the hook must NOT mint snapshot/checkpoint files in
+  # STATE_DIR). D4 note: without OMO dispatch-time wake journaling
+  # (OMO-fork side, out of scope), this covers only owed-notification wake
+  # files; killed children are covered by the children[] capture+resume
+  # (T1/T2) instead.
+  local wake_tmp
+  wake_tmp="$(mktemp)" && printf '%s' "$cands" > "$wake_tmp" && \
+    union_wakes "$wake_tmp" "$wake_tmp" >> "$HOOKS_LOG" 2>&1 || true
+  cands="$(cat "$wake_tmp" 2>/dev/null || printf '%s' "$cands")"; rm -f "$wake_tmp"
+  # Gate on sessions+children: a children-only candidate set (idle parent,
+  # busy children — the 2026-10-12 incident shape) must still resume.
+  n="$(printf '%s' "$cands" | python3 -c 'import json,sys
+d = json.load(sys.stdin)
+print(len(d.get("sessions", [])) + len(d.get("children", [])))' 2>/dev/null || echo 0)"
+  n_children="$(printf '%s' "$cands" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("children",[])))' 2>/dev/null || echo 0)"
   if (( n == 0 )); then
     hook_log "db fallback for $SERVICE_UNIT: 0 candidates; nothing to resume"
     return 0
   fi
+  extra=""
+  (( n_children > 0 )) && extra=" (+${n_children} child(ren))" || true
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; db fallback skipped"; return 0; }
-  hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
-  out="$(CANDS="$cands" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
+  hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s)${extra}, batch $db_uuid)"
+  out="$(CANDS="$cands" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
     API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -605,7 +729,8 @@ created_ms = int(cands.get("created", 0)) * 1000
 base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
-ok = stale = fail = budget_skipped = 0
+wake_prompt = os.environ.get("WAKE_PROMPT") or prompt
+ok = stale = fail = budget_skipped = dup = 0
 dir_cache = {}
 for s in cands.get("sessions", []):
     sid = s.get("id")
@@ -653,7 +778,8 @@ for s in cands.get("sessions", []):
         continue
     with open(_marker, "w") as _mh:
         _mh.write(str(time.time()))
-    body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
+    _text = wake_prompt if s.get("status") == "wake-pending" else prompt
+    body = json.dumps({"parts": [{"type": "text", "text": _text, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
@@ -665,17 +791,127 @@ for s in cands.get("sessions", []):
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
         fail += 1
-print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d" % (ok, stale, fail, budget_skipped, dup))
+# Parented children: same direct prompt_async rationale as resume() and the
+# checkpoint fallback — the parent's background-task registry died with the
+# server process. Freshness guard uses the same created_ms baseline.
+child_prompt = os.environ.get("CHILD_PROMPT") or prompt
+cok = 0
+for c in cands.get("children", []):
+    sid = c.get("id")
+    if not sid:
+        continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (child; hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    max_time = str(max(1, min(5, int(rem))))
+    d = c.get("directory") or ""
+    if d and d not in dir_cache:
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth,
+                            base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                           capture_output=True, text=True)
+        try:
+            dir_cache[d] = {x["id"]: x for x in json.loads(r.stdout or "[]")}
+        except ValueError:
+            dir_cache[d] = {}
+    cur = dir_cache.get(d, {}).get(sid) or {}
+    updated = cur.get("time", {}).get("updated") or 0
+# Fail-open: a missing time_updated or a failed /session lookup skips this guard — prefer re-prompting a live child over silently dropping it (incident-correct).
+    if updated and updated > created_ms:
+        print("skip-stale %s (child turn newer than db query)" % sid)
+        stale += 1
+        continue
+    rem2 = budget_left()
+    if rem2 <= 0:
+        print("skip-budget %s (child; hook api budget exhausted before prompt)" % sid)
+        budget_skipped += 1
+        continue
+    _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    try:
+        _fresh = time.time() - os.path.getmtime(_marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (child resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(_marker, "w") as _mh:
+        _mh.write(str(time.time()))
+    body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
+                        "-H", "Content-Type: application/json", "-d", body,
+                        base + "/session/" + sid + "/prompt_async" + q],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        print("re-prompted-child %s  (%s)" % (sid, c.get("title")))
+        cok += 1
+    else:
+        print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
+        fail += 1
+print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d children=%d" % (ok, stale, fail, budget_skipped, dup, cok))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
   # One-shot: consume the batch AFTER attempting every candidate, even on
   # partial failure — a second hook-resume must inject nothing.
   touch "$db_marker"
   rep="$(printf '%s\n' "$out" | sed -n 's/^summary re-prompted=\([0-9]*\) .*/\1/p' | tail -1)"
-  hook_log "db fallback $db_uuid done for $SERVICE_UNIT: ${rep:-0} re-prompted(s)"
-  journal_alert db_fallback "$SERVICE_UNIT" - "$db_uuid" "$n" "DB-fallback resume $SERVICE_UNIT: $n candidates"
+  child_rep="$(printf '%s\n' "$out" | sed -n 's/.* children=\([0-9]*\)$/\1/p' | tail -1)"
+  hook_log "db fallback $db_uuid done for $SERVICE_UNIT: ${rep:-0} re-prompted(s), ${child_rep:-0} child(ren)"
+  journal_alert db_fallback "$SERVICE_UNIT" - "$db_uuid" "$n" "DB-fallback resume $SERVICE_UNIT: $n candidates${extra}"
   return 0
 }
+# Wake-journal union (R3/T3): appends fresh non-terminal wake-journal
+# parents (<dir>/.omo/run-continuation/wakes/*.json) as wake-pending session
+# entries to a snapshot-shaped JSON. Defined BEFORE the hook block so the
+# hook-resume path (snapshot / checkpoint / db_fallback) can call it too —
+# the standalone converge_snapshot flow below remains its other caller.
+union_wakes() {
+  local src="$1" out="$2" dirs d
+  dirs="$(discover_dirs)" || dirs=""
+  SRC="$src" OUT="$out" DIRS="$dirs" python3 - <<'PYEOF'
+import glob, json, os
+snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
+have = {s['id'] for s in snap.get('sessions', [])} | {c['id'] for c in snap.get('children', [])}
+nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
+# Known leak: OMO's consumption detection can leave wakes in
+# dispatched-awaiting-output forever after the session continued fine (280 such
+# files as of 2026-09-28). Union only FRESH wakes, or every restart re-prompts
+# the whole backlog — the replay bomb the wake-stall debate warned about (F4).
+MAX_WAKE_AGE_SECONDS = 6 * 3600
+added = 0
+for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
+    for wf in glob.glob(os.path.join(d, '.omo', 'run-continuation', 'wakes', '*.json')):
+        try:
+            w = json.load(open(wf))
+        except (ValueError, OSError):
+            continue
+        sid = w.get('sessionID')
+        if not sid or w.get('state') not in nonterminal or sid in have:
+            continue
+        try:
+            age = __import__('time').time() - os.path.getmtime(wf)
+        except OSError:
+            continue
+        if age > MAX_WAKE_AGE_SECONDS:
+            continue
+        snap['sessions'].append({
+            'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
+            'status': 'wake-pending', 'time_updated': None,
+            'captured_at_ms': int(__import__('time').time() * 1000),
+            'resume_prompt_target': '', 'wake_file': wf,
+        })
+        have.add(sid)
+        added += 1
+os.makedirs(os.path.dirname(os.environ['OUT']), exist_ok=True)
+json.dump(snap, open(os.environ['OUT'], 'w'), indent=1)
+print(f"union: {added} wake-pending session(s) added -> {os.environ['OUT']}")
+PYEOF
+  log "$out"
+}
+
 if [[ -n "$HOOK_MODE" ]]; then
   # Hooks must NEVER block or fail the unit operation.
   trap 'exit 0' EXIT
@@ -774,7 +1010,15 @@ latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
     wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
     hook_log "no stop snapshot; crash-class resume from checkpoint $ckpt_uuid"
-    ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
+    # Hook-path wake union (T3): union fresh non-terminal wake-journal parents
+    # into a mktemp copy of the checkpoint (NEVER a new file in STATE_DIR that
+    # 'ls -t' selection could shadow a real checkpoint with). Same D4 note as
+    # db_fallback: only owed-notification wake files are covered here; killed
+    # children ride the children[] capture+resume (T1/T2).
+    ckpt_wake_tmp="$(mktemp)" && cp "$ckpt" "$ckpt_wake_tmp" && \
+      union_wakes "$ckpt_wake_tmp" "$ckpt_wake_tmp" >> "$HOOKS_LOG" 2>&1 || true
+    [[ -s "$ckpt_wake_tmp" ]] || { rm -f "$ckpt_wake_tmp"; ckpt_wake_tmp="$ckpt"; }
+    ckpt_out="$(CKPT_FILE="$ckpt_wake_tmp" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
       OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
       API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -787,6 +1031,7 @@ created_ms = int(ckpt.get("created", 0)) * 1000
 base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
+wake_prompt = os.environ.get("WAKE_PROMPT") or prompt
 ok = stale = fail = budget_skipped = 0
 dir_cache = {}
 dup = 0
@@ -836,7 +1081,8 @@ for s in ckpt.get("sessions", []):
         continue
     with open(_marker, "w") as _mh:
         _mh.write(str(time.time()))
-    body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
+    _text = wake_prompt if s.get("status") == "wake-pending" else prompt
+    body = json.dumps({"parts": [{"type": "text", "text": _text, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
@@ -848,9 +1094,69 @@ for s in ckpt.get("sessions", []):
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
         fail += 1
+# Parented children: same direct prompt_async rationale as resume() — the
+# parent's background-task registry died with the server process. Freshness
+# guard uses the same created_ms baseline this block's top-level entries use.
+child_prompt = os.environ.get("CHILD_PROMPT") or prompt
+for c in ckpt.get("children", []):
+    sid = c.get("id")
+    if not sid:
+        continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (child; hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    max_time = str(max(1, min(5, int(rem))))
+    d = c.get("directory") or ""
+    if d and d not in dir_cache:
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth,
+                            base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                           capture_output=True, text=True)
+        try:
+            dir_cache[d] = {x["id"]: x for x in json.loads(r.stdout or "[]")}
+        except ValueError:
+            dir_cache[d] = {}
+    cur = dir_cache.get(d, {}).get(sid) or {}
+    updated = cur.get("time", {}).get("updated") or 0
+# Fail-open: a missing time_updated or a failed /session lookup skips this guard — prefer re-prompting a live child over silently dropping it (incident-correct).
+    if updated and updated > created_ms:
+        print("skip-stale %s (child turn newer than checkpoint)" % sid)
+        stale += 1
+        continue
+    rem2 = budget_left()
+    if rem2 <= 0:
+        print("skip-budget %s (child; hook api budget exhausted before prompt)" % sid)
+        budget_skipped += 1
+        continue
+    _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    try:
+        _fresh = time.time() - os.path.getmtime(_marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (child resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(_marker, "w") as _mh:
+        _mh.write(str(time.time()))
+    body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
+                        "-H", "Content-Type: application/json", "-d", body,
+                        base + "/session/" + sid + "/prompt_async" + q],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        print("re-prompted-child %s  (%s)" % (sid, c.get("title")))
+        ok += 1
+    else:
+        print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
+        fail += 1
 print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d" % (ok, stale, fail, budget_skipped, dup))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
+    rm -f "$ckpt_wake_tmp" 2>/dev/null || true
     # One-shot: consume the checkpoint AFTER attempting every listed session,
     # even on partial failure — a second hook-resume must inject nothing.
     touch "$ckpt_marker"
@@ -868,7 +1174,20 @@ PYEOF
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; resume skipped"; exit 0; }
   hook_log "resuming from $(basename "$latest")"
-  resume "$latest" >> "$HOOKS_LOG" 2>&1 || true
+  # Hook-path wake union (T3): plain `systemctl restart` runs only the systemd
+  # hooks, so the wake-journal union that converge_snapshot performs in the
+  # standalone --restart flow never fires in the common case. Union fresh
+  # non-terminal wake files into a mktemp copy — never a new snapshot-*.json in
+  # STATE_DIR ('ls -t' selection would shadow real stop snapshots). D4 note:
+  # without OMO dispatch-time wake journaling (OMO-fork side, out of scope),
+  # this union covers only owed-notification wake files; killed children are
+  # covered by the children[] capture+resume (T1/T2) instead.
+  resume_src="$latest"
+  resume_tmp="$(mktemp)" && cp "$latest" "$resume_tmp" && \
+    union_wakes "$resume_tmp" "$resume_tmp" >> "$HOOKS_LOG" 2>&1 || true
+  [[ -s "$resume_tmp" ]] && resume_src="$resume_tmp"
+  resume "$resume_src" >> "$HOOKS_LOG" 2>&1 || true
+  rm -f "$resume_tmp"
   mv "$latest" "$STATE_DIR/consumed-$(basename "$latest")" 2>/dev/null || true
   exit 0
 fi
@@ -906,50 +1225,6 @@ converge_snapshot() {
   STATE_FILE="$out"
   rm -f "$tmpA" "$tmpB"
   log "converged snapshot: $out"
-}
-
-union_wakes() {
-  local src="$1" out="$2" dirs d
-  dirs="$(discover_dirs)" || dirs=""
-  SRC="$src" OUT="$out" DIRS="$dirs" python3 - <<'PYEOF'
-import glob, json, os
-snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
-have = {s['id'] for s in snap.get('sessions', [])}
-nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
-# Known leak: OMO's consumption detection can leave wakes in
-# dispatched-awaiting-output forever after the session continued fine (280 such
-# files as of 2026-09-28). Union only FRESH wakes, or every restart re-prompts
-# the whole backlog — the replay bomb the wake-stall debate warned about (F4).
-MAX_WAKE_AGE_SECONDS = 6 * 3600
-added = 0
-for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
-    for wf in glob.glob(os.path.join(d, '.omo', 'run-continuation', 'wakes', '*.json')):
-        try:
-            w = json.load(open(wf))
-        except (ValueError, OSError):
-            continue
-        sid = w.get('sessionID')
-        if not sid or w.get('state') not in nonterminal or sid in have:
-            continue
-        try:
-            age = __import__('time').time() - os.path.getmtime(wf)
-        except OSError:
-            continue
-        if age > MAX_WAKE_AGE_SECONDS:
-            continue
-        snap['sessions'].append({
-            'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
-            'status': 'wake-pending', 'time_updated': None,
-            'captured_at_ms': int(__import__('time').time() * 1000),
-            'resume_prompt_target': '', 'wake_file': wf,
-        })
-        have.add(sid)
-        added += 1
-os.makedirs(os.path.dirname(os.environ['OUT']), exist_ok=True)
-json.dump(snap, open(os.environ['OUT'], 'w'), indent=1)
-print(f"union: {added} wake-pending session(s) added -> {os.environ['OUT']}")
-PYEOF
-  log "$out"
 }
 
 # --- Main (standalone) ------------------------------------------------------

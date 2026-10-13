@@ -54,19 +54,36 @@ if method == "GET" and p.path == "/session/status" and "directory" in q:
     event("status:" + d)
     time.sleep(float(os.environ.get("STUB_STATUS_SLEEP", "0")))
     idx = os.path.basename(d).lstrip("d")
-    print(json.dumps({"sess-" + idx: {"type": "busy"}}))
+    st = {"sess-" + idx: {"type": "busy"}}
+    if idx == "1" and os.environ.get("STUB_PARENTED") == "1":
+        st["child-1"] = {"type": "busy"}
+    print(json.dumps(st))
     sys.exit(0)
 if method == "GET" and p.path == "/session":
     d = unquote(q.get("directory", [""])[0])
     event("sessions:" + d)
     idx = os.path.basename(d).lstrip("d")
-    print(json.dumps([{"id": "sess-" + idx, "title": "T" + idx,
-                       "directory": d, "parentID": None,
-                       "time": {"updated": 1000}}]))
+    lst = [{"id": "sess-" + idx, "title": "T" + idx,
+            "directory": d, "parentID": None,
+            "time": {"updated": 1000}}]
+    if idx == "1" and os.environ.get("STUB_PARENTED") == "1":
+        lst.append({"id": "child-1", "title": "C1", "directory": d,
+                    "parentID": "sess-1", "time": {"updated": 1000}})
+    if idx == "1" and os.environ.get("STUB_STALE_CHILD") == "1":
+        lst.append({"id": "child-stale", "title": "CS", "directory": d,
+                    "parentID": "sess-1", "time": {"updated": 1000}})
+        lst.append({"id": "child-1", "title": "C1", "directory": d,
+                    "parentID": "sess-1", "time": {"updated": 1000}})
+    print(json.dumps(lst))
     sys.exit(0)
 if method == "POST" and p.path.endswith("/prompt_async"):
     sid = p.path.split("/")[-2]
     event("post:" + sid)
+    body = args[args.index("-d") + 1] if "-d" in args else ""
+    if "subagent child" in body:
+        event("childbody:" + sid)
+    if "wake notification was lost" in body:
+        event("wakebody:" + sid)
     if count("post:") <= int(os.environ.get("STUB_REFUSE_POSTS", "0")):
         sys.exit(7)
     print("ok")
@@ -104,7 +121,7 @@ DBEOF
   AUTH_ENV="$SCRATCH/auth.env"
   printf 'OPENCODE_SERVER_PASSWORD=testpass\n' > "$AUTH_ENV"
   export STUB_LOG="$SCRATCH/stub.log"
-  export STUB_REFUSE_PROBES=0 STUB_REFUSE_POSTS=0 STUB_STATUS_SLEEP=0  # reset per test
+  export STUB_REFUSE_PROBES=0 STUB_REFUSE_POSTS=0 STUB_STATUS_SLEEP=0 STUB_PARENTED=0  # reset per test
   : > "$STUB_LOG"
   write_stub "$SCRATCH"
   export PATH="$SCRATCH/bin:$PATH"
@@ -253,6 +270,110 @@ test_resume_retries
 test_resume_dedup
 test_bypass_regression
 test_full_inventory_regression
+
+# ================================================================= test 6
+test_children_capture() {
+  echo "--- test 6: parented children captured into children[], sessions[] semantics unchanged"
+  make_scratch t6
+  trap cleanup_scratch RETURN
+  export STUB_PARENTED=1
+  bash "$SCRIPT" hook-snapshot "$UNIT" "http://127.0.0.1:1" "$AUTH_ENV" > "$SCRATCH/out.txt" 2>&1
+  local f; f="$(newest_snapshot)"
+  if [[ -n "$f" && -s "$f" ]]; then
+    local shape
+    shape="$(PYBIN="$PYBIN" python3 - "$f" <<'SHAPE'
+import json, sys
+snap = json.load(open(sys.argv[1]))
+ids = sorted(s["id"] for s in snap.get("sessions", []))
+kids = snap.get("children", [])
+c = kids[0] if kids else {}
+print(ids, len(kids), c.get("id"), c.get("parentID"), c.get("parentSessionID"), "time_updated" in c)
+SHAPE
+)"
+    if [[ "$shape" == "['sess-1', 'sess-2', 'sess-3'] 1 child-1 True sess-1 True" ]]; then
+      ok "children[] captured child-1 (parentID/parentSessionID/time_updated); sessions[] still 3 top-level only"
+    else
+      bad "capture shape wrong: [$shape] (file $f)"
+    fi
+  else
+    bad "no snapshot written (STUB_PARENTED run)"
+  fi
+}
+
+# ================================================================= test 7
+test_resume_children() {
+  echo "--- test 7: hook-resume processes children[] (child prompt, freshness + dedup guards)"
+  make_scratch t7
+  trap cleanup_scratch RETURN
+  export STUB_STALE_CHILD=1
+  # fresh child (updated 1000 vs captured 1000 -> resumes) and stale child
+  # (server updated 1000 > captured 500 -> skip-stale-child).
+  PYBIN="$PYBIN" HOME="$HOME" python3 - <<'PY'
+import json, os
+snap = {"sessions": [{"id": "sess-1", "title": "T1", "directory": os.path.join(os.environ["HOME"], "d1"), "status": "busy"}],
+        "children": [
+          {"id": "child-1", "title": "C1", "directory": os.path.join(os.environ["HOME"], "d1"), "status": "busy", "time_updated": 1000, "parentID": True, "parentSessionID": "sess-1"},
+          {"id": "child-stale", "title": "CS", "directory": os.path.join(os.environ["HOME"], "d1"), "status": "busy", "time_updated": 500, "parentID": True, "parentSessionID": "sess-1"}]}
+out = os.path.join(os.environ["XDG_STATE_DIR"], "restart-continuations")
+json.dump(snap, open(os.path.join(out, "snapshot-test-unit.service-20261013-000000.json"), "w"))
+PY
+  bash "$SCRIPT" hook-resume "$UNIT" "http://127.0.0.1:1" "$AUTH_ENV" > "$SCRATCH/out.txt" 2>&1
+  if grep -q '^post:child-1$' "$STUB_LOG" && grep -q '^childbody:child-1$' "$STUB_LOG"; then
+    ok "fresh child resumed with child prompt"
+  else
+    bad "fresh child not resumed with child prompt (stub: $(tr '\n' '|' < "$STUB_LOG"))"
+  fi
+  if ! grep -q '^post:child-stale$' "$STUB_LOG" && grep -q 'skip-stale-child child-stale' "$STATE_DIR/hooks.log"; then
+    ok "stale child skipped (skip-stale-child, no POST)"
+  else
+    bad "stale child not guarded (stub: $(tr '\n' '|' < "$STUB_LOG"))"
+  fi
+  # dedup: a second pass over a reseeded identical snapshot must NOT re-POST the child
+  printf '%s\n' "{\"sessions\":[{\"id\":\"sess-1\",\"title\":\"T1\",\"directory\":\"$HOME/d1\",\"status\":\"busy\"}],\"children\":[{\"id\":\"child-1\",\"title\":\"C1\",\"directory\":\"$HOME/d1\",\"status\":\"busy\",\"time_updated\":1000,\"parentID\":true,\"parentSessionID\":\"sess-1\"}]}" \
+    > "$STATE_DIR/snapshot-$UNIT-20261013-000100.json"
+  rm -f "$STATE_DIR/snapshot-$UNIT-20261013-000000.json"
+  bash "$SCRIPT" hook-resume "$UNIT" "http://127.0.0.1:1" "$AUTH_ENV" > "$SCRATCH/out2.txt" 2>&1
+  local n
+  n="$(grep -c '^post:child-1$' "$STUB_LOG" || true)"
+  if [[ "$n" == "1" ]]; then
+    ok "second pass skipped child via dedup marker (still 1 child POST)"
+  else
+    bad "child re-prompted across passes (child-1 POSTs=$n)"
+  fi
+}
+
+# ================================================================= test 8
+test_wake_union() {
+  echo "--- test 8: hook-resume unions wake-pending journal entries (WAKE_PROMPT)"
+  make_scratch t8
+  trap cleanup_scratch RETURN
+  mkdir -p "$HOME/d1/.omo/run-continuation/wakes"
+  PYBIN="$PYBIN" python3 - <<'PY'
+import json, os
+wf = os.path.join(os.environ["HOME"], "d1", ".omo", "run-continuation", "wakes", "w1.json")
+json.dump({"sessionID": "wake-parent", "state": "dispatched-awaiting-output", "title": "W"}, open(wf, "w"))
+PY
+  printf '%s\n' '{"sessions":[{"id":"sess-1","title":"T1","directory":"'"$HOME"'/d1","status":"busy"}]}' \
+    > "$STATE_DIR/snapshot-$UNIT-20261013-000000.json"
+  bash "$SCRIPT" hook-resume "$UNIT" "http://127.0.0.1:1" "$AUTH_ENV" > "$SCRATCH/out.txt" 2>&1
+  if grep -q '^post:wake-parent$' "$STUB_LOG" && grep -q '^wakebody:wake-parent$' "$STUB_LOG" \
+     && grep -q '^post:sess-1$' "$STUB_LOG"; then
+    ok "wake-parent received WAKE_PROMPT alongside the snapshot resume (no new snapshot minted)"
+  else
+    bad "wake union did not deliver WAKE_PROMPT (stub: $(tr '\n' '|' < "$STUB_LOG"); out: $(tail -5 "$SCRATCH/out.txt" | tr '\n' '|'))"
+  fi
+  local newsnaps
+  newsnaps="$(ls "$STATE_DIR"/snapshot-*.json 2>/dev/null | wc -l)"
+  if [[ "$newsnaps" == "0" ]]; then
+    ok "hook path minted no extra snapshot file (union was in-memory)"
+  else
+    bad "hook path minted snapshot file(s): $(ls "$STATE_DIR"/snapshot-*.json)"
+  fi
+}
+
+test_children_capture
+test_resume_children
+test_wake_union
 
 echo "=========================================="
 echo "continuation-hooks: $PASS passed | $FAIL failed"

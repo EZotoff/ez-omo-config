@@ -7,7 +7,10 @@
 # POSTs timed out at 5s during post-restart warmup).
 #
 # Checks:
-#   1. scripts/restart-with-continuation.sh contains exactly two dispatch call
+#   1. scripts/restart-with-continuation.sh contains exactly four dispatch call
+#      sites using the rem2 budget expression (resume() child loop, checkpoint
+#      fallback sessions+children loops, db_fallback sessions+children loops —
+#      T2/bdd65f1 raised the count from 2)
 #      sites using the rem2 budget expression
 #   2. BOTH sites cap at >=10 seconds (min(10, rem2) or higher)
 #   3. No residual min(5, int(rem2)) dispatch cap remains in prompt_async paths
@@ -19,17 +22,17 @@ SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/scripts/restart-with-continuation.sh"
 
 fail=0
 
-# 1. exactly two rem2-capped dispatch sites
+# 1. exactly four rem2-capped dispatch sites
 sites=$(grep -c 'min([0-9]\+, int(rem2))\|min([0-9]\+, int(rem2))' "$SCRIPT" || true)
-if [[ "$sites" -ne 2 ]]; then
-    echo "FAIL: expected exactly 2 rem2-capped dispatch sites, found $sites"
+if [[ "$sites" -ne 4 ]]; then
+    echo "FAIL: expected exactly 4 rem2-capped dispatch sites, found $sites"
     fail=1
 fi
 
-# 2. both caps are >= 10
+# 2. all caps are >= 10
 caps_ge_10=$(grep -c 'min(10, int(rem2))' "$SCRIPT" || true)
-if [[ "$caps_ge_10" -ne 2 ]]; then
-    echo "FAIL: expected both dispatch caps to be min(10, int(rem2)), found $caps_ge_10"
+if [[ "$caps_ge_10" -ne 4 ]]; then
+    echo "FAIL: expected all dispatch caps to be min(10, int(rem2)), found $caps_ge_10"
     fail=1
 fi
 
