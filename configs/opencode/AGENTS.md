@@ -183,7 +183,7 @@ FOUR repos form one product (the OC Beacon Portable Supervisor prototype). Know 
 
 - **omo-pulse** (`~/AI_projects/ez-omo-dash`) — visual supervisor surface (attention queue, session cards, remote UI, deep-links). Central dev session for prototype work runs here.
 - **voice-bridge / Vox** (`~/AI_projects/voice-bridge`) — voice brain: Gemini Live service on `127.0.0.1:18220`, tools, interrupts, confirmation-gated mutations.
-- **oc-beacon** (`~/src/oc-beacon` — note: NOT under ~/AI_projects) — Android client: ambient attention surface, tap/spoken replies, Portable Supervisor Mode (the AR-glasses-emulating mini-screen per the proposal).
+- **oc-beacon** (`~/AI_projects/oc-beacon`) — Android client: ambient attention surface, tap/spoken replies, Portable Supervisor Mode (the AR-glasses-emulating mini-screen per the proposal).
 - **ez-omo-config** — config store + contract/proposal home; contract changes land here FIRST, then per-repo implementation sessions.
 - Run **one session per repo** (AGENTS.md/codegraph/tests are repo-scoped); cross-repo changes go contract → bridge → dash/beacon in that order.
 - **Doc-search rule (2026-10-08 lesson)**: before ANY design/build decision for this product — and especially before declaring any spec or design "nonexistent" — grep the docs/plans of ALL FOUR repos (`docs/`, `.sisyphus/`, `.omo/plans/`) for the topic. Product specs usually exist somewhere; the 2026-10-08 incident rebuilt a feature from a wrong reconstruction while the authoritative spec sat in `portable-supervisor-proposal.md`, unsearched.

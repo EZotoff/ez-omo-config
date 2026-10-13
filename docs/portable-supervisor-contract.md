@@ -14,7 +14,7 @@
 | **voice-bridge ("Vox")** | `~/AI_projects/voice-bridge/` | Voice brain: Gemini Live session, tools, interrupts, mutation pipeline, fallback chain | `voice-bridge.service`, `127.0.0.1:18220` |
 | **omo-pulse** | `~/AI_projects/ez-omo-dash/` | Visual supervisor surface: attention queue, recent projects, session cards, remote UI (`?view=remote`, FIFO), desktop deep-links | dev `:4300/:4301`, prod `:4300` |
 | **ez-omo-config** | `~/ez-omo-config/` | Contract home (this doc), config store, design artifacts, docs sync | — |
-| **OC Beacon** | `~/src/oc-beacon/` | Native ambient attention surface (SHIPPED 2026-09-21: attention cards, AR-glance headlines, escalation/root-health/error-peak push notifications, directory-grouped strands); reads supervisor state through the already-configured OpenCode server | Android app |
+| **OC Beacon** | `~/AI_projects/oc-beacon/` | Native ambient attention surface (SHIPPED 2026-09-21: attention cards, AR-glance headlines, escalation/root-health/error-peak push notifications, directory-grouped strands); reads supervisor state through the already-configured OpenCode server | Android app |
 
 Layering: **omo-pulse is the eyes and hands, voice-bridge is the ears and voice, this repo
 owns the seam.** The interaction model: *navigate visually to establish context, then use
