@@ -688,6 +688,18 @@ PYEOF
     hook_log "db fallback query failed for $SERVICE_UNIT; db fallback skipped"
     return 0
   fi
+  # Hook-path wake union (T3): converge_snapshot (standalone --restart flow)
+  # unions wakes, but plain `systemctl restart` runs only the hooks — so union
+  # fresh non-terminal wake-journal parents into the candidate list here, via
+  # a mktemp copy (the hook must NOT mint snapshot/checkpoint files in
+  # STATE_DIR). D4 note: without OMO dispatch-time wake journaling
+  # (OMO-fork side, out of scope), this covers only owed-notification wake
+  # files; killed children are covered by the children[] capture+resume
+  # (T1/T2) instead.
+  local wake_tmp
+  wake_tmp="$(mktemp)" && printf '%s' "$cands" > "$wake_tmp" && \
+    union_wakes "$wake_tmp" "$wake_tmp" >> "$HOOKS_LOG" 2>&1 || true
+  cands="$(cat "$wake_tmp" 2>/dev/null || printf '%s' "$cands")"; rm -f "$wake_tmp"
   n="$(printf '%s' "$cands" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("sessions",[])))' 2>/dev/null || echo 0)"
   if (( n == 0 )); then
     hook_log "db fallback for $SERVICE_UNIT: 0 candidates; nothing to resume"
@@ -696,7 +708,7 @@ PYEOF
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; db fallback skipped"; return 0; }
   hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
-  out="$(CANDS="$cands" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
+  out="$(CANDS="$cands" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
     API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -709,6 +721,7 @@ created_ms = int(cands.get("created", 0)) * 1000
 base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
+wake_prompt = os.environ.get("WAKE_PROMPT") or prompt
 ok = stale = fail = budget_skipped = dup = 0
 dir_cache = {}
 for s in cands.get("sessions", []):
@@ -757,7 +770,8 @@ for s in cands.get("sessions", []):
         continue
     with open(_marker, "w") as _mh:
         _mh.write(str(time.time()))
-    body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
+    _text = wake_prompt if s.get("status") == "wake-pending" else prompt
+    body = json.dumps({"parts": [{"type": "text", "text": _text, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
@@ -840,6 +854,55 @@ PYEOF
   journal_alert db_fallback "$SERVICE_UNIT" - "$db_uuid" "$n" "DB-fallback resume $SERVICE_UNIT: $n candidates"
   return 0
 }
+# Wake-journal union (R3/T3): appends fresh non-terminal wake-journal
+# parents (<dir>/.omo/run-continuation/wakes/*.json) as wake-pending session
+# entries to a snapshot-shaped JSON. Defined BEFORE the hook block so the
+# hook-resume path (snapshot / checkpoint / db_fallback) can call it too —
+# the standalone converge_snapshot flow below remains its other caller.
+union_wakes() {
+  local src="$1" out="$2" dirs d
+  dirs="$(discover_dirs)" || dirs=""
+  SRC="$src" OUT="$out" DIRS="$dirs" python3 - <<'PYEOF'
+import glob, json, os
+snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
+have = {s['id'] for s in snap.get('sessions', [])} | {c['id'] for c in snap.get('children', [])}
+nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
+# Known leak: OMO's consumption detection can leave wakes in
+# dispatched-awaiting-output forever after the session continued fine (280 such
+# files as of 2026-09-28). Union only FRESH wakes, or every restart re-prompts
+# the whole backlog — the replay bomb the wake-stall debate warned about (F4).
+MAX_WAKE_AGE_SECONDS = 6 * 3600
+added = 0
+for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
+    for wf in glob.glob(os.path.join(d, '.omo', 'run-continuation', 'wakes', '*.json')):
+        try:
+            w = json.load(open(wf))
+        except (ValueError, OSError):
+            continue
+        sid = w.get('sessionID')
+        if not sid or w.get('state') not in nonterminal or sid in have:
+            continue
+        try:
+            age = __import__('time').time() - os.path.getmtime(wf)
+        except OSError:
+            continue
+        if age > MAX_WAKE_AGE_SECONDS:
+            continue
+        snap['sessions'].append({
+            'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
+            'status': 'wake-pending', 'time_updated': None,
+            'captured_at_ms': int(__import__('time').time() * 1000),
+            'resume_prompt_target': '', 'wake_file': wf,
+        })
+        have.add(sid)
+        added += 1
+os.makedirs(os.path.dirname(os.environ['OUT']), exist_ok=True)
+json.dump(snap, open(os.environ['OUT'], 'w'), indent=1)
+print(f"union: {added} wake-pending session(s) added -> {os.environ['OUT']}")
+PYEOF
+  log "$out"
+}
+
 if [[ -n "$HOOK_MODE" ]]; then
   # Hooks must NEVER block or fail the unit operation.
   trap 'exit 0' EXIT
@@ -938,7 +1001,15 @@ latest="$(ls -t "$STATE_DIR"/snapshot-$SERVICE_UNIT-*.json 2>/dev/null | head -1
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
     wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; checkpoint fallback skipped"; exit 0; }
     hook_log "no stop snapshot; crash-class resume from checkpoint $ckpt_uuid"
-    ckpt_out="$(CKPT_FILE="$ckpt" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
+    # Hook-path wake union (T3): union fresh non-terminal wake-journal parents
+    # into a mktemp copy of the checkpoint (NEVER a new file in STATE_DIR that
+    # 'ls -t' selection could shadow a real checkpoint with). Same D4 note as
+    # db_fallback: only owed-notification wake files are covered here; killed
+    # children ride the children[] capture+resume (T1/T2).
+    ckpt_wake_tmp="$(mktemp)" && cp "$ckpt" "$ckpt_wake_tmp" && \
+      union_wakes "$ckpt_wake_tmp" "$ckpt_wake_tmp" >> "$HOOKS_LOG" 2>&1 || true
+    [[ -s "$ckpt_wake_tmp" ]] || { rm -f "$ckpt_wake_tmp"; ckpt_wake_tmp="$ckpt"; }
+    ckpt_out="$(CKPT_FILE="$ckpt_wake_tmp" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
       OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
       API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -951,6 +1022,7 @@ created_ms = int(ckpt.get("created", 0)) * 1000
 base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
+wake_prompt = os.environ.get("WAKE_PROMPT") or prompt
 ok = stale = fail = budget_skipped = 0
 dir_cache = {}
 dup = 0
@@ -1000,7 +1072,8 @@ for s in ckpt.get("sessions", []):
         continue
     with open(_marker, "w") as _mh:
         _mh.write(str(time.time()))
-    body = json.dumps({"parts": [{"type": "text", "text": prompt, "synthetic": True}]})
+    _text = wake_prompt if s.get("status") == "wake-pending" else prompt
+    body = json.dumps({"parts": [{"type": "text", "text": _text, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
                         "-H", "Content-Type: application/json", "-d", body,
@@ -1073,6 +1146,7 @@ for c in ckpt.get("children", []):
 print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d" % (ok, stale, fail, budget_skipped, dup))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
+    rm -f "$ckpt_wake_tmp" 2>/dev/null || true
     # One-shot: consume the checkpoint AFTER attempting every listed session,
     # even on partial failure — a second hook-resume must inject nothing.
     touch "$ckpt_marker"
@@ -1090,7 +1164,20 @@ PYEOF
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; resume skipped"; exit 0; }
   hook_log "resuming from $(basename "$latest")"
-  resume "$latest" >> "$HOOKS_LOG" 2>&1 || true
+  # Hook-path wake union (T3): plain `systemctl restart` runs only the systemd
+  # hooks, so the wake-journal union that converge_snapshot performs in the
+  # standalone --restart flow never fires in the common case. Union fresh
+  # non-terminal wake files into a mktemp copy — never a new snapshot-*.json in
+  # STATE_DIR ('ls -t' selection would shadow real stop snapshots). D4 note:
+  # without OMO dispatch-time wake journaling (OMO-fork side, out of scope),
+  # this union covers only owed-notification wake files; killed children are
+  # covered by the children[] capture+resume (T1/T2) instead.
+  resume_src="$latest"
+  resume_tmp="$(mktemp)" && cp "$latest" "$resume_tmp" && \
+    union_wakes "$resume_tmp" "$resume_tmp" >> "$HOOKS_LOG" 2>&1 || true
+  [[ -s "$resume_tmp" ]] && resume_src="$resume_tmp"
+  resume "$resume_src" >> "$HOOKS_LOG" 2>&1 || true
+  rm -f "$resume_tmp"
   mv "$latest" "$STATE_DIR/consumed-$(basename "$latest")" 2>/dev/null || true
   exit 0
 fi
@@ -1128,50 +1215,6 @@ converge_snapshot() {
   STATE_FILE="$out"
   rm -f "$tmpA" "$tmpB"
   log "converged snapshot: $out"
-}
-
-union_wakes() {
-  local src="$1" out="$2" dirs d
-  dirs="$(discover_dirs)" || dirs=""
-  SRC="$src" OUT="$out" DIRS="$dirs" python3 - <<'PYEOF'
-import glob, json, os
-snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
-have = {s['id'] for s in snap.get('sessions', [])}
-nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
-# Known leak: OMO's consumption detection can leave wakes in
-# dispatched-awaiting-output forever after the session continued fine (280 such
-# files as of 2026-09-28). Union only FRESH wakes, or every restart re-prompts
-# the whole backlog — the replay bomb the wake-stall debate warned about (F4).
-MAX_WAKE_AGE_SECONDS = 6 * 3600
-added = 0
-for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
-    for wf in glob.glob(os.path.join(d, '.omo', 'run-continuation', 'wakes', '*.json')):
-        try:
-            w = json.load(open(wf))
-        except (ValueError, OSError):
-            continue
-        sid = w.get('sessionID')
-        if not sid or w.get('state') not in nonterminal or sid in have:
-            continue
-        try:
-            age = __import__('time').time() - os.path.getmtime(wf)
-        except OSError:
-            continue
-        if age > MAX_WAKE_AGE_SECONDS:
-            continue
-        snap['sessions'].append({
-            'id': sid, 'title': w.get('title') or '(wake journal)', 'directory': d,
-            'status': 'wake-pending', 'time_updated': None,
-            'captured_at_ms': int(__import__('time').time() * 1000),
-            'resume_prompt_target': '', 'wake_file': wf,
-        })
-        have.add(sid)
-        added += 1
-os.makedirs(os.path.dirname(os.environ['OUT']), exist_ok=True)
-json.dump(snap, open(os.environ['OUT'], 'w'), indent=1)
-print(f"union: {added} wake-pending session(s) added -> {os.environ['OUT']}")
-PYEOF
-  log "$out"
 }
 
 # --- Main (standalone) ------------------------------------------------------
