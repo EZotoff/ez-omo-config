@@ -479,6 +479,7 @@ for c in snap.get("children", []):
                 dir_cache[d] = {}
         cur = dir_cache.get(d, {}).get(sid) or {}
         updated = cur.get("time", {}).get("updated") or 0
+# Fail-open: a missing time_updated or a failed /session lookup skips this guard — prefer re-prompting a live child over silently dropping it (incident-correct).
         if captured and updated and updated > captured:
             print("skip-stale-child %s (turn newer than capture)" % sid)
             stale += 1
@@ -646,7 +647,7 @@ db_fallback() {
       return 0
     fi
   done
-  local db_epoch db_uuid db_marker cands n out rep
+  local db_epoch db_uuid db_marker cands n n_children extra out rep
   db_epoch="$(date +%s)"
   db_uuid="db-$db_epoch"
   db_marker="$STATE_DIR/.consumed-$SERVICE_UNIT-$db_uuid"
@@ -700,14 +701,21 @@ PYEOF
   wake_tmp="$(mktemp)" && printf '%s' "$cands" > "$wake_tmp" && \
     union_wakes "$wake_tmp" "$wake_tmp" >> "$HOOKS_LOG" 2>&1 || true
   cands="$(cat "$wake_tmp" 2>/dev/null || printf '%s' "$cands")"; rm -f "$wake_tmp"
-  n="$(printf '%s' "$cands" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("sessions",[])))' 2>/dev/null || echo 0)"
+  # Gate on sessions+children: a children-only candidate set (idle parent,
+  # busy children — the 2026-10-12 incident shape) must still resume.
+  n="$(printf '%s' "$cands" | python3 -c 'import json,sys
+d = json.load(sys.stdin)
+print(len(d.get("sessions", [])) + len(d.get("children", [])))' 2>/dev/null || echo 0)"
+  n_children="$(printf '%s' "$cands" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("children",[])))' 2>/dev/null || echo 0)"
   if (( n == 0 )); then
     hook_log "db fallback for $SERVICE_UNIT: 0 candidates; nothing to resume"
     return 0
   fi
+  extra=""
+  (( n_children > 0 )) && extra=" (+${n_children} child(ren))" || true
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; db fallback skipped"; return 0; }
-  hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
+  hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s)${extra}, batch $db_uuid)"
   out="$(CANDS="$cands" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" WAKE_PROMPT="${WAKE_PROMPT:-$WAKE_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
     API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
@@ -809,6 +817,7 @@ for c in cands.get("children", []):
             dir_cache[d] = {}
     cur = dir_cache.get(d, {}).get(sid) or {}
     updated = cur.get("time", {}).get("updated") or 0
+# Fail-open: a missing time_updated or a failed /session lookup skips this guard — prefer re-prompting a live child over silently dropping it (incident-correct).
     if updated and updated > created_ms:
         print("skip-stale %s (child turn newer than db query)" % sid)
         stale += 1
@@ -851,7 +860,7 @@ PYEOF
   rep="$(printf '%s\n' "$out" | sed -n 's/^summary re-prompted=\([0-9]*\) .*/\1/p' | tail -1)"
   child_rep="$(printf '%s\n' "$out" | sed -n 's/.* children=\([0-9]*\)$/\1/p' | tail -1)"
   hook_log "db fallback $db_uuid done for $SERVICE_UNIT: ${rep:-0} re-prompted(s), ${child_rep:-0} child(ren)"
-  journal_alert db_fallback "$SERVICE_UNIT" - "$db_uuid" "$n" "DB-fallback resume $SERVICE_UNIT: $n candidates"
+  journal_alert db_fallback "$SERVICE_UNIT" - "$db_uuid" "$n" "DB-fallback resume $SERVICE_UNIT: $n candidates${extra}"
   return 0
 }
 # Wake-journal union (R3/T3): appends fresh non-terminal wake-journal
@@ -1110,6 +1119,7 @@ for c in ckpt.get("children", []):
             dir_cache[d] = {}
     cur = dir_cache.get(d, {}).get(sid) or {}
     updated = cur.get("time", {}).get("updated") or 0
+# Fail-open: a missing time_updated or a failed /session lookup skips this guard — prefer re-prompting a live child over silently dropping it (incident-correct).
     if updated and updated > created_ms:
         print("skip-stale %s (child turn newer than checkpoint)" % sid)
         stale += 1
