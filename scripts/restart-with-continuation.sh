@@ -696,7 +696,7 @@ PYEOF
   # (budget clock set once at hook entry — see HOOK_DEADLINE_EPOCH)
   wait_ready "${RESUME_WAIT_SECONDS:-60}" || { hook_log "server not ready in time; db fallback skipped"; return 0; }
   hook_log "no snapshot, no checkpoint; db fallback engaged for $SERVICE_UNIT ($n candidate(s), batch $db_uuid)"
-  out="$(CANDS="$cands" PROMPT="$PROMPT" OPENCODE_URL="$OPENCODE_URL" \
+  out="$(CANDS="$cands" PROMPT="$PROMPT" CHILD_PROMPT="${CHILD_PROMPT:-$CHILD_PROMPT_DEFAULT}" OPENCODE_URL="$OPENCODE_URL" \
     OPENCODE_SERVER_USERNAME="$OPENCODE_SERVER_USERNAME" OPENCODE_SERVER_PASSWORD="$OPENCODE_SERVER_PASSWORD" \
     API_DEADLINE="$(( $(date +%s) + $(hook_deadline_rem) ))" python3 - <<'PYEOF'
 import json, os, subprocess, sys, time
@@ -709,7 +709,7 @@ created_ms = int(cands.get("created", 0)) * 1000
 base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
-ok = stale = fail = budget_skipped = 0
+ok = stale = fail = budget_skipped = dup = 0
 dir_cache = {}
 for s in cands.get("sessions", []):
     sid = s.get("id")
@@ -769,14 +769,74 @@ for s in cands.get("sessions", []):
     else:
         print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
         fail += 1
-print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d" % (ok, stale, fail, budget_skipped, dup))
+# Parented children: same direct prompt_async rationale as resume() and the
+# checkpoint fallback — the parent's background-task registry died with the
+# server process. Freshness guard uses the same created_ms baseline.
+child_prompt = os.environ.get("CHILD_PROMPT") or prompt
+cok = 0
+for c in cands.get("children", []):
+    sid = c.get("id")
+    if not sid:
+        continue
+    rem = budget_left()
+    if rem <= 0:
+        print("skip-budget %s (child; hook api budget exhausted)" % sid)
+        budget_skipped += 1
+        continue
+    max_time = str(max(1, min(5, int(rem))))
+    d = c.get("directory") or ""
+    if d and d not in dir_cache:
+        r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", auth,
+                            base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                           capture_output=True, text=True)
+        try:
+            dir_cache[d] = {x["id"]: x for x in json.loads(r.stdout or "[]")}
+        except ValueError:
+            dir_cache[d] = {}
+    cur = dir_cache.get(d, {}).get(sid) or {}
+    updated = cur.get("time", {}).get("updated") or 0
+    if updated and updated > created_ms:
+        print("skip-stale %s (child turn newer than db query)" % sid)
+        stale += 1
+        continue
+    rem2 = budget_left()
+    if rem2 <= 0:
+        print("skip-budget %s (child; hook api budget exhausted before prompt)" % sid)
+        budget_skipped += 1
+        continue
+    _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
+    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 180)
+    try:
+        _fresh = time.time() - os.path.getmtime(_marker) < _window
+    except OSError:
+        _fresh = False
+    if _fresh:
+        print("skip-dup %s (child resume already claimed this window)" % sid)
+        dup += 1
+        continue
+    with open(_marker, "w") as _mh:
+        _mh.write(str(time.time()))
+    body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
+    q = "?directory=" + quote(d, safe="") if d else ""
+    r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
+                        "-H", "Content-Type: application/json", "-d", body,
+                        base + "/session/" + sid + "/prompt_async" + q],
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        print("re-prompted-child %s  (%s)" % (sid, c.get("title")))
+        cok += 1
+    else:
+        print("FAILED %s: %s" % (sid, r.stderr.strip()), file=sys.stderr)
+        fail += 1
+print("summary re-prompted=%d skipped_stale=%d failed=%d budget_skipped=%d dup_skipped=%d children=%d" % (ok, stale, fail, budget_skipped, dup, cok))
 PYEOF
 )" >> "$HOOKS_LOG" 2>&1 || true
   # One-shot: consume the batch AFTER attempting every candidate, even on
   # partial failure — a second hook-resume must inject nothing.
   touch "$db_marker"
   rep="$(printf '%s\n' "$out" | sed -n 's/^summary re-prompted=\([0-9]*\) .*/\1/p' | tail -1)"
-  hook_log "db fallback $db_uuid done for $SERVICE_UNIT: ${rep:-0} re-prompted(s)"
+  child_rep="$(printf '%s\n' "$out" | sed -n 's/.* children=\([0-9]*\)$/\1/p' | tail -1)"
+  hook_log "db fallback $db_uuid done for $SERVICE_UNIT: ${rep:-0} re-prompted(s), ${child_rep:-0} child(ren)"
   journal_alert db_fallback "$SERVICE_UNIT" - "$db_uuid" "$n" "DB-fallback resume $SERVICE_UNIT: $n candidates"
   return 0
 }
