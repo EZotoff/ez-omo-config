@@ -55,9 +55,10 @@ the behavior you're trying to change.
 ## Long-running job monitoring (2026-09-18 lesson; rewritten 2026-09-28 after the unbound-probe audit; 2026-10-02 backoff made escalation-first + mechanical)
 
 **A turn-based agent has no clock. Ending your turn cancels every probe you announced.**
-Nothing re-kicks an idle session — no timer, no scheduler. "I'll check again in ~60s" as a
-parting sentence is a promise to do nothing. Monitoring a long-running batch (benchmarks,
-migrations, training, bulk operations) is therefore only legal in one of two forms:
+Nothing re-kicks an idle session by itself — except an armed trigger (forms 2–3 below).
+"I'll check again in ~60s" or "I'll check tomorrow" as a parting sentence is a promise
+to do nothing. Monitoring a long-running batch (benchmarks, migrations, training,
+bulk operations) is therefore only legal in one of three forms:
 
 1. **Hold the turn**: stay in-turn with an **escalating** probe schedule — NEVER repeat
 the same interval; every probe must wait longer than the last (first probe ~2 min into
@@ -74,6 +75,15 @@ notification genuinely wakes you. The watcher must emit tool activity at least e
 10–15 minutes (background sessions die on the ~30-minute inactivity window) and the
 watched job must be idempotent/re-dispatchable via a STATE file so a killed watcher can
 be relaunched losslessly.
+3. **Scheduled absolute-time wake (hours/days horizons)** — `scripts/session-wake.sh arm
+   --unit wake-<purpose>-<date>` with an absolute `--at`: a systemd transient timer POSTs a
+   synthetic wake prompt into the target session via `/session/:id/prompt_async`. Legal only
+   with (a) a durable-state file whose reconciliation instructions are embedded in the
+   prompt, (b) a `--precondition` file the fire re-checks (self-cancels if resolved), and
+   (c) a terminal-event obligation (`delivered|suppressed|cancelled|missed`) in
+   `~/.local/share/opencode/session-wakes/wakes.jsonl`. The woken agent reconciles from
+   durable state first, never from arming-turn memory. Transient timers drop on reboot —
+   reboot-critical wakes use an installed timer. Full contract: docs/rollout-protocol.md §10.
 
 What is ILLEGAL: ending the turn on "I'll probe/monitor/track" without a wake trigger.
 Fixed-interval polling is the second violation: if your last two probes waited the same

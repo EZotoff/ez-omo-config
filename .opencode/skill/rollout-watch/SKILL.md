@@ -51,6 +51,7 @@ the unit itself; findings surface via the rounds log and gate records.
 | Timeline correlation | for each produced artifact, grep the consumer's log/ledger for the corresponding event id within tolerance |
 | Ground-truth reconstruction | run the feature's real modules over a captured real input (bun/python import from the repo) — never trust the green test suite alone |
 | Human review | render outputs to the operator (paste rendered artifact in the final message, or screenshot for UI) — mandatory at presentation rounds |
+| Scheduled-session-wake firing | if an unlock path depends on a `session-wake.sh` unit, assert a terminal event (`delivered\|fire-failed\|suppressed-precondition\|cancelled\|missed`) in `~/.local/share/opencode/session-wakes/wakes.jsonl`; a wake past its `--at` with NO terminal event fails the gate (contract: docs/rollout-protocol.md §10) |
 
 ## 3. Gates as config flips (OMO pattern)
 

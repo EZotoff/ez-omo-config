@@ -158,3 +158,43 @@ decision to re-earn or roll back.
   (journalctl, ledger jq, status files, session DB), how gates flip configs,
   and the restart-with-continuation interplay. The base must remain usable
   without any of it.
+
+## 10. Scheduled session wakes (long-horizon follow-ups)
+
+Turn-based agents cannot self-wake hours or days later: background watchers
+die on the 30-min inactivity window and ending a turn on a promise is
+forbidden. The legal mechanism is `scripts/session-wake.sh` — a systemd
+transient timer that POSTs a synthetic wake prompt into a target session via
+`/session/:id/prompt_async` at an absolute time. Design (Oracle, 2026-10-16):
+DISJOINT from the OMO wake-journal state machine — shared pattern, not shared
+state; the journal's 72%-FP history is the anti-pattern this contract exists
+to avoid.
+
+Contract:
+1. **Durable state first.** Arm only with a state file whose reconciliation
+   instructions are embedded in the prompt; the woken agent reconciles from
+   it, never from arming-turn memory.
+2. **Unit naming:** `--unit wake-<purpose>-<YYYYMMDD>` (greppable, sweepable).
+3. **Idempotency:** fire takes a noclobber claim (`.claim-<unit>`) BEFORE the
+   POST; second fire logs `dup-suppressed` and exits 0. One live unit per
+   purpose; re-arm requires `cancel` first.
+4. **Precondition self-cancel:** `--precondition FILE` — if the file exists at
+   fire time, the condition already resolved: `suppressed-precondition`, no POST.
+5. **Prompt content:** self-identifying header (`WAKE <purpose> — scheduled <at>`),
+   exact action, state-file digest; synthetic part; no secrets.
+6. **Terminal-event obligation:** every armed wake ends in exactly one audit
+   event in `wakes.jsonl`: `delivered | fire-failed | suppressed-precondition |
+   cancelled | missed` (sweep-asserted). `armed` with no terminal event >24h
+   past `at` is an incident, not silence.
+7. **Cancellation:** `session-wake.sh cancel --unit …` (stops timer+service AND
+   stamps the audit log — bare `systemctl stop` is a contract violation).
+8. **Absolute times with explicit timezone**; audit stamps carry `%z`.
+9. **Reboot class declared at arm:** `transient` (default; reboot before fire
+   drops the timer, the post-boot sweep stamps `missed`) vs reboot-critical
+   wakes, which need an installed timer.
+10. **Precision accounting:** `(suppressed+cancelled)/armed` is the FP rate;
+    report it with any wake-using rollout; target <10%.
+
+Rollout interplay: if an unlock path depends on a scheduled wake, register the
+`wake-*` unit as a ladder evidence source (assert a terminal event in
+`wakes.jsonl`); a wake past `at` with no terminal event fails the gate.
