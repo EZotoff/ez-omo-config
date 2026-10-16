@@ -388,7 +388,41 @@ def budget_left():
 snap = json.load(open(os.environ["SESSIONS_FILE"]))
 base = os.environ["OPENCODE_URL"]
 auth = [os.environ["OPENCODE_SERVER_USERNAME"], os.environ["OPENCODE_SERVER_PASSWORD"]]
-ok = fail = budget_skipped = dup = 0
+from urllib.parse import quote
+ok = fail = budget_skipped = dup = stale = 0
+dir_cache = {}
+_statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
+_window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
+
+def claim_marker(marker, window):
+    # Atomic claim (T3): O_CREAT|O_EXCL closes the check-then-write race between
+    # simultaneous hook-resume runs (both servers share this STATE_DIR and restart
+    # together on the 6h recycle). Stale markers are reclaimed with an immediate
+    # mtime re-check before the unlink (TOCTOU: never unlink a marker that turned
+    # fresh under us — two racers must not delete each other's fresh claim).
+    for _ in range(2):
+        try:
+            fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(marker) < window:
+                    return False
+            except OSError:
+                continue  # vanished between checks; retry the claim
+            try:
+                if time.time() - os.path.getmtime(marker) < window:
+                    return False  # turned fresh between the two checks
+            except OSError:
+                continue  # gone; retry the claim
+            try:
+                os.unlink(marker)
+            except OSError:
+                return False  # someone else reclaimed it
+            continue
+        with os.fdopen(fd, "w") as mh:
+            mh.write(str(time.time()))
+        return True
+    return False
 for s in snap.get("sessions", []):
     rem = budget_left()
     if rem <= 0:
@@ -401,8 +435,8 @@ for s in snap.get("sessions", []):
     text = (os.environ.get("WAKE_PROMPT") if s.get("status") == "wake-pending" else os.environ["PROMPT"])
     body = json.dumps({"parts": [{"type": "text", "text": text, "synthetic": True}]})
     q = ""
+    q = ""
     if s.get("directory"):
-        from urllib.parse import quote
         q = "?directory=" + quote(s["directory"], safe="")
     cmd = ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
            "-H", "Content-Type: application/json", "-d", body,
@@ -410,22 +444,36 @@ for s in snap.get("sessions", []):
     # Retry rc=7/timeout every 2s up to RESUME_RETRY_SECONDS (default 60s,
     # capped by the hook API budget): a single knock on a still-starting
     # server must not silently drop the resume (2026-09-30 :3030 give-up).
+    # Freshness guard (T2): a top-level session that progressed after capture
+    # completed its turn during the restart gap — do not re-prompt it. Same
+    # semantics the children/checkpoint/db_fallback paths already enforce;
+    # wake-pending entries are EXCLUDED (no capture-time turn evidence — their
+    # guard is the union_wakes parent-silence predicate). Fail-open on lookup
+    # failure: proceed as before rather than risk a dropped resume.
+    d = s.get("directory") or ""
+    if d and s.get("status") != "wake-pending":
+        if d not in dir_cache:
+            rl = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", max_time, "-u", f"{auth[0]}:{auth[1]}",
+                                 base + "/session?directory=" + quote(d, safe="") + "&limit=100"],
+                                capture_output=True, text=True)
+            try:
+                dir_cache[d] = {x["id"]: x for x in json.loads(rl.stdout or "[]")}
+            except ValueError:
+                dir_cache[d] = {}
+        cur = dir_cache.get(d, {}).get(s["id"]) or {}
+        updated = cur.get("time", {}).get("updated") or 0
+        captured = s.get("captured_at_ms") or 0
+        if captured and updated and updated > captured:
+            print("skip-stale %s (turn newer than capture)" % s["id"])
+            stale += 1
+            continue
     # Dedup guard: a fresh window marker means another pass/run/retry already
     # claimed this session's resume within the window (multi-injection fix).
-    _statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
     marker = os.path.join(_statedir, ".resumed-win-" + s["id"])
-    window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
-    def dedup_fresh():
-        try:
-            return time.time() - os.path.getmtime(marker) < window
-        except OSError:
-            return False
-    if dedup_fresh():
+    if not claim_marker(marker, _window):
         print("skip-dup %s (resume already claimed this window)" % s["id"])
         dup += 1
         continue
-    with open(marker, "w") as mh:
-        mh.write(str(time.time()))
     t_post = time.time()
     retry_secs = float(os.environ.get("RESUME_RETRY_SECONDS") or 60)
     while True:
@@ -454,11 +502,8 @@ for s in snap.get("sessions", []):
 # Same dedup/retry/budget machinery as top-level entries, plus a MANDATORY
 # freshness guard: a child that progressed after capture may already have
 # been collected by its parent and must not be re-prompted.
-from urllib.parse import quote
-stale = 0
-dir_cache = {}
-_statedir = os.environ.get("STATE_DIR") or os.path.join(os.path.expanduser("~"), ".local/share/opencode/restart-continuations")
-_window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
+# (quote/stale/dir_cache/_statedir/_window initialized above the top-level loop;
+ # dir_cache is shared with the children loop and the T2 top-level guard.)
 child_prompt = os.environ.get("CHILD_PROMPT") or os.environ["PROMPT"]
 for c in snap.get("children", []):
     sid = c.get("id")
@@ -488,16 +533,10 @@ for c in snap.get("children", []):
             stale += 1
             continue
     marker = os.path.join(_statedir, ".resumed-win-" + sid)
-    try:
-        _fresh = time.time() - os.path.getmtime(marker) < _window
-    except OSError:
-        _fresh = False
-    if _fresh:
+    if not claim_marker(marker, _window):
         print("skip-dup %s (child resume already claimed this window)" % sid)
         dup += 1
         continue
-    with open(marker, "w") as mh:
-        mh.write(str(time.time()))
     body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     cmd = ["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem)))), "-u", f"{auth[0]}:{auth[1]}", "-X", "POST",
@@ -735,6 +774,35 @@ prompt = os.environ["PROMPT"]
 wake_prompt = os.environ.get("WAKE_PROMPT") or prompt
 ok = stale = fail = budget_skipped = dup = 0
 dir_cache = {}
+
+def claim_marker(marker, window):
+    # Atomic claim (T3): O_CREAT|O_EXCL closes the check-then-write race between
+    # simultaneous hook-resume runs (both servers share this STATE_DIR). Stale
+    # markers are reclaimed with an immediate mtime re-check before the unlink
+    # (TOCTOU: never unlink a marker that turned fresh under us).
+    for _ in range(2):
+        try:
+            fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(marker) < window:
+                    return False
+            except OSError:
+                continue
+            try:
+                if time.time() - os.path.getmtime(marker) < window:
+                    return False
+            except OSError:
+                continue
+            try:
+                os.unlink(marker)
+            except OSError:
+                return False
+            continue
+        with os.fdopen(fd, "w") as mh:
+            mh.write(str(time.time()))
+        return True
+    return False
 for s in cands.get("sessions", []):
     sid = s.get("id")
     if not sid:
@@ -768,19 +836,11 @@ for s in cands.get("sessions", []):
         print("skip-budget %s (hook api budget exhausted before prompt)" % sid)
         budget_skipped += 1
         continue
-    # Cross-run dedup guard (2026-10-02 multi-injection incident)
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
-    try:
-        _fresh = time.time() - os.path.getmtime(_marker) < _window
-    except OSError:
-        _fresh = False
-    if _fresh:
+    if not claim_marker(_marker, float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)):
         print("skip-dup %s (resume already claimed this window)" % sid)
         dup += 1
         continue
-    with open(_marker, "w") as _mh:
-        _mh.write(str(time.time()))
     _text = wake_prompt if s.get("status") == "wake-pending" else prompt
     body = json.dumps({"parts": [{"type": "text", "text": _text, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
@@ -831,17 +891,10 @@ for c in cands.get("children", []):
         budget_skipped += 1
         continue
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
-    try:
-        _fresh = time.time() - os.path.getmtime(_marker) < _window
-    except OSError:
-        _fresh = False
-    if _fresh:
+    if not claim_marker(_marker, float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)):
         print("skip-dup %s (child resume already claimed this window)" % sid)
         dup += 1
         continue
-    with open(_marker, "w") as _mh:
-        _mh.write(str(time.time()))
     body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
@@ -878,7 +931,7 @@ union_wakes() {
   local src="$1" out="$2" dirs d
   dirs="$(discover_dirs)" || dirs=""
   SRC="$src" OUT="$out" DIRS="$dirs" python3 - <<'PYEOF'
-import glob, json, os, time
+import glob, json, os, sqlite3, time
 snap = json.load(open(os.environ['SRC'])) if os.path.getsize(os.environ['SRC']) else {"sessions": []}
 have = {s['id'] for s in snap.get('sessions', [])} | {c['id'] for c in snap.get('children', [])}
 nonterminal = {'queued', 'dispatching', 'dispatched-awaiting-output'}
@@ -908,6 +961,20 @@ def age_basis(w):
             cands.append(v / 1000.0)
     return max(cands) if cands else None
 
+_db_con = None
+def session_time_updated(sid):
+    # Read-only shared-DB lookup of the parent session's last update (MS epoch).
+    # None = unknown/DB failure — the caller FAILS OPEN (keeps the wake): a dropped
+    # wake strands compute; a redundant one costs one turn (wake-redundancy asymmetry).
+    global _db_con
+    try:
+        if _db_con is None:
+            db = os.environ.get('CONTINUATION_DB_PATH') or os.path.expanduser('~/.local/share/opencode/opencode.db')
+            _db_con = sqlite3.connect('file:' + db + '?mode=ro', uri=True)
+        row = _db_con.execute('select time_updated from session where id = ?', (sid,)).fetchone()
+        return row[0] if row else None
+    except Exception:
+        return None
 now = time.time()
 best = {}  # sessionID -> (age_basis, wake_file, wake_dict, dir); newest wins
 for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
@@ -924,6 +991,15 @@ for d in [x for x in os.environ.get('DIRS', '').split('\n') if x]:
             continue
         if now - ab >= MAX_WAKE_AGE_SECONDS:
             continue
+        # Parent-silence predicate (T1): dispatched-awaiting-output means the
+        # notification WAS dispatched — re-kick only when the parent shows no turn
+        # activity since the wake's dispatch. UNITS (Momus R1 critical): ab is
+        # SECONDS (age_basis converts ms->s); session.time_updated is MS epoch,
+        # hence ab * 1000 — a bare comparison would drop nearly all wakes.
+        if w.get('state') == 'dispatched-awaiting-output':
+            tu = session_time_updated(sid)
+            if tu is not None and tu >= ab * 1000:
+                continue
         prev = best.get(sid)
         if prev is None or ab > prev[0]:
             best[sid] = (ab, wf, w, d)
@@ -1064,9 +1140,37 @@ base = os.environ["OPENCODE_URL"]
 auth = os.environ["OPENCODE_SERVER_USERNAME"] + ":" + os.environ["OPENCODE_SERVER_PASSWORD"]
 prompt = os.environ["PROMPT"]
 wake_prompt = os.environ.get("WAKE_PROMPT") or prompt
-ok = stale = fail = budget_skipped = 0
+ok = stale = fail = budget_skipped = dup = 0
 dir_cache = {}
-dup = 0
+
+def claim_marker(marker, window):
+    # Atomic claim (T3): O_CREAT|O_EXCL closes the check-then-write race between
+    # simultaneous hook-resume runs (both servers share this STATE_DIR). Stale
+    # markers are reclaimed with an immediate mtime re-check before the unlink
+    # (TOCTOU: never unlink a marker that turned fresh under us).
+    for _ in range(2):
+        try:
+            fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(marker) < window:
+                    return False
+            except OSError:
+                continue
+            try:
+                if time.time() - os.path.getmtime(marker) < window:
+                    return False
+            except OSError:
+                continue
+            try:
+                os.unlink(marker)
+            except OSError:
+                return False
+            continue
+        with os.fdopen(fd, "w") as mh:
+            mh.write(str(time.time()))
+        return True
+    return False
 for s in ckpt.get("sessions", []):
     sid = s.get("id")
     if not sid:
@@ -1100,19 +1204,11 @@ for s in ckpt.get("sessions", []):
         print("skip-budget %s (hook api budget exhausted before prompt)" % sid)
         budget_skipped += 1
         continue
-    # Cross-run dedup guard (2026-10-02 multi-injection incident)
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
-    try:
-        _fresh = time.time() - os.path.getmtime(_marker) < _window
-    except OSError:
-        _fresh = False
-    if _fresh:
+    if not claim_marker(_marker, float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)):
         print("skip-dup %s (resume already claimed this window)" % sid)
         dup += 1
         continue
-    with open(_marker, "w") as _mh:
-        _mh.write(str(time.time()))
     _text = wake_prompt if s.get("status") == "wake-pending" else prompt
     body = json.dumps({"parts": [{"type": "text", "text": _text, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
@@ -1162,17 +1258,10 @@ for c in ckpt.get("children", []):
         budget_skipped += 1
         continue
     _marker = os.path.join(os.environ.get("STATE_DIR", ""), ".resumed-win-" + sid)
-    _window = float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)
-    try:
-        _fresh = time.time() - os.path.getmtime(_marker) < _window
-    except OSError:
-        _fresh = False
-    if _fresh:
+    if not claim_marker(_marker, float(os.environ.get("RESUME_DEDUP_WINDOW") or 1800)):
         print("skip-dup %s (child resume already claimed this window)" % sid)
         dup += 1
         continue
-    with open(_marker, "w") as _mh:
-        _mh.write(str(time.time()))
     body = json.dumps({"parts": [{"type": "text", "text": child_prompt, "synthetic": True}]})
     q = "?directory=" + quote(d, safe="") if d else ""
     r = subprocess.run(["curl", "-sS", "-f", "--connect-timeout", "2", "--max-time", str(max(1, min(10, int(rem2)))), "-u", auth, "-X", "POST",
