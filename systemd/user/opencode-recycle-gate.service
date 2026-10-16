@@ -1,0 +1,13 @@
+# Quiesce-gated recycle gate (wave A, plan .omo/plans/continuation-fp-wave-a.md T4).
+# OBSERVE=1 is the deployment default: the gate logs decisions only. Flipping to
+# ENFORCE (OBSERVE=0) is an idle-window-queue decision gated on >=48h clean observe
+# logs with >=1 would-fire event at zero busy sessions (see plan unlock gate).
+[Unit]
+Description=OpenCode Recycle Gate — quiesce-gated memory recycle (observe mode)
+
+[Service]
+Type=oneshot
+Environment=OBSERVE=1
+ExecStart=%h/ez-omo-config/scripts/opencode-recycle-gate.sh
+# Rollout ladder (docs/rollout-protocol.md) is armed at OBSERVE=0 unlock time via
+# scripts/rollout-monitor.py — not at observe-mode deployment.
