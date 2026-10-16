@@ -1,16 +1,28 @@
-# marketplace/agensi — Export Bundles for the Agensi.io Skill Marketplace
+# marketplace/agensi — Agensi.io Skill Marketplace Pilot
 
-Upload-ready SKILL.md packages derived from repo skills, de-personalized for
-public sale. The live skills in `~/.config/opencode/skills/` remain the
-canonical internal versions — these copies are **derivatives**, edited for
-portability; do not sync mechanically in either direction.
+Listing package for two skills prepared for the Agensi.io marketplace
+(2026-10-16). Only `LISTINGS.md` (listing copy, pricing, upload steps, pilot
+kill criteria) is tracked in this public repo.
 
-| Artifact | Source | Deltas vs source |
-|---|---|---|
-| `debate/SKILL.md` | `~/.config/opencode/skills/debate/SKILL.md` | Replaced OMO dispatch (`task(category=...)`, `background_output`) with agent-agnostic consultant dispatch; `.sisyphus/debates/` → `./debates/`; judge-category table → role personas; removed reader-report chaining and legacy-migration notes. |
-| `typographic-writing/SKILL.md` + `checks/` | `~/.config/opencode/skills/typographic-writing/` | Removed cross-references to other stack skills (reader-report, fresh-explain, web-typography, dynamic-typography); generalized "Layer contract" into "Composition". |
-| `*-skill.zip` / `*.zip` | the dirs here | Submission artifacts for Agensi review. |
-| `LISTINGS.md` | — | Listing copy, tags, pricing, upload steps, pilot kill criteria. |
+**The skill sources and upload zips are deliberately NOT in this public
+repo** — the paid listing depends on exclusivity, and Agensi rejects
+repackaged public skills. They live in the machine-local, untracked
+directory `~/.local/share/opencode/agensi-bundles/`:
+
+- `debate/SKILL.md` + `debate-skill.zip` — agent-agnostic rewrite of
+  `~/.config/opencode/skills/debate/` (OMO dispatch mechanics replaced
+  with portable consultant-dispatch rules; judge-category table → role
+  personas)
+- `typographic-writing/` + `typographic-writing.zip` — de-personalized
+  copy of `~/.config/opencode/skills/typographic-writing/` including the
+  standalone `checks/check-prose.mjs` linter
+
+The live skills in `~/.config/opencode/skills/` remain canonical; the
+bundle copies are edited derivatives, do not sync mechanically in either
+direction.
+
+If the machine-local bundles are lost, they can be reconstructed from the
+live skills plus the deltas recorded above — no other remote copy exists.
 
 Not MANIFEST-tracked: these are export products, not installed config
 artifacts (no install targets, no live symlinks).
