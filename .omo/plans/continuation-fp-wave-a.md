@@ -159,3 +159,13 @@ F#1: APPROVE — bash -n both scripts exit 0; py_compile fp-report exit 0.
 F#2: APPROVE — run_all.sh after: Pass 61/Fail 2/Ack 2 (same 2 pre-existing fails as baseline); regression corpus 50 passed/0 failed (baseline 47/0); kill-tests 57 proved/0 broken; 3 new pairs green both directions.
 F#3: APPROVE — continuation-fp-report.py --days 7 reproduces baseline (wake 4.2%, maintenance 70.2%, total 27.7% precision) before deploy.
 F#4: APPROVE — diff limited to plan files; greps: `ab * 1000` predicate ×2, `wake-pending` exclusion in T2 condition, captured_at_ms guard in resume() top-level only.
+
+
+## Cross-reference: task-tool-side nudge (added 2026-10-16)
+
+The task_list concurrency nudge ("Maximize parallel execution…") is TASK-TOOL-side
+and is owned by `.omo/plans/task-list-owned-views.md` (Phase 1, T2) — not by this
+plan. This plan owns the continuation wake/maintenance/child nudge decider only;
+the plans share measurement vocabulary but no files. Joint measurement point:
+this plan's post-deploy residual-class table — if residuals implicate a
+task-tool/reminder class, the owned-views plan's nudge removal is the complement.
