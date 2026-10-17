@@ -168,4 +168,10 @@ and is owned by `.omo/plans/task-list-owned-views.md` (Phase 1, T2) — not by t
 plan. This plan owns the continuation wake/maintenance/child nudge decider only;
 the plans share measurement vocabulary but no files. Joint measurement point:
 this plan's post-deploy residual-class table — if residuals implicate a
-task-tool/reminder class, the owned-views plan's nudge removal is the complement.
+task-tool/reminder class, the owned-views plan's nudge removal is the complement.Post-deploy measurement (2026-10-17 ~15:30, via scheduled wake wake-fp-measure-20261017, delivered 15:15:05+0200 attempt 1):
+- 6 post-fix cycles verified (interactive 00:46/06:46/12:46, headless 02:32/08:32/14:32 — anchor moved from 02:31/08:31/14:31 after the Oct-16 18:46 restart; wake prompt's sanity-check instruction caught this).
+- hook-resume ran at every cycle; `union: 0 wake-pending session(s) added` at every cycle (was 5-6/restart); resumed=0 everywhere; failed=0 everywhere.
+- continuation-fp-report.py --days 0.6: 0 nudges, 0 FP in real projects (only 2 session-learning analyst nudges, excluded class). Window earliest-sample sanity check done.
+- VERDICT: GATE PASS — wake class eliminated at source (0 nudges; vacuous precision pass), total FP 0% <= 25%. No residual pointing at the OMO consumption leak from the restart channel → option-2 drill not indicted; ledger-B optional endgame, not forced.
+- Idle-window queue unblocked: recycle-gate timer enable + daemon-reload (RuntimeMaxSec=86400) cleared to proceed.
+- Incidental: chronic checkpoint rc=7 noise vs :3040 (bench server unreachable or analyst-workdir unknown to it) — separate track, flagged to operator.
