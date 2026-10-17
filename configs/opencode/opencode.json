@@ -580,7 +580,7 @@
       },
       "models": {
         "deepseek-flash": {
-          "name": "DeepSeek V4.1 Flash",
+          "name": "DeepSeek V4.1 Flash 1017",
           "reasoning": true,
           "attachment": true,
           "interleaved": {
@@ -621,8 +621,6 @@
     "opencode-go": {
       "whitelist": [
         "minimax-m3",
-        "deepseek-v4-flash",
-        "deepseek-v4-flash-vision-exp",
         "deepseek-v4.1-flash",
         "qwen3.8-flash",
         "qwen3.8-max"
@@ -803,7 +801,7 @@
       },
       "models": {
         "deepseek-v4.1-flash": {
-          "name": "DeepSeek V4.1 Flash (Ollama Cloud)",
+          "name": "DeepSeek V4.1 Flash 1017 (Ollama Cloud)",
           "reasoning": true,
           "interleaved": {
             "field": "reasoning"
