@@ -48,9 +48,11 @@ All three must hold for Phase 1 acceptance:
 
 - **VC-a (adjacent regression):** a session's own create → list → update →
   complete flow behaves identically to pre-fix: same status transitions, same
-  blockedBy unresolved-filtering, same todo-sync. New summary fields are
-  additive only. Proof: existing `task-*.test.ts` suite green plus a new
-  within-scope regression test asserting field-level output compat.
+  blockedBy unresolved-filtering, same todo-sync. The only permitted output
+  deltas are the new additive fields (`createdAt`/`updatedAt`; `holders` after
+  a first in_progress stamp; `holder` in scope=all rows). Proof: existing
+  `task-*.test.ts` suite green plus a new within-scope regression test
+  asserting field-level output compat.
 - **VC-b (conflation RED→GREEN):** a test reproducing the actual confusion —
   two sessions sharing one taskDir; session A creates a task; session B's
   default `task_list` view. Pre-fix this test FAILS (B sees A's task as its
@@ -72,8 +74,44 @@ All three must hold for Phase 1 acceptance:
   excluded from default views, listed in `scope=all` as reclamation candidates.
 - **Phase 3 — soft mutation guard.** GATED on Phase 2 (or on a live incident
   showing agents still stomping live-owner tasks). Scope: `task_update` by a
-  non-owner on a task whose owner session is still alive returns a provenance
-  warning requiring explicit re-confirm; dead-owner tasks freely claimable.
+  non-holder on a task whose CURRENT holder (last `holders` element per
+  Amendment 1; falls back to `threadID` for pre-amendment tasks) is still
+  alive returns a provenance warning requiring explicit re-confirm;
+  dead-holder tasks freely claimable. `owner` integration, if ever wanted,
+  is a separate amendment (condition 3).
+
+## Amendment 1 — holder history (2026-10-16, operator-approved)
+
+Discovered while detailing the plan: an `in_progress` task carries no record
+of which session is currently holding it — only the creating session
+(`threadID`). Operator approved Option 1: a first-class, append-only holder
+history on the task object (never cleared on complete). Conditions folded in:
+
+1. **Layer (condition 4):** the delta lands ONLY in the OMO fork task store
+   (`T-*.json` objects read by `task_list`/`task_get`). The OpenCode Todo API
+   projection is untouched — it is a per-session display view with no
+   multi-session concept and cannot represent holders.
+2. **Transition semantics (condition 1):** any `task_update` whose resulting
+   status is `in_progress` appends `context.sessionID` to `holders` iff the
+   last element differs (fresh claim, re-claim after pending, and mid-flight
+   handoff append; consecutive same-session updates collapse). `holders` is
+   NEVER cleared — completed and deleted tasks retain the full sequence.
+   Current holder = last element while status is `in_progress`.
+3. **Conflict resolution (condition 1):** writes already serialize on the
+   per-list `.lock` (`acquireLockWithRetry`), so the race is semantic, not
+   mechanical. A second session's `in_progress` stamp on a task already
+   `in_progress` under a DIFFERENT holder is REJECTED with
+   `{error: "task_in_progress", holder}` — silent overwrite would re-create
+   the grab-a-stranger's-task bug this plan fixes. Deliberate takeover
+   requires explicit `force: true` on `task_update`, which appends and
+   proceeds (auditable in the sequence). Same-session re-stamp is a no-op.
+4. **Additivity proven (condition 2):** pre-fix task files without `holders`
+   parse and behave identically (T1 tests); `holders` is optional-presence —
+   never required, never materialized on tasks that were never held.
+5. **`owner` untouched (condition 3):** no amendment code path writes
+   `owner`. Per-entry hold timestamps were considered and deferred
+   (`updatedAt` granularity is not per-hold); extending `holders` to objects
+   later is a backward-compatible schema widening under `.strict()`.
 
 ## Phase 1 — detailed tasks
 
@@ -82,17 +120,39 @@ Branch off the release tag matching the live installed runtime (resolve at
 start-work: version in `configs/oh-my-openagent/oh-my-openagent.json` vs
 `~/.opencode` install; currently v4.19.2 per AGENTS.md — verify, don't assume).
 
-### T1 — schema: timestamps + list scope input
+### T1 — schema: timestamps, holder history, list scope input
 - `packages/omo-opencode/src/tools/task/types.ts`:
   - `TaskObjectSchema`: add `createdAt: z.string().optional()` and
     `updatedAt: z.string().optional()` (ISO-8601). `.strict()` + optional keeps
     existing on-disk task files parsing unchanged (VC-a).
+  - `TaskObjectSchema`: add `holders: z.array(z.string()).optional()` —
+    append-only sequence of holding sessions in hold order (Amendment 1).
   - `TaskListInputSchema`: add `scope: z.enum(["mine", "all"]).optional()`
     (default `"mine"` applied in the tool, not the schema, so old callers are
     unaffected).
-- `task-create.ts`: stamp `createdAt`/`updatedAt` = now on create.
-- `task-update.ts`: refresh `updatedAt` on any non-noop write.
-- Tests: schema round-trip with and without timestamps (old files parse).
+  - `TaskUpdateInputSchema`: add `force: z.boolean().optional()` — explicit
+    takeover flag for the task_in_progress rejection path (Amendment 1 §3).
+- `task-create.ts`: stamp `createdAt`/`updatedAt` = now on create. Do NOT
+  initialize `holders` (optional-presence: tasks never held carry no field).
+- `task-update.ts`:
+  - refresh `updatedAt` on any non-noop write.
+  - holder stamping per Amendment 1 §2: on resulting status `in_progress`,
+    append `context.sessionID` to `holders` iff the last element differs.
+  - conflict gate per Amendment 1 §3: resulting `in_progress` + existing
+    different last-holder + no `force` → return
+    `{error: "task_in_progress", holder}` without writing; `force: true`
+    appends and proceeds.
+- Tests (T1-level):
+  - schema round-trip with and without timestamps (old files parse).
+  - old-format compat: an on-disk task WITHOUT `holders` runs the full
+    create→update→complete lifecycle identically; `holders` stays absent
+    until the first `in_progress` stamp (condition 2: additive proven,
+    optional presence).
+  - stamp sequence: fresh claim appends; consecutive same-session updates do
+    NOT duplicate; re-claim after pending appends; `force` handoff appends;
+    completed tasks retain the sequence.
+  - conflict gate: second session's `in_progress` without `force` rejected
+    with the holder named; with `force` succeeds and the sequence shows both.
 
 ### T2 — task_list: default scope=mine, provenance in scope=all
 - `packages/omo-opencode/src/tools/task/task-list.ts`:
@@ -106,7 +166,8 @@ start-work: version in `configs/oh-my-openagent/oh-my-openagent.json` vs
     dependency rows (marked `externalDependency: true`) — the one cross-view
     join that prevents real blindness.
   - `scope=all`: full board; each row gains `owner`, `threadID` (short form,
-    first 8 chars), `ageDays`, `updatedAt`. Concurrency nudge
+    first 8 chars), `ageDays`, `updatedAt`, and `holder` (last `holders`
+    element, shown while status is `in_progress`). Concurrency nudge
     ("Maximize parallel execution…") moves here — it is TRUE for an
     orchestrator viewing the board and removed from the default view
     (satisfies VC-c's target).
@@ -118,7 +179,7 @@ start-work: version in `configs/oh-my-openagent/oh-my-openagent.json` vs
   - VC-b conflation test (two sessions, one taskDir) — written FIRST, red
     before T2 lands, green after.
   - external-dependency join test.
-  - scope=all provenance fields test.
+  - scope=all provenance fields test (including `holder` on held tasks).
   - unowned/legacy task visibility in `mine`.
 
 ### T3 — task_create: auto-ownership sugar
@@ -131,8 +192,10 @@ start-work: version in `configs/oh-my-openagent/oh-my-openagent.json` vs
 
 ### T4 — adjacent-surface regression proof (VC-a)
 - New test: own-task lifecycle (create → list(mine) → update → complete →
-  list) asserting every pre-fix field keeps its value and transitions; run
-  full `task-*.test.ts`; also run the claude-tasks storage tests.
+  list) asserting every pre-fix field keeps its value and transitions, and
+  that the only new state is the expected additive one (`holders` = [self]
+  after the in_progress stamp, retained after complete); run full
+  `task-*.test.ts`; also run the claude-tasks storage tests.
 
 ### T5 — deploy + live verification (VC-c)
 - Build/install through the EXISTING update-to-latest queue discipline — not
@@ -164,6 +227,8 @@ start-work: version in `configs/oh-my-openagent/oh-my-openagent.json` vs
 - No hard mutation permissions (Phase 3 is soft and gated).
 - No change to `team_task_*` (already team-run-scoped) or to subagent
   delegation task plumbing.
+- Holder history lives only in the OMO fork task store; the OpenCode Todo API
+  projection is untouched (Amendment 1 §1).
 
 ## Execution Record
 
