@@ -18,6 +18,7 @@
     "./agent-default-guard.mjs",
     "./live-config-guard.mjs",
     "./promise-catcher.mjs",
+    "./fallback-watch.mjs",
     "opencode-antigravity-auth@1.6.0",
     "opencode-openai-codex-auth",
     "opencode-anthropic-auth",
